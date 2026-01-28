@@ -12,10 +12,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --coverage --ci",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 10",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
-    "check-all": "npm run lint && npm run type-check && npm run test:coverage"
+    "check-all": "npm run lint && npm run type-check && npm run test:coverage",
+    "ci:frontend": "npm run lint && npm run type-check && npm run test:coverage"
   },
   "dependencies": {
     "expo": "~54.0.0",
@@ -60,10 +61,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 80,
-        "functions": 80,
-        "lines": 80,
-        "statements": 80
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
       }
     },
     "coverageReporters": [

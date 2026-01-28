@@ -69,6 +69,12 @@ Open browser and visit:
 
 **Testing:**
 - Frontend: `npm test`
+- Frontend (CI mode): `npm run test:ci`
+- Frontend (all checks): `npm run ci:frontend` or `npm run check-all`
+- Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
+
+**Pre-commit checks (run before pushing):**
+- Frontend: `npm run ci:frontend` (runs lint, type-check, and tests)
 - Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
 
 **Running:**
