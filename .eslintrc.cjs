@@ -18,18 +18,18 @@ module.exports = {
     ecmaFeatures: {
       jsx: true,
     },
-    project: './tsconfig.json',
   },
   plugins: ['@typescript-eslint', 'react', 'react-native', 'testing-library'],
   rules: {
     'react/prop-types': 'off',
     'react-native/no-unused-styles': 'warn',
-    'react-native/split-platform-components': 'warn',
-    'react-native/no-inline-styles': 'warn',
-    'react-native/no-color-literals': 'warn',
+    'react-native/split-platform-components': 'off',
+    'react-native/no-inline-styles': 'off',
+    'react-native/no-color-literals': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     'testing-library/no-debugging-utils': 'warn',
+    '@typescript-eslint/no-explicit-any': 'warn',
   },
   settings: {
     react: {

@@ -26,25 +26,25 @@ export default function App() {
         </View>
 
         <View style={styles.grid}>
-          <View style={styles.gridItem}>
+          <View style={[styles.gridItem, styles.gridItemLeft]}>
             <Text style={styles.gridTitle}>Development</Text>
             <Text style={styles.code}>npm start</Text>
             <Text style={styles.gridText}>Start Expo dev server</Text>
           </View>
 
-          <View style={styles.gridItem}>
+          <View style={[styles.gridItem, styles.gridItemRight]}>
             <Text style={styles.gridTitle}>Testing</Text>
             <Text style={styles.code}>npm test</Text>
             <Text style={styles.gridText}>Run tests with coverage</Text>
           </View>
 
-          <View style={styles.gridItem}>
+          <View style={[styles.gridItem, styles.gridItemLeft]}>
             <Text style={styles.gridTitle}>iOS</Text>
             <Text style={styles.code}>npm run ios</Text>
             <Text style={styles.gridText}>Run on iOS simulator</Text>
           </View>
 
-          <View style={styles.gridItem}>
+          <View style={[styles.gridItem, styles.gridItemRight]}>
             <Text style={styles.gridTitle}>Android</Text>
             <Text style={styles.code}>npm run android</Text>
             <Text style={styles.gridText}>Run on Android emulator</Text>
@@ -111,7 +111,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
   },
   gridItem: {
     backgroundColor: '#ffffff',
@@ -123,6 +122,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 12,
+  },
+  gridItemLeft: {
+    marginRight: '2%',
+  },
+  gridItemRight: {
+    marginLeft: '2%',
   },
   gridTitle: {
     fontSize: 16,

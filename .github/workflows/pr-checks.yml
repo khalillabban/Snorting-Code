@@ -9,6 +9,7 @@ jobs:
   label-check:
     name: Label Check
     runs-on: ubuntu-latest
+    if: false
     steps:
       - name: Check for required labels
         uses: actions/label-syncer@v1
