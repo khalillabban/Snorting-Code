@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Snorting Code",
+    "slug": "snorting-code",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snortingcode.app"
+    },
+    "android": {
+      "package": "com.snortingcode.app"
+    },
+    "scheme": "snorting-code"
+  }
+}

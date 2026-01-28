@@ -35,14 +35,13 @@ jobs:
           echo "Total changes: $TOTAL lines"
           
           if [ $TOTAL -gt 1000 ]; then
-            echo "⚠️ Warning: PR is large ($TOTAL lines changed). Consider breaking it into smaller PRs."
+            echo "Warning: PR is large ($TOTAL lines changed). Consider breaking it into smaller PRs."
           fi
 
-  # Preview deployment (optional - requires deployment setup)
-  preview:
-    name: Preview Deployment
+  # Quick frontend checks
+  frontend-quick-check:
+    name: Frontend Quick Check
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,13 +55,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
-        run: npm run build
+      - name: Run lint
+        run: npm run lint
 
-      # Uncomment and configure if you want preview deployments
-      # - name: Deploy to preview
-      #   uses: peaceiris/actions-gh-pages@v3
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     publish_dir: ./build
-      #     destination_dir: preview/pr-${{ github.event.pull_request.number }}
+      - name: Run type check
+        run: npm run type-check
+
+  # Quick backend checks
+  backend-quick-check:
+    name: Backend Quick Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run lint
+        working-directory: ./backend
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+      - name: Run type check
+        working-directory: ./backend
+        run: mypy . || true

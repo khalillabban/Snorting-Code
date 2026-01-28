@@ -1,17 +1,16 @@
 module.exports = {
   root: true,
-  env: { browser: true, es2020: true, node: true },
+  env: { es2020: true, node: true, 'react-native/react-native': true },
   extends: [
     'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
+    '@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
-    'plugin:testing-library/react',
-    'plugin:jest-dom/recommended',
-    'prettier',
+    'plugin:react-native/all',
+    'plugin:testing-library/react-native',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'node_modules', 'coverage'],
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'node_modules', 'coverage', '.expo', 'backend'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
@@ -19,22 +18,22 @@ module.exports = {
     ecmaFeatures: {
       jsx: true,
     },
+    project: './tsconfig.json',
   },
-  plugins: ['react-refresh', '@typescript-eslint', 'react', 'testing-library', 'jest-dom'],
+  plugins: ['@typescript-eslint', 'react', 'react-native', 'testing-library'],
   rules: {
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true },
-    ],
     'react/prop-types': 'off',
+    'react-native/no-unused-styles': 'warn',
+    'react-native/split-platform-components': 'warn',
+    'react-native/no-inline-styles': 'warn',
+    'react-native/no-color-literals': 'warn',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     'testing-library/no-debugging-utils': 'warn',
-    'testing-library/no-dom-import': 'error',
   },
   settings: {
     react: {
       version: 'detect',
     },
   },
-}
+};

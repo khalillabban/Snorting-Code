@@ -1,16 +1,21 @@
-import { render, screen } from '@testing-library/react'
-import App from './App'
+import React from 'react';
+import { render, screen } from '@testing-library/react-native';
+import App from './App';
 
 describe('App', () => {
-  it('renders the main heading', () => {
-    render(<App />)
-    const heading = screen.getByText(/Snorting Code/i)
-    expect(heading).toBeInTheDocument()
-  })
+  it('renders correctly', () => {
+    render(<App />);
+    expect(screen.getByText('Snorting Code')).toBeTruthy();
+  });
 
-  it('renders the project description', () => {
-    render(<App />)
-    const description = screen.getByText(/React \+ TypeScript \+ Tailwind CSS/i)
-    expect(description).toBeInTheDocument()
-  })
-})
+  it('displays the subtitle', () => {
+    render(<App />);
+    expect(screen.getByText(/React Native \+ Expo/)).toBeTruthy();
+  });
+
+  it('displays project features', () => {
+    render(<App />);
+    expect(screen.getByText(/Project Setup Complete/)).toBeTruthy();
+    expect(screen.getByText(/React Native with Expo/)).toBeTruthy();
+  });
+});

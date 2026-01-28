@@ -11,6 +11,17 @@ node_modules
 /build
 /dist
 
+# Expo
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
 # Misc
 .DS_Store
 .env.local
@@ -26,18 +37,13 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-# Vite
-.vite
-*.local
 
 # TypeScript
 *.tsbuildinfo
@@ -64,3 +70,23 @@ lerna-debug.log*
 # Temporary folders
 tmp/
 temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/env/
+backend/.venv
+backend/.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.log
+.idea/

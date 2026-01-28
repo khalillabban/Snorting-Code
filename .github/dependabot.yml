@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Enable version updates for npm
+  # Enable version updates for npm (Frontend)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -18,16 +18,33 @@ updates:
     labels:
       - "dependencies"
       - "automated"
+      - "frontend"
     # Group updates for better PR management
     groups:
       production-dependencies:
         dependency-type: "production"
       development-dependencies:
         dependency-type: "development"
-    # Ignore major version updates for critical packages (uncomment if needed)
-    # ignore:
-    #   - dependency-name: "react"
-    #     update-types: ["version-update:semver-major"]
+
+  # Enable version updates for pip (Backend)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "ottst"
+    assignees:
+      - "ottst"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+      - "backend"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"

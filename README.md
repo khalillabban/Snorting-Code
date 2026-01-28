@@ -1,118 +1,97 @@
-# Snorting-Code
-
-A modern React project with TypeScript, Tailwind CSS, and comprehensive CI/CD pipeline.
-
-## Tech Stack
-
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first CSS framework
-- **Vite** - Fast build tool and dev server
-- **Jest + Testing Library** - Testing framework
-- **ESLint + Prettier** - Code quality and formatting
-
-## CI/CD Pipeline
-
-This project includes a robust CI/CD setup with the following features:
-
-The CI pipeline runs on every push and pull request, performing:
-
-1. **Linting & Formatting** (`lint` job)
-   - ESLint checks for code quality
-   - Prettier format validation
-   - Catches common errors and enforces code style
-
-2. **Type Checking** (`type-check` job)
-   - TypeScript compilation checks
-   - Catches type errors before runtime
-
-3. **Testing** (`test` job)
-   - Runs all unit and integration tests
-   - Generates code coverage reports
-   - Uploads coverage to Codecov (optional)
-   - Comments PRs with coverage changes
-
-4. **Build Verification** (`build` job)
-   - Ensures the project builds successfully
-   - Uploads build artifacts for inspection
-   - Catches build-time errors
-
-5. **Security Audit** (`security` job)
-   - npm audit for known vulnerabilities
-   - Snyk security scanning (optional)
-   - Flags moderate+ severity issues
-
-### Dependency Management
-
-- **Dependabot** automatically creates PRs for dependency updates
-- Weekly updates on Mondays
-- Groups production and development dependencies
-- Updates GitHub Actions workflows monthly
-
-### Setup Instructions
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Start development server:**
-   ```bash
-   npm run dev
-   ```
-   The app will be available at `http://localhost:5173`
-
-3. **Optional: Set up secrets for enhanced features:**
-   - `CODECOV_TOKEN`: For code coverage tracking (add to GitHub Secrets)
-   - `SNYK_TOKEN`: For advanced security scanning (add to GitHub Secrets)
-
-4. **Run checks locally:**
-   ```bash
-   npm run dev           # Start dev server
-   npm run build         # Build for production
-   npm run preview       # Preview production build
-   npm run test          # Run tests
-   npm run test:watch    # Run tests in watch mode
-   npm run test:coverage # Run tests with coverage
-   npm run lint          # Check linting
-   npm run lint:fix      # Fix linting issues
-   npm run format        # Format code
-   npm run format:check  # Check formatting
-   npm run type-check    # Check TypeScript types
-   npm run check-all     # Run all checks (lint, format, type, test, build)
-   ```
-
-### Coverage Thresholds
-
-The project enforces minimum coverage thresholds:
-- **Branches**: 80%
-- **Functions**: 80%
-- **Lines**: 80%
-- **Statements**: 80%
+# Snorting Code
 
 
-### Workflow Files
+**Frontend:**
+```
+npm install
+```
 
-- `.github/workflows/ci.yml` - Main CI pipeline (runs on push/PR)
-- `.github/workflows/pr-checks.yml` - PR-specific checks
-- `.github/workflows/release.yml` - Release automation
-- `.github/dependabot.yml` - Dependency update automation
+**Backend:**
+```
+cd backend
+python -m venv venv
+venv\Scripts\activate.bat
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+cd ..
+```
 
+## Verify Everything Works
 
+### Step 1: Test Frontend
 
-### Local Development
+Open Terminal 1:
+```
+npm test
+```
 
-Before committing, ensure:
-- All tests pass: `npm test`
-- Code is linted: `npm run lint`
-- Code is formatted: `npm run format`
-- Types are valid: `npm run type-check`
-- Project builds: `npm run build`
+Expected: All tests pass (3 tests)
 
-**Quick check:** Run `npm run check-all` to verify everything at once!
+### Step 2: Test Backend
 
-### Additional Features
+Open Terminal 2:
+```
+cd backend
+venv\Scripts\activate.bat
+python -m pytest --cov
+```
 
-- **VS Code Integration**: Recommended extensions and settings in `.vscode/`
-- **Node Version**: Use `.nvmrc` to ensure consistent Node.js version (20.x)
-- **Environment Variables**: See `.env.example` for environment variable template
+Expected: All tests pass (3 tests, 100% coverage)
+
+### Step 3: Run Frontend
+
+Open Terminal 1 (or new terminal):
+```
+npm run web
+```
+
+Expected: App opens in browser at http://localhost:8081
+
+### Step 4: Run Backend
+
+Open Terminal 2 (or new terminal):
+```
+cd backend
+venv\Scripts\activate.bat
+uvicorn main:app --reload
+```
+
+Expected: Server starts at http://localhost:8000
+
+### Step 5: Verify Backend API
+
+Open browser and visit:
+- http://localhost:8000 (should show API info)
+- http://localhost:8000/docs (should show Swagger UI)
+- http://localhost:8000/health (should return {"status": "healthy"})
+
+## Quick Reference
+
+**Testing:**
+- Frontend: `npm test`
+- Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
+
+**Running:**
+- Frontend: `npm run web` (or `npm start` for Expo Go)
+- Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `uvicorn main:app --reload`
+
+## Troubleshooting
+
+**Expo Go stuck on "Opening project":**
+1. Make sure phone and computer are on the same WiFi network
+2. Try using tunnel mode: `npx expo start --tunnel`
+3. Check firewall isn't blocking port 8081
+4. Restart Expo: Stop server (Ctrl+C) and run `npm start` again
+5. Alternative: Use web version with `npm run web`
+
+**Backend venv not activated:**
+- Make sure you see `(venv)` in your terminal prompt
+- If not: `cd backend`, then `venv\Scripts\activate.bat`
+
+**Port already in use:**
+- Frontend: Change port in Expo settings
+- Backend: Change port: `uvicorn main:app --reload --port 8001`
+
+**Tests fail:**
+- Frontend: Run `npm install` again
+- Backend: Make sure venv is activated and run `python -m pip install -r requirements-dev.txt`

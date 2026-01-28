@@ -1,87 +1,146 @@
-function App() {
+import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
+
+export default function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <header className="text-center mb-12">
-            <h1 className="text-5xl font-bold text-gray-900 mb-4">
-              Snorting Code
-            </h1>
-            <p className="text-xl text-gray-600">
-              React + TypeScript + Tailwind CSS + CI/CD
-            </p>
-          </header>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Snorting Code</Text>
+        <Text style={styles.subtitle}>
+          React Native + Expo + TypeScript + Python Backend
+        </Text>
 
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              🚀 Project Setup Complete
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Your React project is ready with:
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
-              <li>⚛️ React 18 with TypeScript</li>
-              <li>🎨 Tailwind CSS for styling</li>
-              <li>⚡ Vite for fast development</li>
-              <li>✅ Comprehensive CI/CD pipeline</li>
-              <li>🧪 Jest + Testing Library</li>
-              <li>🔍 ESLint + Prettier</li>
-            </ul>
-          </div>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Project Setup Complete</Text>
+          <Text style={styles.cardText}>
+            Your React Native app is ready with:
+          </Text>
+          <View style={styles.list}>
+            <Text style={styles.listItem}>React Native with Expo</Text>
+            <Text style={styles.listItem}>Cross-platform mobile support</Text>
+            <Text style={styles.listItem}>Python FastAPI backend</Text>
+            <Text style={styles.listItem}>Comprehensive CI/CD pipeline</Text>
+            <Text style={styles.listItem}>Jest + React Native Testing Library</Text>
+            <Text style={styles.listItem}>ESLint for code quality</Text>
+          </View>
+        </View>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                🛠️ Development
-              </h3>
-              <code className="block bg-gray-100 p-3 rounded text-sm mb-2">
-                npm run dev
-              </code>
-              <p className="text-sm text-gray-600">
-                Start the development server
-              </p>
-            </div>
+        <View style={styles.grid}>
+          <View style={styles.gridItem}>
+            <Text style={styles.gridTitle}>Development</Text>
+            <Text style={styles.code}>npm start</Text>
+            <Text style={styles.gridText}>Start Expo dev server</Text>
+          </View>
 
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                🧪 Testing
-              </h3>
-              <code className="block bg-gray-100 p-3 rounded text-sm mb-2">
-                npm test
-              </code>
-              <p className="text-sm text-gray-600">
-                Run tests with coverage
-              </p>
-            </div>
+          <View style={styles.gridItem}>
+            <Text style={styles.gridTitle}>Testing</Text>
+            <Text style={styles.code}>npm test</Text>
+            <Text style={styles.gridText}>Run tests with coverage</Text>
+          </View>
 
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                🏗️ Build
-              </h3>
-              <code className="block bg-gray-100 p-3 rounded text-sm mb-2">
-                npm run build
-              </code>
-              <p className="text-sm text-gray-600">
-                Build for production
-              </p>
-            </div>
+          <View style={styles.gridItem}>
+            <Text style={styles.gridTitle}>iOS</Text>
+            <Text style={styles.code}>npm run ios</Text>
+            <Text style={styles.gridText}>Run on iOS simulator</Text>
+          </View>
 
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                ✨ Code Quality
-              </h3>
-              <code className="block bg-gray-100 p-3 rounded text-sm mb-2">
-                npm run lint
-              </code>
-              <p className="text-sm text-gray-600">
-                Lint and format code
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+          <View style={styles.gridItem}>
+            <Text style={styles.gridTitle}>Android</Text>
+            <Text style={styles.code}>npm run android</Text>
+            <Text style={styles.gridText}>Run on Android emulator</Text>
+          </View>
+        </View>
+      </View>
+      <StatusBar style="auto" />
+    </ScrollView>
+  );
 }
 
-export default App
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
+  content: {
+    padding: 20,
+    paddingTop: 60,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#1a202c',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#4a5568',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1a202c',
+    marginBottom: 12,
+  },
+  cardText: {
+    fontSize: 16,
+    color: '#4a5568',
+    marginBottom: 16,
+  },
+  list: {
+    marginLeft: 8,
+  },
+  listItem: {
+    fontSize: 14,
+    color: '#4a5568',
+    marginBottom: 8,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  gridItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    width: '48%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  gridTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a202c',
+    marginBottom: 8,
+  },
+  code: {
+    fontFamily: 'monospace',
+    backgroundColor: '#f7fafc',
+    padding: 8,
+    borderRadius: 6,
+    fontSize: 12,
+    color: '#2d3748',
+    marginBottom: 8,
+  },
+  gridText: {
+    fontSize: 12,
+    color: '#4a5568',
+  },
+});
