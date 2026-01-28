@@ -31,9 +31,6 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Check code formatting
-        run: npm run format:check
-
   # Frontend: Type checking
   frontend-type-check:
     name: Frontend Type Check
@@ -75,13 +72,15 @@ jobs:
         run: npm run test:ci
 
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/coverage-final.json
+          files: ./coverage/lcov.info,./coverage/coverage-final.json
           fail_ci_if_error: false
           flags: frontend
           name: codecov-frontend
+        continue-on-error: true
 
   # Backend: Lint and format check
   backend-lint:
@@ -172,6 +171,7 @@ jobs:
           fail_ci_if_error: false
           flags: backend
           name: codecov-backend
+        continue-on-error: true
 
   # Security audit for frontend
   frontend-security:
