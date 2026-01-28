@@ -74,8 +74,9 @@ Open browser and visit:
 - Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
 
 **Pre-commit checks (run before pushing):**
-- Frontend: `npm run ci:frontend` (runs lint, type-check, and tests)
-- Backend: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
+- Full CI Pipeline: `npm run ci:test` (runs all frontend and backend checks)
+- Frontend only: `npm run ci:frontend` (runs lint, type-check, and tests)
+- Backend only: `cd backend`, then `venv\Scripts\activate.bat`, then `python -m pytest --cov`
 
 **Running:**
 - Frontend: `npm run web` (or `npm start` for Expo Go)
