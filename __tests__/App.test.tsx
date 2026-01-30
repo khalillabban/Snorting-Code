@@ -1,11 +1,25 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-import App from '../App';
+import React from "react";
+import { render, screen } from "@testing-library/react-native";
+import Index from "../app/index";
 
-describe('App', () => {
-  it('renders correctly', () => {
-    render(<App />);
-    // Add your assertions based on your App component
-    // Example: expect(screen.getByText('Welcome')).toBeTruthy();
+describe("Welcome Screen", () => {
+  it("renders the welcome screen title", () => {
+    render(<Index />);
+    expect(screen.getByText("Concordia Maps")).toBeTruthy();
+  });
+
+  it("renders the campus selection subtitle", () => {
+    render(<Index />);
+    expect(screen.getByText("Select a campus")).toBeTruthy();
+  });
+
+  it("renders the SGW Campus button", () => {
+    render(<Index />);
+    expect(screen.getByText("SGW Campus")).toBeTruthy();
+  });
+
+  it("renders the Loyola Campus button", () => {
+    render(<Index />);
+    expect(screen.getByText("Loyola Campus")).toBeTruthy();
   });
 });
