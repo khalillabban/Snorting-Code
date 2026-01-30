@@ -1,118 +1,50 @@
-# Snorting-Code
+# Welcome to your Expo app 👋
 
-A modern React project with TypeScript, Tailwind CSS, and comprehensive CI/CD pipeline.
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## Tech Stack
+## Get started
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first CSS framework
-- **Vite** - Fast build tool and dev server
-- **Jest + Testing Library** - Testing framework
-- **ESLint + Prettier** - Code quality and formatting
+1. Install dependencies
 
-## CI/CD Pipeline
-
-This project includes a robust CI/CD setup with the following features:
-
-The CI pipeline runs on every push and pull request, performing:
-
-1. **Linting & Formatting** (`lint` job)
-   - ESLint checks for code quality
-   - Prettier format validation
-   - Catches common errors and enforces code style
-
-2. **Type Checking** (`type-check` job)
-   - TypeScript compilation checks
-   - Catches type errors before runtime
-
-3. **Testing** (`test` job)
-   - Runs all unit and integration tests
-   - Generates code coverage reports
-   - Uploads coverage to Codecov (optional)
-   - Comments PRs with coverage changes
-
-4. **Build Verification** (`build` job)
-   - Ensures the project builds successfully
-   - Uploads build artifacts for inspection
-   - Catches build-time errors
-
-5. **Security Audit** (`security` job)
-   - npm audit for known vulnerabilities
-   - Snyk security scanning (optional)
-   - Flags moderate+ severity issues
-
-### Dependency Management
-
-- **Dependabot** automatically creates PRs for dependency updates
-- Weekly updates on Mondays
-- Groups production and development dependencies
-- Updates GitHub Actions workflows monthly
-
-### Setup Instructions
-
-1. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Start development server:**
-   ```bash
-   npm run dev
-   ```
-   The app will be available at `http://localhost:5173`
+2. Start the app
 
-3. **Optional: Set up secrets for enhanced features:**
-   - `CODECOV_TOKEN`: For code coverage tracking (add to GitHub Secrets)
-   - `SNYK_TOKEN`: For advanced security scanning (add to GitHub Secrets)
-
-4. **Run checks locally:**
    ```bash
-   npm run dev           # Start dev server
-   npm run build         # Build for production
-   npm run preview       # Preview production build
-   npm run test          # Run tests
-   npm run test:watch    # Run tests in watch mode
-   npm run test:coverage # Run tests with coverage
-   npm run lint          # Check linting
-   npm run lint:fix      # Fix linting issues
-   npm run format        # Format code
-   npm run format:check  # Check formatting
-   npm run type-check    # Check TypeScript types
-   npm run check-all     # Run all checks (lint, format, type, test, build)
+   npx expo start
    ```
 
-### Coverage Thresholds
+In the output, you'll find options to open the app in a
 
-The project enforces minimum coverage thresholds:
-- **Branches**: 80%
-- **Functions**: 80%
-- **Lines**: 80%
-- **Statements**: 80%
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-### Workflow Files
+## Get a fresh project
 
-- `.github/workflows/ci.yml` - Main CI pipeline (runs on push/PR)
-- `.github/workflows/pr-checks.yml` - PR-specific checks
-- `.github/workflows/release.yml` - Release automation
-- `.github/dependabot.yml` - Dependency update automation
+When you're ready, run:
 
+```bash
+npm run reset-project
+```
 
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-### Local Development
+## Learn more
 
-Before committing, ensure:
-- All tests pass: `npm test`
-- Code is linted: `npm run lint`
-- Code is formatted: `npm run format`
-- Types are valid: `npm run type-check`
-- Project builds: `npm run build`
+To learn more about developing your project with Expo, look at the following resources:
 
-**Quick check:** Run `npm run check-all` to verify everything at once!
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-### Additional Features
+## Join the community
 
-- **VS Code Integration**: Recommended extensions and settings in `.vscode/`
-- **Node Version**: Use `.nvmrc` to ensure consistent Node.js version (20.x)
-- **Environment Variables**: See `.env.example` for environment variable template
+Join our community of developers creating universal apps.
+
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
