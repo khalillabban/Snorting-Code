@@ -27,7 +27,7 @@ jobs:
         run: npm run lint --if-present
 
       - name: Run tests with coverage
-        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text
+        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --clearCache
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
