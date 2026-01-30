@@ -5,28 +5,27 @@ import { CAMPUSES, CampusKey } from "../constants/campuses";
 import * as Location from "expo-location";
 import { useEffect } from "react";
 
-useEffect(() => {
-  (async () => {
-    await Location.requestForegroundPermissionsAsync();
-  })();
-}, []);
-
 export default function CampusMapScreen() {
-  const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+    useEffect(() => {
+        (async () => {
+            await Location.requestForegroundPermissionsAsync();
+        })();
+    }, []);
+    const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
-  if (!campus || !(campus in CAMPUSES)) {
+    if (!campus || !(campus in CAMPUSES)) {
+        return (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                <Text>Invalid campus</Text>
+            </View>
+        );
+    }
+
+    const campusData = CAMPUSES[campus];
+
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Invalid campus</Text>
-      </View>
+        <View style={{ flex: 1 }}>
+            <CampusMap coordinates={campusData.coordinates} />
+        </View>
     );
-  }
-
-  const campusData = CAMPUSES[campus];
-
-  return (
-    <View style={{ flex: 1 }}>
-      <CampusMap coordinates={campusData.coordinates} />
-    </View>
-  );
 }
