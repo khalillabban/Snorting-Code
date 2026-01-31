@@ -1,6 +1,7 @@
 import { Text, View, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { CampusKey } from "../constants/campuses";
+import { colors, typography, spacing, borderRadius } from "../constants/theme";
 
 export default function Index() {
   const router = useRouter();
@@ -31,33 +32,31 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#912338",
+    backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: spacing.lg,
   },
   title: {
-    fontSize: 36,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 8,
+    ...typography.title,
+    color: colors.white,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#f2f2f2",
-    marginBottom: 32,
+    ...typography.subtitle,
+    color: colors.offWhite,
+    marginBottom: spacing.xl,
   },
   button: {
     width: "100%",
     paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
-    marginBottom: 16,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    marginBottom: spacing.md,
     alignItems: "center",
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#912338",
+    ...typography.button,
+    color: colors.primary,
   },
 });
