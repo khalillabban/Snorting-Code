@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react-native";
 import Index from "../app/index";
 
-describe("Welcome Screen", () => {
+describe("Home Screen", () => {
   it("renders the welcome screen title", () => {
     render(<Index />);
     expect(screen.getByText("Concordia Maps")).toBeTruthy();
