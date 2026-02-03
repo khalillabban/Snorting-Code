@@ -739,14 +739,14 @@ export const BUILDINGS: Buildings[] = [
     displayName: "B Annex",
     address: "2160 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.497818, longitude: -73.579524
+      latitude: 45.497818,
+      longitude: -73.579524,
     },
     boundingBox: [
-      { latitude: 45.497885, longitude: -73.579393 },
-      { latitude: 45.497921, longitude: -73.579463 },
-      { latitude: 45.497750, longitude: -73.579624 },
-      { latitude: 45.497720, longitude: -73.579562 },
-      { latitude: 45.497885, longitude: -73.579393 },
+      { latitude: 45.497703209954416, longitude: -73.57955668952776 },
+      { latitude: 45.49773916612552, longitude: -73.5796344735892 },
+      { latitude: 45.49791835672028, longitude: -73.5794601358713 },
+      { latitude: 45.49788287067755, longitude: -73.57938436346663 },
     ],
   },
   {
@@ -755,11 +755,12 @@ export const BUILDINGS: Buildings[] = [
     displayName: "CI Annex",
     address: "2149 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.497483, longitude:-73.579884
+      latitude: 45.497483,
+      longitude: -73.579884,
     },
     boundingBox: [
       { latitude: 45.497583, longitude: -73.579844 },
-      { latitude: 45.497410, longitude: -73.580007 },
+      { latitude: 45.49741, longitude: -73.580007 },
       { latitude: 45.497387, longitude: -73.579972 },
       { latitude: 45.497382, longitude: -73.579972 },
       { latitude: 45.497361, longitude: -73.579932 },
@@ -773,16 +774,16 @@ export const BUILDINGS: Buildings[] = [
     displayName: "CL Annex",
     address: "1665 Rue Sainte-Catherine O, Montréal, Quebec H3H 1L9",
     coordinates: {
-      latitude: 45.497782, longitude: -73.579318
+      latitude: 45.497782,
+      longitude: -73.579318,
     },
     boundingBox: [
-      { latitude: 45.497846, longitude: -73.579315 },
-      { latitude: 45.497709, longitude: -73.579452 },
-      { latitude: 45.497692, longitude: -73.579412 },
-      { latitude: 45.497727, longitude: -73.579369 },
-      { latitude: 45.497720, longitude: -73.579342 },
-      { latitude: 45.497814, longitude: -73.579246 },
-      { latitude: 45.497846, longitude: -73.579315 },
+      { latitude: 45.494259642546005, longitude: -73.5789361919959 },
+      { latitude: 45.493989386951206, longitude: -73.57928912203849 },
+      { latitude: 45.493979045928185, longitude: -73.57932499658406 },
+      { latitude: 45.4939844514632, longitude: -73.57935315977872 },
+      { latitude: 45.494164196622975, longitude: -73.57965755613947 },
+      { latitude: 45.49447127774607, longitude: -73.5792813637081 },
     ],
   },
   {
@@ -791,31 +792,31 @@ export const BUILDINGS: Buildings[] = [
     displayName: "D Annex",
     address: "2140 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.494198, longitude: -73.579283
+      latitude: 45.494198,
+      longitude: -73.579283,
     },
     boundingBox: [
-      { latitude: 45.494469, longitude: -73.579278 },
-      { latitude: 45.494163, longitude: -73.579637 },
-      { latitude: 45.493975, longitude: -73.579313 },
-      { latitude: 45.493984, longitude: -73.579262 },
-      { latitude: 45.494251, longitude: -73.578926 },
-      { latitude: 45.494469, longitude: -73.579278 },
+      { latitude: 45.497707427688056, longitude: -73.57934124180272 },
+      { latitude: 45.49774056376567, longitude: -73.57941097923711 },
+      { latitude: 45.49784929339781, longitude: -73.5793110002672 },
+      { latitude: 45.49781075221699, longitude: -73.57923288092964 },
     ],
   },
-    {
+  {
     name: "EN",
     campusName: "SGW",
     displayName: "EN Annex",
     address: "2070 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
-      latitude: 45.496831, longitude: -73.579618
+      latitude: 45.496831,
+      longitude: -73.579618,
     },
     boundingBox: [
       { latitude: 45.496949, longitude: -73.579564 },
       { latitude: 45.496715, longitude: -73.579786 },
       { latitude: 45.496689, longitude: -73.579733 },
       { latitude: 45.496803, longitude: -73.579618 },
-      { latitude: 45.496790, longitude: -73.579586 },
+      { latitude: 45.49679, longitude: -73.579586 },
       { latitude: 45.496896, longitude: -73.579482 },
       { latitude: 45.496913, longitude: -73.579521 },
       { latitude: 45.496924, longitude: -73.579511 },
@@ -828,7 +829,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "ER Building",
     address: "2155 Guy St, Montreal, Quebec H3H 2L9",
     coordinates: {
-      latitude: 45.496383, longitude: -73.580010
+      latitude: 45.496383,
+      longitude: -73.58001,
     },
     boundingBox: [
       { latitude: 45.496677, longitude: -73.579967 },
@@ -843,21 +845,23 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "EV",
     campusName: "SGW",
-    displayName: "Engineering, Computer Science and Visual Arts Integrated Complex",
+    displayName:
+      "Engineering, Computer Science and Visual Arts Integrated Complex",
     address: "1515 Rue Sainte-Catherine O #1428, Montreal, Quebec H3G 1S6",
     coordinates: {
-      latitude: 45.495626, longitude: -73.577982
+      latitude: 45.495626,
+      longitude: -73.577982,
     },
     boundingBox: [
       { latitude: 45.496065, longitude: -73.577714 },
       { latitude: 45.495757, longitude: -73.578006 },
       { latitude: 45.495904, longitude: -73.578309 },
       { latitude: 45.495887, longitude: -73.578331 },
-      { latitude: 45.495930, longitude: -73.578441 },
+      { latitude: 45.49593, longitude: -73.578441 },
       { latitude: 45.495626, longitude: -73.578733 },
-      { latitude: 45.495590, longitude: -73.578666 },
+      { latitude: 45.49559, longitude: -73.578666 },
       { latitude: 45.495554, longitude: -73.578688 },
-      { latitude: 45.495187, longitude: -73.577870 },
+      { latitude: 45.495187, longitude: -73.57787 },
       { latitude: 45.495838, longitude: -73.577234 },
       { latitude: 45.496065, longitude: -73.577714 },
     ],
@@ -868,13 +872,14 @@ export const BUILDINGS: Buildings[] = [
     displayName: "FA Annex",
     address: "2060 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496818, longitude: -73.579506
+      latitude: 45.496818,
+      longitude: -73.579506,
     },
     boundingBox: [
       { latitude: 45.496883, longitude: -73.579495 },
       { latitude: 45.496778, longitude: -73.579597 },
       { latitude: 45.496742, longitude: -73.579519 },
-      { latitude: 45.496840, longitude: -73.579417 },
+      { latitude: 45.49684, longitude: -73.579417 },
       { latitude: 45.496883, longitude: -73.579495 },
     ],
   },
@@ -884,7 +889,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Faubourg Building",
     address: "1250 Guy St, Montreal, Quebec H3H 2L3",
     coordinates: {
-      latitude: 45.494669, longitude: -73.577663
+      latitude: 45.494669,
+      longitude: -73.577663,
     },
     boundingBox: [
       { latitude: 45.494893, longitude: -73.577759 },
@@ -896,16 +902,16 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.494388, longitude: -73.577497 },
       { latitude: 45.494639, longitude: -73.577202 },
       { latitude: 45.494679, longitude: -73.577279 },
-      { latitude: 45.494675, longitude: -73.577290 },
+      { latitude: 45.494675, longitude: -73.57729 },
       { latitude: 45.494715, longitude: -73.577358 },
-      { latitude: 45.494710, longitude: -73.577369 },
-      { latitude: 45.494751, longitude: -73.577440 },
+      { latitude: 45.49471, longitude: -73.577369 },
+      { latitude: 45.494751, longitude: -73.57744 },
       { latitude: 45.494749, longitude: -73.577449 },
       { latitude: 45.494789, longitude: -73.577519 },
       { latitude: 45.494779, longitude: -73.577524 },
       { latitude: 45.494821, longitude: -73.577598 },
       { latitude: 45.494816, longitude: -73.577608 },
-      { latitude: 45.494865, longitude: -73.577680 },
+      { latitude: 45.494865, longitude: -73.57768 },
       { latitude: 45.494856, longitude: -73.577689 },
       { latitude: 45.494893, longitude: -73.577759 },
     ],
@@ -916,7 +922,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Faubourg Ste-Catherine Building",
     address: "1610 Rue Sainte-Catherine O, Montreal, Quebec H3H 1L7",
     coordinates: {
-      latitude: 45.494176, longitude: -73.578347
+      latitude: 45.494176,
+      longitude: -73.578347,
     },
     boundingBox: [
       { latitude: 45.494681, longitude: -73.578016 },
@@ -935,7 +942,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Grey Nuns Annex",
     address: "1211-1215 Rue St Mathieu, Montréal, QC H3H 2S2",
     coordinates: {
-      latitude: 45.494052, longitude: -73.578030
+      latitude: 45.494052,
+      longitude: -73.57803,
     },
     boundingBox: [
       { latitude: 45.494352, longitude: -73.577742 },
@@ -943,7 +951,7 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.494149, longitude: -73.578014 },
       { latitude: 45.493852, longitude: -73.578361 },
       { latitude: 45.493793, longitude: -73.578268 },
-      { latitude: 45.494080, longitude: -73.577925 },
+      { latitude: 45.49408, longitude: -73.577925 },
       { latitude: 45.494052, longitude: -73.577869 },
       { latitude: 45.494294, longitude: -73.577633 },
       { latitude: 45.494352, longitude: -73.577742 },
@@ -955,55 +963,58 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Guy-De Maisonneuve Building",
     address: "1550 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1N1",
     coordinates: {
-      latitude: 45.495884, longitude: -73.578742
+      latitude: 45.495884,
+      longitude: -73.578742,
     },
     boundingBox: [
-      { latitude: 45.496128, longitude: -73.578780 },
+      { latitude: 45.496128, longitude: -73.57878 },
       { latitude: 45.495781, longitude: -73.579123 },
       { latitude: 45.495764, longitude: -73.579082 },
       { latitude: 45.495778, longitude: -73.579063 },
       { latitude: 45.495619, longitude: -73.578733 },
-      { latitude: 45.495956, longitude: -73.578420 },
-      { latitude: 45.496128, longitude: -73.578780 },
+      { latitude: 45.495956, longitude: -73.57842 },
+      { latitude: 45.496128, longitude: -73.57878 },
     ],
   },
   {
     name: "GN",
     campusName: "SGW",
     displayName: "Grey Nuns Building",
-    address: "Main Entrance 1190 Guy St, Montreal, Quebec H3H 2L4, Class Entrance 1175 Rue St Mathieu, Montréal, Quebec H3H 2L4",
+    address:
+      "Main Entrance 1190 Guy St, Montreal, Quebec H3H 2L4, Class Entrance 1175 Rue St Mathieu, Montréal, Quebec H3H 2L4",
     coordinates: {
-      latitude: 45.493470, longitude: -73.576875
+      latitude: 45.49347,
+      longitude: -73.576875,
     },
     boundingBox: [
       { latitude: 45.494399, longitude: -73.577101 },
       { latitude: 45.494141, longitude: -73.577359 },
-      { latitude: 45.494163, longitude: -73.577400 },
+      { latitude: 45.494163, longitude: -73.5774 },
       { latitude: 45.494136, longitude: -73.577424 },
       { latitude: 45.494111, longitude: -73.577382 },
-      { latitude: 45.494106, longitude: -73.577390 },
+      { latitude: 45.494106, longitude: -73.57739 },
       { latitude: 45.494133, longitude: -73.577461 },
-      { latitude: 45.493980, longitude: -73.577604 },
+      { latitude: 45.49398, longitude: -73.577604 },
       { latitude: 45.493875, longitude: -73.577381 },
-      { latitude: 45.494010, longitude: -73.577246 },
+      { latitude: 45.49401, longitude: -73.577246 },
       { latitude: 45.494009, longitude: -73.577229 },
       { latitude: 45.494188, longitude: -73.577055 },
       { latitude: 45.494119, longitude: -73.576905 },
-      { latitude: 45.494110, longitude: -73.576912 },
+      { latitude: 45.49411, longitude: -73.576912 },
       { latitude: 45.493949, longitude: -73.576595 },
       { latitude: 45.493957, longitude: -73.576584 },
       { latitude: 45.493925, longitude: -73.576506 },
       { latitude: 45.493905, longitude: -73.576647 },
       { latitude: 45.493985, longitude: -73.576826 },
-      { latitude: 45.494005, longitude: -73.576810 },
-      { latitude: 45.494041, longitude: -73.576880 },
+      { latitude: 45.494005, longitude: -73.57681 },
+      { latitude: 45.494041, longitude: -73.57688 },
       { latitude: 45.494026, longitude: -73.576898 },
       { latitude: 45.494071, longitude: -73.577009 },
-      { latitude: 45.493910, longitude: -73.577166 },
+      { latitude: 45.49391, longitude: -73.577166 },
       { latitude: 45.493718, longitude: -73.576772 },
       { latitude: 45.493764, longitude: -73.576731 },
       { latitude: 45.493722, longitude: -73.576636 },
-      { latitude: 45.493567, longitude: -73.576790 },
+      { latitude: 45.493567, longitude: -73.57679 },
       { latitude: 45.493618, longitude: -73.576898 },
       { latitude: 45.493674, longitude: -73.576846 },
       { latitude: 45.493682, longitude: -73.576867 },
@@ -1011,27 +1022,27 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.493736, longitude: -73.576881 },
       { latitude: 45.493741, longitude: -73.576924 },
       { latitude: 45.493729, longitude: -73.576957 },
-      { latitude: 45.493800, longitude: -73.577112 },
+      { latitude: 45.4938, longitude: -73.577112 },
       { latitude: 45.493743, longitude: -73.577168 },
       { latitude: 45.493749, longitude: -73.577187 },
       { latitude: 45.493714, longitude: -73.577254 },
       { latitude: 45.493662, longitude: -73.577273 },
       { latitude: 45.493657, longitude: -73.577257 },
       { latitude: 45.493598, longitude: -73.577309 },
-      { latitude: 45.493533, longitude: -73.577170 },
+      { latitude: 45.493533, longitude: -73.57717 },
       { latitude: 45.493493, longitude: -73.577202 },
-      { latitude: 45.493450, longitude: -73.577071 },
-      { latitude: 45.493490, longitude: -73.577035 },
-      { latitude: 45.493430, longitude: -73.576905 },
+      { latitude: 45.49345, longitude: -73.577071 },
+      { latitude: 45.49349, longitude: -73.577035 },
+      { latitude: 45.49343, longitude: -73.576905 },
       { latitude: 45.493364, longitude: -73.576975 },
-      { latitude: 45.493370, longitude: -73.576992 },
-      { latitude: 45.493200, longitude: -73.577159 },
+      { latitude: 45.49337, longitude: -73.576992 },
+      { latitude: 45.4932, longitude: -73.577159 },
       { latitude: 45.493191, longitude: -73.577146 },
       { latitude: 45.493123, longitude: -73.577205 },
       { latitude: 45.493228, longitude: -73.577427 },
       { latitude: 45.493101, longitude: -73.577551 },
       { latitude: 45.492994, longitude: -73.577343 },
-      { latitude: 45.492937, longitude: -73.577400 },
+      { latitude: 45.492937, longitude: -73.5774 },
       { latitude: 45.492905, longitude: -73.577345 },
       { latitude: 45.492864, longitude: -73.577373 },
       { latitude: 45.492833, longitude: -73.577314 },
@@ -1045,16 +1056,16 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.492684, longitude: -73.576937 },
       { latitude: 45.492751, longitude: -73.576867 },
       { latitude: 45.492601, longitude: -73.576545 },
-      { latitude: 45.492740, longitude: -73.576400 },
+      { latitude: 45.49274, longitude: -73.5764 },
       { latitude: 45.492904, longitude: -73.576733 },
       { latitude: 45.492918, longitude: -73.576726 },
       { latitude: 45.492938, longitude: -73.576735 },
-      { latitude: 45.492960, longitude: -73.576787 },
+      { latitude: 45.49296, longitude: -73.576787 },
       { latitude: 45.492959, longitude: -73.576817 },
       { latitude: 45.492944, longitude: -73.576835 },
-      { latitude: 45.493037, longitude: -73.577030 },
+      { latitude: 45.493037, longitude: -73.57703 },
       { latitude: 45.493337, longitude: -73.576729 },
-      { latitude: 45.493330, longitude: -73.576708 },
+      { latitude: 45.49333, longitude: -73.576708 },
       { latitude: 45.493488, longitude: -73.576558 },
       { latitude: 45.493505, longitude: -73.576583 },
       { latitude: 45.493817, longitude: -73.576273 },
@@ -1064,15 +1075,15 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.493705, longitude: -73.575702 },
       { latitude: 45.493725, longitude: -73.575745 },
       { latitude: 45.493737, longitude: -73.575733 },
-      { latitude: 45.493940, longitude: -73.576151 },
+      { latitude: 45.49394, longitude: -73.576151 },
       { latitude: 45.494052, longitude: -73.576046 },
       { latitude: 45.494075, longitude: -73.576091 },
       { latitude: 45.494135, longitude: -73.576037 },
       { latitude: 45.494168, longitude: -73.576116 },
       { latitude: 45.494161, longitude: -73.576125 },
       { latitude: 45.494218, longitude: -73.576246 },
-      { latitude: 45.494183, longitude: -73.576280 },
-      { latitude: 45.494127, longitude: -73.576160 },
+      { latitude: 45.494183, longitude: -73.57628 },
+      { latitude: 45.494127, longitude: -73.57616 },
       { latitude: 45.494117, longitude: -73.576175 },
       { latitude: 45.494135, longitude: -73.576219 },
       { latitude: 45.494087, longitude: -73.576273 },
@@ -1088,13 +1099,13 @@ export const BUILDINGS: Buildings[] = [
     address: "1538 Sherbrooke St W, Montreal, Quebec H3G 1L5",
     coordinates: {
       latitude: 45.496577,
-      longitude: -73.581158
+      longitude: -73.581158,
     },
     boundingBox: [
       { latitude: 45.496603, longitude: -73.581067 },
-      { latitude: 45.496661, longitude: -73.581010 },
+      { latitude: 45.496661, longitude: -73.58101 },
       { latitude: 45.496774, longitude: -73.581297 },
-      { latitude: 45.496620, longitude: -73.581442 },
+      { latitude: 45.49662, longitude: -73.581442 },
       { latitude: 45.496573, longitude: -73.581432 },
       { latitude: 45.496406, longitude: -73.580938 },
       { latitude: 45.496526, longitude: -73.580825 },
@@ -1108,7 +1119,7 @@ export const BUILDINGS: Buildings[] = [
     address: "1455 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1M8",
     coordinates: {
       latitude: 45.497256,
-      longitude: -73.578915
+      longitude: -73.578915,
     },
     boundingBox: [
       { latitude: 45.497715, longitude: -73.579013 },
@@ -1124,20 +1135,18 @@ export const BUILDINGS: Buildings[] = [
     displayName: "K Annex",
     address: "2150 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.497744, longitude: -73.579464
+      latitude: 45.497744,
+      longitude: -73.579464,
     },
     boundingBox: [
-      { latitude: 45.497886, longitude: -73.579387 },
-      { latitude: 45.497633, longitude: -73.579643 },
-      { latitude: 45.497596, longitude: -73.579566 },
-      { latitude: 45.497679, longitude: -73.579480 },
-      { latitude: 45.497707, longitude: -73.579526 },
-      { latitude: 45.497748, longitude: -73.579478 },
-      { latitude: 45.497744, longitude: -73.579464 },
-      { latitude: 45.497767, longitude: -73.579433 },
-      { latitude: 45.497757, longitude: -73.579407 },
-      { latitude: 45.497849, longitude: -73.579319 },
-      { latitude: 45.497886, longitude: -73.579387 },
+      { latitude: 45.49762585962041, longitude: -73.57963446965985 },
+      { latitude: 45.4975967186144, longitude: -73.57957043191962 },
+      { latitude: 45.497684376595, longitude: -73.5794866128879 },
+      { latitude: 45.497695947243194, longitude: -73.57950836535979 },
+      { latitude: 45.49777138468352, longitude: -73.57943762209702 },
+      { latitude: 45.497753759122396, longitude: -73.57940074172306 },
+      { latitude: 45.497849407101164, longitude: -73.57931323465395 },
+      { latitude: 45.49788254309522, longitude: -73.5793836426406 },
     ],
   },
   {
@@ -1146,23 +1155,24 @@ export const BUILDINGS: Buildings[] = [
     displayName: "J. W. McConnell Building",
     address: "1400 Maisonneuve Blvd W, Montreal, Quebec H3G 1M8",
     coordinates: {
-      latitude: 45.496788, longitude: -73.577936
+      latitude: 45.496788,
+      longitude: -73.577936,
     },
     boundingBox: [
       { latitude: 45.497262, longitude: -73.578049 },
       { latitude: 45.496987, longitude: -73.578314 },
       { latitude: 45.496969, longitude: -73.578274 },
-      { latitude: 45.496900, longitude: -73.578328 },
+      { latitude: 45.4969, longitude: -73.578328 },
       { latitude: 45.496924, longitude: -73.578374 },
       { latitude: 45.496714, longitude: -73.578577 },
       { latitude: 45.496692, longitude: -73.578532 },
       { latitude: 45.496656, longitude: -73.578562 },
-      { latitude: 45.496240, longitude: -73.577691 },
+      { latitude: 45.49624, longitude: -73.577691 },
       { latitude: 45.496483, longitude: -73.577457 },
       { latitude: 45.496602, longitude: -73.577682 },
-      { latitude: 45.496649, longitude: -73.577650 },
+      { latitude: 45.496649, longitude: -73.57765 },
       { latitude: 45.496607, longitude: -73.577557 },
-      { latitude: 45.496890, longitude: -73.577279 },
+      { latitude: 45.49689, longitude: -73.577279 },
       { latitude: 45.497262, longitude: -73.578049 },
     ],
   },
@@ -1173,10 +1183,10 @@ export const BUILDINGS: Buildings[] = [
     address: "1424 Bishop St, Montreal, Quebec H3G 2E6",
     coordinates: {
       latitude: 45.497256,
-      longitude: -73.578915
+      longitude: -73.578915,
     },
     boundingBox: [
-      { latitude: 45.496865, longitude: -73.577170 },
+      { latitude: 45.496865, longitude: -73.57717 },
       { latitude: 45.496572, longitude: -73.577449 },
       { latitude: 45.496541, longitude: -73.577371 },
       { latitude: 45.496816, longitude: -73.577079 },
@@ -1188,7 +1198,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Learning Square (LS Building)",
     address: "1535 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1M9",
     coordinates: {
-      latitude: 45.496335, longitude: -73.579484
+      latitude: 45.496335,
+      longitude: -73.579484,
     },
     boundingBox: [
       { latitude: 45.496526, longitude: -73.579559 },
@@ -1196,7 +1207,7 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.496364, longitude: -73.579578 },
       { latitude: 45.496268, longitude: -73.579663 },
       { latitude: 45.496174, longitude: -73.579464 },
-      { latitude: 45.496380, longitude: -73.579253 },
+      { latitude: 45.49638, longitude: -73.579253 },
       { latitude: 45.496526, longitude: -73.579559 },
     ],
   },
@@ -1206,7 +1217,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "M Annex",
     address: "2135 Mackay St, Montreal, Quebec H3G 2J2",
     coordinates: {
-      latitude: 45.497355, longitude: -73.579748
+      latitude: 45.497355,
+      longitude: -73.579748,
     },
     boundingBox: [
       { latitude: 45.497425, longitude: -73.579732 },
@@ -1225,14 +1237,16 @@ export const BUILDINGS: Buildings[] = [
     displayName: "John Molson Building",
     address: "1450 Guy St, Montreal, Quebec H3H 0A1",
     coordinates: {
-      latitude: 45.495236, longitude: -73.579024
+      latitude: 45.495236,
+      longitude: -73.579024,
     },
     boundingBox: [
-      { latitude: 45.495540, longitude: -73.579224 },
-      { latitude: 45.495271, longitude: -73.579561 },
-      { latitude: 45.494909, longitude: -73.578847 },
-      { latitude: 45.495202, longitude: -73.578462 },
-      { latitude: 45.495540, longitude: -73.579224 },
+      { latitude: 45.49511782033129, longitude: -73.57929809900001 },
+      { latitude: 45.49524379011677, longitude: -73.57916667075828 },
+      { latitude: 45.495026633071944, longitude: -73.57869996638969 },
+      { latitude: 45.49523626954047, longitude: -73.57847600193695 },
+      { latitude: 45.495597256069885, longitude: -73.57931821556762 },
+      { latitude: 45.495296434122736, longitude: -73.57962398739532 },
     ],
   },
   {
@@ -1241,16 +1255,16 @@ export const BUILDINGS: Buildings[] = [
     displayName: "MI Annex",
     address: "2130 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.497785, longitude: -73.579321
+      latitude: 45.497785,
+      longitude: -73.579321,
     },
     boundingBox: [
-      { latitude: 45.494251, longitude: -73.578926 },
-      { latitude: 45.497708, longitude: -73.579457 },
-      { latitude: 45.497687, longitude: -73.579411 },
-      { latitude: 45.497728, longitude: -73.579369 },
-      { latitude: 45.497718, longitude: -73.579341 },
-      { latitude: 45.497816, longitude: -73.579237 },
-      { latitude: 45.494251, longitude: -73.578926 },
+      { latitude: 45.49764635969653, longitude: -73.57940146021683 },
+      { latitude: 45.49762238887882, longitude: -73.57935351573069 },
+      { latitude: 45.49769383128575, longitude: -73.5792837782963 },
+      { latitude: 45.49768114086482, longitude: -73.57925896786291 },
+      { latitude: 45.49777749398921, longitude: -73.57916542582352 },
+      { latitude: 45.4978115700547, longitude: -73.57923348687727 },
     ],
   },
   {
@@ -1259,14 +1273,14 @@ export const BUILDINGS: Buildings[] = [
     displayName: "MU Annex",
     address: "2170 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.497836, longitude: -73.579602
+      latitude: 45.497836,
+      longitude: -73.579602,
     },
     boundingBox: [
-      { latitude: 45.497960, longitude: -73.579539 },
-      { latitude: 45.497746, longitude: -73.579752 },
-      { latitude: 45.497707, longitude: -73.579672 },
-      { latitude: 45.497885, longitude: -73.579393 },
-      { latitude: 45.497960, longitude: -73.579539 },
+      { latitude: 45.49792714005294, longitude: -73.57946173647333 },
+      { latitude: 45.497750414665965, longitude: -73.5796347389548 },
+      { latitude: 45.497786135799544, longitude: -73.57970447638918 },
+      { latitude: 45.49796944126014, longitude: -73.579537508878 },
     ],
   },
   {
@@ -1275,7 +1289,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "P Annex",
     address: "2020 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496651, longitude: -73.579182
+      latitude: 45.496651,
+      longitude: -73.579182,
     },
     boundingBox: [
       { latitude: 45.496719, longitude: -73.579173 },
@@ -1291,15 +1306,16 @@ export const BUILDINGS: Buildings[] = [
     displayName: "PR Annex",
     address: "2100 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496914, longitude: -73.579883
+      latitude: 45.496914,
+      longitude: -73.579883,
     },
     boundingBox: [
       { latitude: 45.497042, longitude: -73.579818 },
       { latitude: 45.496892, longitude: -73.579972 },
-      { latitude: 45.496897, longitude: -73.579990 },
+      { latitude: 45.496897, longitude: -73.57999 },
       { latitude: 45.496827, longitude: -73.580047 },
       { latitude: 45.496782, longitude: -73.579951 },
-      { latitude: 45.496849, longitude: -73.579890 },
+      { latitude: 45.496849, longitude: -73.57989 },
       { latitude: 45.496871, longitude: -73.579944 },
       { latitude: 45.496914, longitude: -73.579904 },
       { latitude: 45.496892, longitude: -73.579854 },
@@ -1313,14 +1329,15 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Q Annex",
     address: "2010 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496619, longitude: -73.579105
+      latitude: 45.496619,
+      longitude: -73.579105,
     },
     boundingBox: [
-      { latitude: 45.496680, longitude: -73.579097 },
-      { latitude: 45.496580, longitude: -73.579199 },
+      { latitude: 45.49668, longitude: -73.579097 },
+      { latitude: 45.49658, longitude: -73.579199 },
       { latitude: 45.496548, longitude: -73.579131 },
       { latitude: 45.496653, longitude: -73.579026 },
-      { latitude: 45.496680, longitude: -73.579097 },
+      { latitude: 45.49668, longitude: -73.579097 },
     ],
   },
   {
@@ -1329,7 +1346,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "R Annex",
     address: "2050 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496775, longitude: -73.579421
+      latitude: 45.496775,
+      longitude: -73.579421,
     },
     boundingBox: [
       { latitude: 45.496843, longitude: -73.579416 },
@@ -1345,12 +1363,13 @@ export const BUILDINGS: Buildings[] = [
     displayName: "RR Annex",
     address: "2040 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496707, longitude: -73.579364
+      latitude: 45.496707,
+      longitude: -73.579364,
     },
     boundingBox: [
       { latitude: 45.496803, longitude: -73.579334 },
-      { latitude: 45.496654, longitude: -73.579470 },
-      { latitude: 45.496616, longitude: -73.579380 },
+      { latitude: 45.496654, longitude: -73.57947 },
+      { latitude: 45.496616, longitude: -73.57938 },
       { latitude: 45.496764, longitude: -73.579244 },
       { latitude: 45.496803, longitude: -73.579334 },
     ],
@@ -1361,12 +1380,13 @@ export const BUILDINGS: Buildings[] = [
     displayName: "S Annex",
     address: "2145 Mackay St, Montreal, Quebec H3G 2J2",
     coordinates: {
-      latitude: 45.497399, longitude: -73.579815
+      latitude: 45.497399,
+      longitude: -73.579815,
     },
     boundingBox: [
       { latitude: 45.497489, longitude: -73.579801 },
       { latitude: 45.497355, longitude: -73.579924 },
-      { latitude: 45.497310, longitude: -73.579840 },
+      { latitude: 45.49731, longitude: -73.57984 },
       { latitude: 45.497447, longitude: -73.579713 },
       { latitude: 45.497489, longitude: -73.579801 },
     ],
@@ -1381,7 +1401,7 @@ export const BUILDINGS: Buildings[] = [
       longitude: -73.586056,
     },
     boundingBox: [
-      { latitude: 45.496710, longitude: -73.586147 },
+      { latitude: 45.49671, longitude: -73.586147 },
       { latitude: 45.496567, longitude: -73.586251 },
       { latitude: 45.496552, longitude: -73.586222 },
       { latitude: 45.496552, longitude: -73.586198 },
@@ -1393,7 +1413,7 @@ export const BUILDINGS: Buildings[] = [
       { latitude: 45.496562, longitude: -73.585889 },
       { latitude: 45.496552, longitude: -73.585854 },
       { latitude: 45.496579, longitude: -73.585841 },
-      { latitude: 45.496710, longitude: -73.586147 },
+      { latitude: 45.49671, longitude: -73.586147 },
     ],
   },
   {
@@ -1402,7 +1422,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "T Annex",
     address: "2030 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.496684, longitude: -73.579262
+      latitude: 45.496684,
+      longitude: -73.579262,
     },
     boundingBox: [
       { latitude: 45.496752, longitude: -73.579253 },
@@ -1418,14 +1439,15 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Toronto-Dominion Building",
     address: "1410 Guy St, Montreal, QC H3H 1L8",
     coordinates: {
-      latitude: 45.495059, longitude: -73.578255
+      latitude: 45.495059,
+      longitude: -73.578255,
     },
     boundingBox: [
       { latitude: 45.495175, longitude: -73.578396 },
       { latitude: 45.495109, longitude: -73.578473 },
-      { latitude: 45.495030, longitude: -73.578332 },
+      { latitude: 45.49503, longitude: -73.578332 },
       { latitude: 45.495041, longitude: -73.578314 },
-      { latitude: 45.495025, longitude: -73.578280 },
+      { latitude: 45.495025, longitude: -73.57828 },
       { latitude: 45.495006, longitude: -73.578302 },
       { latitude: 45.494924, longitude: -73.578148 },
       { latitude: 45.495017, longitude: -73.578042 },
@@ -1438,13 +1460,14 @@ export const BUILDINGS: Buildings[] = [
     displayName: "V Annex",
     address: "2110 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
-      latitude: 45.497012, longitude: -73.579908
+      latitude: 45.497012,
+      longitude: -73.579908,
     },
     boundingBox: [
       { latitude: 45.497086, longitude: -73.579896 },
       { latitude: 45.496967, longitude: -73.580014 },
-      { latitude: 45.496932, longitude: -73.579930 },
-      { latitude: 45.497050, longitude: -73.579812 },
+      { latitude: 45.496932, longitude: -73.57993 },
+      { latitude: 45.49705, longitude: -73.579812 },
       { latitude: 45.497086, longitude: -73.579896 },
     ],
   },
@@ -1454,7 +1477,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Visual Arts Building",
     address: "1395 René-Lévesque Blvd W, Montreal, Quebec H3G 2M5",
     coordinates: {
-      latitude: 45.495737, longitude: -73.573860
+      latitude: 45.495737,
+      longitude: -73.57386,
     },
     boundingBox: [
       { latitude: 45.496167, longitude: -73.573787 },
@@ -1472,7 +1496,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "X Annex",
     address: "2080 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
-      latitude: 45.496898, longitude: -73.579670
+      latitude: 45.496898,
+      longitude: -73.57967,
     },
     boundingBox: [
       { latitude: 45.496961, longitude: -73.579668 },
@@ -1488,12 +1513,13 @@ export const BUILDINGS: Buildings[] = [
     displayName: "Z Annex",
     address: "2090 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
-      latitude: 45.496913, longitude: -73.579776
+      latitude: 45.496913,
+      longitude: -73.579776,
     },
     boundingBox: [
       { latitude: 45.496996, longitude: -73.579754 },
       { latitude: 45.496901, longitude: -73.579846 },
-      { latitude: 45.496890, longitude: -73.579819 },
+      { latitude: 45.49689, longitude: -73.579819 },
       { latitude: 45.496876, longitude: -73.579833 },
       { latitude: 45.496882, longitude: -73.579854 },
       { latitude: 45.496841, longitude: -73.579894 },
