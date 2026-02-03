@@ -12,7 +12,7 @@ export const BUILDINGS: Buildings[] = [
     name: "SP",
     campusName: "loyola",
     displayName: "Richard J Renaud Science Complex",
-    address: "7141 Rue Sherbrooke Ouest, Montréal",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4576633, longitude: -73.6413024 },
     boundingBox: [
       { latitude: 45.4569746, longitude: -73.6408295 },
@@ -71,7 +71,7 @@ export const BUILDINGS: Buildings[] = [
     name: "SI",
     campusName: "loyola",
     displayName: "Saint Ignatius of Loyola Church",
-    address: "4455 West Broadway, Montréal",
+    address: "4455 West Broadway, Montréal, QC H4B 2A7",
     coordinates: { latitude: 45.4578692, longitude: -73.64233215 },
     boundingBox: [
       { latitude: 45.4575836, longitude: -73.6423818 },
@@ -114,7 +114,7 @@ export const BUILDINGS: Buildings[] = [
     name: "FC",
     campusName: "loyola",
     displayName: "F.C. Smith Building",
-    address: "7141 Sherbrooke St W, Montreal",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45850065, longitude: -73.639362 },
     boundingBox: [
       { latitude: 45.45838194827393, longitude: -73.6390384691037 },
@@ -194,7 +194,7 @@ export const BUILDINGS: Buildings[] = [
     name: "RA",
     campusName: "loyola",
     displayName: "Recreation and Athletics Complex",
-    address: "7200 Rue Sherbrooke Ouest, Montréal",
+    address: "7200 Sherbrooke St W, Montreal, QC H4B 2A4",
     coordinates: { latitude: 45.45677705, longitude: -73.63776955 },
     boundingBox: [
       { latitude: 45.45672955099704, longitude: -73.63710111804322 },
@@ -211,7 +211,7 @@ export const BUILDINGS: Buildings[] = [
     name: "PS",
     campusName: "loyola",
     displayName: "Physical Services",
-    address: "7141 Sherbrooke St W, Montreal, Quebec H4B 2A7",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4596178, longitude: -73.6397704 },
     boundingBox: [
       { latitude: 45.4593968, longitude: -73.6395352 },
@@ -233,7 +233,7 @@ export const BUILDINGS: Buildings[] = [
     name: "CJ",
     campusName: "loyola",
     displayName: "Communication Studies and Journalism Building",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45750475, longitude: -73.6402663 },
     boundingBox: [
       { latitude: 45.4571693, longitude: -73.6403939 },
@@ -278,7 +278,7 @@ export const BUILDINGS: Buildings[] = [
     name: "SC",
     campusName: "loyola",
     displayName: "Student Centre",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4591611, longitude: -73.63919545 },
     boundingBox: [
       { latitude: 45.4592282, longitude: -73.6389487 },
@@ -302,7 +302,7 @@ export const BUILDINGS: Buildings[] = [
     name: "JR",
     campusName: "loyola",
     displayName: "Jesuit Residence",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45842125, longitude: -73.643235 },
     boundingBox: [
       { latitude: 45.45840881417316, longitude: -73.64324139552258 },
@@ -329,7 +329,7 @@ export const BUILDINGS: Buildings[] = [
     name: "SH",
     campusName: "loyola",
     displayName: "Solar House",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4592678, longitude: -73.642528 },
     boundingBox: [
       { latitude: 45.4593132, longitude: -73.6426242 },
@@ -343,7 +343,7 @@ export const BUILDINGS: Buildings[] = [
     name: "TA",
     campusName: "loyola",
     displayName: "Concordia Terrebonne Building",
-    address: "7079 Rue de Terrebonne, Montréal",
+    address: "7079 Rue de Terrebonne, Montréal, QC H4B 2Z3",
     coordinates: { latitude: 45.45998565, longitude: -73.6408843 },
     boundingBox: [
       { latitude: 45.460082, longitude: -73.640892 },
@@ -356,7 +356,7 @@ export const BUILDINGS: Buildings[] = [
     name: "GE",
     campusName: "loyola",
     displayName: "Centre for Structural and Functional Genomics",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4569858, longitude: -73.6404556 },
     boundingBox: [
       { latitude: 45.4571701, longitude: -73.6405654 },
@@ -377,7 +377,7 @@ export const BUILDINGS: Buildings[] = [
     name: "PC",
     campusName: "loyola",
     displayName: "PERFORM Centre",
-    address: "7200 Rue Sherbrooke Ouest, Montréal",
+    address: "7200 Sherbrooke St W, Montreal, QC H4B 2A4",
     coordinates: { latitude: 45.4569675, longitude: -73.63732315 },
     boundingBox: [
       { latitude: 45.4572701, longitude: -73.6376525 },
@@ -392,7 +392,7 @@ export const BUILDINGS: Buildings[] = [
     name: "HC",
     campusName: "loyola",
     displayName: "Hingston Hall",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4597048, longitude: -73.6420431 },
     boundingBox: [
       { latitude: 45.459887, longitude: -73.6420067 },
@@ -412,7 +412,7 @@ export const BUILDINGS: Buildings[] = [
     name: "PT",
     campusName: "loyola",
     displayName: "Oscar Peterson Concert Hall",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45933525, longitude: -73.6389547 },
     boundingBox: [
       { latitude: 45.4595066, longitude: -73.6391376 },
@@ -430,7 +430,7 @@ export const BUILDINGS: Buildings[] = [
     name: "RF",
     campusName: "loyola",
     displayName: "Loyola Jesuit Hall and Conference Center",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45858305, longitude: -73.6410027 },
     boundingBox: [
       { latitude: 45.4583412, longitude: -73.6409057 },
@@ -459,7 +459,7 @@ export const BUILDINGS: Buildings[] = [
     name: "CC",
     campusName: "loyola",
     displayName: "Central Building",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45823045, longitude: -73.64035915 },
     boundingBox: [
       { latitude: 45.45837846246661, longitude: -73.6407936233295 },
@@ -483,7 +483,7 @@ export const BUILDINGS: Buildings[] = [
     name: "AD",
     campusName: "loyola",
     displayName: "Administration Building",
-    address: "7141 Rue Sherbrooke Ouest, Montréal",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45808355, longitude: -73.63977735 },
     boundingBox: [
       { latitude: 45.457798967810064, longitude: -73.63982640602099 },
@@ -537,7 +537,7 @@ export const BUILDINGS: Buildings[] = [
     name: "HU",
     campusName: "loyola",
     displayName: "Applied Science Hub",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4584715, longitude: -73.6417941 },
     boundingBox: [
       { latitude: 45.4584315, longitude: -73.6421084 },
@@ -560,7 +560,7 @@ export const BUILDINGS: Buildings[] = [
     name: "VL",
     campusName: "loyola",
     displayName: "Concordia Vanier Library",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4589523, longitude: -73.63857895 },
     boundingBox: [
       { latitude: 45.459305, longitude: -73.6386725 },
@@ -622,7 +622,7 @@ export const BUILDINGS: Buildings[] = [
     name: "DO",
     campusName: "Loyola",
     displayName: "Stinger Dome",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45767546719732, longitude: -73.63614320755005 },
     boundingBox: [
       { latitude: 45.45695412200131, longitude: -73.63635852206605 },
@@ -635,7 +635,7 @@ export const BUILDINGS: Buildings[] = [
     name: "HA",
     campusName: "Loyola",
     displayName: "Hingston Hall, wing HA",
-    address: "7141 Sherbrooke St W, Montreal, Quebec H4B 1R6",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45945398113829, longitude: -73.64120812700196 },
     boundingBox: [
       { latitude: 45.45925878611328, longitude: -73.64114246694434 },
@@ -656,7 +656,7 @@ export const BUILDINGS: Buildings[] = [
     name: "HB",
     campusName: "Loyola",
     displayName: "Hingston Hall, wing HB",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45924054914103, longitude: -73.64189015927725 },
     boundingBox: [
       { latitude: 45.45896902854732, longitude: -73.64180873293778 },
@@ -679,7 +679,7 @@ export const BUILDINGS: Buildings[] = [
     name: "PY",
     campusName: "Loyola",
     displayName: "Psychology Building",
-    address: "7141 Sherbrooke St W, Montreal, Quebec H4B 1R6",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45900554313173, longitude: -73.64044802685575 },
     boundingBox: [
       { latitude: 45.45884699152768, longitude: -73.64083336928228 },
@@ -721,7 +721,7 @@ export const BUILDINGS: Buildings[] = [
     name: "QA",
     campusName: "Loyola",
     displayName: "Quadrangle",
-    address: "7141 Sherbrooke St W, Montreal, Quebec",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45863177412241, longitude: -73.64004900596404 },
     boundingBox: [],
   },
@@ -729,7 +729,7 @@ export const BUILDINGS: Buildings[] = [
     name: "VE",
     campusName: "Loyola",
     displayName: "Vanier Extension",
-    address: "7141 Sherbrooke St W, Montreal, Quebec.",
+    address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.458758, longitude: -73.63861 },
     boundingBox: [],
   },
@@ -833,13 +833,12 @@ export const BUILDINGS: Buildings[] = [
       longitude: -73.58001,
     },
     boundingBox: [
-      { latitude: 45.496677, longitude: -73.579967 },
-      { latitude: 45.496237, longitude: -73.580385 },
-      { latitude: 45.496148, longitude: -73.580088 },
-      { latitude: 45.496159, longitude: -73.580077 },
-      { latitude: 45.496137, longitude: -73.580002 },
-      { latitude: 45.496519, longitude: -73.579632 },
-      { latitude: 45.496677, longitude: -73.579967 },
+      { latitude: 45.49615963345298, longitude: -73.58006721968488 },
+      { latitude: 45.49625880934598, longitude: -73.5803495221837 },
+      { latitude: 45.496674782160476, longitude: -73.57996730739907 },
+      { latitude: 45.49652070814119, longitude: -73.57963138408415 },
+      { latitude: 45.49621471393958, longitude: -73.57990302081502 },
+      { latitude: 45.496245265743696, longitude: -73.5799714171449 },
     ],
   },
   {
@@ -1122,11 +1121,10 @@ export const BUILDINGS: Buildings[] = [
       longitude: -73.578915,
     },
     boundingBox: [
-      { latitude: 45.497715, longitude: -73.579013 },
-      { latitude: 45.497172, longitude: -73.579547 },
-      { latitude: 45.497369, longitude: -73.578292 },
-      { latitude: 45.497715, longitude: -73.579013 },
-      { latitude: 45.497715, longitude: -73.579013 },
+      { latitude: 45.49682818364492, longitude: -73.57884845912251 },
+      { latitude: 45.497163503733475, longitude: -73.57954223351966 },
+      { latitude: 45.497708183281496, longitude: -73.5790334123961 },
+      { latitude: 45.4973720615268, longitude: -73.57833870872308 },
     ],
   },
   {
