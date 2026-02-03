@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { CAMPUSES, CampusKey } from "../constants/campuses";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
@@ -10,6 +11,10 @@ export default function CampusMapScreen() {
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw"
   );
+
+  useEffect(() => {
+    setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
+  }, [campus]);
 
   const toggleCampus = () => {
     setCurrentCampus((prev) => (prev === "sgw" ? "loyola" : "sgw"));
@@ -19,7 +24,6 @@ export default function CampusMapScreen() {
     <View style={{ flex: 1 }}>
       <CampusMap coordinates={CAMPUSES[currentCampus].coordinates} />
 
-      {/* Toggle Button Overlay */}
       <Pressable style={styles.toggleButton} onPress={toggleCampus}>
         <Text style={styles.toggleText}>
           Switch to {currentCampus === "sgw" ? "Loyola" : "SGW"}
@@ -32,17 +36,17 @@ export default function CampusMapScreen() {
 const styles = StyleSheet.create({
   toggleButton: {
     position: "absolute",
-    bottom: 30,
-    right: 20,
-    backgroundColor: "#912338",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    bottom: spacing.lg,
+    right: spacing.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
     elevation: 5,
   },
   toggleText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
+    color: colors.white,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
 });
