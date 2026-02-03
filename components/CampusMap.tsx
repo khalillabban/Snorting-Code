@@ -1,17 +1,11 @@
 import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Polygon } from "react-native-maps";
+import { BUILDINGS } from "../constants/buildings";
+import { colors } from "../constants/theme";
+import { Location } from "../constants/type";
 
-type Coordinates = {
-  latitude: number;
-  longitude: number;
-};
-
-export default function CampusMap({
-  coordinates,
-}: {
-  coordinates: Coordinates;
-}) {
+export default function CampusMap({ coordinates }: { coordinates: Location }) {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -32,7 +26,23 @@ export default function CampusMap({
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         showsUserLocation
-      />
+        showsMyLocationButton
+      >
+        {BUILDINGS.map((building) => {
+          if (building.boundingBox && building.boundingBox.length > 0) {
+            return (
+              <Polygon
+                key={building.name}
+                coordinates={building.boundingBox}
+                fillColor={colors.primaryTransparent}
+                strokeColor={colors.primary}
+                strokeWidth={2}
+              />
+            );
+          }
+          return null;
+        })}
+      </MapView>
     </View>
   );
 }
