@@ -2,6 +2,7 @@
 export const colors = {
   // Brand colors (Concordia)
   primary: "#912338",
+  primaryTransparent: "rgba(145, 35, 56, 0.5)",
   primaryDark: "#6d1a2a",
   primaryLight: "#b84d5f",
 
