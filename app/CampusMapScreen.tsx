@@ -1,9 +1,9 @@
-import { View, Text } from "react-native";
+import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
+import { Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { CAMPUSES, CampusKey } from "../constants/campuses";
-import * as Location from "expo-location";
-import { useEffect } from "react";
 
 export default function CampusMapScreen() {
     useEffect(() => {
