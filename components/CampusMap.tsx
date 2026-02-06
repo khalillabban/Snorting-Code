@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import MapView, { Polygon } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
@@ -19,16 +19,25 @@ export default function CampusMap({ coordinates }: { coordinates: Location }) {
     setSelectedBuilding(building);
   };
 
+  const mapRef = useRef<MapView>(null);
+
+  useEffect(() => {
+    mapRef.current?.animateToRegion(
+      {
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      },
+      250 // ms
+    );
+  }, [coordinates]);
+
   return (
     <View style={{flex: 1}}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        initialRegion={{
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
         showsUserLocation
         showsMyLocationButton
         onPress={handleMapPress}      

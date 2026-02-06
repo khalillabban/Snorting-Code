@@ -1,31 +1,52 @@
-import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { CAMPUSES, CampusKey } from "../constants/campuses";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 export default function CampusMapScreen() {
-    useEffect(() => {
-        (async () => {
-            await Location.requestForegroundPermissionsAsync();
-        })();
-    }, []);
-    const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+  const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
-    if (!campus || !(campus in CAMPUSES)) {
-        return (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text>Invalid campus</Text>
-            </View>
-        );
-    }
+  const [currentCampus, setCurrentCampus] = useState<CampusKey>(
+    campus === "loyola" ? "loyola" : "sgw"
+  );
 
-    const campusData = CAMPUSES[campus];
+  useEffect(() => {
+    setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
+  }, [campus]);
 
-    return (
-        <View style={{ flex: 1 }}>
-            <CampusMap coordinates={campusData.coordinates} />
-        </View>
-    );
+  const toggleCampus = () => {
+    setCurrentCampus((prev) => (prev === "sgw" ? "loyola" : "sgw"));
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <CampusMap coordinates={CAMPUSES[currentCampus].coordinates} />
+
+      <Pressable style={styles.toggleButton} onPress={toggleCampus}>
+        <Text style={styles.toggleText}>
+          Switch to {currentCampus === "sgw" ? "Loyola" : "SGW"}
+        </Text>
+      </Pressable>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  toggleButton: {
+    position: "absolute",
+    bottom: spacing.lg,
+    right: spacing.md,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    elevation: 5,
+  },
+  toggleText: {
+    color: colors.white,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.button.fontWeight,
+  },
+});
