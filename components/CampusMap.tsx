@@ -33,20 +33,23 @@ export default function CampusMap({ coordinates }: { coordinates: Location }) {
         showsMyLocationButton
         onPress={handleMapPress}      
       >
-        {BUILDINGS.map((building) => (
-          <Polygon
-            key={building.name}
-            coordinates={building.boundingBox}
-            fillColor={colors.primaryTransparent}
-            strokeColor={colors.primary}
-            strokeWidth={2}
-            tappable={true} 
-            onPress={(e) => {
-              e.stopPropagation();
-              handleBuildingPress(building);
-            }}
-          />
-        ))}
+        {BUILDINGS.map((building) => {
+          const isSelected = selectedBuilding?.name === building.name;
+          return (
+            <Polygon
+              key={building.name}
+              coordinates={building.boundingBox}
+              fillColor={isSelected ? colors.primary : colors.primaryTransparent}
+              strokeColor={colors.primary}
+              strokeWidth={isSelected ? 3 : 2}
+              tappable={true} 
+              onPress={(e) => {
+                e.stopPropagation();
+                handleBuildingPress(building);
+              }}
+            />
+          );
+        })}
       </MapView>
       
       <BuildingInfoPopup 
