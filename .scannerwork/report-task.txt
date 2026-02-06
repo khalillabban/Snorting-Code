@@ -1,0 +1,7 @@
+organization=khalillabban
+projectKey=khalillabban_Snorting-Code
+serverUrl=https://sonarcloud.io
+serverVersion=8.0.0.79696
+dashboardUrl=https://sonarcloud.io/dashboard?id=khalillabban_Snorting-Code
+ceTaskId=AZwwz057bDJRDEmEU1w6
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZwwz057bDJRDEmEU1w6
