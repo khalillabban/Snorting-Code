@@ -5,15 +5,17 @@ name: string;
   displayName: string;
   address: string;
   coordinates: Location;
+  services: BuildingService[];
   boundingBox: Location[];
 */
 export const BUILDINGS: Buildings[] = [
   {
     name: "SP",
     campusName: "loyola",
-    displayName: "Richard J Renaud Science Complex",
+    displayName: "Richard J Renaud Science Complex (SP)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4576633, longitude: -73.6413024 },
+    services: ["information", "wheelchair"],
     boundingBox: [
       { latitude: 45.4569746, longitude: -73.6408295 },
       { latitude: 45.4570166, longitude: -73.6409402 },
@@ -70,7 +72,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "SI",
     campusName: "loyola",
-    displayName: "Saint Ignatius of Loyola Church",
+    displayName: "Saint Ignatius of Loyola Church (SI)",
     address: "4455 West Broadway, Montréal, QC H4B 2A7",
     coordinates: { latitude: 45.4578692, longitude: -73.64233215 },
     boundingBox: [
@@ -113,9 +115,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "FC",
     campusName: "loyola",
-    displayName: "F.C. Smith Building",
+    displayName: "F.C. Smith Building (FC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45850065, longitude: -73.639362 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.45838194827393, longitude: -73.6390384691037 },
       { latitude: 45.45839251355503, longitude: -73.63907076867876 },
@@ -193,9 +196,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "RA",
     campusName: "loyola",
-    displayName: "Recreation and Athletics Complex",
+    displayName: "Recreation and Athletics Complex (RA)",
     address: "7200 Sherbrooke St W, Montreal, QC H4B 2A4",
     coordinates: { latitude: 45.45677705, longitude: -73.63776955 },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.45672955099704, longitude: -73.63710111804322 },
       { latitude: 45.457032460316356, longitude: -73.6378709120305 },
@@ -210,7 +214,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "PS",
     campusName: "loyola",
-    displayName: "Physical Services",
+    displayName: "Physical Services (PS)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4596178, longitude: -73.6397704 },
     boundingBox: [
@@ -232,9 +236,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "CJ",
     campusName: "loyola",
-    displayName: "Communication Studies and Journalism Building",
+    displayName: "Communication Studies and Journalism Building (CJ)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45750475, longitude: -73.6402663 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4571693, longitude: -73.6403939 },
       { latitude: 45.4572802, longitude: -73.6406597 },
@@ -277,9 +282,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "SC",
     campusName: "loyola",
-    displayName: "Student Centre",
+    displayName: "Student Centre (SC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4591611, longitude: -73.63919545 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4592282, longitude: -73.6389487 },
       { latitude: 45.4591458, longitude: -73.6390148 },
@@ -301,9 +307,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "JR",
     campusName: "loyola",
-    displayName: "Jesuit Residence",
+    displayName: "Jesuit Residence (JR)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45842125, longitude: -73.643235 },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.45840881417316, longitude: -73.64324139552258 },
       { latitude: 45.45844855817151, longitude: -73.64334030198 },
@@ -328,9 +335,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "SH",
     campusName: "loyola",
-    displayName: "Solar House",
+    displayName: "Solar House (SH)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4592678, longitude: -73.642528 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4593132, longitude: -73.6426242 },
       { latitude: 45.4592216, longitude: -73.6426235 },
@@ -342,9 +350,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "TA",
     campusName: "loyola",
-    displayName: "Concordia Terrebonne Building",
+    displayName: "Concordia Terrebonne Building (TA)",
     address: "7079 Rue de Terrebonne, Montréal, QC H4B 2Z3",
     coordinates: { latitude: 45.45998565, longitude: -73.6408843 },
+    services: ["parking"],
     boundingBox: [
       { latitude: 45.460082, longitude: -73.640892 },
       { latitude: 45.459977, longitude: -73.640967 },
@@ -355,9 +364,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "GE",
     campusName: "loyola",
-    displayName: "Centre for Structural and Functional Genomics",
+    displayName: "Centre for Structural and Functional Genomics (GE)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4569858, longitude: -73.6404556 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4571701, longitude: -73.6405654 },
       { latitude: 45.4571108, longitude: -73.6406112 },
@@ -376,9 +386,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "PC",
     campusName: "loyola",
-    displayName: "PERFORM Centre",
+    displayName: "PERFORM Centre (PC)",
     address: "7200 Sherbrooke St W, Montreal, QC H4B 2A4",
     coordinates: { latitude: 45.4569675, longitude: -73.63732315 },
+    services: ["information", "parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.4572701, longitude: -73.6376525 },
       { latitude: 45.4570453, longitude: -73.6378295 },
@@ -391,9 +402,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "HC",
     campusName: "loyola",
-    displayName: "Hingston Hall",
+    displayName: "Hingston Hall (HC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4597048, longitude: -73.6420431 },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.459887, longitude: -73.6420067 },
       { latitude: 45.4597763, longitude: -73.6420908 },
@@ -411,9 +423,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "PT",
     campusName: "loyola",
-    displayName: "Oscar Peterson Concert Hall",
+    displayName: "Oscar Peterson Concert Hall (PT)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45933525, longitude: -73.6389547 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4595066, longitude: -73.6391376 },
       { latitude: 45.459305, longitude: -73.6386725 },
@@ -429,9 +442,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "RF",
     campusName: "loyola",
-    displayName: "Loyola Jesuit Hall and Conference Center",
+    displayName: "Loyola Jesuit Hall and Conference Center (RF)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45858305, longitude: -73.6410027 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4583412, longitude: -73.6409057 },
       { latitude: 45.4583493, longitude: -73.6408995 },
@@ -458,9 +472,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "CC",
     campusName: "loyola",
-    displayName: "Central Building",
+    displayName: "Central Building (CC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45823045, longitude: -73.64035915 },
+    services: ["information", "bike", "wheelchair"],
     boundingBox: [
       { latitude: 45.45837846246661, longitude: -73.6407936233295 },
       { latitude: 45.45838881002474, longitude: -73.64079261750112 },
@@ -482,9 +497,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "AD",
     campusName: "loyola",
-    displayName: "Administration Building",
+    displayName: "Administration Building (AD)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45808355, longitude: -73.63977735 },
+    services: ["information", "bike", "parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.457798967810064, longitude: -73.63982640602099 },
       { latitude: 45.45782083900776, longitude: -73.63980930693852 },
@@ -536,9 +552,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "HU",
     campusName: "loyola",
-    displayName: "Applied Science Hub",
+    displayName: "Applied Science Hub (HU)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4584715, longitude: -73.6417941 },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.4584315, longitude: -73.6421084 },
       { latitude: 45.4583945, longitude: -73.6420113 },
@@ -559,9 +576,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "VL",
     campusName: "loyola",
-    displayName: "Concordia Vanier Library",
+    displayName: "Concordia Vanier Library (VL)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.4589523, longitude: -73.63857895 },
+    services: ["information", "wheelchair"],
     boundingBox: [
       { latitude: 45.459305, longitude: -73.6386725 },
       { latitude: 45.4591254, longitude: -73.6382188 },
@@ -592,12 +610,9 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "BB",
     campusName: "Loyola",
-    displayName: "BB Annex",
+    displayName: "BB Annex (BB)",
     address: "3502 Avenue BelmoreMontréal, QC H4B 2B9",
-    coordinates: {
-      latitude: 45.459824341726055,
-      longitude: -73.63932129841155,
-    },
+    coordinates: { latitude: 45.459824341726055, longitude: -73.63932129841155 },
     boundingBox: [
       { latitude: 45.459847629799036, longitude: -73.63923764922974 },
       { latitude: 45.45975826677363, longitude: -73.63931878605244 },
@@ -608,7 +623,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "BH",
     campusName: "Loyola",
-    displayName: "BH Annex",
+    displayName: "BH Annex (BH)",
     address: "3500 Avenue BelmoreMontréal, QC H4B 2B9",
     coordinates: { latitude: 45.45974814796602, longitude: -73.63912683825797 },
     boundingBox: [
@@ -621,7 +636,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "DO",
     campusName: "Loyola",
-    displayName: "Stinger Dome",
+    displayName: "Stinger Dome (DO)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45767546719732, longitude: -73.63614320755005 },
     boundingBox: [
@@ -634,9 +649,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "HA",
     campusName: "Loyola",
-    displayName: "Hingston Hall, wing HA",
+    displayName: "Hingston Hall, wing HA (HA)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45945398113829, longitude: -73.64120812700196 },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.45925878611328, longitude: -73.64114246694434 },
       { latitude: 45.4593942427911, longitude: -73.64149584798206 },
@@ -655,9 +671,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "HB",
     campusName: "Loyola",
-    displayName: "Hingston Hall, wing HB",
+    displayName: "Hingston Hall, wing HB (HB)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45924054914103, longitude: -73.64189015927725 },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.45896902854732, longitude: -73.64180873293778 },
       { latitude: 45.45899607301431, longitude: -73.64187712926766 },
@@ -678,9 +695,10 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "PY",
     campusName: "Loyola",
-    displayName: "Psychology Building",
+    displayName: "Psychology Building (PY)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45900554313173, longitude: -73.64044802685575 },
+    services: ["information", "wheelchair"],
     boundingBox: [
       { latitude: 45.45884699152768, longitude: -73.64083336928228 },
       { latitude: 45.45918093171645, longitude: -73.64057855942586 },
@@ -720,23 +738,25 @@ export const BUILDINGS: Buildings[] = [
     //GREEN PLACE
     name: "QA",
     campusName: "Loyola",
-    displayName: "Quadrangle",
+    displayName: "Quadrangle (QA)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45863177412241, longitude: -73.64004900596404 },
+    services: ["wheelchair"],
     boundingBox: [],
   },
   {
     name: "VE",
     campusName: "Loyola",
-    displayName: "Vanier Extension",
+    displayName: "Vanier Extension (VE)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.458758, longitude: -73.63861 },
+    services: ["bike", "wheelchair"],
     boundingBox: [],
   },
   {
     name: "B",
     campusName: "SGW",
-    displayName: "B Annex",
+    displayName: "B Annex (B)",
     address: "2160 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
       latitude: 45.497818,
@@ -752,7 +772,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "CI",
     campusName: "SGW",
-    displayName: "CI Annex",
+    displayName: "CI Annex (CI)",
     address: "2149 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.497483,
@@ -771,12 +791,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "CL",
     campusName: "SGW",
-    displayName: "CL Annex",
+    displayName: "CL Annex (CL)",
     address: "1665 Rue Sainte-Catherine O, Montréal, Quebec H3H 1L9",
     coordinates: {
       latitude: 45.497782,
       longitude: -73.579318,
     },
+    services: ["information", "printer", "wheelchair"],
     boundingBox: [
       { latitude: 45.494259642546005, longitude: -73.5789361919959 },
       { latitude: 45.493989386951206, longitude: -73.57928912203849 },
@@ -789,7 +810,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "D",
     campusName: "SGW",
-    displayName: "D Annex",
+    displayName: "D Annex (D)",
     address: "2140 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
       latitude: 45.494198,
@@ -805,7 +826,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "EN",
     campusName: "SGW",
-    displayName: "EN Annex",
+    displayName: "EN Annex (EN)",
     address: "2070 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
       latitude: 45.496831,
@@ -826,12 +847,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "ER",
     campusName: "SGW",
-    displayName: "ER Building",
+    displayName: "ER Building (ER)",
     address: "2155 Guy St, Montreal, Quebec H3H 2L9",
     coordinates: {
       latitude: 45.496383,
       longitude: -73.58001,
     },
+    services: ["printer", "wheelchair"],
     boundingBox: [
       { latitude: 45.49615963345298, longitude: -73.58006721968488 },
       { latitude: 45.49625880934598, longitude: -73.5803495221837 },
@@ -845,12 +867,13 @@ export const BUILDINGS: Buildings[] = [
     name: "EV",
     campusName: "SGW",
     displayName:
-      "Engineering, Computer Science and Visual Arts Integrated Complex",
+      "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
     address: "1515 Rue Sainte-Catherine O #1428, Montreal, Quebec H3G 1S6",
     coordinates: {
       latitude: 45.495626,
       longitude: -73.577982,
     },
+    services: ["information", "printer", "wheelchair"],
     boundingBox: [
       { latitude: 45.496065, longitude: -73.577714 },
       { latitude: 45.495757, longitude: -73.578006 },
@@ -868,7 +891,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "FA",
     campusName: "SGW",
-    displayName: "FA Annex",
+    displayName: "FA Annex (FA)",
     address: "2060 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496818,
@@ -885,12 +908,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "FB",
     campusName: "SGW",
-    displayName: "Faubourg Building",
+    displayName: "Faubourg Building (FB)",
     address: "1250 Guy St, Montreal, Quebec H3H 2L3",
     coordinates: {
       latitude: 45.494669,
       longitude: -73.577663,
     },
+    services: ["parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.494893, longitude: -73.577759 },
       { latitude: 45.494844, longitude: -73.577823 },
@@ -918,12 +942,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "FG",
     campusName: "SGW",
-    displayName: "Faubourg Ste-Catherine Building",
+    displayName: "Faubourg Ste-Catherine Building (FG)",
     address: "1610 Rue Sainte-Catherine O, Montreal, Quebec H3H 1L7",
     coordinates: {
       latitude: 45.494176,
       longitude: -73.578347,
     },
+    services: ["information", "printer", "wheelchair"],
     boundingBox: [
       { latitude: 45.494681, longitude: -73.578016 },
       { latitude: 45.493807, longitude: -73.579043 },
@@ -938,12 +963,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "GA",
     campusName: "SGW",
-    displayName: "Grey Nuns Annex",
+    displayName: "Grey Nuns Annex (GA)",
     address: "1211-1215 Rue St Mathieu, Montréal, QC H3H 2S2",
     coordinates: {
       latitude: 45.494052,
       longitude: -73.57803,
     },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.494352, longitude: -73.577742 },
       { latitude: 45.494129, longitude: -73.577975 },
@@ -959,12 +985,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "GM",
     campusName: "SGW",
-    displayName: "Guy-De Maisonneuve Building",
+    displayName: "Guy-De Maisonneuve Building (GM)",
     address: "1550 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1N1",
     coordinates: {
       latitude: 45.495884,
       longitude: -73.578742,
     },
+    services: ["information", "bike", "wheelchair"],
     boundingBox: [
       { latitude: 45.496128, longitude: -73.57878 },
       { latitude: 45.495781, longitude: -73.579123 },
@@ -978,13 +1005,14 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "GN",
     campusName: "SGW",
-    displayName: "Grey Nuns Building",
+    displayName: "Grey Nuns Building (GN)",
     address:
       "Main Entrance 1190 Guy St, Montreal, Quebec H3H 2L4, Class Entrance 1175 Rue St Mathieu, Montréal, Quebec H3H 2L4",
     coordinates: {
       latitude: 45.49347,
       longitude: -73.576875,
     },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.494399, longitude: -73.577101 },
       { latitude: 45.494141, longitude: -73.577359 },
@@ -1094,7 +1122,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "GS",
     campusName: "SGW",
-    displayName: "GS Building",
+    displayName: "GS Building (GS)",
     address: "1538 Sherbrooke St W, Montreal, Quebec H3G 1L5",
     coordinates: {
       latitude: 45.496577,
@@ -1114,12 +1142,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "H",
     campusName: "SGW",
-    displayName: "Henry F. Hall Building",
+    displayName: "Henry F. Hall Building (H)",
     address: "1455 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1M8",
     coordinates: {
       latitude: 45.497256,
       longitude: -73.578915,
     },
+    services: ["information", "printer", "bike", "wheelchair"],
     boundingBox: [
       { latitude: 45.49682818364492, longitude: -73.57884845912251 },
       { latitude: 45.497163503733475, longitude: -73.57954223351966 },
@@ -1130,7 +1159,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "K",
     campusName: "SGW",
-    displayName: "K Annex",
+    displayName: "K Annex (K)",
     address: "2150 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
       latitude: 45.497744,
@@ -1150,12 +1179,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "LB",
     campusName: "SGW",
-    displayName: "J. W. McConnell Building",
+    displayName: "J. W. McConnell Building (LB)",
     address: "1400 Maisonneuve Blvd W, Montreal, Quebec H3G 1M8",
     coordinates: {
       latitude: 45.496788,
       longitude: -73.577936,
     },
+    services: ["information", "printer", "bike", "parking", "wheelchair"],
     boundingBox: [
       { latitude: 45.497262, longitude: -73.578049 },
       { latitude: 45.496987, longitude: -73.578314 },
@@ -1177,7 +1207,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "LD",
     campusName: "SGW",
-    displayName: "LD Building",
+    displayName: "LD Building (LD)",
     address: "1424 Bishop St, Montreal, Quebec H3G 2E6",
     coordinates: {
       latitude: 45.497256,
@@ -1193,12 +1223,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "LS",
     campusName: "SGW",
-    displayName: "Learning Square (LS Building)",
+    displayName: "Learning Square (LS)",
     address: "1535 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1M9",
     coordinates: {
       latitude: 45.496335,
       longitude: -73.579484,
     },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.496526, longitude: -73.579559 },
       { latitude: 45.496411, longitude: -73.579671 },
@@ -1212,7 +1243,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "M",
     campusName: "SGW",
-    displayName: "M Annex",
+    displayName: "M Annex (M)",
     address: "2135 Mackay St, Montreal, Quebec H3G 2J2",
     coordinates: {
       latitude: 45.497355,
@@ -1232,12 +1263,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "MB",
     campusName: "SGW",
-    displayName: "John Molson Building",
+    displayName: "John Molson Building (MB)",
     address: "1450 Guy St, Montreal, Quebec H3H 0A1",
     coordinates: {
       latitude: 45.495236,
       longitude: -73.579024,
     },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.49511782033129, longitude: -73.57929809900001 },
       { latitude: 45.49524379011677, longitude: -73.57916667075828 },
@@ -1250,7 +1282,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "MI",
     campusName: "SGW",
-    displayName: "MI Annex",
+    displayName: "MI Annex (MI)",
     address: "2130 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
       latitude: 45.497785,
@@ -1268,7 +1300,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "MU",
     campusName: "SGW",
-    displayName: "MU Annex",
+    displayName: "MU Annex (MU)",
     address: "2170 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
       latitude: 45.497836,
@@ -1284,7 +1316,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "P",
     campusName: "SGW",
-    displayName: "P Annex",
+    displayName: "P Annex (P)",
     address: "2020 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496651,
@@ -1301,7 +1333,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "PR",
     campusName: "SGW",
-    displayName: "PR Annex",
+    displayName: "PR Annex (PR)",
     address: "2100 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496914,
@@ -1324,7 +1356,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "Q",
     campusName: "SGW",
-    displayName: "Q Annex",
+    displayName: "Q Annex (Q)",
     address: "2010 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496619,
@@ -1341,7 +1373,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "R",
     campusName: "SGW",
-    displayName: "R Annex",
+    displayName: "R Annex (R)",
     address: "2050 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496775,
@@ -1358,7 +1390,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "RR",
     campusName: "SGW",
-    displayName: "RR Annex",
+    displayName: "RR Annex (RR)",
     address: "2040 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496707,
@@ -1375,7 +1407,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "S",
     campusName: "SGW",
-    displayName: "S Annex",
+    displayName: "S Annex (S)",
     address: "2145 Mackay St, Montreal, Quebec H3G 2J2",
     coordinates: {
       latitude: 45.497399,
@@ -1392,12 +1424,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "SB",
     campusName: "SGW",
-    displayName: "Samuel Bronfman Building",
+    displayName: "Samuel Bronfman Building (SB)",
     address: "1590 Doctor Penfield Ave, Montreal, Quebec H3G 1C5",
     coordinates: {
       latitude: 45.496584,
       longitude: -73.586056,
     },
+    services: ["wheelchair"],
     boundingBox: [
       { latitude: 45.49671, longitude: -73.586147 },
       { latitude: 45.496567, longitude: -73.586251 },
@@ -1417,7 +1450,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "T",
     campusName: "SGW",
-    displayName: "T Annex",
+    displayName: "T Annex (T)",
     address: "2030 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.496684,
@@ -1434,12 +1467,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "TD",
     campusName: "SGW",
-    displayName: "Toronto-Dominion Building",
+    displayName: "Toronto-Dominion Building (TD)",
     address: "1410 Guy St, Montreal, QC H3H 1L8",
     coordinates: {
       latitude: 45.495059,
       longitude: -73.578255,
     },
+    services: ["printer"],
     boundingBox: [
       { latitude: 45.495175, longitude: -73.578396 },
       { latitude: 45.495109, longitude: -73.578473 },
@@ -1455,7 +1489,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "V",
     campusName: "SGW",
-    displayName: "V Annex",
+    displayName: "V Annex (V)",
     address: "2110 Mackay St, Montreal, Quebec H3G 2J1",
     coordinates: {
       latitude: 45.497012,
@@ -1472,12 +1506,13 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "VA",
     campusName: "SGW",
-    displayName: "Visual Arts Building",
+    displayName: "Visual Arts Building (VA)",
     address: "1395 René-Lévesque Blvd W, Montreal, Quebec H3G 2M5",
     coordinates: {
       latitude: 45.495737,
       longitude: -73.57386,
     },
+    services: ["information", "bike", "wheelchair"],
     boundingBox: [
       { latitude: 45.496167, longitude: -73.573787 },
       { latitude: 45.495651, longitude: -73.574293 },
@@ -1491,7 +1526,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "X",
     campusName: "SGW",
-    displayName: "X Annex",
+    displayName: "X Annex (X)",
     address: "2080 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
       latitude: 45.496898,
@@ -1508,7 +1543,7 @@ export const BUILDINGS: Buildings[] = [
   {
     name: "Z",
     campusName: "SGW",
-    displayName: "Z Annex",
+    displayName: "Z Annex (Z)",
     address: "2090 Mackay St, Montreal, QC H3G 2J1",
     coordinates: {
       latitude: 45.496913,

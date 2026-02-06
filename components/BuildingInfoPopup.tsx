@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
+import { ServiceIcons } from "./AccessibilityIcons";
 
 interface BuildingInfoPopupProps {
   building: Buildings | null;
@@ -31,8 +32,13 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
         <View style={styles.divider} />
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Campus:</Text>
-          <Text style={styles.value}>{building.campusName.toUpperCase()}</Text>
+          <View style={styles.infoLeft}>
+            <Text style={styles.label}>Campus:</Text>
+            <Text style={styles.value}>{building.campusName.toUpperCase()}</Text>
+          </View>
+          {building.services && building.services.length > 0 && (
+            <ServiceIcons services={building.services} />
+          )}
         </View>
 
         <TouchableOpacity 
@@ -108,7 +114,13 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing.lg,
+  },
+  infoLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   label: {
     ...typography.body,
