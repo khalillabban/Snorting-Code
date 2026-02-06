@@ -1,12 +1,12 @@
 import React from "react";
 import { Image, ImageSourcePropType, View, StyleSheet } from "react-native";
-import { BuildingService } from "../constants/type";
+import { BuildingIcon } from "../constants/type";
 import { spacing } from "../constants/theme";
 
 const ICON_SIZE = 24;
 
 // ensures consistent order of icons, same as concordia website
-const SERVICE_ORDER: BuildingService[] = [
+const ICON_ORDER: BuildingIcon[] = [
   "information",
   "printer",
   "bike",
@@ -14,7 +14,7 @@ const SERVICE_ORDER: BuildingService[] = [
   "wheelchair",
 ];
 
-const iconMap: Record<BuildingService, ImageSourcePropType> = {
+const iconMap: Record<BuildingIcon, ImageSourcePropType> = {
   information: require("../assets/images/information-accessibility-icon.png"),
   printer: require("../assets/images/printer-accessibility-icon.png"),
   bike: require("../assets/images/bike-accessibility-icon.png"),
@@ -22,13 +22,13 @@ const iconMap: Record<BuildingService, ImageSourcePropType> = {
   wheelchair: require("../assets/images/wheelchair-accessibility-icon.png"),
 };
 
-interface ServiceIconsProps {
-  services: BuildingService[];
+interface BuildingIconsProps {
+  icons: BuildingIcon[];
   size?: number;
 }
 
-export const ServiceIcons = ({ services, size = ICON_SIZE }: ServiceIconsProps) => {
-  const ordered = SERVICE_ORDER.filter((s) => services.includes(s));
+export const BuildingIcons = ({ icons, size = ICON_SIZE }: BuildingIconsProps) => {
+  const ordered = ICON_ORDER.filter((s) => icons.includes(s));
 
   if (ordered.length === 0) return null;
 

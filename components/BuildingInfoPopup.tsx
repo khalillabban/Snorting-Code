@@ -1,8 +1,10 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
-import { ServiceIcons } from "./AccessibilityIcons";
+import { BuildingIcons } from "./AccessibilityIcons";
+
+type TabKey = "departments" | "services";
 
 interface BuildingInfoPopupProps {
   building: Buildings | null;
@@ -10,7 +12,29 @@ interface BuildingInfoPopupProps {
 }
 
 export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps) => {
+  const [activeTab, setActiveTab] = useState<TabKey | null>(null);
+
+  // reset active tab when building changes
+  useEffect(() => {
+    setActiveTab(null);
+  }, [building]);
+
   if (!building) return null;
+
+  const hasDepartments = !!building.departments && building.departments.length > 0;
+  const hasServices = !!building.services && building.services.length > 0;
+  const hasTabs = hasDepartments || hasServices;
+
+  const handleTabPress = (tab: TabKey) => {
+    setActiveTab((prev) => (prev === tab ? null : tab));
+  };
+
+  const activeList =
+    activeTab === "departments"
+      ? building.departments
+      : activeTab === "services"
+        ? building.services
+        : undefined;
 
   return (
     <View style={styles.overlayWrapper} pointerEvents="box-none">
@@ -36,10 +60,67 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
             <Text style={styles.label}>Campus:</Text>
             <Text style={styles.value}>{building.campusName.toUpperCase()}</Text>
           </View>
-          {building.services && building.services.length > 0 && (
-            <ServiceIcons services={building.services} />
+          {building.icons && building.icons.length > 0 && (
+            <BuildingIcons icons={building.icons} />
           )}
         </View>
+
+        {hasTabs && (
+          <>
+            <View style={styles.tabRow}>
+              {hasDepartments && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[
+                    styles.tab,
+                    !hasServices && styles.tabFull,
+                    activeTab === "departments" && styles.tabActive,
+                  ]}
+                  onPress={() => handleTabPress("departments")}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      activeTab === "departments" && styles.tabTextActive,
+                    ]}
+                  >
+                    Departments
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {hasServices && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[
+                    styles.tab,
+                    !hasDepartments && styles.tabFull,
+                    activeTab === "services" && styles.tabActive,
+                  ]}
+                  onPress={() => handleTabPress("services")}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      activeTab === "services" && styles.tabTextActive,
+                    ]}
+                  >
+                    Services
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {activeTab && activeList && activeList.length > 0 && (
+              <ScrollView style={styles.tabContent} nestedScrollEnabled>
+                {activeList.map((item, index) => (
+                  <Text key={index} style={styles.tabItem}>
+                    {item}
+                  </Text>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
 
         <TouchableOpacity 
           activeOpacity={0.8}
@@ -83,6 +164,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    marginBottom: spacing.lg,
   },
   title: {
     ...typography.heading,
@@ -110,13 +192,15 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: colors.gray100,
-    marginVertical: spacing.md,
+    marginBottom: spacing.md,
+    marginTop: -spacing.xs,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
   infoLeft: {
     flexDirection: "row",
@@ -140,5 +224,52 @@ const styles = StyleSheet.create({
   actionButtonText: {
     ...typography.button,
     color: colors.white,
+  },
+  tabRow: {
+    flexDirection: "row",
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+    backgroundColor: colors.offWhite,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.gray100,
+  },
+  tabFull: {
+    flex: 1,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  tabText: {
+    ...typography.body,
+    fontWeight: "600",
+    color: colors.gray700,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
+  tabContent: {
+    maxHeight: 110,
+    marginBottom: spacing.md,
+    marginTop: -spacing.sm,
+  },
+  tabItem: {
+    ...typography.body,
+    color: colors.gray700,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingLeft: spacing.md,
+    marginBottom: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primaryTransparent,
+    backgroundColor: colors.offWhite,
+    borderRadius: borderRadius.sm,
+    textAlign: "left",
   },
 });

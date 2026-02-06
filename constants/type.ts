@@ -1,4 +1,4 @@
-export type BuildingService = 'information' | 'printer' | 'bike' | 'parking' | 'wheelchair';
+export type BuildingIcon = 'information' | 'printer' | 'bike' | 'parking' | 'wheelchair';
 
 export interface Buildings {
   name: string;
@@ -6,7 +6,9 @@ export interface Buildings {
   displayName: string;
   address: string;
   coordinates: Location;
-  services?: BuildingService[];
+  icons?: BuildingIcon[];
+  departments?: string[];
+  services?: string[];
   boundingBox: Location[];
 }
 
