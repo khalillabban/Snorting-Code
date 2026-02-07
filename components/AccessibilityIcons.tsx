@@ -33,13 +33,14 @@ export const BuildingIcons = ({ icons, size = ICON_SIZE }: BuildingIconsProps) =
   if (ordered.length === 0) return null;
 
   return (
-    <View style={styles.iconRow}>
+    <View style={styles.iconRow} testID="building-icons-row">
       {ordered.map((service) => (
         <Image
           key={service}
           source={iconMap[service]}
           style={{ width: size, height: size }}
           resizeMode="contain"
+          testID={`building-icon-${service}`}
         />
       ))}
     </View>
