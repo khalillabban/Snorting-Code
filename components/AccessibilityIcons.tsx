@@ -1,7 +1,7 @@
 import React from "react";
-import { Image, ImageSourcePropType, View, StyleSheet } from "react-native";
-import { BuildingIcon } from "../constants/type";
+import { Image, ImageSourcePropType, StyleSheet, View } from "react-native";
 import { spacing } from "../constants/theme";
+import { BuildingIcon } from "../constants/type";
 
 const ICON_SIZE = 24;
 
