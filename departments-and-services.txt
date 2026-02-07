@@ -1,0 +1,256 @@
+Loyola buildings:
+
+AD: Departments:[Faculty of Arts and Science],
+Services:[Access Centre for Students with Disabilities,
+Centre for Teaching and Learning,
+Counselling and Psychological Services,
+Health Services,
+Loyola College for Diversity and Sustainability,
+Loyola Landing,
+Office of the Provost and Vice-President, Academic,
+Office of Student Life and Engagement,
+Welcome Crew Office]
+
+BB: Services:[CPE Les P'tits Profs Daycare]
+
+BH: Services:[CPE Les P'tits Profs Daycare]
+
+CC: Services:[Concordia Student Union,
+Loyola College for Diversity and Sustainability and Loyola,
+Zen Den]
+
+CJ: Departments:[Communication Studies,
+Journalism],
+Services:[Book Stop]
+
+DO: Services:[Concordia Stingers]
+
+FC: Services:[Concordia Multi-Faith and Spirituality Centre]
+
+GE: Services:[Centre for Structural and Functional Genomics]
+
+HA: Services:[Student Residence]
+
+HB: Services:[Concordia University Faculty Association (CUFA),
+Student Residence]
+
+HC: Services:[Student Residence]
+
+JR: Services:[Student Residence]
+
+PC: Services:[Athletic Therapy Clinic,
+Nutrition Centre,
+PERFORM Gym,
+School of Health]
+
+PS: Services:[Environmental Health and Safety,
+Facilities Management]
+
+PT: Services:[Concert Hall]
+
+PY: Departments:[Centre for Clinical Research in Health (CCRH),
+Psychology]
+
+RF: Services:[Conference services,
+Loyola Jesuit Hall and Conference Centre]
+
+SC: Services:[Cafeteria,
+Café,
+Food Services]
+
+SH: 
+
+SI:
+
+SP: Departments:[Biology,
+Centre for Biological Applications of Mass Spectrometry,
+Centre for NanoScience Research,
+Centre for Research in Molecular Modeling,
+Centre for Studies in Behavioral Neurobiology,
+Chemistry and Biochemistry,
+Health, Kinesiology and Applied Physiology,
+Physics,
+Psychology],
+Services:[Café,
+Campus Safety and Prevention Services,
+First Stop,
+Science College]
+
+TA: Departments:[Centre for the Arts in Human Development (CAHD)]
+
+VE: Services:[Library],
+Departments:[Applied Human Sciences]
+
+VL: Services:[Georges P. Vanier Library]
+
+-------------
+
+SGW buildings:
+
+B: Services:[Engineering and Computer Science Association]
+
+EN: Departments:[Research Chair on Gambling]
+
+ER: Departments:[Applied AI Institute,
+Centre for Engineering in Society,
+Computer Science and Software Engineering,
+Creative Arts Therapies,
+engAGE: Centre for Research on Aging,
+Next-Generation Cities Institute,
+Simone de Beauvoir Institute,
+Sustainability in the Digital Age,
+Urban Studies]
+
+EV: Services:[Le Gym,
+Zen Den],
+Departments:[Art Education,
+Art History,
+Building, Civil and Environmental Engineering,
+Centre for Composites (CONCOM),
+Centre for Pattern Recognition and Machine Intelligence (CENPARMI),
+Centre for Zero Energy Building Studies,
+Chemical and Materials Engineering,
+Contemporary Dance,
+Design and Computation Arts,
+Electrical and Computer Engineering,
+Faculty of Fine Arts,
+Gina Cody School of Engineering and Computer Science,
+Mechanical, Industrial and Aerospace Engineering,
+Recreation and Athletics,
+Studio Arts]
+
+FA: Departments:[Religions and Cultures]
+
+FB: Departments:[Classics, Modern Languages and Linguistics,
+Concordia Continuing Education,
+Mel Hoppenheim School of Cinema,
+Theological Studies],
+Services:[Enrolment Services / Office of the Registrar / Student Recruitment,
+Environmental Health and Safety,
+Examinations Office,
+Human Resources,
+Office of Sustainability,
+Records Management and Archives (RMA) Office,
+Senior Non-Credit Program,
+Study Hub]
+
+FG: Departments:[Education],
+Services:[Records Management and Archives (RMA) Research Room and Vault]
+
+GA: Departments:[Education]
+
+GM: Departments:[Contemporary Dance,
+Music,
+Theatre],
+Services:[Access Centre for Students with Disabilities,
+Facilities Management,
+Financial Aid and Awards Office,
+Financial Services,
+Graduate Studies,
+Health Services,
+Institute for Co-operative Education,
+International Students Office,
+Office of the President and Vice-Chancellor,
+Office of the Provost and Vice-President, Academic,
+Office of the Vice-President, Research, Innovation and Impact,
+Office of the Vice-President, Services and Sustainability,
+Ombuds Office,
+University Communications Services,
+Zen Den]
+
+GN: Departments:[Philosophy (1175 St-Mathieu St.)],
+Services:[Concordia Daycare (1185 St-Mathieu St.),
+Concordia University Student Parents Centre (CUSP): 1175 St-Mathieu St.,
+Grey Nuns Reading Room & Group Study Rooms (1190 Guy St.),
+Residences,
+Summer accommodations]
+
+GS: Services:[Concordia University Part-time Faculty Association (CUPFA)]
+
+H: Departments:[Economics,
+Geography, Planning and Environment,
+Political Science,
+School of Community and Public Affairs,
+School of Irish Studies,
+Sociology and Anthropology],
+Services:[Campus Safety and Prevention Services,
+Concordia Student Union (CSU),
+First Stop,
+Espace Franco,
+IT Service Desk,
+NouLa Black Student Centre,
+Office of Student Life and Engagement,
+Otsenhákta Student Centre,
+Sexual Assault Resource Centre (SARC),
+Student Success Centre,
+Welcome Crew Office,
+Zen Den]
+
+LB: Departments:[Centre for Interdisciplinary Studies in Society and Culture (CISSC),
+Centre for the Study of Learning and Performance,
+Education,
+English,
+Études françaises,
+History,
+Mathematics and Statistics]
+Services:[Birks Student Service Centre,
+Concordia Book Stop,
+Concordia Print Services,
+First Stop,
+Instructional and Information Technology Services (IITS),
+J.A. De Sève Cinema,
+R. Howard Webster Library,
+SHIFT Centre for Social Transformation,
+Welcome Centre]
+
+LD: Services:[CSU Daycare & Nursery]
+
+MB: Departments:[Accountancy,
+Contemporary Dance,
+Executive MBA Program,
+Finance,
+Goodman Institute of Investment Management,
+Management,
+Marketing,
+Music,
+Supply Chain and Business Technology Management,
+Theatre],
+Services:[Career Management Services,
+First Stop,
+John Molson Executive Centre,
+Performing Arts Facilities,
+Zen Den]
+
+MI: Services:[Association of Concordia University Management and Administrative Employees (ACUMAE),
+Concordia University Continuing Education Part-time Faculty Union (CUCEPTFU),
+Concordia University Professional Employee Union (CUPEU),
+Concordia University Support Staff Union (CSN),
+The Concordia University Union of Support Staff – Technical Sector (CUUSS-TS)]
+
+PR: Services:[Concordia University Library Employees' Union (CULEU)]
+
+R: Departments:[Religions and Cultures]
+
+RR: Departments:[Liberal Arts College]
+
+S: Departments:[Philosophy]
+
+SB: Services:[Arts and Science Research Groups]
+
+T: Services:[Graduate Students Association]
+
+V: Services:[Centre for Gender Advocacy,
+CUTV]
+
+VA: Departments:[Art Education,
+Art History,
+Studio Arts],
+Services:[VAV Gallery]
+
+X: Services:[Concordia International]
+
+Z: Services:[Multi-Faith and Spirituality Centre
+Sustainable Concordia]
+
+
+

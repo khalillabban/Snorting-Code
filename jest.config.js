@@ -14,4 +14,6 @@ module.exports = {
     '!jest.config.js',
     '!**/.expo/**',
   ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['lcov', 'text', 'clover'],
 };
