@@ -11,7 +11,14 @@ jest.mock("../components/CampusMap", () => {
   const React = require("react");
   const { Text } = require("react-native");
   return function MockCampusMap(props: any) {
-    return <Text testID="campus-map-props">{JSON.stringify(props.coordinates)}</Text>;
+    return (
+      <Text testID="campus-map-props">
+        {JSON.stringify({
+          coordinates: props.coordinates,
+          focusTarget: props.focusTarget,
+        })}
+      </Text>
+    );
   };
 });
 
@@ -22,7 +29,7 @@ jest.mock("../constants/campuses", () => ({
   },
 }));
 
-const getCoords = () =>
+const getMapProps = () =>
   JSON.parse(screen.getByTestId("campus-map-props").props.children);
 
 describe("CampusMapScreen", () => {
@@ -35,8 +42,11 @@ describe("CampusMapScreen", () => {
 
     render(<CampusMapScreen />);
 
-    expect(screen.getByText("Switch to Loyola")).toBeTruthy();
-    expect(getCoords()).toEqual({ latitude: 1, longitude: 2 });
+    expect(screen.getByText("Center: SGW")).toBeTruthy();
+    expect(getMapProps()).toEqual({
+      coordinates: { latitude: 1, longitude: 2 },
+      focusTarget: "sgw",
+    });
   });
 
   it("uses Loyola when campus param is loyola", () => {
@@ -44,18 +54,39 @@ describe("CampusMapScreen", () => {
 
     render(<CampusMapScreen />);
 
-    expect(screen.getByText("Switch to SGW")).toBeTruthy();
-    expect(getCoords()).toEqual({ latitude: 3, longitude: 4 });
+    expect(screen.getByText("Center: Loyola")).toBeTruthy();
+    expect(getMapProps()).toEqual({
+      coordinates: { latitude: 3, longitude: 4 },
+      focusTarget: "loyola",
+    });
   });
 
-  it("toggles campus when the switch button is pressed", () => {
+  it("cycles focus from SGW to Loyola when pressed", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
 
     render(<CampusMapScreen />);
 
-    fireEvent.press(screen.getByText("Switch to Loyola"));
+    fireEvent.press(screen.getByText("Center: SGW"));
 
-    expect(screen.getByText("Switch to SGW")).toBeTruthy();
-    expect(getCoords()).toEqual({ latitude: 3, longitude: 4 });
+    expect(screen.getByText("Center: Loyola")).toBeTruthy();
+    expect(getMapProps()).toEqual({
+      coordinates: { latitude: 3, longitude: 4 },
+      focusTarget: "loyola",
+    });
+  });
+
+  it("cycles focus from Loyola to My location when pressed twice", () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
+
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByText("Center: SGW"));
+    fireEvent.press(screen.getByText("Center: Loyola"));
+
+    expect(screen.getByText("Center: My location")).toBeTruthy();
+    expect(getMapProps()).toEqual({
+      coordinates: { latitude: 3, longitude: 4 },
+      focusTarget: "user",
+    });
   });
 });

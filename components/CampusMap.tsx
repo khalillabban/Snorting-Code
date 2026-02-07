@@ -1,12 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polygon } from "react-native-maps";
+import {
+  Accuracy,
+  getCurrentPositionAsync,
+  getForegroundPermissionsAsync,
+  hasServicesEnabledAsync,
+  requestForegroundPermissionsAsync,
+} from "expo-location";
 import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 const CURRENT_LOCATION_MARKER_TITLE = "You are here";
+type FocusTarget = "sgw" | "loyola" | "user";
 
 function CurrentLocationMarker({
   coordinate,
@@ -22,7 +30,13 @@ function CurrentLocationMarker({
   );
 }
 
-export default function CampusMap({ coordinates }: { coordinates: Location }) {
+export default function CampusMap({
+  coordinates,
+  focusTarget,
+}: {
+  coordinates: Location;
+  focusTarget: FocusTarget;
+}) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
@@ -45,22 +59,83 @@ export default function CampusMap({ coordinates }: { coordinates: Location }) {
   } | null>(null);
 
   useEffect(() => {
-    // Pin user location to current Concordia campus (for demo/testing)
-    const campusUserCoords = {
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude,
+    let cancelled = false;
+
+    async function loadCurrentLocation() {
+      try {
+        const servicesEnabled = await hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          if (!cancelled) {
+            setLocationError("Location services are disabled.");
+            setUserCoords(null);
+          }
+          return;
+        }
+
+        const existing = await getForegroundPermissionsAsync();
+        let status = existing.status;
+        if (status !== "granted") {
+          const requested = await requestForegroundPermissionsAsync();
+          status = requested.status;
+        }
+
+        if (status !== "granted") {
+          if (!cancelled) {
+            setLocationError("Permission to access location was denied.");
+            setUserCoords(null);
+          }
+          return;
+        }
+
+        const location = await getCurrentPositionAsync({
+          accuracy: Accuracy.Balanced,
+          mayShowUserSettingsDialog: true,
+        });
+
+        if (cancelled) return;
+
+        setUserCoords({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        setLocationError(null);
+      } catch (err) {
+        if (!cancelled) {
+          setLocationError("Unable to get your current location.");
+          setUserCoords(null);
+        }
+      }
+    }
+
+    loadCurrentLocation();
+    return () => {
+      cancelled = true;
     };
-    setUserCoords(campusUserCoords);
-    setLocationError(null);
+  }, []);
+
+  useEffect(() => {
+    if (focusTarget === "user") {
+      if (!userCoords) return;
+      mapRef.current?.animateToRegion(
+        {
+          ...userCoords,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        250,
+      );
+      return;
+    }
+
     mapRef.current?.animateToRegion(
       {
-        ...campusUserCoords,
+        ...coordinates,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       },
       250,
     );
-  }, [coordinates.latitude, coordinates.longitude]);
+  }, [focusTarget, coordinates, userCoords]);
 
   return (
     <View style={styles.container}>
