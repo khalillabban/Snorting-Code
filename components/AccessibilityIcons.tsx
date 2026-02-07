@@ -55,12 +55,4 @@ export const BuildingIcons = ({ icons, size = ICON_SIZE }: AccessibilityIconsPro
     </View>
   );
 };
-/*
-const styles = StyleSheet.create({
-  iconRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-});
-*/
+
