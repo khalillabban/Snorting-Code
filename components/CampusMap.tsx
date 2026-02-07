@@ -34,7 +34,7 @@ export default function CampusMap({ coordinates }: { coordinates: Location }) {
   }, [coordinates]);
 
   return (
-    <View style={{flex: 1}}>
+    <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
