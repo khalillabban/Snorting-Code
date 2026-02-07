@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polygon } from "react-native-maps";
+import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing, typography } from "../constants/theme";
-
-type Coordinates = {
-  latitude: number;
-  longitude: number;
-};
+import { Buildings, Location } from "../constants/type";
+import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 const CURRENT_LOCATION_MARKER_TITLE = "You are here";
 
-function CurrentLocationMarker({ coordinate }: { coordinate: Coordinates }) {
+function CurrentLocationMarker({ coordinate }: { coordinate: { latitude: number; longitude: number } }) {
   return (
     <Marker
       coordinate={coordinate}
@@ -20,11 +18,19 @@ function CurrentLocationMarker({ coordinate }: { coordinate: Coordinates }) {
   );
 }
 
-export default function CampusMap({
-  coordinates,
-}: {
-  coordinates: Coordinates;
-}) {
+export default function CampusMap({ coordinates }: { coordinates: Location }) {
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
+  
+  const handleMapPress = () => {
+    // Can also close the popup if tapped on empty map area
+    if (selectedBuilding) setSelectedBuilding(null);
+  };
+
+  const handleBuildingPress = (building: Buildings) => {
+    console.log("Selected:", building.name);
+    setSelectedBuilding(building);
+  };
+
   const mapRef = useRef<MapView>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -53,6 +59,8 @@ export default function CampusMap({
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         showsUserLocation={false}
+        showsMyLocationButton
+        onPress={handleMapPress}
         initialRegion={{
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
@@ -63,12 +71,35 @@ export default function CampusMap({
         {userCoords ? (
           <CurrentLocationMarker coordinate={userCoords} />
         ) : null}
+        {BUILDINGS.map((building) => {
+          const isSelected = selectedBuilding?.name === building.name;
+          return (
+            <Polygon
+              key={building.name}
+              coordinates={building.boundingBox}
+              fillColor={isSelected ? colors.primary : colors.primaryTransparent}
+              strokeColor={colors.primary}
+              strokeWidth={isSelected ? 3 : 2}
+              tappable={true} 
+              onPress={(e) => {
+                e.stopPropagation();
+                handleBuildingPress(building);
+              }}
+            />
+          );
+        })}
       </MapView>
+      
       {locationError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{locationError}</Text>
         </View>
       ) : null}
+      
+      <BuildingInfoPopup 
+        building={selectedBuilding} 
+        onClose={() => setSelectedBuilding(null)} 
+      />
     </View>
   );
 }
