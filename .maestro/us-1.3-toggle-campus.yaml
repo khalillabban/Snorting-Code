@@ -1,0 +1,14 @@
+appId: com.yourapp.bundleid
+---
+- launchApp:
+    clearState: true
+
+- tapOn: "SGW Campus"
+
+- assertVisible: "Switch to Loyola"
+- tapOn: "Switch to Loyola"
+
+- assertVisible: "Switch to SGW"
+- tapOn: "Switch to SGW"
+
+- assertVisible: "Switch to Loyola"
