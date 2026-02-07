@@ -9,7 +9,7 @@ export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
-    campus === "loyola" ? "loyola" : "sgw"
+    campus === "loyola" ? "loyola" : "sgw",
   );
 
   useEffect(() => {
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
-    elevation: 5,
+    elevation: 0,
   },
   toggleText: {
     color: colors.white,
