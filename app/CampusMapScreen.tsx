@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import CampusMap from "../components/CampusMap";
 import { CAMPUSES } from "../constants/campuses";
 import type { CampusKey } from "../constants/campuses";
@@ -26,25 +27,14 @@ export default function CampusMapScreen() {
     );
   }, [campus]);
 
-  const cycleFocusTarget = () => {
-    setFocusTarget((prev) => {
-      const next =
-        prev === "sgw" ? "loyola" : prev === "loyola" ? "user" : "sgw";
-
-      if (next === "sgw" || next === "loyola") {
-        setCurrentCampus(next);
-      }
-
-      return next;
-    });
+  const selectCampus = (campusKey: CampusKey) => {
+    setCurrentCampus(campusKey);
+    setFocusTarget(campusKey);
   };
 
-  const focusLabel =
-    focusTarget === "user"
-      ? "My location"
-      : focusTarget === "sgw"
-        ? "SGW"
-        : "Loyola";
+  const focusUserLocation = () => {
+    setFocusTarget("user");
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -53,29 +43,113 @@ export default function CampusMapScreen() {
         focusTarget={focusTarget}
       />
 
-      <Pressable style={styles.focusButton} onPress={cycleFocusTarget}>
-        <Text style={styles.focusText}>Center: {focusLabel}</Text>
+      <View style={styles.campusToggleContainer} pointerEvents="box-none">
+        <View style={styles.campusToggle}>
+          <Pressable
+            testID="campus-toggle-sgw"
+            accessibilityRole="button"
+            onPress={() => selectCampus("sgw")}
+            style={[
+              styles.campusToggleOption,
+              currentCampus === "sgw" && styles.campusToggleOptionActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.campusToggleText,
+                currentCampus === "sgw" && styles.campusToggleTextActive,
+              ]}
+            >
+              SGW
+            </Text>
+          </Pressable>
+
+          <Pressable
+            testID="campus-toggle-loyola"
+            accessibilityRole="button"
+            onPress={() => selectCampus("loyola")}
+            style={[
+              styles.campusToggleOption,
+              currentCampus === "loyola" && styles.campusToggleOptionActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.campusToggleText,
+                currentCampus === "loyola" && styles.campusToggleTextActive,
+              ]}
+            >
+              Loyola
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <Pressable
+        testID="my-location-button"
+        accessibilityRole="button"
+        accessibilityLabel="Center on my location"
+        onPress={focusUserLocation}
+        style={[
+          styles.myLocationButton,
+          focusTarget === "user" && styles.myLocationButtonActive,
+        ]}
+      >
+        <MaterialIcons
+          name="my-location"
+          size={22}
+          color={focusTarget === "user" ? colors.white : colors.primary}
+        />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  focusButton: {
+  campusToggleContainer: {
     position: "absolute",
-    bottom: spacing.lg,
-    right: spacing.md,
+    top: Platform.OS === "ios" ? 60 : 40,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  campusToggle: {
+    flexDirection: "row",
     backgroundColor: colors.white,
     borderColor: colors.primary,
     borderWidth: 1,
+    borderRadius: borderRadius.full,
+    overflow: "hidden",
+  },
+  campusToggleOption: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    elevation: 0,
   },
-  focusText: {
+  campusToggleOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  campusToggleText: {
     color: colors.primary,
     fontSize: typography.body.fontSize,
     fontWeight: typography.button.fontWeight,
+  },
+  campusToggleTextActive: {
+    color: colors.white,
+  },
+  myLocationButton: {
+    position: "absolute",
+    bottom: spacing.lg,
+    right: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.white,
+    borderColor: colors.primary,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  myLocationButtonActive: {
+    backgroundColor: colors.primary,
   },
 });

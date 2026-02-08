@@ -100,6 +100,7 @@ export default function CampusMap({
         });
         setLocationError(null);
       } catch (err) {
+        void err;
         if (!cancelled) {
           setLocationError("Unable to get your current location.");
           setUserCoords(null);
@@ -143,7 +144,7 @@ export default function CampusMap({
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         showsUserLocation={false}
-        showsMyLocationButton
+        showsMyLocationButton={false}
         onPress={handleMapPress}
         initialRegion={{
           latitude: coordinates.latitude,

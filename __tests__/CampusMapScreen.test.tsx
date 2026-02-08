@@ -3,6 +3,14 @@ import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  return {
+    MaterialIcons: (props: any) => <Text>{props?.name ?? "icon"}</Text>,
+  };
+});
+
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(),
 }));
@@ -42,7 +50,6 @@ describe("CampusMapScreen", () => {
 
     render(<CampusMapScreen />);
 
-    expect(screen.getByText("Center: SGW")).toBeTruthy();
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 1, longitude: 2 },
       focusTarget: "sgw",
@@ -54,36 +61,33 @@ describe("CampusMapScreen", () => {
 
     render(<CampusMapScreen />);
 
-    expect(screen.getByText("Center: Loyola")).toBeTruthy();
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
     });
   });
 
-  it("cycles focus from SGW to Loyola when pressed", () => {
+  it("switches campus to Loyola when the Loyola toggle is pressed", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
 
     render(<CampusMapScreen />);
 
-    fireEvent.press(screen.getByText("Center: SGW"));
+    fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
 
-    expect(screen.getByText("Center: Loyola")).toBeTruthy();
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
     });
   });
 
-  it("cycles focus from Loyola to My location when pressed twice", () => {
+  it("centers on user location without changing campus coordinates", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
 
     render(<CampusMapScreen />);
 
-    fireEvent.press(screen.getByText("Center: SGW"));
-    fireEvent.press(screen.getByText("Center: Loyola"));
+    fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
+    fireEvent.press(screen.getByTestId("my-location-button"));
 
-    expect(screen.getByText("Center: My location")).toBeTruthy();
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "user",
