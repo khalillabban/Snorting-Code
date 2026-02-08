@@ -24,7 +24,12 @@ export default function CampusMapScreen() {
     <View style={{ flex: 1 }}>
       <CampusMap coordinates={CAMPUSES[currentCampus].coordinates} />
 
-      <Pressable style={styles.toggleButton} onPress={toggleCampus}>
+      <Pressable
+        style={styles.toggleButton}
+        onPress={toggleCampus}
+        accessibilityLabel={currentCampus === "sgw" ? "Switch to Loyola" : "Switch to SGW"}
+        accessibilityRole="button"
+      >
         <Text style={styles.toggleText}>
           Switch to {currentCampus === "sgw" ? "Loyola" : "SGW"}
         </Text>

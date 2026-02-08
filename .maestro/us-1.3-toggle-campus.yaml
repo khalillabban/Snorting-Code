@@ -1,8 +1,12 @@
-appId: com.yourapp.bundleid
+# App package (Android) / bundle id (iOS). Must match app.json expo.android.package / expo.ios.bundleIdentifier.
+appId: com.concordia.snortingcode
 ---
 - launchApp:
     clearState: true
 
+# Full E2E: Home screen -> pick campus -> Campus Map -> toggle campus twice
+- assertVisible: "Concordia Maps"
+- assertVisible: "Select a campus"
 - tapOn: "SGW Campus"
 
 - assertVisible: "Switch to Loyola"

@@ -6,9 +6,16 @@ import { colors } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
+// When set (e.g. for E2E tests), render a placeholder instead of the real map so tests can run without a Google Maps API key.
+const USE_MAP_PLACEHOLDER = process.env.EXPO_PUBLIC_E2E_MAP_PLACEHOLDER === "true";
+
 export default function CampusMap({ coordinates }: { coordinates: Location }) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
-  
+
+  if (USE_MAP_PLACEHOLDER) {
+    return <View style={styles.container} />;
+  }
+
   const handleMapPress = () => {
     // Can also close the popup if tapped on empty map area
     if (selectedBuilding) setSelectedBuilding(null);
@@ -42,7 +49,7 @@ export default function CampusMap({ coordinates }: { coordinates: Location }) {
         showsMyLocationButton
         onPress={handleMapPress}      
       >
-        {BUILDINGS.map((building) => {
+        {BUILDINGS.filter((b) => b.boundingBox.length > 0).map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           return (
             <Polygon
