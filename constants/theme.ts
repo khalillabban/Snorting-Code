@@ -1,25 +1,27 @@
 // Color palette
 export const colors = {
   // Brand colors (Concordia)
-  primary: "#912338",
-  primaryTransparent: "rgba(145, 35, 56, 0.5)",
-  primaryDark: "#6d1a2a",
-  primaryLight: "#b84d5f",
+  primary: "#912338", // Dark Red
+  primaryTransparent: "rgba(145, 35, 56, 0.5)", // Dark Red with 50% opacity
+  primaryDark: "#6d1a2a", // Darker Red
+  primaryLight: "#b84d5f", // Light Red
+  secondary: "#C4A747", // Gold
+  secondaryTransparent: "rgba(196, 167, 71, 0.5)", // Gold with 50% opacity
 
   // Neutrals
   white: "#ffffff",
-  offWhite: "#f2f2f2",
-  gray100: "#e5e5e5",
-  gray300: "#b3b3b3",
-  gray500: "#737373",
-  gray700: "#404040",
-  black: "#1a1a1a",
+  offWhite: "#f2f2f2", // Light Gray
+  gray100: "#e5e5e5", // Light Gray
+  gray300: "#b3b3b3", // Medium Gray
+  gray500: "#737373", // Dark Gray
+  gray700: "#404040", // Darkest Gray
+  black: "#1a1a1a", // Black
 
   // Semantic
-  success: "#2e7d32",
-  warning: "#f9a825",
-  error: "#c62828",
-  info: "#1565c0",
+  success: "#2e7d32", // Green
+  warning: "#f9a825", // Yellow
+  error: "#c62828", // Red
+  info: "#1565c0", // Blue
 
   // Map-specific (useful for navigation features later)
   mapOverlay: "rgba(145, 35, 56, 0.15)",
