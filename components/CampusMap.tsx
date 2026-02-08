@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polygon } from "react-native-maps";
 import {
@@ -11,7 +11,33 @@ import {
 import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
+import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
+
+const HIGHLIGHT_STROKE_WIDTH = 3;
+const DEFAULT_STROKE_WIDTH = 2;
+
+function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
+  if (isCurrent) {
+    return {
+      fillColor: colors.secondaryTransparent,
+      strokeColor: colors.secondary,
+      strokeWidth: HIGHLIGHT_STROKE_WIDTH,
+    };
+  }
+  if (isSelected) {
+    return {
+      fillColor: colors.primaryTransparent,
+      strokeColor: colors.primary,
+      strokeWidth: HIGHLIGHT_STROKE_WIDTH,
+    };
+  }
+  return {
+    fillColor: colors.primaryTransparent,
+    strokeColor: colors.primary,
+    strokeWidth: DEFAULT_STROKE_WIDTH,
+  };
+}
 
 const CURRENT_LOCATION_MARKER_TITLE = "You are here";
 type FocusTarget = "sgw" | "loyola" | "user";
@@ -138,6 +164,12 @@ export default function CampusMap({
     );
   }, [focusTarget, coordinates, userCoords]);
 
+  const currentBuilding = useMemo(
+    () =>
+      userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
+    [userCoords],
+  );
+
   return (
     <View style={styles.container}>
       <MapView
@@ -156,6 +188,8 @@ export default function CampusMap({
         {userCoords ? <CurrentLocationMarker coordinate={userCoords} /> : null}
         {BUILDINGS.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
+          const isCurrent = currentBuilding?.name === building.name;
+          const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox || building.boundingBox.length === 0) {
             console.warn(
@@ -168,11 +202,9 @@ export default function CampusMap({
             <Polygon
               key={building.name}
               coordinates={building.boundingBox}
-              fillColor={
-                isSelected ? colors.primary : colors.primaryTransparent
-              }
-              strokeColor={colors.primary}
-              strokeWidth={isSelected ? 3 : 2}
+              fillColor={style.fillColor}
+              strokeColor={style.strokeColor}
+              strokeWidth={style.strokeWidth}
               tappable={true}
               onPress={(e) => {
                 e.stopPropagation();
