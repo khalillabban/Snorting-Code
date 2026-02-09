@@ -854,8 +854,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "CL Annex (CL)",
     address: "1665 Rue Sainte-Catherine O, Montréal, Quebec H3H 1L9",
     coordinates: {
-      latitude: 45.497782,
-      longitude: -73.579318,
+      latitude: 45.494522,
+      longitude: -73.579256,
     },
     icons: ["information", "printer", "wheelchair"],
     boundingBox: [
@@ -873,8 +873,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "D Annex (D)",
     address: "2140 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.494198,
-      longitude: -73.579283,
+      latitude: 45.497774,
+      longitude: -73.579271,
     },
     boundingBox: [
       { latitude: 45.497707427688056, longitude: -73.57934124180272 },

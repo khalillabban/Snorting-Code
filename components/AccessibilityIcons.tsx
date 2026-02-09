@@ -27,10 +27,6 @@ interface AccessibilityIconsProps {
   size?: number;
 }
 
-/**
- * Displays building service icons in a fixed, Concordia-approved order.
- * Icons render only if present in the `icons` prop.
- */
 export const BuildingIcons = ({ icons, size = ICON_SIZE }: AccessibilityIconsProps) => {
   const ordered = useMemo(
     () => ICON_ORDER.filter((s) => icons.includes(s)),

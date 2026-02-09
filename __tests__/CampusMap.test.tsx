@@ -1,15 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import React from "react";
-import CampusMap from "../components/CampusMap";
-import { BUILDINGS } from "../constants/buildings";
-import { colors } from "../constants/theme";
-import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import {
   getCurrentPositionAsync,
   getForegroundPermissionsAsync,
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
 } from "expo-location";
+import React from "react";
+import CampusMap from "../components/CampusMap";
+import { BUILDINGS } from "../constants/buildings";
+import { colors } from "../constants/theme";
+import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 jest.mock("expo-location", () => ({
   Accuracy: { Balanced: "Balanced" },
@@ -27,6 +27,9 @@ jest.mock("react-native-maps", () => {
 
   const MapView = React.forwardRef((props: any, ref: any) => {
     React.useImperativeHandle(ref, () => ({ animateToRegion }));
+    React.useEffect(() => {
+      props.onMapReady?.();
+    }, []);
     return (
       <View testID="map-view" onPress={props.onPress}>
         {props.children}
@@ -331,9 +334,9 @@ describe("CampusMap", () => {
 
       // B is selected
       expect(styles[1]).toEqual({
-        fillColor: colors.primaryTransparent,
-        strokeColor: colors.primary,
-        strokeWidth: 3,
+        fillColor: colors.primaryLight,
+        strokeColor: colors.primaryDark,
+        strokeWidth: 5,
       });
 
       // C is default
