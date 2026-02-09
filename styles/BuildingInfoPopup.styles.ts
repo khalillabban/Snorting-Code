@@ -39,6 +39,7 @@ export const styles = StyleSheet.create({
     ...typography.heading,
     fontSize: 20,
     color: colors.primary,
+    flexShrink: 1,
   },
   address: {
     ...typography.caption,

@@ -44,7 +44,7 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
 
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title} numberOfLines={2}>{building.displayName}</Text>
+            <Text style={styles.title}>{building.displayName}</Text>
             <Text style={styles.address}>{building.address}</Text>
           </View>
 

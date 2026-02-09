@@ -1,10 +1,10 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import CampusMap from "../components/CampusMap";
-import { CAMPUSES } from "../constants/campuses";
 import type { CampusKey } from "../constants/campuses";
+import { CAMPUSES } from "../constants/campuses";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 type FocusTarget = CampusKey | "user";
@@ -51,6 +51,7 @@ export default function CampusMapScreen() {
             onPress={() => selectCampus("sgw")}
             style={[
               styles.campusToggleOption,
+              styles.campusToggleOptionLeft,
               currentCampus === "sgw" && styles.campusToggleOptionActive,
             ]}
           >
@@ -98,7 +99,7 @@ export default function CampusMapScreen() {
         <MaterialIcons
           name="my-location"
           size={22}
-          color={focusTarget === "user" ? colors.white : colors.primary}
+          color={colors.white}
         />
       </Pressable>
     </View>
@@ -108,25 +109,30 @@ export default function CampusMapScreen() {
 const styles = StyleSheet.create({
   campusToggleContainer: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 60 : 40,
+    top: Platform.OS === "ios" ? 20 : 30,
     left: 0,
     right: 0,
     alignItems: "center",
   },
   campusToggle: {
     flexDirection: "row",
-    backgroundColor: colors.white,
-    borderColor: colors.primary,
+    backgroundColor: colors.offWhite,
+    borderColor: colors.primaryDarker,
     borderWidth: 1,
-    borderRadius: borderRadius.full,
-    overflow: "hidden",
-  },
+    borderRadius: 8,
+    overflow: "hidden", maxWidth: 150, opacity: 0.93,  },
   campusToggleOption: {
+    flex: 1,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: "center",
+  },
+  campusToggleOptionLeft: {
+    borderRightWidth: 1,
+    borderRightColor: colors.primaryDarker,
   },
   campusToggleOptionActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryBarelyTransparent,
   },
   campusToggleText: {
     color: colors.primary,
@@ -138,13 +144,13 @@ const styles = StyleSheet.create({
   },
   myLocationButton: {
     position: "absolute",
-    bottom: spacing.lg,
+    bottom: 60,
     right: spacing.md,
     width: 44,
     height: 44,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.white,
-    borderColor: colors.primary,
+    backgroundColor: colors.primarySemiTransparent,
+    borderColor: colors.primaryDarker,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

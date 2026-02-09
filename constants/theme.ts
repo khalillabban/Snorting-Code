@@ -3,10 +3,16 @@ export const colors = {
   // Brand colors (Concordia)
   primary: "#912338", // Dark Red
   primaryTransparent: "rgba(145, 35, 56, 0.5)", // Dark Red with 50% opacity
-  primaryDark: "#6d1a2a", // Darker Red
+  primarySemiTransparent: "rgba(145, 35, 56, 0.75)", // Dark Red with 75% opacity
+  primaryBarelyTransparent: "rgba(145, 35, 56, 0.90)", // Dark Red with 90% opacity
+  primaryDark: "#6d1a2a", // Dark Red
+  primaryDarker: "#4b0f1a", // Darker Red
   primaryLight: "#b84d5f", // Light Red
   secondary: "#C4A747", // Gold
   secondaryTransparent: "rgba(196, 167, 71, 0.5)", // Gold with 50% opacity
+  secondarySemiTransparent: "rgba(196, 167, 71, 0.75)", // Gold with 75% opacity
+  secondaryDark: "#8b6e34", // Dark Gold
+  secondaryLight: "#d9b85c", // Light Gold
 
   // Neutrals
   white: "#ffffff",

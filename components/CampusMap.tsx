@@ -1,6 +1,3 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
 import {
   Accuracy,
   getCurrentPositionAsync,
@@ -8,6 +5,9 @@ import {
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
 } from "expo-location";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, Polygon } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
@@ -15,6 +15,7 @@ import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
+const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
@@ -27,9 +28,9 @@ function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   }
   if (isSelected) {
     return {
-      fillColor: colors.primaryTransparent,
-      strokeColor: colors.primary,
-      strokeWidth: HIGHLIGHT_STROKE_WIDTH,
+      fillColor: colors.primaryLight,
+      strokeColor: colors.primaryDark,
+      strokeWidth: SELECTED_STROKE_WIDTH,
     };
   }
   return {
@@ -83,6 +84,7 @@ export default function CampusMap({
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +143,8 @@ export default function CampusMap({
   }, []);
 
   useEffect(() => {
+    if (!mapReady) return;
+    
     if (focusTarget === "user") {
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
@@ -162,7 +166,21 @@ export default function CampusMap({
       },
       250,
     );
-  }, [focusTarget, coordinates, userCoords]);
+  }, [focusTarget, coordinates, userCoords, mapReady]);
+
+  useEffect(() => {
+    if (selectedBuilding && mapReady) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: selectedBuilding.coordinates.latitude - 0.0011,
+          longitude: selectedBuilding.coordinates.longitude,
+          latitudeDelta: 0.004,
+          longitudeDelta: 0.004,
+        },
+        300,
+      );
+    }
+  }, [selectedBuilding, mapReady]);
 
   const currentBuilding = useMemo(
     () =>
@@ -173,11 +191,13 @@ export default function CampusMap({
   return (
     <View style={styles.container}>
       <MapView
+        key={`${coordinates.latitude}-${coordinates.longitude}`}
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         showsUserLocation={false}
         showsMyLocationButton={false}
         onPress={handleMapPress}
+        onMapReady={() => setMapReady(true)}
         initialRegion={{
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
