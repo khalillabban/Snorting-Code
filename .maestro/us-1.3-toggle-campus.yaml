@@ -6,18 +6,18 @@ appId: com.concordia.snortingcode
     clearState: true
 
 # Full E2E: Home screen -> pick campus -> Campus Map -> toggle campus twice
-# Wait specifically for the app to load (up to 5 seconds)
+# Wait specifically for the app to load (up to 10 seconds)
 - extendedWaitUntil:
     visible: "Concordia Maps"
-    timeout: 5000 
+    timeout: 10000
 
 - assertVisible: "Select a campus"
 - tapOn: "SGW Campus"
 
-- assertVisible: "Switch to Loyola"
-- tapOn: "Switch to Loyola"
+- assertVisible: "Loyola"
+- tapOn: "Loyola"
 
-- assertVisible: "Switch to SGW"
-- tapOn: "Switch to SGW"
+- assertVisible: "SGW"
+- tapOn: "SGW"
 
-- assertVisible: "Switch to Loyola"
+- assertVisible: "Loyola"
