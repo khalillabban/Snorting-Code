@@ -1,7 +1,7 @@
-import { Text, View, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CampusKey } from "../constants/campuses";
-import { colors, typography, spacing, borderRadius } from "../constants/theme";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 export default function Index() {
   const router = useRouter();
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingVertical: 14,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.offWhite,
     marginBottom: spacing.md,
     alignItems: "center",
   },
