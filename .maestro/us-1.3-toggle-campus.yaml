@@ -1,0 +1,23 @@
+# App package (Android) / bundle id (iOS). Must match app.json expo.android.package / expo.ios.bundleIdentifier.
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+# Full E2E: Home screen -> pick campus -> Campus Map -> toggle campus twice
+# Wait specifically for the app to load (up to 10 seconds)
+- extendedWaitUntil:
+    visible: "Concordia Maps"
+    timeout: 10000
+
+- assertVisible: "Select a campus"
+- tapOn: "SGW Campus"
+
+- assertVisible: "Loyola"
+- tapOn: "Loyola"
+
+- assertVisible: "SGW"
+- tapOn: "SGW"
+
+- assertVisible: "Loyola"

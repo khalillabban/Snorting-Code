@@ -14,6 +14,8 @@ import { Buildings, Location } from "../constants/type";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
+// When set (e.g. for E2E tests), render a placeholder instead of the real map so tests can run without a Google Maps API key.
+
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
