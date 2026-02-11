@@ -825,16 +825,7 @@ export const BUILDINGS: Buildings[] = [
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
     coordinates: { latitude: 45.45863177412241, longitude: -73.64004900596404 },
     icons: ["wheelchair"],
-    boundingBox: [
-      { latitude: 45.4590753, longitude: -73.6401473 },
-      { latitude: 45.4585024, longitude: -73.6405952 },
-      { latitude: 45.4584459, longitude: -73.6404517 },
-      { latitude: 45.4584563, longitude: -73.6404423 },
-      { latitude: 45.4583327, longitude: -73.6401329 },
-      { latitude: 45.4582389, longitude: -73.6399052 },
-      { latitude: 45.4588785, longitude: -73.6396397 },
-      { latitude: 45.4590753, longitude: -73.6401473 },
-    ],
+    boundingBox: [],
   },
   {
     name: "VE",

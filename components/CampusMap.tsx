@@ -144,7 +144,7 @@ export default function CampusMap({
 
   useEffect(() => {
     if (!mapReady) return;
-    
+
     if (focusTarget === "user") {
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
