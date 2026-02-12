@@ -43,9 +43,7 @@ export default function NavigationBar({
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
 
   const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
-  const [activeInput, setActiveInput] = useState<
-    "start" | "destination" | null
-  >(null);
+  const [activeInput, setActiveInput] = useState<"start" | "destination" | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -148,28 +146,11 @@ export default function NavigationBar({
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.title}>Navigate Campus</Text>
-
-            <View style={styles.inputGroup}>
-              <MaterialIcons
-                name="trip-origin"
-                size={20}
-                color={colors.primary}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Start location..."
-                placeholderTextColor="#999"
-                value={startLoc}
-                onChangeText={(text) => handleSearch(text, "start")}
-              />
-            </View>
-
             <View style={styles.inputGroup}>
               <MaterialIcons name="place" size={20} color={colors.primary} />
               <TextInput
                 style={styles.input}
-                placeholder="Where to?"
+                placeholder="Search Here"
                 placeholderTextColor="#999"
                 value={destLoc}
                 onChangeText={(text) => handleSearch(text, "destination")}
