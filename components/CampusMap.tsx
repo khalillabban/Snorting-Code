@@ -7,9 +7,9 @@ import {
 } from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
-import { colors, spacing, typography } from "../constants/theme";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
@@ -19,6 +19,8 @@ import { BuildingInfoPopup } from "./BuildingInfoPopup";
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
+const SELECTED_BUILDING_DELTA = 0.004;
+const SELECTED_BUILDING_LAT_OFFSET = 0.0011;
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isCurrent) {
@@ -76,7 +78,6 @@ export default function CampusMap({
   };
 
   const handleBuildingPress = (building: Buildings) => {
-    console.log("Selected:", building.name);
     setSelectedBuilding(building);
   };
 
@@ -146,7 +147,7 @@ export default function CampusMap({
 
   useEffect(() => {
     if (!mapReady) return;
-    
+
     if (focusTarget === "user") {
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
@@ -174,10 +175,12 @@ export default function CampusMap({
     if (selectedBuilding && mapReady) {
       mapRef.current?.animateToRegion(
         {
-          latitude: selectedBuilding.coordinates.latitude - 0.0011,
+          latitude:
+            selectedBuilding.coordinates.latitude -
+            SELECTED_BUILDING_LAT_OFFSET,
           longitude: selectedBuilding.coordinates.longitude,
-          latitudeDelta: 0.004,
-          longitudeDelta: 0.004,
+          latitudeDelta: SELECTED_BUILDING_DELTA,
+          longitudeDelta: SELECTED_BUILDING_DELTA,
         },
         300,
       );
@@ -193,6 +196,7 @@ export default function CampusMap({
   return (
     <View style={styles.container}>
       <MapView
+        provider={PROVIDER_GOOGLE}
         key={`${coordinates.latitude}-${coordinates.longitude}`}
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
@@ -263,7 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
