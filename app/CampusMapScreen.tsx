@@ -66,6 +66,7 @@ export default function CampusMapScreen() {
         <View style={styles.campusToggle}>
           <Pressable
             onPress={() => selectCampus("sgw")}
+            testID = "campus-toggle-sgw"
             style={[
               styles.campusToggleOption,
               styles.campusToggleOptionLeft,
@@ -84,6 +85,7 @@ export default function CampusMapScreen() {
 
           <Pressable
             onPress={() => selectCampus("loyola")}
+            testID="campus-toggle-loyola"
             style={[
               styles.campusToggleOption,
               currentCampus === "loyola" && styles.campusToggleOptionActive,
@@ -112,6 +114,7 @@ export default function CampusMapScreen() {
 
         <Pressable
           onPress={focusUserLocation}
+          testID="my-location-button"
           style={[
             styles.actionButton,
             focusTarget === "user" && styles.myLocationButtonActive,

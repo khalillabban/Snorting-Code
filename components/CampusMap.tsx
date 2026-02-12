@@ -199,8 +199,10 @@ export default function CampusMap({
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
-          if (!building.boundingBox || building.boundingBox.length === 0)
+          if (!building.boundingBox || building.boundingBox.length === 0) {
+            console.warn(`Building ${building.name} has no boundingBox coordinates.`);
             return null;
+          }
 
           return (
             <Polygon
