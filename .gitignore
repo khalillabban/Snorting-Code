@@ -44,3 +44,6 @@ app-example
 
 # test coverage
 coverage/
+
+#JetBrainsIDE
+.idea/
