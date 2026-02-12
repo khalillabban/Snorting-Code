@@ -5,18 +5,18 @@ import { Buildings } from "../constants/type";
 import { styles } from "../styles/NavigationBar.styles";
 
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { colors } from "../constants/theme";
 
@@ -37,7 +37,7 @@ export default function NavigationBar({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const [startLoc, setStartLoc] = useState("");
+  const [_startLoc, setStartLoc] = useState(""); // TODO: Implement start location search
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);

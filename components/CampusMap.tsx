@@ -124,7 +124,7 @@ export default function CampusMap({
           longitude: location.coords.longitude,
         });
         setLocationError(null);
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setLocationError("Unable to get your current location.");
           setUserCoords(null);
