@@ -10,10 +10,10 @@ module.exports = {
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
 
   collectCoverageFrom: [
-    "**/*.{ts,tsx}", // Collect from ALL files
-    "!**/__tests__/**", // Exclude test directory
-    "!**/*.test.{ts,tsx}", // Exclude test files
-    "!**/*.spec.{ts,tsx}", // Exclude spec files
+    "**/*.{ts,tsx}",
+    "!**/__tests__/**",
+    "!**/*.test.{ts,tsx}",
+    "!**/*.spec.{ts,tsx}",
     "!**/node_modules/**",
     "!**/coverage/**",
     "!**/.expo/**",
