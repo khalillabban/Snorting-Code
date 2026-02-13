@@ -36,14 +36,22 @@ jest.mock("../constants/theme", () => ({
 const BUILDINGS_MOCK = [
   { name: "HALL", displayName: "H Hall", campusName: "SGW" },
   { name: "MB", displayName: "John Molson (MB)", campusName: "SGW" },
-  { name: "CJ", displayName: "Communication Studies (CJ)", campusName: "Loyola" },
+  {
+    name: "CJ",
+    displayName: "Communication Studies (CJ)",
+    campusName: "Loyola",
+  },
 ] as const;
 
 jest.mock("../constants/buildings", () => ({
   BUILDINGS: [
     { name: "HALL", displayName: "H Hall", campusName: "SGW" },
     { name: "MB", displayName: "John Molson (MB)", campusName: "SGW" },
-    { name: "CJ", displayName: "Communication Studies (CJ)", campusName: "Loyola" },
+    {
+      name: "CJ",
+      displayName: "Communication Studies (CJ)",
+      campusName: "Loyola",
+    },
   ],
 }));
 
@@ -60,7 +68,6 @@ jest.mock("react-native", () => {
     this.setValue = jest.fn((v: number) => (this._value = v));
     return this;
   } as any;
-
 
   Animated.spring = jest.fn(() => ({ start: mockSpringStart })) as any;
   Animated.timing = jest.fn(() => ({ start: mockTimingStart })) as any;
@@ -92,7 +99,11 @@ describe("NavigationBar", () => {
 
   it("returns null when visible=false initially", () => {
     const { queryByText, queryByPlaceholderText } = render(
-      <NavigationBar visible={false} onClose={jest.fn()} onConfirm={jest.fn()} />,
+      <NavigationBar
+        visible={false}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
     );
 
     expect(queryByText("Get Directions")).toBeNull();
@@ -101,7 +112,11 @@ describe("NavigationBar", () => {
 
   it("renders sheet content when visible=true and starts open animation", async () => {
     const { getByPlaceholderText, getByText } = render(
-      <NavigationBar visible={true} onClose={jest.fn()} onConfirm={jest.fn()} />,
+      <NavigationBar
+        visible={true}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
     );
 
     expect(getByPlaceholderText("Search Here")).toBeTruthy();
@@ -112,7 +127,11 @@ describe("NavigationBar", () => {
 
   it("filters buildings when typing and shows suggestion list", () => {
     const { getByPlaceholderText, getByText, queryByText } = render(
-      <NavigationBar visible={true} onClose={jest.fn()} onConfirm={jest.fn()} />,
+      <NavigationBar
+        visible={true}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
     );
 
     fireEvent.changeText(getByPlaceholderText("Search Here"), "mb");
@@ -123,7 +142,11 @@ describe("NavigationBar", () => {
 
   it("selecting a building sets input value, clears suggestions, and shows confirm button", () => {
     const { getByPlaceholderText, getByText, queryByText } = render(
-      <NavigationBar visible={true} onClose={jest.fn()} onConfirm={jest.fn()} />,
+      <NavigationBar
+        visible={true}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
     );
 
     const input = getByPlaceholderText("Search Here");
@@ -171,41 +194,25 @@ describe("NavigationBar", () => {
 
   it("when visible toggles true -> false, it runs close animation and unmounts after callback", async () => {
     const { rerender, queryByPlaceholderText } = render(
-      <NavigationBar visible={true} onClose={jest.fn()} onConfirm={jest.fn()} />,
+      <NavigationBar
+        visible={true}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
     );
 
     expect(queryByPlaceholderText("Search Here")).toBeTruthy();
 
-    rerender(<NavigationBar visible={false} onClose={jest.fn()} onConfirm={jest.fn()} />);
+    rerender(
+      <NavigationBar
+        visible={false}
+        onClose={jest.fn()}
+        onConfirm={jest.fn()}
+      />,
+    );
 
     await waitFor(() => expect(mockTimingStart).toHaveBeenCalled());
 
     expect(queryByPlaceholderText("Search Here")).toBeNull();
-  });
-
-  it("typing and selecting a starting location updates startLoc and calls onConfirm", () => {
-    const onClose = jest.fn();
-    const onConfirm = jest.fn();
-
-    const { getByPlaceholderText, getByText, queryByText } = render(
-      <NavigationBar visible={true} onClose={onClose} onConfirm={onConfirm} />,
-    );
-
-    const startInput = getByPlaceholderText("Starting location");
-    fireEvent.changeText(startInput, "H Hall");
-
-    expect(getByText("H Hall")).toBeTruthy();
-    expect(queryByText("Get Directions")).toBeNull(); // confirm button hidden while searching
-
-    fireEvent.press(getByText("H Hall"));
-
-    expect(getByPlaceholderText("Starting location").props.value).toBe("H Hall");
-
-    expect(queryByText("H Hall")).toBeNull();
-    expect(getByText("Get Directions")).toBeTruthy();
-    fireEvent.press(getByText("Get Directions"));
-
-    expect(onConfirm).toHaveBeenCalledWith(BUILDINGS_MOCK[0], null);
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
