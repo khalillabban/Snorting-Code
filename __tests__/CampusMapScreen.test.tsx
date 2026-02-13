@@ -24,6 +24,8 @@ jest.mock("../components/CampusMap", () => {
         {JSON.stringify({
           coordinates: props.coordinates,
           focusTarget: props.focusTarget,
+          startPoint: props.startPoint,
+          destinationPoint: props.destinationPoint,
         })}
       </Text>
     );
@@ -44,23 +46,16 @@ jest.mock("../components/NavigationBar", () => {
   return function MockNavigationBar(props: any) {
     return (
       <View>
-        <Text testID="nav-visible">
-          {props.visible ? "visible" : "hidden"}
-        </Text>
+        <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
 
         <Pressable
           testID="nav-confirm"
-          onPress={() =>
-            props.onConfirm("H", "MB")
-          }
+          onPress={() => props.onConfirm("H", "MB")}
         >
           <Text>Confirm</Text>
         </Pressable>
 
-        <Pressable
-          testID="nav-close"
-          onPress={props.onClose}
-        >
+        <Pressable testID="nav-close" onPress={props.onClose}>
           <Text>Close</Text>
         </Pressable>
       </View>
@@ -84,6 +79,8 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 1, longitude: 2 },
       focusTarget: "sgw",
+      startPoint: null,
+      destinationPoint: null,
     });
   });
 
@@ -95,6 +92,8 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
+      startPoint: null,
+      destinationPoint: null,
     });
   });
 
@@ -108,6 +107,8 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
+      startPoint: null,
+      destinationPoint: null,
     });
   });
 
@@ -122,6 +123,80 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "user",
+      startPoint: null,
+      destinationPoint: null,
+    });
+  });
+
+  describe("Navigation Bar", () => {
+    it("opens navigation bar when directions button is pressed", () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      render(<CampusMapScreen />);
+
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+
+      fireEvent.press(screen.getByText("directions"));
+
+      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+    });
+
+    it("closes navigation bar when close button is pressed", () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      render(<CampusMapScreen />);
+
+      fireEvent.press(screen.getByText("directions"));
+      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+
+      fireEvent.press(screen.getByTestId("nav-close"));
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+    });
+
+    it("updates start and destination points when route is confirmed", () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      render(<CampusMapScreen />);
+
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+
+      const mapProps = getMapProps();
+      expect(mapProps.startPoint).toBe("H");
+      expect(mapProps.destinationPoint).toBe("MB");
+    });
+
+    it("closes navigation bar after route is confirmed", () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      render(<CampusMapScreen />);
+
+      fireEvent.press(screen.getByText("directions"));
+      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+    });
+
+    it("preserves route points when navigation bar is reopened", () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      render(<CampusMapScreen />);
+
+      // Set a route
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+
+      expect(getMapProps().startPoint).toBe("H");
+      expect(getMapProps().destinationPoint).toBe("MB");
+
+      // Open and close navigation bar
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-close"));
+
+      // Route should still be set
+      expect(getMapProps().startPoint).toBe("H");
+      expect(getMapProps().destinationPoint).toBe("MB");
     });
   });
 });
