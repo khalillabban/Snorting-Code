@@ -37,7 +37,7 @@ export default function NavigationBar({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const [_startLoc, setStartLoc] = useState(""); // TODO: Implement start location search
+  const [startLoc, setStartLoc] = useState(""); // TODO: Implement start location search
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
@@ -146,6 +146,20 @@ export default function NavigationBar({
           </View>
 
           <View style={styles.content}>
+            <View style={styles.inputGroup}>
+              <MaterialIcons
+                name="trip-origin"
+                size={20}
+                color={colors.primary}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Starting location"
+                placeholderTextColor="#999"
+                value={startLoc}
+                onChangeText={(text) => handleSearch(text, "start")}
+              />
+            </View>
             <View style={styles.inputGroup}>
               <MaterialIcons name="place" size={20} color={colors.primary} />
               <TextInput
