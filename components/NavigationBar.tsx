@@ -33,17 +33,19 @@ export default function NavigationBar({
   visible,
   onClose,
   onConfirm,
-}: NavigationBarProps) {
+}: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const [startLoc, setStartLoc] = useState(""); // TODO: Implement start location search
+  const [startLoc, setStartLoc] = useState("");
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
 
   const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
-  const [activeInput, setActiveInput] = useState<"start" | "destination" | null>(null);
+  const [activeInput, setActiveInput] = useState<
+    "start" | "destination" | null
+  >(null);
 
   useEffect(() => {
     if (visible) {
