@@ -37,6 +37,37 @@ jest.mock("../constants/campuses", () => ({
   },
 }));
 
+jest.mock("../components/NavigationBar", () => {
+  const React = require("react");
+  const { View, Text, Pressable } = require("react-native");
+
+  return function MockNavigationBar(props: any) {
+    return (
+      <View>
+        <Text testID="nav-visible">
+          {props.visible ? "visible" : "hidden"}
+        </Text>
+
+        <Pressable
+          testID="nav-confirm"
+          onPress={() =>
+            props.onConfirm("H", "MB")
+          }
+        >
+          <Text>Confirm</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-close"
+          onPress={props.onClose}
+        >
+          <Text>Close</Text>
+        </Pressable>
+      </View>
+    );
+  };
+});
+
 const getMapProps = () =>
   JSON.parse(screen.getByTestId("campus-map-props").props.children);
 

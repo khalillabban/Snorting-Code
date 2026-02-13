@@ -51,15 +51,15 @@ const mockSpringStart = jest.fn((cb?: () => void) => cb?.());
 const mockTimingStart = jest.fn((cb?: () => void) => cb?.());
 
 jest.mock("react-native", () => {
-    const RN = jest.requireActual("react-native");
+  const RN = jest.requireActual("react-native");
 
-    const Animated = RN.Animated;
+  const Animated = RN.Animated;
 
-    Animated.Value = function Value(this: any, initial: number) {
+  Animated.Value = function Value(this: any, initial: number) {
     this._value = initial;
     this.setValue = jest.fn((v: number) => (this._value = v));
     return this;
-    } as any;
+  } as any;
 
 
   Animated.spring = jest.fn(() => ({ start: mockSpringStart })) as any;
@@ -181,5 +181,31 @@ describe("NavigationBar", () => {
     await waitFor(() => expect(mockTimingStart).toHaveBeenCalled());
 
     expect(queryByPlaceholderText("Search Here")).toBeNull();
+  });
+
+  it("typing and selecting a starting location updates startLoc and calls onConfirm", () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    const { getByPlaceholderText, getByText, queryByText } = render(
+      <NavigationBar visible={true} onClose={onClose} onConfirm={onConfirm} />,
+    );
+
+    const startInput = getByPlaceholderText("Starting location");
+    fireEvent.changeText(startInput, "H Hall");
+
+    expect(getByText("H Hall")).toBeTruthy();
+    expect(queryByText("Get Directions")).toBeNull(); // confirm button hidden while searching
+
+    fireEvent.press(getByText("H Hall"));
+
+    expect(getByPlaceholderText("Starting location").props.value).toBe("H Hall");
+
+    expect(queryByText("H Hall")).toBeNull();
+    expect(getByText("Get Directions")).toBeTruthy();
+    fireEvent.press(getByText("Get Directions"));
+
+    expect(onConfirm).toHaveBeenCalledWith(BUILDINGS_MOCK[0], null);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
