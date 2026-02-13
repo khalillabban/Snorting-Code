@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   buttonStack: {
     position: "absolute",
-    bottom: 40,
+    bottom: 50,
     right: spacing.md,
     gap: 12,
   },
