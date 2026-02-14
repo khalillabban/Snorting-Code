@@ -137,7 +137,7 @@ export default function CampusMapScreen() {
 const styles = StyleSheet.create({
   campusToggleContainer: {
     position: "absolute",
-    top: 20,
+    top: 30,
     left: 0,
     right: 0,
     alignItems: "center",
