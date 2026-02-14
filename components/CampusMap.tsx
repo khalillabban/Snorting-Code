@@ -153,6 +153,20 @@ export default function CampusMap({
     );
   }, [focusTarget, coordinates, userCoords, mapReady]);
 
+  useEffect(() => {
+    if (selectedBuilding && mapReady) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: selectedBuilding.coordinates.latitude - 0.0011,
+          longitude: selectedBuilding.coordinates.longitude,
+          latitudeDelta: 0.004,
+          longitudeDelta: 0.004,
+        },
+        300,
+      );
+    }
+  }, [selectedBuilding, mapReady]);
+
   const currentBuilding = useMemo(
     () =>
       userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
