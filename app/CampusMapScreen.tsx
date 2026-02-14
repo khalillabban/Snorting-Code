@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     overflow: "hidden",
-    maxWidth: 150,
+    maxWidth: 160,
     opacity: 0.93,
   },
   campusToggleOption: {
     flex: 1,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     alignItems: "center",
   },
   campusToggleOptionLeft: {
