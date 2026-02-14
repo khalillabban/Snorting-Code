@@ -47,6 +47,8 @@ export default function NavigationBar({
     "start" | "destination" | null
   >(null);
 
+  // eslint-disable-line react-hooks/exhaustive-deps
+  // translateY is a stable ref value and doesn't need to be in dependencies
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
