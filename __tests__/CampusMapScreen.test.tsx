@@ -1,7 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
+import * as Location from "expo-location";
 
 jest.mock("@expo/vector-icons", () => {
   const React = require("react");
@@ -13,6 +19,11 @@ jest.mock("@expo/vector-icons", () => {
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(),
+}));
+
+jest.mock("expo-location", () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
 }));
 
 jest.mock("../components/CampusMap", () => {
@@ -66,15 +77,32 @@ jest.mock("../components/NavigationBar", () => {
 const getMapProps = () =>
   JSON.parse(screen.getByTestId("campus-map-props").props.children);
 
+// 🔥 helper to remove ALL act warnings
+const renderScreen = async () => {
+  render(<CampusMapScreen />);
+  await waitFor(() => { }); // flush async useEffect
+};
+
 describe("CampusMapScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (Location.requestForegroundPermissionsAsync as jest.Mock)
+      .mockResolvedValue({ status: "granted" });
+
+    (Location.getCurrentPositionAsync as jest.Mock)
+      .mockResolvedValue({
+        coords: {
+          latitude: 45.497,
+          longitude: -73.578,
+        },
+      });
   });
 
-  it("defaults to SGW when no campus param is provided", () => {
+  it("defaults to SGW when no campus param is provided", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-    render(<CampusMapScreen />);
+    await renderScreen();
 
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 1, longitude: 2 },
@@ -84,10 +112,10 @@ describe("CampusMapScreen", () => {
     });
   });
 
-  it("uses Loyola when campus param is loyola", () => {
+  it("uses Loyola when campus param is loyola", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "loyola" });
 
-    render(<CampusMapScreen />);
+    await renderScreen();
 
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
@@ -97,10 +125,10 @@ describe("CampusMapScreen", () => {
     });
   });
 
-  it("switches campus to Loyola when the Loyola toggle is pressed", () => {
+  it("switches campus to Loyola when the Loyola toggle is pressed", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
 
-    render(<CampusMapScreen />);
+    await renderScreen();
 
     fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
 
@@ -112,10 +140,10 @@ describe("CampusMapScreen", () => {
     });
   });
 
-  it("centers on user location without changing campus coordinates", () => {
+  it("centers on user location without changing campus coordinates", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
 
-    render(<CampusMapScreen />);
+    await renderScreen();
 
     fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
     fireEvent.press(screen.getByTestId("my-location-button"));
@@ -129,10 +157,10 @@ describe("CampusMapScreen", () => {
   });
 
   describe("Navigation Bar", () => {
-    it("opens navigation bar when directions button is pressed", () => {
+    it("opens navigation bar when directions button is pressed", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-      render(<CampusMapScreen />);
+      await renderScreen();
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
 
@@ -141,10 +169,10 @@ describe("CampusMapScreen", () => {
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
     });
 
-    it("closes navigation bar when close button is pressed", () => {
+    it("closes navigation bar when close button is pressed", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-      render(<CampusMapScreen />);
+      await renderScreen();
 
       fireEvent.press(screen.getByText("directions"));
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
@@ -153,10 +181,10 @@ describe("CampusMapScreen", () => {
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
     });
 
-    it("updates start and destination points when route is confirmed", () => {
+    it("updates start and destination points when route is confirmed", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-      render(<CampusMapScreen />);
+      await renderScreen();
 
       fireEvent.press(screen.getByText("directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
@@ -166,35 +194,31 @@ describe("CampusMapScreen", () => {
       expect(mapProps.destinationPoint).toBe("MB");
     });
 
-    it("closes navigation bar after route is confirmed", () => {
+    it("closes navigation bar after route is confirmed", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-      render(<CampusMapScreen />);
+      await renderScreen();
 
       fireEvent.press(screen.getByText("directions"));
-      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
-
       fireEvent.press(screen.getByTestId("nav-confirm"));
+
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
     });
 
-    it("preserves route points when navigation bar is reopened", () => {
+    it("preserves route points when navigation bar is reopened", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
-      render(<CampusMapScreen />);
+      await renderScreen();
 
-      // Set a route
       fireEvent.press(screen.getByText("directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(getMapProps().startPoint).toBe("H");
       expect(getMapProps().destinationPoint).toBe("MB");
 
-      // Open and close navigation bar
       fireEvent.press(screen.getByText("directions"));
       fireEvent.press(screen.getByTestId("nav-close"));
 
-      // Route should still be set
       expect(getMapProps().startPoint).toBe("H");
       expect(getMapProps().destinationPoint).toBe("MB");
     });

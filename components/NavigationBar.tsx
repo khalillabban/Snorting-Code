@@ -27,7 +27,7 @@ interface NavigationBarProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: (start: Buildings | null, destination: Buildings | null) => void;
-  autoStartBuilding: Buildings | null;
+  autoStartBuilding?: Buildings | null;
 }
 
 export default function NavigationBar({
