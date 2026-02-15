@@ -43,7 +43,7 @@ export default function NavigationBar({
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
-
+  const [startManuallyEdited, setStartManuallyEdited] = useState(false);
   const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
@@ -70,17 +70,19 @@ export default function NavigationBar({
   }, [visible]);
 
   useEffect(() => {
-    if (autoStartBuilding) {
+    if (autoStartBuilding && !startManuallyEdited) {
       setStartLoc(autoStartBuilding.displayName);
       setStartBuilding(autoStartBuilding);
     }
-  }, [autoStartBuilding]);
+  }, [autoStartBuilding, startManuallyEdited]);
 
   // Filtering Logic
   const handleSearch = (text: string, type: "start" | "destination") => {
     setActiveInput(type);
-    if (type === "start") setStartLoc(text);
-    else setDestLoc(text);
+    if (type === "start") {
+      setStartManuallyEdited(true);
+      setStartLoc(text);
+    } else setDestLoc(text);
 
     if (text.length > 0) {
       const filtered = BUILDINGS.filter(
