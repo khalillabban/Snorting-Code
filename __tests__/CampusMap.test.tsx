@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import {
   getCurrentPositionAsync,
   getForegroundPermissionsAsync,
@@ -321,9 +327,9 @@ describe("CampusMap", () => {
     fireEvent.press(polygons[1]);
 
     await waitFor(() => {
-      const styles = screen.getAllByTestId("polygon-style").map((el) =>
-        JSON.parse(el.props.children),
-      );
+      const styles = screen
+        .getAllByTestId("polygon-style")
+        .map((el) => JSON.parse(el.props.children));
 
       // A is current
       expect(styles[0]).toEqual({
@@ -347,5 +353,90 @@ describe("CampusMap", () => {
       });
     });
   });
-});
 
+  // --- Start point and destination point markers ---
+
+  it("renders start point marker when startPoint is provided", async () => {
+    const startBuilding = BUILDINGS[0];
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={startBuilding}
+      />,
+    );
+
+    const markers = await screen.findAllByTestId(/^marker-/);
+
+    // Should have both user location marker and start point marker
+    expect(markers.length).toBeGreaterThanOrEqual(2);
+
+    // The start point marker doesn't have a title, so it will be "marker-marker"
+    const startMarker = markers.find((m) => m.props.testID === "marker-marker");
+    expect(startMarker).toBeTruthy();
+  });
+
+  it("renders destination point marker when destinationPoint is provided", async () => {
+    const destinationBuilding = BUILDINGS[1];
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        destinationPoint={destinationBuilding}
+      />,
+    );
+
+    expect(await screen.findByTestId("marker-Destination")).toBeTruthy();
+
+    // Use within() to scope the query to the marker element
+    const { getByTestId: getWithin } = within(
+      screen.getByTestId("marker-Destination"),
+    );
+    const props = JSON.parse(getWithin("marker-props").props.children);
+
+    expect(props.coordinate).toEqual(destinationBuilding.coordinates);
+    expect(props.title).toBe("Destination");
+    expect(props.pinColor).toBe("red");
+  });
+
+  it("renders both start and destination markers together", async () => {
+    const startBuilding = BUILDINGS[0];
+    const destinationBuilding = BUILDINGS[2];
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={startBuilding}
+        destinationPoint={destinationBuilding}
+      />,
+    );
+
+    // Should have user location, start point, and destination
+    const markers = await screen.findAllByTestId(/^marker-/);
+    expect(markers.length).toBeGreaterThanOrEqual(3);
+
+    expect(screen.getByTestId("marker-You are here")).toBeTruthy();
+    expect(screen.getByTestId("marker-Destination")).toBeTruthy();
+  });
+
+  it("does not render start or destination markers when not provided", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={undefined}
+        destinationPoint={undefined}
+      />,
+    );
+
+    // Wait for the user location marker to confirm the component has settled
+    expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
+
+    // Neither the titled destination marker nor any start marker should be present
+    expect(screen.queryByTestId("marker-Destination")).toBeNull();
+    expect(screen.queryByTestId("marker-marker")).toBeNull();
+  });
+});
