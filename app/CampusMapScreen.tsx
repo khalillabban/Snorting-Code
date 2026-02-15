@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import NavigationBar from "../components/NavigationBar";
@@ -16,6 +16,20 @@ type FocusTarget = CampusKey | "user";
 
 export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+  const findNearestBuilding = useCallback((lat: number, lon: number) => {
+    let nearest = BUILDINGS[0];
+    let minDist = Infinity;
+
+    for (const b of BUILDINGS) {
+      const d = distance(lat, lon, b.coordinates.latitude, b.coordinates.longitude);
+      if (d < minDist) {
+        minDist = d;
+        nearest = b;
+      }
+    }
+
+    return nearest;
+  }, []);
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -56,7 +70,7 @@ export default function CampusMapScreen() {
     };
 
     getUserBuilding();
-  }, []);
+  }, [findNearestBuilding]);
 
 
   const selectCampus = (campusKey: CampusKey) => {
@@ -83,28 +97,6 @@ export default function CampusMapScreen() {
 
     return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
-
-  function findNearestBuilding(lat: number, lon: number) {
-    let nearest = BUILDINGS[0];
-    let minDist = Infinity;
-
-    for (const b of BUILDINGS) {
-      const d = distance(
-        lat,
-        lon,
-        b.coordinates.latitude,
-        b.coordinates.longitude
-      );
-
-      if (d < minDist) {
-        minDist = d;
-        nearest = b;
-      }
-    }
-
-    return nearest;
-  }
-
 
   const handleConfirmRoute = (
     start: Buildings | null,
@@ -192,7 +184,6 @@ export default function CampusMapScreen() {
         onClose={() => setIsNavVisible(false)}
         onConfirm={handleConfirmRoute}
         autoStartBuilding={autoStartBuilding}
-
       />
     </View>
   );
