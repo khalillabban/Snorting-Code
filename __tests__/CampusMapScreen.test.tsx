@@ -77,7 +77,6 @@ jest.mock("../components/NavigationBar", () => {
 const getMapProps = () =>
   JSON.parse(screen.getByTestId("campus-map-props").props.children);
 
-// 🔥 helper to remove ALL act warnings
 const renderScreen = async () => {
   render(<CampusMapScreen />);
   await waitFor(() => { }); // flush async useEffect
