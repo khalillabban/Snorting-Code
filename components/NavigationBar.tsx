@@ -27,12 +27,14 @@ interface NavigationBarProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: (start: Buildings | null, destination: Buildings | null) => void;
+  autoStartBuilding: Buildings | null;
 }
 
 export default function NavigationBar({
   visible,
   onClose,
   onConfirm,
+  autoStartBuilding,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -66,6 +68,13 @@ export default function NavigationBar({
       }).start(() => setShouldRender(false));
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (autoStartBuilding) {
+      setStartLoc(autoStartBuilding.displayName);
+      setStartBuilding(autoStartBuilding);
+    }
+  }, [autoStartBuilding]);
 
   // Filtering Logic
   const handleSearch = (text: string, type: "start" | "destination") => {
