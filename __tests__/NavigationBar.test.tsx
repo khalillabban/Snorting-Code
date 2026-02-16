@@ -965,4 +965,72 @@ describe("NavigationBar", () => {
       expect(queryByText("Concordia Vanier Library (VL)")).toBeTruthy();
     });
   });
+
+  describe("Auto Start Building (NEW FEATURE)", () => {
+    const mockAutoBuilding = {
+      name: "EV",
+      campusName: "SGW",
+      displayName:
+        "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
+      address: "1515 Rue Sainte-Catherine O #1428",
+      coordinates: { latitude: 45.495626, longitude: -73.577982 },
+      icons: [],
+      services: [],
+      departments: [],
+      boundingBox: [],
+    };
+
+    it("should auto-fill starting location when autoStartBuilding is provided", async () => {
+      const { getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          autoStartBuilding={mockAutoBuilding as any}
+        />
+      );
+
+      await waitFor(() => {
+        expect(
+          getByPlaceholderText("Starting location").props.value
+        ).toBe(mockAutoBuilding.displayName);
+      });
+    });
+
+    it("should set start building internally and confirm correctly", async () => {
+      const { getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          autoStartBuilding={mockAutoBuilding as any}
+        />
+      );
+
+      fireEvent.press(getByText("Get Directions"));
+
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "EV",
+          displayName:
+            "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
+        }),
+        null
+      );
+    });
+
+    it("should not crash when autoStartBuilding is null", () => {
+      const { getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          autoStartBuilding={null}
+        />
+      );
+
+      expect(getByPlaceholderText("Starting location").props.value).toBe("");
+    });
+  });
+
 });
