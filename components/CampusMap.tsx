@@ -7,10 +7,11 @@ import {
 } from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
+import { getOutdoorRoute } from "../services/GoogleDirectionsService";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
@@ -69,17 +70,10 @@ export default function CampusMap({
   startPoint,
   destinationPoint,
 }: CampusMapProps) {
-  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
-    null,
-  );
-
-  const handleMapPress = () => {
-    if (selectedBuilding) setSelectedBuilding(null);
-  };
-
-  const handleBuildingPress = (building: Buildings) => {
-    setSelectedBuilding(building);
-  };
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
+  const [routeCoords, setRouteCoords] = useState<
+    { latitude: number; longitude: number }[]
+  >([]);
 
   const mapRef = useRef<MapView>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -89,9 +83,18 @@ export default function CampusMap({
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  // ... (Location useEffect logic remains the same)
+  const handleMapPress = () => {
+    if (selectedBuilding) setSelectedBuilding(null);
+  };
+
+  const handleBuildingPress = (building: Buildings) => {
+    setSelectedBuilding(building);
+  };
+
+  // Load current GPS location
   useEffect(() => {
     let cancelled = false;
+
     async function loadCurrentLocation() {
       try {
         const servicesEnabled = await hasServicesEnabledAsync();
@@ -102,12 +105,15 @@ export default function CampusMap({
           }
           return;
         }
+
         const existing = await getForegroundPermissionsAsync();
         let status = existing.status;
+
         if (status !== "granted") {
           const requested = await requestForegroundPermissionsAsync();
           status = requested.status;
         }
+
         if (status !== "granted") {
           if (!cancelled) {
             setLocationError("Permission to access location was denied.");
@@ -115,14 +121,18 @@ export default function CampusMap({
           }
           return;
         }
+
         const location = await getCurrentPositionAsync({
           accuracy: Accuracy.Balanced,
         });
+
         if (cancelled) return;
+
         setUserCoords({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         });
+
         setLocationError(null);
       } catch {
         if (!cancelled) {
@@ -131,25 +141,53 @@ export default function CampusMap({
         }
       }
     }
+
     loadCurrentLocation();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Fetch route when start/destination changes
+  useEffect(() => {
+    async function fetchRoute() {
+      if (!startPoint || !destinationPoint) {
+        setRouteCoords([]);
+        return;
+      }
+
+      try {
+        const route = await getOutdoorRoute(
+          startPoint.coordinates,
+          destinationPoint.coordinates
+        );
+        setRouteCoords(route);
+      } catch (error) {
+        console.log("Route error:", error);
+        setRouteCoords([]);
+      }
+    }
+
+    fetchRoute();
+  }, [startPoint, destinationPoint]);
+
+  // Animate map focus
   useEffect(() => {
     if (!mapReady) return;
+
     if (focusTarget === "user") {
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
         { ...userCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-        250,
+        250
       );
       return;
     }
+
     mapRef.current?.animateToRegion(
       { ...coordinates, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-      250,
+      250
     );
   }, [focusTarget, coordinates, userCoords, mapReady]);
 
@@ -162,7 +200,7 @@ export default function CampusMap({
           latitudeDelta: 0.004,
           longitudeDelta: 0.004,
         },
-        300,
+        300
       );
     }
   }, [selectedBuilding, mapReady]);
@@ -170,7 +208,7 @@ export default function CampusMap({
   const currentBuilding = useMemo(
     () =>
       userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
-    [userCoords],
+    [userCoords]
   );
 
   return (
@@ -189,13 +227,10 @@ export default function CampusMap({
           longitudeDelta: 0.01,
         }}
       >
-        {userCoords ? <CurrentLocationMarker coordinate={userCoords} /> : null}
+        {userCoords && <CurrentLocationMarker coordinate={userCoords} />}
 
         {startPoint && (
-          <Marker
-            coordinate={startPoint.coordinates}
-            anchor={{ x: 0.5, y: 0.5 }} // Centers the circle exactly on the coordinate
-          >
+          <Marker coordinate={startPoint.coordinates}>
             <View style={styles.blueDotInner} />
           </Marker>
         )}
@@ -208,15 +243,22 @@ export default function CampusMap({
           />
         )}
 
+        {routeCoords.length > 0 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={6}
+            strokeColor={colors.primary}
+            lineJoin="round"
+            lineCap="round"
+          />
+        )}
+
         {BUILDINGS.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
-          if (!building.boundingBox || building.boundingBox.length === 0) {
-            console.warn(`Building ${building.name} has no boundingBox coordinates.`);
-            return null;
-          }
+          if (!building.boundingBox?.length) return null;
 
           return (
             <Polygon
@@ -225,7 +267,7 @@ export default function CampusMap({
               fillColor={style.fillColor}
               strokeColor={style.strokeColor}
               strokeWidth={style.strokeWidth}
-              tappable={true}
+              tappable
               onPress={(e) => {
                 e.stopPropagation();
                 handleBuildingPress(building);
