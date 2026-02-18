@@ -1,15 +1,16 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import NavigationBar from "../components/NavigationBar";
+import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
-import * as Location from "expo-location";
-import { BUILDINGS } from "../constants/buildings";
+import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
 
 type FocusTarget = CampusKey | "user";
@@ -20,8 +21,13 @@ export default function CampusMapScreen() {
     let nearest = BUILDINGS[0];
     let minDist = Infinity;
 
+    const userPoint = { latitude: lat, longitude: lon };
+
     for (const b of BUILDINGS) {
-      const d = distance(lat, lon, b.coordinates.latitude, b.coordinates.longitude);
+      if (!b.boundingBox || b.boundingBox.length < 3) continue;
+
+      const d = getDistanceToPolygon(userPoint, b.boundingBox);
+
       if (d < minDist) {
         minDist = d;
         nearest = b;
@@ -81,22 +87,6 @@ export default function CampusMapScreen() {
   const focusUserLocation = () => {
     setFocusTarget("user");
   };
-
-  function distance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3;
-    const toRad = (x: number) => (x * Math.PI) / 180;
-
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
 
   const handleConfirmRoute = (
     start: Buildings | null,
