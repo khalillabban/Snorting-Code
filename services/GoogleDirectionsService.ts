@@ -18,13 +18,17 @@ type DirectionsResponse = {
 };
 
 function requireGoogleApiKey(): string {
-  if (!GOOGLE_API_KEY) {
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
     throw new Error(
-      'Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY. Add it to your env (and restart Metro).'
+      "Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY. Add it to your env (and restart Metro)."
     );
   }
-  return GOOGLE_API_KEY;
+
+  return apiKey;
 }
+
 
 function buildDirectionsUrl(origin: LatLng, destination: LatLng): string {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");

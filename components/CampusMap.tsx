@@ -151,6 +151,8 @@ export default function CampusMap({
 
   // Fetch route when start/destination changes
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchRoute() {
       if (!startPoint || !destinationPoint) {
         setRouteCoords([]);
@@ -162,14 +164,23 @@ export default function CampusMap({
           startPoint.coordinates,
           destinationPoint.coordinates
         );
+
+        if (cancelled) return;
+
         setRouteCoords(route);
       } catch (error) {
-        console.log("Route error:", error);
-        setRouteCoords([]);
+        if (!cancelled) {
+          console.log("Route error:", error);
+          setRouteCoords([]);
+        }
       }
     }
 
     fetchRoute();
+
+    return () => {
+      cancelled = true;
+    };
   }, [startPoint, destinationPoint]);
 
   // Animate map focus
@@ -230,7 +241,10 @@ export default function CampusMap({
         {userCoords && <CurrentLocationMarker coordinate={userCoords} />}
 
         {startPoint && (
-          <Marker coordinate={startPoint.coordinates}>
+          <Marker
+            coordinate={startPoint.coordinates}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
             <View style={styles.blueDotInner} />
           </Marker>
         )}
