@@ -500,4 +500,36 @@ describe("CampusMap", () => {
     expect(props.coordinates).toEqual(mockRoute);
   });
 
+  it("clears route and logs when route fetch fails", async () => {
+    const startBuilding = BUILDINGS[0];
+    const destinationBuilding = BUILDINGS[1];
+
+    (getOutdoorRoute as jest.Mock).mockRejectedValue(
+      new Error("route failed")
+    );
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={startBuilding}
+        destinationPoint={destinationBuilding}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getOutdoorRoute).toHaveBeenCalled();
+    });
+
+    // Catch branch logs the error
+    expect(logSpy).toHaveBeenCalledWith(
+      "Route error:",
+      expect.any(Error)
+    );
+
+    // Route should be cleared → no polyline rendered
+    expect(screen.queryByTestId("polyline")).toBeNull();
+  });
+
+
 });
