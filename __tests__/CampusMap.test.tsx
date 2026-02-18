@@ -16,6 +16,8 @@ import CampusMap from "../components/CampusMap";
 import { BUILDINGS } from "../constants/buildings";
 import { colors } from "../constants/theme";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
+import { getOutdoorRoute } from "../services/GoogleDirectionsService";
+
 
 jest.mock("expo-location", () => ({
   Accuracy: { Balanced: "Balanced" },
@@ -25,9 +27,24 @@ jest.mock("expo-location", () => ({
   getCurrentPositionAsync: jest.fn(),
 }));
 
+jest.mock("../services/GoogleDirectionsService", () => ({
+  getOutdoorRoute: jest.fn(),
+}));
+
 jest.mock("react-native-maps", () => {
   const React = require("react");
   const { Text, View } = require("react-native");
+  const Polyline = (props: any) => (
+    <View testID="polyline">
+      <Text testID="polyline-props">
+        {JSON.stringify({
+          coordinates: props.coordinates,
+          strokeWidth: props.strokeWidth,
+          strokeColor: props.strokeColor,
+        })}
+      </Text>
+    </View>
+  );
 
   const animateToRegion = jest.fn();
 
@@ -77,6 +94,7 @@ jest.mock("react-native-maps", () => {
     default: MapView,
     Marker,
     Polygon,
+    Polyline,
     __animateToRegion: animateToRegion,
   };
 });
@@ -164,8 +182,8 @@ describe("CampusMap", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => { });
 
     (hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
     (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
@@ -179,6 +197,9 @@ describe("CampusMap", () => {
     });
 
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(null);
+
+    // ⭐ CRITICAL LINE (missing)
+    (getOutdoorRoute as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -439,4 +460,44 @@ describe("CampusMap", () => {
     expect(screen.queryByTestId("marker-Destination")).toBeNull();
     expect(screen.queryByTestId("marker-marker")).toBeNull();
   });
+
+  it("sets route coordinates and renders polyline when route fetch succeeds", async () => {
+    const startBuilding = BUILDINGS[0];
+    const destinationBuilding = BUILDINGS[1];
+
+    const mockRoute = [
+      { latitude: 10.1, longitude: 20.1 },
+      { latitude: 10.2, longitude: 20.2 },
+    ];
+
+    (getOutdoorRoute as jest.Mock).mockResolvedValue(mockRoute);
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={startBuilding}
+        destinationPoint={destinationBuilding}
+      />,
+    );
+
+    // Wait for async route fetch + state update
+    await waitFor(() => {
+      expect(getOutdoorRoute).toHaveBeenCalledWith(
+        startBuilding.coordinates,
+        destinationBuilding.coordinates,
+      );
+    });
+
+    // Polyline only appears if setRouteCoords(route) executed
+    const polyline = await screen.findByTestId("polyline");
+    expect(polyline).toBeTruthy();
+
+    const props = JSON.parse(
+      screen.getByTestId("polyline-props").props.children,
+    );
+
+    expect(props.coordinates).toEqual(mockRoute);
+  });
+
 });
