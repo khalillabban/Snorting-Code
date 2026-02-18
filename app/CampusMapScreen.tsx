@@ -1,16 +1,35 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
+import NavigationBar from "../components/NavigationBar";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import { colors, spacing, typography } from "../constants/theme";
+import { Buildings } from "../constants/type";
+import * as Location from "expo-location";
+import { BUILDINGS } from "../constants/buildings";
+
 
 type FocusTarget = CampusKey | "user";
 
 export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+  const findNearestBuilding = useCallback((lat: number, lon: number) => {
+    let nearest = BUILDINGS[0];
+    let minDist = Infinity;
+
+    for (const b of BUILDINGS) {
+      const d = distance(lat, lon, b.coordinates.latitude, b.coordinates.longitude);
+      if (d < minDist) {
+        minDist = d;
+        nearest = b;
+      }
+    }
+
+    return nearest;
+  }, []);
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -20,12 +39,39 @@ export default function CampusMapScreen() {
     campus === "loyola" ? "loyola" : "sgw",
   );
 
+  const [autoStartBuilding, setAutoStartBuilding] =
+    useState<Buildings | null>(null);
+
+  const [isNavVisible, setIsNavVisible] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<{
+    start: Buildings | null;
+    dest: Buildings | null;
+  }>({ start: null, dest: null });
+
   useEffect(() => {
     setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
     setFocusTarget((prev) =>
       prev === "user" ? prev : campus === "loyola" ? "loyola" : "sgw",
     );
   }, [campus]);
+
+  useEffect(() => {
+    const getUserBuilding = async () => {
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") return;
+
+      const loc = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = loc.coords;
+
+      const building = findNearestBuilding(latitude, longitude);
+      setAutoStartBuilding(building);
+    };
+
+    getUserBuilding();
+  }, [findNearestBuilding]);
+
 
   const selectCampus = (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
@@ -36,19 +82,45 @@ export default function CampusMapScreen() {
     setFocusTarget("user");
   };
 
+  function distance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371e3;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  const handleConfirmRoute = (
+    start: Buildings | null,
+    dest: Buildings | null,
+  ) => {
+    setSelectedRoute({ start, dest });
+    setIsNavVisible(false);
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}
+        startPoint={selectedRoute.start}
+        destinationPoint={selectedRoute.dest}
       />
 
+      {/* Campus Toggle */}
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
         <View style={styles.campusToggle}>
           <Pressable
-            testID="campus-toggle-sgw"
-            accessibilityRole="button"
             onPress={() => selectCampus("sgw")}
+            testID="campus-toggle-sgw"
             style={[
               styles.campusToggleOption,
               styles.campusToggleOptionLeft,
@@ -66,9 +138,8 @@ export default function CampusMapScreen() {
           </Pressable>
 
           <Pressable
-            testID="campus-toggle-loyola"
-            accessibilityRole="button"
             onPress={() => selectCampus("loyola")}
+            testID="campus-toggle-loyola"
             style={[
               styles.campusToggleOption,
               currentCampus === "loyola" && styles.campusToggleOptionActive,
@@ -86,22 +157,34 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      <Pressable
-        testID="my-location-button"
-        accessibilityRole="button"
-        accessibilityLabel="Center on my location"
-        onPress={focusUserLocation}
-        style={[
-          styles.myLocationButton,
-          focusTarget === "user" && styles.myLocationButtonActive,
-        ]}
-      >
-        <MaterialIcons
-          name="my-location"
-          size={22}
-          color={colors.white}
-        />
-      </Pressable>
+      {/* Floating Buttons */}
+      <View style={styles.buttonStack}>
+        <Pressable
+          onPress={() => setIsNavVisible(true)}
+          style={styles.actionButton}
+        >
+          <MaterialIcons name="directions" size={24} color={colors.white} />
+        </Pressable>
+
+        <Pressable
+          onPress={focusUserLocation}
+          testID="my-location-button"
+          style={[
+            styles.actionButton,
+            focusTarget === "user" && styles.myLocationButtonActive,
+          ]}
+        >
+          <MaterialIcons name="my-location" size={22} color={colors.white} />
+        </Pressable>
+      </View>
+
+      {/* The Draggable Navigation Bar */}
+      <NavigationBar
+        visible={isNavVisible}
+        onClose={() => setIsNavVisible(false)}
+        onConfirm={handleConfirmRoute}
+        autoStartBuilding={autoStartBuilding}
+      />
     </View>
   );
 }
@@ -109,10 +192,11 @@ export default function CampusMapScreen() {
 const styles = StyleSheet.create({
   campusToggleContainer: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 20 : 30,
+    top: 30,
     left: 0,
     right: 0,
     alignItems: "center",
+    zIndex: 10,
   },
   campusToggle: {
     flexDirection: "row",
@@ -120,11 +204,14 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryDarker,
     borderWidth: 1,
     borderRadius: 8,
-    overflow: "hidden", maxWidth: 150, opacity: 0.93,  },
+    overflow: "hidden",
+    maxWidth: 160,
+    opacity: 0.93,
+  },
   campusToggleOption: {
     flex: 1,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     alignItems: "center",
   },
   campusToggleOptionLeft: {
@@ -142,18 +229,22 @@ const styles = StyleSheet.create({
   campusToggleTextActive: {
     color: colors.white,
   },
-  myLocationButton: {
+  buttonStack: {
     position: "absolute",
-    bottom: 60,
+    bottom: 50,
     right: spacing.md,
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primarySemiTransparent,
+    gap: 12,
+  },
+  actionButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
     borderColor: colors.primaryDarker,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 5,
   },
   myLocationButtonActive: {
     backgroundColor: colors.primary,
