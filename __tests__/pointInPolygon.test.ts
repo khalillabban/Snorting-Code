@@ -4,6 +4,7 @@
 import { Buildings, Location } from "../constants/type";
 import {
   getBuildingContainingPoint,
+  getDistanceToPolygon,
   pointInPolygon,
 } from "../utils/pointInPolygon";
 
@@ -385,5 +386,44 @@ describe("getBuildingContainingPoint", () => {
       );
       expect(result).toBeNull();
     });
+  });
+});
+
+describe("getDistanceToPolygon", () => {
+  const square: Location[] = [
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 1 },
+    { latitude: 1, longitude: 1 },
+    { latitude: 1, longitude: 0 },
+  ];
+
+  it("returns 0 when point is inside polygon", () => {
+    const d = getDistanceToPolygon(
+      { latitude: 0.5, longitude: 0.5 },
+      square
+    );
+    expect(d).toBe(0);
+  });
+
+  it("returns positive distance when point is outside", () => {
+    const d = getDistanceToPolygon(
+      { latitude: 2, longitude: 2 },
+      square
+    );
+    expect(d).toBeGreaterThan(0);
+  });
+
+  it("returns smaller distance for closer point", () => {
+    const near = getDistanceToPolygon(
+      { latitude: 1.1, longitude: 0.5 },
+      square
+    );
+
+    const far = getDistanceToPolygon(
+      { latitude: 5, longitude: 5 },
+      square
+    );
+
+    expect(near).toBeLessThan(far);
   });
 });
