@@ -222,6 +222,9 @@ export default function CampusMap({
     [userCoords]
   );
 
+  console.log("route points:", routeCoords.length);
+
+
   return (
     <View style={styles.container}>
       <MapView
@@ -257,15 +260,7 @@ export default function CampusMap({
           />
         )}
 
-        {routeCoords.length > 0 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeWidth={6}
-            strokeColor={colors.primary}
-            lineJoin="round"
-            lineCap="round"
-          />
-        )}
+
 
         {BUILDINGS.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
@@ -292,6 +287,16 @@ export default function CampusMap({
             />
           );
         })}
+        {routeCoords.length > 0 && (
+          <Polyline
+            key={routeCoords.length}
+            coordinates={routeCoords}
+            strokeWidth={6}
+            strokeColor={colors.primary}
+            lineJoin="round"
+            lineCap="round"
+          />
+        )}
       </MapView>
 
       {locationError && (
