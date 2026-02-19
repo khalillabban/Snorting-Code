@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Accuracy,
   getCurrentPositionAsync,
@@ -9,11 +10,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
+import { BUSSTOP } from "../constants/shuttle";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { getOutdoorRoute } from "../services/GoogleDirectionsService";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
+import { useShuttleBus } from "./ShuttleBusTracker";
 
 interface CampusMapProps {
   coordinates: Location;
@@ -70,7 +73,9 @@ export default function CampusMap({
   startPoint,
   destinationPoint,
 }: CampusMapProps) {
-  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
+    null,
+  );
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -82,6 +87,9 @@ export default function CampusMap({
     longitude: number;
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  //  Shuttle buses
+  const { activeBuses } = useShuttleBus();
 
   const handleMapPress = () => {
     if (selectedBuilding) setSelectedBuilding(null);
@@ -162,7 +170,7 @@ export default function CampusMap({
       try {
         const route = await getOutdoorRoute(
           startPoint.coordinates,
-          destinationPoint.coordinates
+          destinationPoint.coordinates,
         );
 
         if (cancelled) return;
@@ -191,14 +199,14 @@ export default function CampusMap({
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
         { ...userCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-        250
+        250,
       );
       return;
     }
 
     mapRef.current?.animateToRegion(
       { ...coordinates, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-      250
+      250,
     );
   }, [focusTarget, coordinates, userCoords, mapReady]);
 
@@ -211,7 +219,7 @@ export default function CampusMap({
           latitudeDelta: 0.004,
           longitudeDelta: 0.004,
         },
-        300
+        300,
       );
     }
   }, [selectedBuilding, mapReady]);
@@ -219,11 +227,10 @@ export default function CampusMap({
   const currentBuilding = useMemo(
     () =>
       userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
-    [userCoords]
+    [userCoords],
   );
 
   console.log("route points:", routeCoords.length);
-
 
   return (
     <View style={styles.container}>
@@ -260,15 +267,15 @@ export default function CampusMap({
           />
         )}
 
-
-
         {BUILDINGS.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
-            console.warn(`Building ${building.name} has no boundingBox coordinates.`);
+            console.warn(
+              `Building ${building.name} has no boundingBox coordinates.`,
+            );
             return null;
           }
 
@@ -287,6 +294,7 @@ export default function CampusMap({
             />
           );
         })}
+
         {routeCoords.length > 0 && (
           <Polyline
             key={routeCoords.length}
@@ -297,6 +305,48 @@ export default function CampusMap({
             lineCap="round"
           />
         )}
+
+        {/* Shuttle bus stop markers */}
+        {BUSSTOP.map((stop) => (
+          <Marker
+            key={stop.id}
+            coordinate={{
+              latitude: stop.coordinates.latitude,
+              longitude: stop.coordinates.longitude,
+            }}
+            title={stop.name}
+            description={stop.address}
+          >
+            <View style={styles.busStopMarker}>
+              <Text style={styles.busStopIcon}>🚏</Text>
+            </View>
+          </Marker>
+        ))}
+
+        {/* Live shuttle bus markers */}
+        {activeBuses.map((bus) => (
+          <Marker
+            key={bus.ID}
+            coordinate={{
+              latitude: bus.Latitude,
+              longitude: bus.Longitude,
+            }}
+            title="Shuttle Bus"
+            description={`ID: ${bus.ID}`}
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <View style={styles.busPin}>
+              <View style={styles.busPinHead}>
+                <MaterialCommunityIcons
+                  name="bus-side"
+                  size={20}
+                  color="#fff"
+                />
+              </View>
+              <View style={styles.busPinTail} />
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       {locationError && (
@@ -333,5 +383,44 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     borderWidth: 2,
     borderColor: "white",
+  },
+  busStopMarker: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  busStopIcon: {
+    fontSize: 22,
+  },
+  busMarker: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  busIcon: {
+    fontSize: 26,
+  },
+  busPin: {
+    alignItems: "center",
+  },
+  busPinHead: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    padding: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  busPinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: colors.primary,
   },
 });
