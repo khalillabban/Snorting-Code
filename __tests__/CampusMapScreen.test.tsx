@@ -4,10 +4,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
-import * as Location from "expo-location";
 
 jest.mock("@expo/vector-icons", () => {
   const React = require("react");
@@ -220,6 +220,34 @@ describe("CampusMapScreen", () => {
 
       expect(getMapProps().startPoint).toBe("H");
       expect(getMapProps().destinationPoint).toBe("MB");
+    });
+
+    it("does nothing when location permission is denied", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      (Location.requestForegroundPermissionsAsync as jest.Mock)
+        .mockResolvedValue({ status: "denied" });
+
+      await renderScreen();
+
+      // map still renders normally
+      expect(getMapProps()).toEqual({
+        coordinates: { latitude: 1, longitude: 2 },
+        focusTarget: "sgw",
+        startPoint: null,
+        destinationPoint: null,
+      });
+
+      expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it("requests location and computes nearest building on mount", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
+      expect(Location.getCurrentPositionAsync).toHaveBeenCalled();
     });
   });
 });
