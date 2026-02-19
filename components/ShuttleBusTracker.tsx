@@ -92,7 +92,7 @@ export const ShuttleBusTracker = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* 1. CAMPUS STOPS */}
+      {/* CAMPUS STOPS */}
       <Text style={styles.title}>Campus Stops</Text>
       {BUSSTOP.map((stop) => (
         <View key={stop.id} style={styles.card}>
@@ -103,7 +103,7 @@ export const ShuttleBusTracker = () => {
 
       <View style={{ height: 20 }} />
 
-      {/* 2. LIVE BUSES */}
+      {/* LIVE BUSES */}
       <Text style={styles.title}>Live Buses ({activeBuses.length})</Text>
       {activeBuses.length > 0 ? (
         activeBuses.map((bus) => (

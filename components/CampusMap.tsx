@@ -23,7 +23,7 @@ interface CampusMapProps {
   focusTarget: "sgw" | "loyola" | "user";
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
-  showShuttle: boolean; // <--- Add this line
+  showShuttle: boolean;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;

@@ -93,7 +93,7 @@ export default function CampusMapScreen() {
     setSelectedRoute({ start, dest });
     setIsNavVisible(false);
   };
-  const [showShuttle, setShowShuttle] = useState(false); // Default to false (hidden)
+  const [showShuttle, setShowShuttle] = useState(false);
   return (
     <View style={{ flex: 1 }}>
       <CampusMap
@@ -150,10 +150,7 @@ export default function CampusMapScreen() {
       <View style={styles.buttonStack}>
         <Pressable
           onPress={() => setShowShuttle(!showShuttle)}
-          style={[
-            styles.actionButton,
-            !showShuttle && styles.shuttleDisabled, // Grey out if off
-          ]}
+          style={[styles.actionButton, !showShuttle && styles.shuttleDisabled]}
         >
           <MaterialCommunityIcons
             name={showShuttle ? "bus-clock" : "bus-stop"}
@@ -253,7 +250,7 @@ const styles = StyleSheet.create({
   },
 
   shuttleDisabled: {
-    backgroundColor: "#666", // Or any neutral color from your theme
+    backgroundColor: "#666",
     opacity: 0.8,
   },
 });
