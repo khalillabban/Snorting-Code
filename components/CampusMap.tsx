@@ -23,6 +23,7 @@ interface CampusMapProps {
   focusTarget: "sgw" | "loyola" | "user";
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
+  showShuttle: boolean; // <--- Add this line
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -72,6 +73,7 @@ export default function CampusMap({
   focusTarget,
   startPoint,
   destinationPoint,
+  showShuttle,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -87,7 +89,6 @@ export default function CampusMap({
     longitude: number;
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
-
   //  Shuttle buses
   const { activeBuses } = useShuttleBus();
 
@@ -306,49 +307,51 @@ export default function CampusMap({
           />
         )}
 
-        {/* Shuttle bus stop markers */}
-        {BUSSTOP.map((stop) => (
-          <Marker
-            key={stop.id}
-            coordinate={{
-              latitude: stop.coordinates.latitude,
-              longitude: stop.coordinates.longitude,
-            }}
-            title={stop.name}
-            description={stop.address}
-          >
-            <View style={styles.busStopMarker}>
-              <Text style={styles.busStopIcon}>🚏</Text>
-            </View>
-          </Marker>
-        ))}
+        {/* Live shuttle bus markers - Wrapped in Toggle logic */}
+        {showShuttle && (
+          <>
+            {BUSSTOP.map((stop) => (
+              <Marker
+                key={stop.id}
+                coordinate={{
+                  latitude: stop.coordinates.latitude,
+                  longitude: stop.coordinates.longitude,
+                }}
+                title={stop.name}
+                description={stop.address}
+              >
+                <View style={styles.busStopMarker}>
+                  <Text style={styles.busStopIcon}>🚏</Text>
+                </View>
+              </Marker>
+            ))}
 
-        {/* Live shuttle bus markers */}
-        {activeBuses.map((bus) => (
-          <Marker
-            key={bus.ID}
-            coordinate={{
-              latitude: bus.Latitude,
-              longitude: bus.Longitude,
-            }}
-            title="Shuttle Bus"
-            description={`ID: ${bus.ID}`}
-            anchor={{ x: 0.5, y: 1 }}
-          >
-            <View style={styles.busPin}>
-              <View style={styles.busPinHead}>
-                <MaterialCommunityIcons
-                  name="bus-side"
-                  size={20}
-                  color="#fff"
-                />
-              </View>
-              <View style={styles.busPinTail} />
-            </View>
-          </Marker>
-        ))}
+            {activeBuses.map((bus) => (
+              <Marker
+                key={bus.ID}
+                coordinate={{
+                  latitude: bus.Latitude,
+                  longitude: bus.Longitude,
+                }}
+                title="Shuttle Bus"
+                anchor={{ x: 0.5, y: 1 }}
+              >
+                <View style={styles.busPin}>
+                  <View style={styles.busPinHead}>
+                    <MaterialCommunityIcons
+                      name="bus-side"
+                      size={20}
+                      color="#fff"
+                    />
+                  </View>
+                  <View style={styles.busPinTail} />
+                </View>
+              </Marker>
+            ))}
+          </>
+        )}
       </MapView>
-
+      {/* Live shuttle bus markers - Wrapped in Toggle logic */}
       {locationError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{locationError}</Text>
@@ -384,6 +387,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
+
+  //ADD FOR THE SHUTTLE
   busStopMarker: {
     alignItems: "center",
     justifyContent: "center",
@@ -423,4 +428,24 @@ const styles = StyleSheet.create({
     borderRightColor: "transparent",
     borderTopColor: colors.primary,
   },
+  shuttleToggle: {
+    position: "absolute",
+    bottom: 170,
+    right: spacing.md,
+    backgroundColor: colors.primary,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  shuttleDisabled: {
+    backgroundColor: "#666",
+  },
+  //END FOR SHUTTLE
 });

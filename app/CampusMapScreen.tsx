@@ -1,4 +1,4 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -11,7 +11,6 @@ import { CAMPUSES } from "../constants/campuses";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
-
 
 type FocusTarget = CampusKey | "user";
 
@@ -45,8 +44,9 @@ export default function CampusMapScreen() {
     campus === "loyola" ? "loyola" : "sgw",
   );
 
-  const [autoStartBuilding, setAutoStartBuilding] =
-    useState<Buildings | null>(null);
+  const [autoStartBuilding, setAutoStartBuilding] = useState<Buildings | null>(
+    null,
+  );
 
   const [isNavVisible, setIsNavVisible] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<{
@@ -63,8 +63,7 @@ export default function CampusMapScreen() {
 
   useEffect(() => {
     const getUserBuilding = async () => {
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== "granted") return;
 
@@ -77,7 +76,6 @@ export default function CampusMapScreen() {
 
     getUserBuilding();
   }, [findNearestBuilding]);
-
 
   const selectCampus = (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
@@ -95,7 +93,7 @@ export default function CampusMapScreen() {
     setSelectedRoute({ start, dest });
     setIsNavVisible(false);
   };
-
+  const [showShuttle, setShowShuttle] = useState(false); // Default to false (hidden)
   return (
     <View style={{ flex: 1 }}>
       <CampusMap
@@ -103,6 +101,7 @@ export default function CampusMapScreen() {
         focusTarget={focusTarget}
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
+        showShuttle={showShuttle}
       />
 
       {/* Campus Toggle */}
@@ -150,6 +149,20 @@ export default function CampusMapScreen() {
       {/* Floating Buttons */}
       <View style={styles.buttonStack}>
         <Pressable
+          onPress={() => setShowShuttle(!showShuttle)}
+          style={[
+            styles.actionButton,
+            !showShuttle && styles.shuttleDisabled, // Grey out if off
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={showShuttle ? "bus-clock" : "bus-stop"}
+            size={24}
+            color={colors.white}
+          />
+        </Pressable>
+
+        <Pressable
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
@@ -158,7 +171,6 @@ export default function CampusMapScreen() {
 
         <Pressable
           onPress={focusUserLocation}
-          testID="my-location-button"
           style={[
             styles.actionButton,
             focusTarget === "user" && styles.myLocationButtonActive,
@@ -238,5 +250,10 @@ const styles = StyleSheet.create({
   },
   myLocationButtonActive: {
     backgroundColor: colors.primary,
+  },
+
+  shuttleDisabled: {
+    backgroundColor: "#666", // Or any neutral color from your theme
+    opacity: 0.8,
   },
 });
