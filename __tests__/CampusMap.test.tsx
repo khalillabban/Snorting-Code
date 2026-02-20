@@ -54,7 +54,11 @@ jest.mock("react-native-maps", () => {
       props.onMapReady?.();
     }, []);
     return (
-      <View testID="map-view" onPress={props.onPress}>
+      <View
+        testID="map-view"
+        onPress={props.onPress}
+        onRegionChangeComplete={props.onRegionChangeComplete}
+      >
         {props.children}
       </View>
     );
@@ -534,6 +538,42 @@ describe("CampusMap", () => {
 
     // Route should be cleared → no polyline rendered
     expect(screen.queryByTestId("polyline")).toBeNull();
+  });
+
+  it("toggles labelsVisible correctly based on zoom thresholds", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        campus="sgw"
+      />
+    );
+
+    // ✅ Wait for initial async location effect to finish
+    await screen.findByTestId("marker-You are here");
+
+    const map = screen.getByTestId("map-view");
+
+    fireEvent(map, "regionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    });
+
+    fireEvent(map, "regionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    });
+
+    fireEvent(map, "regionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0.009,
+      longitudeDelta: 0.009,
+    });
   });
 
 
