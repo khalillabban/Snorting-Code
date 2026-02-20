@@ -5,10 +5,12 @@ import {
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
 } from "expo-location";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import type { Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
+import type { CampusKey } from "../constants/campuses";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { getOutdoorRoute } from "../services/GoogleDirectionsService";
@@ -18,6 +20,7 @@ import { BuildingInfoPopup } from "./BuildingInfoPopup";
 interface CampusMapProps {
   coordinates: Location;
   focusTarget: "sgw" | "loyola" | "user";
+  campus: CampusKey;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
 }
@@ -25,6 +28,9 @@ interface CampusMapProps {
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
+
+const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
+const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isCurrent) {
@@ -64,9 +70,14 @@ function CurrentLocationMarker({
   );
 }
 
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
 export default function CampusMap({
   coordinates,
   focusTarget,
+  campus,
   startPoint,
   destinationPoint,
 }: CampusMapProps) {
@@ -83,6 +94,16 @@ export default function CampusMap({
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
+  const [region, setRegion] = useState<Region>({
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+
+  const [labelsVisible, setLabelsVisible] = useState(false);
+  const labelsOpacity = useRef(new Animated.Value(0)).current;
+
   const handleMapPress = () => {
     if (selectedBuilding) setSelectedBuilding(null);
   };
@@ -90,6 +111,36 @@ export default function CampusMap({
   const handleBuildingPress = (building: Buildings) => {
     setSelectedBuilding(building);
   };
+
+  const handleRegionChangeComplete = useCallback((next: Region) => {
+    setRegion(next);
+
+    setLabelsVisible((prev) => {
+      if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
+      return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
+    });
+  }, []);
+
+  useEffect(() => {
+    Animated.timing(labelsOpacity, {
+      toValue: labelsVisible ? 1 : 0,
+      duration: labelsVisible ? 180 : 140,
+      useNativeDriver: true,
+    }).start();
+  }, [labelsVisible, labelsOpacity]);
+
+  const labelScale = useMemo(() => {
+    const d = region.latitudeDelta || 0.01;
+    const raw = 0.65 / d;
+    return clamp(raw, 0.9, 1.35);
+  }, [region.latitudeDelta]);
+
+  const buildingsOnCampus = useMemo(() => {
+    const normalized = campus.toLowerCase();
+    return BUILDINGS.filter(
+      (b) => (b.campusName ?? "").toLowerCase() === normalized
+    );
+  }, [campus]);
 
   // Load current GPS location
   useEffect(() => {
@@ -222,9 +273,6 @@ export default function CampusMap({
     [userCoords]
   );
 
-  console.log("route points:", routeCoords.length);
-
-
   return (
     <View style={styles.container}>
       <MapView
@@ -234,6 +282,7 @@ export default function CampusMap({
         showsUserLocation={false}
         onPress={handleMapPress}
         onMapReady={() => setMapReady(true)}
+        onRegionChangeComplete={handleRegionChangeComplete}
         initialRegion={{
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
@@ -260,15 +309,16 @@ export default function CampusMap({
           />
         )}
 
-
-
-        {BUILDINGS.map((building) => {
+        {/* Building polygons (only for current campus) */}
+        {buildingsOnCampus.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
-            console.warn(`Building ${building.name} has no boundingBox coordinates.`);
+            console.warn(
+              `Building ${building.name} has no boundingBox coordinates.`
+            );
             return null;
           }
 
@@ -287,6 +337,31 @@ export default function CampusMap({
             />
           );
         })}
+
+        {/* Always render labels; fade them for smooth in/out */}
+        {buildingsOnCampus.map((building) => (
+          <Marker
+            key={`label-${building.name}`}
+            coordinate={building.coordinates}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+            tappable={false}
+          >
+            <Animated.View
+              pointerEvents={labelsVisible ? "auto" : "none"}
+              style={[
+                styles.codePill,
+                {
+                  transform: [{ scale: labelScale }],
+                  opacity: labelsOpacity,
+                },
+              ]}
+            >
+              <Text style={styles.codeText}>{building.name}</Text>
+            </Animated.View>
+          </Marker>
+        ))}
+
         {routeCoords.length > 0 && (
           <Polyline
             key={routeCoords.length}
@@ -333,5 +408,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     borderWidth: 2,
     borderColor: "white",
+  },
+
+  codePill: {
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius:6,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  codeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.white,
   },
 });
