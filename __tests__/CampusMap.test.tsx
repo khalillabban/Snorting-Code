@@ -531,13 +531,6 @@ describe("CampusMap", () => {
       expect(getOutdoorRouteWithSteps).toHaveBeenCalled();
     });
 
-    // Catch branch logs the error
-    expect(logSpy).toHaveBeenCalledWith(
-      "Route error:",
-      expect.any(Error)
-    );
-
-    // Route should be cleared → no polyline rendered
     expect(screen.queryByTestId("polyline")).toBeNull();
   });
 

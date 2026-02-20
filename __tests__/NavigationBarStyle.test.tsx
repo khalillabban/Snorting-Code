@@ -9,9 +9,9 @@ jest.mock("react-native", () => {
   return RN;
 });
 
-// Mock theme colors BEFORE importing the styles module
 jest.mock("../constants/theme", () => ({
-  colors: { primary: "#912338" },
+  colors: { primary: "#912338", black: "#1a1a1a", gray100: "#e5e5e5", gray500: "#737373", gray700: "#404040", white: "#ffffff", offWhite: "#f2f2f2" },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 },
 }));
 
 // NOW import the styles (after mocks are set up)
