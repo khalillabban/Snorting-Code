@@ -2,6 +2,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { Animated, Keyboard } from "react-native";
 import NavigationBar from "../components/NavigationBar";
+import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialIcons: "MaterialIcons",
@@ -1045,4 +1046,57 @@ describe("NavigationBar", () => {
     });
   });
 
+  describe("Swap and route summary", () => {
+    it("swaps origin and destination when swap button is pressed", () => {
+      const { getByPlaceholderText, getByLabelText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const fromInput = getByPlaceholderText("From");
+      const toInput = getByPlaceholderText("To");
+
+      fireEvent.changeText(fromInput, "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(toInput, "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      expect(fromInput.props.value).toContain("Richard J Renaud");
+      expect(toInput.props.value).toContain("Vanier Library");
+
+      fireEvent.press(getByLabelText("Swap origin and destination"));
+
+      expect(fromInput.props.value).toContain("Vanier Library");
+      expect(toInput.props.value).toContain("Richard J Renaud");
+    });
+
+    it("shows route summary when both locations set and API returns duration and distance", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValueOnce({
+        coordinates: [],
+        steps: [],
+        duration: "12 mins",
+        distance: "2.1 km",
+      });
+
+      const { getByPlaceholderText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      await waitFor(() => {
+        expect(getByText("12 mins · 2.1 km")).toBeTruthy();
+      });
+    });
+  });
 });
