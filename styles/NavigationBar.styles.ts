@@ -1,5 +1,5 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { colors } from "../constants/theme";
+import { colors, spacing } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
@@ -52,31 +52,60 @@ export const styles = StyleSheet.create({
     color: "#333",
   },
   content: {
-    padding: 20,
+    padding: spacing.lg,
     flex: 1,
+  },
+  originDestinationCard: {
+    backgroundColor: colors.offWhite,
+    borderRadius: 12,
+    marginBottom: spacing.lg,
+    overflow: "hidden",
   },
   inputGroup: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    height: 55,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
+  },
+  inputGroupFirst: {
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  inputGroupLast: {
+    paddingTop: 2,
+    paddingBottom: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.gray100,
+  },
+  inputIconWrap: {
+    marginRight: spacing.sm,
+    width: 24,
+    alignItems: "center",
+  },
+  originDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+  swapButton: {
+    alignSelf: "center",
+    padding: spacing.sm,
+    marginVertical: 2,
   },
   input: {
     flex: 1,
-    marginLeft: 10,
     fontSize: 16,
-    color: "#000",
+    color: colors.black,
+    paddingVertical: 12,
   },
   searchButton: {
     backgroundColor: colors.primary,
-    height: 55,
+    minHeight: 52,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: spacing.lg,
   },
   searchButtonText: {
     color: "white",
@@ -89,16 +118,19 @@ export const styles = StyleSheet.create({
     zIndex: 999,
   },
   suggestionList: {
-    marginTop: 5,
-    maxHeight: 250,
-    backgroundColor: "#fff",
+    marginTop: spacing.xs,
+    maxHeight: 280,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   suggestionItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.gray100,
   },
   suggestionText: {
     fontSize: 15,
@@ -108,5 +140,43 @@ export const styles = StyleSheet.create({
   suggestionSubtext: {
     fontSize: 12,
     color: "#999",
+  },
+  modeSection: {
+    marginBottom: spacing.lg,
+  },
+  modeContainer: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+  },
+  routeSummaryText: {
+    marginTop: spacing.sm,
+    fontSize: 14,
+    color: colors.gray700,
+    textAlign: "center",
+  },
+  modeButton: {
+    flex: 1,
+    minWidth: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
+    backgroundColor: colors.gray100,
+  },
+  activeModeButton: {
+    backgroundColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  modeText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

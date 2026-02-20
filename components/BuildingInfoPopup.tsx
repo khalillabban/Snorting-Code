@@ -9,9 +9,10 @@ type TabKey = "departments" | "services";
 interface BuildingInfoPopupProps {
   building: Buildings | null;
   onClose: () => void;
+  onGetDirections?: (building: Buildings) => void;
 }
 
-export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps) => {
+export const BuildingInfoPopup = ({ building, onClose, onGetDirections }: BuildingInfoPopupProps) => {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
   // reset active tab when building changes
@@ -137,7 +138,7 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.actionButton}
-          onPress={() => {/* Add navigation logic in epic2*/ }}
+          onPress={() => onGetDirections?.(building)}
           accessibilityRole="button"
           accessibilityLabel={`Get directions to ${building.displayName}`}
         >

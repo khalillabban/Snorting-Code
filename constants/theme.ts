@@ -32,6 +32,11 @@ export const colors = {
   // Map-specific (useful for navigation features later)
   mapOverlay: "rgba(145, 35, 56, 0.15)",
   routePath: "#1565c0",
+  /** Route line color by travel mode */
+  routeWalk: "#912338",   // primary (walking)
+  routeDrive: "#1565c0",  // info/blue (car)
+  routeTransit: "#2e7d32", // success/green (transit)
+  routeBike: "#C4A747",   // secondary/gold (bike)
 } as const;
 
 // Typography
