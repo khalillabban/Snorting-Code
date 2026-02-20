@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { BUILDINGS } from "../constants/buildings";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings } from "../constants/type";
+import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
 
@@ -33,6 +34,8 @@ interface NavigationBarProps {
     destination: Buildings | null,
     strategy: RouteStrategy) => void;
   autoStartBuilding?: Buildings | null;
+  initialDestination?: Buildings | null;
+  onInitialDestinationApplied?: () => void;
 }
 
 export default function NavigationBar({
@@ -40,6 +43,8 @@ export default function NavigationBar({
   onClose,
   onConfirm,
   autoStartBuilding,
+  initialDestination,
+  onInitialDestinationApplied,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -54,6 +59,37 @@ export default function NavigationBar({
     "start" | "destination" | null
   >(null);
   const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
+  const [routeSummary, setRouteSummary] = useState<{ duration?: string; distance?: string } | null>(null);
+  const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
+
+  useEffect(() => {
+    if (!startBuilding || !destBuilding || filteredBuildings.length > 0) {
+      setRouteSummary(null);
+      return;
+    }
+    let cancelled = false;
+    setRouteSummaryLoading(true);
+    setRouteSummary(null);
+    getOutdoorRouteWithSteps(
+      startBuilding.coordinates,
+      destBuilding.coordinates,
+      selectedStrategy
+    )
+      .then((res) => {
+        if (!cancelled) {
+          setRouteSummary({ duration: res.duration, distance: res.distance });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRouteSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRouteSummaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [startBuilding, destBuilding, selectedStrategy, filteredBuildings.length]);
 
   // eslint-disable-line react-hooks/exhaustive-deps
   // translateY is a stable ref value and doesn't need to be in dependencies
@@ -82,7 +118,14 @@ export default function NavigationBar({
     }
   }, [autoStartBuilding, startManuallyEdited]);
 
-  // Filtering Logic
+  useEffect(() => {
+    if (visible && initialDestination) {
+      setDestLoc(initialDestination.displayName);
+      setDestBuilding(initialDestination);
+      onInitialDestinationApplied?.();
+    }
+  }, [visible, initialDestination, onInitialDestinationApplied]);
+
   const handleSearch = (text: string, type: "start" | "destination") => {
     setActiveInput(type);
     if (type === "start") {
@@ -112,6 +155,14 @@ export default function NavigationBar({
     }
     setFilteredBuildings([]);
     Keyboard.dismiss();
+  };
+
+  const swapOriginDestination = () => {
+    setStartLoc(destLoc);
+    setDestLoc(startLoc);
+    setStartBuilding(destBuilding);
+    setDestBuilding(startBuilding);
+    setRouteSummary(null);
   };
 
   const handleConfirm = () => {
@@ -167,59 +218,77 @@ export default function NavigationBar({
           </View>
 
           <View style={styles.content}>
-            <View style={styles.inputGroup}>
-              <MaterialIcons
-                name="trip-origin"
-                size={20}
-                color={colors.primary}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Starting location"
-                placeholderTextColor="#999"
-                value={startLoc}
-                onChangeText={(text) => handleSearch(text, "start")}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <MaterialIcons name="place" size={20} color={colors.primary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Search Here"
-                placeholderTextColor="#999"
-                value={destLoc}
-                onChangeText={(text) => handleSearch(text, "destination")}
-              />
+            <View style={styles.originDestinationCard}>
+              <View style={[styles.inputGroup, styles.inputGroupFirst]}>
+                <View style={styles.inputIconWrap}>
+                  <View style={styles.originDot} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="From"
+                  placeholderTextColor={colors.gray500}
+                  value={startLoc}
+                  onChangeText={(text) => handleSearch(text, "start")}
+                />
+              </View>
+              <Pressable
+                style={styles.swapButton}
+                onPress={swapOriginDestination}
+                accessibilityLabel="Swap origin and destination"
+                accessibilityRole="button"
+              >
+                <MaterialIcons name="swap-vert" size={22} color={colors.gray500} />
+              </Pressable>
+              <View style={[styles.inputGroup, styles.inputGroupLast]}>
+                <View style={styles.inputIconWrap}>
+                  <MaterialIcons name="place" size={20} color={colors.primary} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="To"
+                  placeholderTextColor={colors.gray500}
+                  value={destLoc}
+                  onChangeText={(text) => handleSearch(text, "destination")}
+                />
+              </View>
             </View>
 
             {filteredBuildings.length === 0 && (
-              <View style={styles.modeContainer}>
-                {ALL_STRATEGIES.map((strategy) => (
-                  <Pressable
-                    key={strategy.mode}
-                    onPress={() => setSelectedStrategy(strategy)}
-                    style={[
-                      styles.modeButton,
-                      selectedStrategy.mode === strategy.mode && styles.activeModeButton
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={strategy.icon as any}
-                      size={22}
-                      color={selectedStrategy.mode === strategy.mode ? colors.white : colors.primary}
-                    />
-                    <Text style={[
-                      styles.modeText,
-                      { color: selectedStrategy.mode === strategy.mode ? colors.white : colors.primary }
-                    ]}>
-                      {strategy.label}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={styles.modeSection}>
+                <View style={styles.modeContainer}>
+                  {ALL_STRATEGIES.map((strategy) => (
+                    <Pressable
+                      key={strategy.mode}
+                      onPress={() => setSelectedStrategy(strategy)}
+                      style={[
+                        styles.modeButton,
+                        selectedStrategy.mode === strategy.mode && styles.activeModeButton
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={strategy.icon as any}
+                        size={22}
+                        color={selectedStrategy.mode === strategy.mode ? colors.white : colors.primary}
+                      />
+                      <Text style={[
+                        styles.modeText,
+                        { color: selectedStrategy.mode === strategy.mode ? colors.white : colors.primary }
+                      ]}>
+                        {strategy.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {(routeSummaryLoading || routeSummary) && (
+                  <Text style={styles.routeSummaryText} numberOfLines={1}>
+                    {routeSummaryLoading
+                      ? "Loading…"
+                      : [routeSummary?.duration, routeSummary?.distance].filter(Boolean).join(" · ") || "—"}
+                  </Text>
+                )}
               </View>
             )}
 
-            {/* BUILDING SUGGESTIONS */}
             {filteredBuildings.length > 0 ? (
               <FlatList
                 data={filteredBuildings}
@@ -248,7 +317,6 @@ export default function NavigationBar({
                 )}
               />
             ) : (
-              /* CONFIRM BUTTON (Only shows when not searching) */
               <Pressable style={styles.searchButton} onPress={handleConfirm}>
                 <Text style={styles.searchButtonText}>Get Directions</Text>
               </Pressable>

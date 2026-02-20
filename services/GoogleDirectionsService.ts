@@ -9,17 +9,32 @@ interface LatLng {
 }
 
 
+export interface RouteStep {
+  instruction: string;
+  distance?: string;
+  duration?: string;
+}
+
 type DirectionsResponse = {
   status?: string;
   error_message?: string;
   routes?: Array<{
     legs?: Array<{
+      distance?: { text?: string };
+      duration?: { text?: string };
       steps?: Array<{
         polyline?: { points?: string };
+        html_instructions?: string;
+        distance?: { text?: string };
+        duration?: { text?: string };
       }>;
     }>;
   }>;
 };
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
 
 function requireGoogleApiKey(): string {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -47,16 +62,25 @@ function buildDirectionsUrl(origin: LatLng, destination: LatLng, strategy: Route
   return url.toString();
 }
 
-export async function getOutdoorRoute(
+export interface OutdoorRouteResult {
+  coordinates: LatLng[];
+  steps: RouteStep[];
+  duration?: string;
+  distance?: string;
+}
+
+export async function getOutdoorRouteWithSteps(
   origin: LatLng,
   destination: LatLng,
   strategy: RouteStrategy = WALKING_STRATEGY
-): Promise<LatLng[]> {
+): Promise<OutdoorRouteResult> {
+  if (!process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    return { coordinates: [], steps: [], duration: undefined, distance: undefined };
+  }
   const url = buildDirectionsUrl(origin, destination, strategy);
 
   const response = await fetch(url);
   if (!response.ok) {
-    // In many cases Google still returns JSON, but response.ok being false is a big red flag.
     throw new Error(`Directions request failed: HTTP ${response.status}`);
   }
 
@@ -72,14 +96,33 @@ export async function getOutdoorRoute(
     throw new Error("No route steps returned (no walkable route or empty response).");
   }
 
-  // Avoid O(n^2) concat in a loop
-  return steps.flatMap((step) => {
+  const coordinates = steps.flatMap((step) => {
     const encoded = step.polyline?.points;
     return encoded ? decodePolyline(encoded) : [];
   });
+
+  const routeSteps: RouteStep[] = steps.map((step) => ({
+    instruction: step.html_instructions ? stripHtml(step.html_instructions) : "",
+    distance: step.distance?.text,
+    duration: step.duration?.text,
+  }));
+
+  const leg = data.routes?.[0]?.legs?.[0];
+  const duration = leg?.duration?.text;
+  const distance = leg?.distance?.text;
+
+  return { coordinates, steps: routeSteps, duration, distance };
 }
 
-/* Polyline decoder */
+export async function getOutdoorRoute(
+  origin: LatLng,
+  destination: LatLng,
+  strategy: RouteStrategy = WALKING_STRATEGY
+): Promise<LatLng[]> {
+  const { coordinates } = await getOutdoorRouteWithSteps(origin, destination, strategy);
+  return coordinates;
+}
+
 function decodePolyline(encoded: string): LatLng[] {
   const points: LatLng[] = [];
   let index = 0;

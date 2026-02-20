@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
+import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
@@ -11,6 +12,7 @@ import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
+import { RouteStep } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -50,12 +52,14 @@ export default function CampusMapScreen() {
     useState<Buildings | null>(null);
 
   const [isNavVisible, setIsNavVisible] = useState(false);
+  const [initialDestination, setInitialDestination] = useState<Buildings | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<{
     start: Buildings | null;
     dest: Buildings | null;
   }>({ start: null, dest: null });
 
   const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
+  const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
   useEffect(() => {
     setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
@@ -101,6 +105,10 @@ export default function CampusMapScreen() {
     setIsNavVisible(false);
   };
 
+  const hasActiveRoute =
+    selectedRoute.start != null && selectedRoute.dest != null;
+  const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
+
   return (
     <View style={{ flex: 1 }}>
       <CampusMap
@@ -109,9 +117,13 @@ export default function CampusMapScreen() {
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
         strategy={selectedStrategy}
+        onRouteSteps={setRouteSteps}
+        onGetDirectionsRequested={(building) => {
+          setInitialDestination(building);
+          setIsNavVisible(true);
+        }}
       />
 
-      {/* Campus Toggle */}
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
         <View style={styles.campusToggle}>
           <Pressable
@@ -153,7 +165,6 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {/* Floating Buttons */}
       <View style={styles.buttonStack}>
         <Pressable
           onPress={() => setIsNavVisible(true)}
@@ -174,12 +185,28 @@ export default function CampusMapScreen() {
         </Pressable>
       </View>
 
-      {/* The Draggable Navigation Bar */}
+      {showStepsPanel && (
+        <DirectionStepsPanel
+          steps={routeSteps}
+          strategy={selectedStrategy}
+          onChangeRoute={() => setIsNavVisible(true)}
+          onDismiss={() => {
+            setSelectedRoute({ start: null, dest: null });
+            setRouteSteps([]);
+          }}
+        />
+      )}
+
       <NavigationBar
         visible={isNavVisible}
-        onClose={() => setIsNavVisible(false)}
+        onClose={() => {
+          setIsNavVisible(false);
+          setInitialDestination(null);
+        }}
         onConfirm={handleConfirmRoute}
         autoStartBuilding={autoStartBuilding}
+        initialDestination={initialDestination}
+        onInitialDestinationApplied={() => setInitialDestination(null)}
       />
     </View>
   );

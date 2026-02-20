@@ -11,7 +11,7 @@ import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
-import { getOutdoorRoute } from "../services/GoogleDirectionsService";
+import { getOutdoorRouteWithSteps, RouteStep } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
@@ -22,6 +22,8 @@ interface CampusMapProps {
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
   strategy: RouteStrategy;
+  onRouteSteps?: (steps: RouteStep[]) => void;
+  onGetDirectionsRequested?: (building: Buildings) => void;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -66,12 +68,26 @@ function CurrentLocationMarker({
   );
 }
 
+function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
+  const strokeColors: Record<RouteStrategy["mode"], string> = {
+    walking: colors.routeWalk,
+    bicycling: colors.routeBike,
+    driving: colors.routeDrive,
+    transit: colors.routeTransit,
+  };
+  const color = strokeColors[mode] ?? colors.primary;
+  const lineDashPattern = mode === "transit" ? [8, 6] : undefined;
+  return { strokeColor: color, lineDashPattern };
+}
+
 export default function CampusMap({
   coordinates,
   focusTarget,
   startPoint,
   destinationPoint,
   strategy,
+  onRouteSteps,
+  onGetDirectionsRequested,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
   const [routeCoords, setRouteCoords] = useState<
@@ -152,18 +168,18 @@ export default function CampusMap({
     };
   }, []);
 
-  // Fetch route when start/destination changes
   useEffect(() => {
     let cancelled = false;
 
     async function fetchRoute() {
       if (!startPoint || !destinationPoint) {
         setRouteCoords([]);
+        onRouteSteps?.([]);
         return;
       }
 
       try {
-        const route = await getOutdoorRoute(
+        const { coordinates: route, steps } = await getOutdoorRouteWithSteps(
           startPoint.coordinates,
           destinationPoint.coordinates,
           strategy
@@ -172,10 +188,11 @@ export default function CampusMap({
         if (cancelled) return;
 
         setRouteCoords(route);
-      } catch (error) {
+        onRouteSteps?.(steps);
+      } catch {
         if (!cancelled) {
-          console.log("Route error:", error);
           setRouteCoords([]);
+          onRouteSteps?.([]);
         }
       }
     }
@@ -185,7 +202,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, destinationPoint, strategy]);
+  }, [startPoint, destinationPoint, strategy, onRouteSteps]);
 
   // Animate map focus
   useEffect(() => {
@@ -225,9 +242,6 @@ export default function CampusMap({
       userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
     [userCoords]
   );
-
-  console.log("route points:", routeCoords.length);
-
 
   return (
     <View style={styles.container}>
@@ -290,16 +304,20 @@ export default function CampusMap({
             />
           );
         })}
-        {routeCoords.length > 0 && (
-          <Polyline
-            key={routeCoords.length}
-            coordinates={routeCoords}
-            strokeWidth={6}
-            strokeColor={colors.primary}
-            lineJoin="round"
-            lineCap="round"
-          />
-        )}
+        {routeCoords.length > 0 && (() => {
+          const { strokeColor, lineDashPattern } = getPolylineStyleForMode(strategy.mode);
+          return (
+            <Polyline
+              key={`${routeCoords.length}-${strategy.mode}`}
+              coordinates={routeCoords}
+              strokeWidth={6}
+              strokeColor={strokeColor}
+              lineJoin="round"
+              lineCap="round"
+              lineDashPattern={lineDashPattern}
+            />
+          );
+        })()}
       </MapView>
 
       {locationError && (
@@ -311,6 +329,10 @@ export default function CampusMap({
       <BuildingInfoPopup
         building={selectedBuilding}
         onClose={() => setSelectedBuilding(null)}
+        onGetDirections={(building) => {
+          onGetDirectionsRequested?.(building);
+          setSelectedBuilding(null);
+        }}
       />
     </View>
   );
