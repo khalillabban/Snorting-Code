@@ -12,6 +12,7 @@ import { BUILDINGS } from "../constants/buildings";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { getOutdoorRoute } from "../services/GoogleDirectionsService";
+import { RouteStrategy } from "../services/Routing";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
@@ -20,6 +21,7 @@ interface CampusMapProps {
   focusTarget: "sgw" | "loyola" | "user";
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
+  strategy: RouteStrategy;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -69,6 +71,7 @@ export default function CampusMap({
   focusTarget,
   startPoint,
   destinationPoint,
+  strategy,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
   const [routeCoords, setRouteCoords] = useState<
@@ -162,7 +165,8 @@ export default function CampusMap({
       try {
         const route = await getOutdoorRoute(
           startPoint.coordinates,
-          destinationPoint.coordinates
+          destinationPoint.coordinates,
+          strategy
         );
 
         if (cancelled) return;
@@ -181,7 +185,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, destinationPoint]);
+  }, [startPoint, destinationPoint, strategy]);
 
   // Animate map focus
   useEffect(() => {
@@ -259,8 +263,7 @@ export default function CampusMap({
             pinColor="red"
           />
         )}
-
-
+        
 
         {BUILDINGS.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
@@ -333,5 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     borderWidth: 2,
     borderColor: "white",
-  },
+  }
 });
+

@@ -1,9 +1,13 @@
+import { WALKING_STRATEGY } from '../constants/strategies';
+import { RouteStrategy } from './Routing';
+
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 interface LatLng {
   latitude: number;
   longitude: number;
 }
+
 
 type DirectionsResponse = {
   status?: string;
@@ -30,13 +34,13 @@ function requireGoogleApiKey(): string {
 }
 
 
-function buildDirectionsUrl(origin: LatLng, destination: LatLng): string {
+function buildDirectionsUrl(origin: LatLng, destination: LatLng, strategy: RouteStrategy): string {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
 
   url.search = new URLSearchParams({
     origin: `${origin.latitude},${origin.longitude}`,
     destination: `${destination.latitude},${destination.longitude}`,
-    mode: "walking",
+    mode: strategy.mode,
     key: requireGoogleApiKey(),
   }).toString();
 
@@ -45,9 +49,10 @@ function buildDirectionsUrl(origin: LatLng, destination: LatLng): string {
 
 export async function getOutdoorRoute(
   origin: LatLng,
-  destination: LatLng
+  destination: LatLng,
+  strategy: RouteStrategy = WALKING_STRATEGY
 ): Promise<LatLng[]> {
-  const url = buildDirectionsUrl(origin, destination);
+  const url = buildDirectionsUrl(origin, destination, strategy);
 
   const response = await fetch(url);
   if (!response.ok) {

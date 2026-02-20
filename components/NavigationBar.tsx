@@ -1,7 +1,9 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { BUILDINGS } from "../constants/buildings";
+import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings } from "../constants/type";
+import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
 
 import {
@@ -26,7 +28,10 @@ const SHEET_HEIGHT = SCREEN_HEIGHT * 0.7;
 interface NavigationBarProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (start: Buildings | null, destination: Buildings | null) => void;
+  onConfirm: (
+    start: Buildings | null,
+    destination: Buildings | null,
+    strategy: RouteStrategy) => void;
   autoStartBuilding?: Buildings | null;
 }
 
@@ -48,6 +53,7 @@ export default function NavigationBar({
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
   >(null);
+  const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
 
   // eslint-disable-line react-hooks/exhaustive-deps
   // translateY is a stable ref value and doesn't need to be in dependencies
@@ -109,7 +115,7 @@ export default function NavigationBar({
   };
 
   const handleConfirm = () => {
-    onConfirm(startBuilding, destBuilding);
+    onConfirm(startBuilding, destBuilding, selectedStrategy);
     onClose();
   };
 
@@ -185,6 +191,33 @@ export default function NavigationBar({
                 onChangeText={(text) => handleSearch(text, "destination")}
               />
             </View>
+
+            {filteredBuildings.length === 0 && (
+              <View style={styles.modeContainer}>
+                {ALL_STRATEGIES.map((strategy) => (
+                  <Pressable
+                    key={strategy.mode}
+                    onPress={() => setSelectedStrategy(strategy)}
+                    style={[
+                      styles.modeButton,
+                      selectedStrategy.mode === strategy.mode && styles.activeModeButton
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={strategy.icon as any}
+                      size={22}
+                      color={selectedStrategy.mode === strategy.mode ? colors.white : colors.primary}
+                    />
+                    <Text style={[
+                      styles.modeText,
+                      { color: selectedStrategy.mode === strategy.mode ? colors.white : colors.primary }
+                    ]}>
+                      {strategy.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             {/* BUILDING SUGGESTIONS */}
             {filteredBuildings.length > 0 ? (

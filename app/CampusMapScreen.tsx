@@ -8,10 +8,11 @@ import NavigationBar from "../components/NavigationBar";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
+import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
+import { RouteStrategy } from "../services/Routing";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
-
 
 type FocusTarget = CampusKey | "user";
 
@@ -54,6 +55,8 @@ export default function CampusMapScreen() {
     dest: Buildings | null;
   }>({ start: null, dest: null });
 
+  const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
+
   useEffect(() => {
     setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
     setFocusTarget((prev) =>
@@ -91,8 +94,10 @@ export default function CampusMapScreen() {
   const handleConfirmRoute = (
     start: Buildings | null,
     dest: Buildings | null,
+    strategy: RouteStrategy
   ) => {
     setSelectedRoute({ start, dest });
+    setSelectedStrategy(strategy);
     setIsNavVisible(false);
   };
 
@@ -103,6 +108,7 @@ export default function CampusMapScreen() {
         focusTarget={focusTarget}
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
+        strategy={selectedStrategy}
       />
 
       {/* Campus Toggle */}

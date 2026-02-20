@@ -109,4 +109,33 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
   },
+  modeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    padding: 4,
+    marginVertical: 15,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  activeModeButton: {
+    backgroundColor: colors.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  modeText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
