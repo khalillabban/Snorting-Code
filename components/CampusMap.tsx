@@ -7,7 +7,7 @@ import {
 } from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polygon } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
@@ -194,7 +194,6 @@ export default function CampusMap({
   return (
     <View style={styles.container}>
       <MapView
-        provider={PROVIDER_GOOGLE}
         key={`${coordinates.latitude}-${coordinates.longitude}`}
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
