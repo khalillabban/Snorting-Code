@@ -413,6 +413,7 @@ export default function CampusMap({
             key={routeCoords.length}
             coordinates={routeCoords}
             strokeWidth={6}
+            {...getPolylineStyleForMode(strategy.mode)}
             strokeColor={colors.primary}
             lineJoin="round"
             lineCap="round"
