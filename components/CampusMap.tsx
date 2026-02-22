@@ -5,10 +5,12 @@ import {
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
 } from "expo-location";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import type { Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
+import type { CampusKey } from "../constants/campuses";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
 import { getOutdoorRouteWithSteps, RouteStep } from "../services/GoogleDirectionsService";
@@ -18,7 +20,8 @@ import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 interface CampusMapProps {
   coordinates: Location;
-  focusTarget: "sgw" | "loyola" | "user";
+  focusTarget: CampusKey | "user";
+  campus: CampusKey;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
   strategy: RouteStrategy;
@@ -29,6 +32,14 @@ interface CampusMapProps {
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
+
+/**
+ * Tuned by eyeballing on-device: these deltas felt like the clean cutoff where
+ * labels stop overlapping/building clutter while still being readable when zoomed in.
+ * If label density changes (new buildings) or UX feels off, tweak these thresholds.
+ */
+const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
+const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isCurrent) {
@@ -78,18 +89,30 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
   const color = strokeColors[mode] ?? colors.primary;
   const lineDashPattern = mode === "transit" ? [8, 6] : undefined;
   return { strokeColor: color, lineDashPattern };
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+// NOTE: Temporary normalization helper.
+// TODO: Normalize all `campusName` values in buildings.ts to match CampusKey exactly ("sgw" | "loyola")
+// so we can drop this defensive logic.
+function normalizeCampusName(v?: string) {
+  return (v ?? "").trim().toLowerCase();
 }
 
 export default function CampusMap({
   coordinates,
   focusTarget,
+  campus,
   startPoint,
   destinationPoint,
   strategy,
   onRouteSteps,
   onGetDirectionsRequested,
 }: CampusMapProps) {
-  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
+    null
+  );
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -102,6 +125,26 @@ export default function CampusMap({
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
+  const [region, setRegion] = useState<Region>({
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+
+  // Keep region in sync when coordinates prop changes (e.g., campus switch),
+  // so derived values like labelScale don't go stale until the user pans/zooms.
+  useEffect(() => {
+    setRegion((prev) => ({
+      ...prev,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    }));
+  }, [coordinates.latitude, coordinates.longitude]);
+
+  const [labelsVisible, setLabelsVisible] = useState(false);
+  const labelsOpacity = useRef(new Animated.Value(0)).current;
+
   const handleMapPress = () => {
     if (selectedBuilding) setSelectedBuilding(null);
   };
@@ -109,6 +152,36 @@ export default function CampusMap({
   const handleBuildingPress = (building: Buildings) => {
     setSelectedBuilding(building);
   };
+
+  const handleRegionChangeComplete = useCallback((next: Region) => {
+    setRegion(next);
+
+    setLabelsVisible((prev) => {
+      if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
+      return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
+    });
+  }, []);
+
+  useEffect(() => {
+    Animated.timing(labelsOpacity, {
+      toValue: labelsVisible ? 1 : 0,
+      duration: labelsVisible ? 180 : 140,
+      useNativeDriver: true,
+    }).start();
+  }, [labelsVisible, labelsOpacity]);
+
+  const labelScale = useMemo(() => {
+    const d = region.latitudeDelta || 0.01;
+    const raw = 0.65 / d;
+    return clamp(raw, 0.9, 1.35);
+  }, [region.latitudeDelta]);
+
+  const buildingsOnCampus = useMemo(() => {
+    const normalizedCampus = normalizeCampusName(campus);
+    return BUILDINGS.filter(
+      (b) => normalizeCampusName(b.campusName) === normalizedCampus
+    );
+  }, [campus]);
 
   // Load current GPS location
   useEffect(() => {
@@ -238,8 +311,7 @@ export default function CampusMap({
   }, [selectedBuilding, mapReady]);
 
   const currentBuilding = useMemo(
-    () =>
-      userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
+    () => (userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null),
     [userCoords]
   );
 
@@ -252,6 +324,7 @@ export default function CampusMap({
         showsUserLocation={false}
         onPress={handleMapPress}
         onMapReady={() => setMapReady(true)}
+        onRegionChangeComplete={handleRegionChangeComplete}
         initialRegion={{
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
@@ -263,6 +336,7 @@ export default function CampusMap({
 
         {startPoint && (
           <Marker
+            testID="marker-start"
             coordinate={startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
           >
@@ -277,15 +351,17 @@ export default function CampusMap({
             pinColor="red"
           />
         )}
-        
 
-        {BUILDINGS.map((building) => {
+        {/* Building polygons (only for current campus) */}
+        {buildingsOnCampus.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
-            console.warn(`Building ${building.name} has no boundingBox coordinates.`);
+            console.warn(
+              `Building ${building.name} has no boundingBox coordinates.`
+            );
             return null;
           }
 
@@ -304,20 +380,43 @@ export default function CampusMap({
             />
           );
         })}
-        {routeCoords.length > 0 && (() => {
-          const { strokeColor, lineDashPattern } = getPolylineStyleForMode(strategy.mode);
-          return (
-            <Polyline
-              key={`${routeCoords.length}-${strategy.mode}`}
-              coordinates={routeCoords}
-              strokeWidth={6}
-              strokeColor={strokeColor}
-              lineJoin="round"
-              lineCap="round"
-              lineDashPattern={lineDashPattern}
-            />
-          );
-        })()}
+
+        {/* Always render labels; fade them for smooth in/out */}
+        {buildingsOnCampus.map((building) => (
+          <Marker
+            key={`label-${building.name}`}
+            coordinate={building.coordinates}
+            anchor={{ x: 0.5, y: 0.5 }}
+            // Allow re-render when React-driven labelScale updates; keep it off when hidden to reduce perf cost.
+            tracksViewChanges={labelsVisible}
+            tappable={false}
+          >
+            <Animated.View
+              testID={`label-pill-${building.name}`}
+              pointerEvents={labelsVisible ? "auto" : "none"}
+              style={[
+                styles.codePill,
+                {
+                  transform: [{ scale: labelScale }],
+                  opacity: labelsOpacity,
+                },
+              ]}
+            >
+              <Text style={styles.codeText}>{building.name}</Text>
+            </Animated.View>
+          </Marker>
+        ))}
+
+        {routeCoords.length > 0 && (
+          <Polyline
+            key={routeCoords.length}
+            coordinates={routeCoords}
+            strokeWidth={6}
+            strokeColor={colors.primary}
+            lineJoin="round"
+            lineCap="round"
+          />
+        )}
       </MapView>
 
       {locationError && (
@@ -358,6 +457,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     borderWidth: 2,
     borderColor: "white",
-  }
-});
+  },
 
+  codePill: {
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  codeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.white,
+  },
+});
