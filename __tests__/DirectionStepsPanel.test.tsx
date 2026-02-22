@@ -97,4 +97,5 @@ describe("DirectionStepsPanel", () => {
     );
     expect(screen.getByText("Transit")).toBeTruthy();
   });
+  
 });

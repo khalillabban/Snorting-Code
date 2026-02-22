@@ -14,10 +14,10 @@ import {
 import React from "react";
 import CampusMap from "../components/CampusMap";
 import { BUILDINGS } from "../constants/buildings";
-import { colors } from "../constants/theme";
-import { getBuildingContainingPoint } from "../utils/pointInPolygon";
-import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { WALKING_STRATEGY } from "../constants/strategies";
+import { colors } from "../constants/theme";
+import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
+import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 jest.mock("expo-location", () => ({
   Accuracy: { Balanced: "Balanced" },
@@ -41,6 +41,7 @@ jest.mock("react-native-maps", () => {
           coordinates: props.coordinates,
           strokeWidth: props.strokeWidth,
           strokeColor: props.strokeColor,
+          lineDashPattern: props.lineDashPattern,
         })}
       </Text>
     </View>
@@ -310,6 +311,25 @@ describe("CampusMap", () => {
     expect(lastCall[1]).toBe(250);
   });
 
+  //animate to building 
+
+  it("animates to building location when a building is selected", async () => {
+    const mapsMock = getMapsMock();
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+
+    const polygons = await screen.findAllByTestId("polygon");
+    fireEvent.press(polygons[0]); // Select Building A
+
+    await waitFor(() => {
+      expect(mapsMock.__animateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: 10 - 0.0011,
+        }),
+        300
+      );
+    });
+  });
+
   // --- Map/building interaction ---
 
   it("selects a building on polygon press and clears it on map press", async () => {
@@ -507,6 +527,27 @@ describe("CampusMap", () => {
     );
 
     expect(props.coordinates).toEqual(mockRoute);
+  });
+
+  it("applies dash pattern for transit mode polyline", async () => {
+    const transitStrategy = { mode: "transit", icon: "bus", label: "Transit" };
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [{ latitude: 1, longitude: 1 }],
+      steps: []
+    });
+
+    render(
+      <CampusMap 
+        coordinates={coordinates} 
+        focusTarget="sgw" 
+        startPoint={BUILDINGS[0]} 
+        destinationPoint={BUILDINGS[1]} 
+        strategy={transitStrategy as any} 
+      />
+    );
+    const polyline = await screen.findByTestId("polyline-props");
+    const props = JSON.parse(polyline.props.children);
+    expect(props.lineDashPattern).toEqual([8, 6]);
   });
 
   it("clears route and logs when route fetch fails", async () => {
