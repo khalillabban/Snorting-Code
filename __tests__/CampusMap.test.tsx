@@ -18,8 +18,6 @@ import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
-import { getOutdoorRoute } from "../services/GoogleDirectionsService";
-import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 
 jest.mock("expo-location", () => ({
@@ -328,7 +326,7 @@ describe("CampusMap", () => {
 
   it("animates to building location when a building is selected", async () => {
     const mapsMock = getMapsMock();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" campus="sgw" strategy={WALKING_STRATEGY} />);
 
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[0]); // Select Building A
@@ -349,6 +347,7 @@ describe("CampusMap", () => {
       <CampusMap
         coordinates={coordinates}
         focusTarget="sgw"
+        campus="sgw"
         strategy={WALKING_STRATEGY}
         onGetDirectionsRequested={directionsSpy}
       />
@@ -583,6 +582,7 @@ describe("CampusMap", () => {
       <CampusMap
         coordinates={coordinates}
         focusTarget="sgw"
+        campus="sgw"
         startPoint={BUILDINGS[0]}
         destinationPoint={BUILDINGS[1]}
         strategy={transitStrategy as any}
@@ -620,7 +620,8 @@ describe("CampusMap", () => {
   });
 
   it("toggles labelsVisible correctly based on zoom thresholds", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" campus="sgw" />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" campus="sgw" strategy={WALKING_STRATEGY}
+ />);
 
     await screen.findByTestId("marker-You are here");
     const map = screen.getByTestId("map-view");

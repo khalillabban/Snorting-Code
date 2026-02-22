@@ -89,6 +89,7 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
   const color = strokeColors[mode] ?? colors.primary;
   const lineDashPattern = mode === "transit" ? [8, 6] : undefined;
   return { strokeColor: color, lineDashPattern };
+}
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -469,5 +470,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.white,
-  },
+  }
 });
