@@ -465,6 +465,7 @@ describe("CampusMap", () => {
     expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
 
     // Neither the titled destination marker nor any start marker should be present
+    expect(screen.queryByTestId("marker-start")).toBeNull();
     expect(screen.queryByTestId("marker-Destination")).toBeNull();
   });
 

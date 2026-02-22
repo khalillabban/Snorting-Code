@@ -294,6 +294,7 @@ export default function CampusMap({
 
         {startPoint && (
           <Marker
+            testID="marker-start"
             coordinate={startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
           >
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
   codePill: {
     paddingVertical: 3,
     paddingHorizontal: 6,
-    borderRadius:6,
+    borderRadius: 6,
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   codeText: {
