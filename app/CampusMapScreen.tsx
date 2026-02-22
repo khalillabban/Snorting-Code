@@ -12,7 +12,6 @@ import { colors, spacing, typography } from "../constants/theme";
 import { Buildings } from "../constants/type";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
-
 type FocusTarget = CampusKey | "user";
 
 export default function CampusMapScreen() {
@@ -101,6 +100,7 @@ export default function CampusMapScreen() {
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}
+        campus={currentCampus}
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
       />
