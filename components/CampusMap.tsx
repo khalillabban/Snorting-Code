@@ -19,7 +19,7 @@ import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 interface CampusMapProps {
   coordinates: Location;
-  focusTarget: "sgw" | "loyola" | "user";
+  focusTarget: CampusKey | "user";
   campus: CampusKey;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
@@ -29,6 +29,11 @@ const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
 
+/**
+ * Tuned by eyeballing on-device: these deltas felt like the clean cutoff where
+ * labels stop overlapping/building clutter while still being readable when zoomed in.
+ * If label density changes (new buildings) or UX feels off, tweak these thresholds.
+ */
 const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
 const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
 
@@ -74,6 +79,13 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+// NOTE: Temporary normalization helper.
+// TODO: Normalize all `campusName` values in buildings.ts to match CampusKey exactly ("sgw" | "loyola")
+// so we can drop this defensive logic.
+function normalizeCampusName(v?: string) {
+  return (v ?? "").trim().toLowerCase();
+}
+
 export default function CampusMap({
   coordinates,
   focusTarget,
@@ -81,7 +93,9 @@ export default function CampusMap({
   startPoint,
   destinationPoint,
 }: CampusMapProps) {
-  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
+    null
+  );
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -100,6 +114,16 @@ export default function CampusMap({
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+
+  // Keep region in sync when coordinates prop changes (e.g., campus switch),
+  // so derived values like labelScale don't go stale until the user pans/zooms.
+  useEffect(() => {
+    setRegion((prev) => ({
+      ...prev,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    }));
+  }, [coordinates.latitude, coordinates.longitude]);
 
   const [labelsVisible, setLabelsVisible] = useState(false);
   const labelsOpacity = useRef(new Animated.Value(0)).current;
@@ -136,9 +160,9 @@ export default function CampusMap({
   }, [region.latitudeDelta]);
 
   const buildingsOnCampus = useMemo(() => {
-    const normalized = campus.toLowerCase();
+    const normalizedCampus = normalizeCampusName(campus);
     return BUILDINGS.filter(
-      (b) => (b.campusName ?? "").toLowerCase() === normalized
+      (b) => normalizeCampusName(b.campusName) === normalizedCampus
     );
   }, [campus]);
 
@@ -268,8 +292,7 @@ export default function CampusMap({
   }, [selectedBuilding, mapReady]);
 
   const currentBuilding = useMemo(
-    () =>
-      userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
+    () => (userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null),
     [userCoords]
   );
 
@@ -345,7 +368,8 @@ export default function CampusMap({
             key={`label-${building.name}`}
             coordinate={building.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
+            // Allow re-render when React-driven labelScale updates; keep it off when hidden to reduce perf cost.
+            tracksViewChanges={labelsVisible}
             tappable={false}
           >
             <Animated.View
