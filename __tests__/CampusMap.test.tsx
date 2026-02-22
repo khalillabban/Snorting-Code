@@ -74,6 +74,9 @@ jest.mock("react-native-maps", () => {
             pinColor: props.pinColor,
           })}
         </Text>
+
+        {/* ✅ IMPORTANT: render children so label pills exist in the tree */}
+        {props.children}
       </View>
     );
   };
@@ -542,19 +545,17 @@ describe("CampusMap", () => {
   });
 
   it("toggles labelsVisible correctly based on zoom thresholds", async () => {
-    render(
-      <CampusMap
-        coordinates={coordinates}
-        focusTarget="sgw"
-        campus="sgw"
-      />
-    );
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" campus="sgw" />);
 
-    // ✅ Wait for initial async location effect to finish
     await screen.findByTestId("marker-You are here");
-
     const map = screen.getByTestId("map-view");
 
+    const pillA = screen.getByTestId("label-pill-A");
+
+    // initially hidden
+    expect(pillA.props.pointerEvents).toBe("none");
+
+    // zoom in => show
     fireEvent(map, "regionChangeComplete", {
       latitude: 1,
       longitude: 2,
@@ -562,6 +563,11 @@ describe("CampusMap", () => {
       longitudeDelta: 0.005,
     });
 
+    await waitFor(() => {
+      expect(screen.getByTestId("label-pill-A").props.pointerEvents).toBe("auto");
+    });
+
+    // zoom out => hide
     fireEvent(map, "regionChangeComplete", {
       latitude: 1,
       longitude: 2,
@@ -569,11 +575,20 @@ describe("CampusMap", () => {
       longitudeDelta: 0.02,
     });
 
+    await waitFor(() => {
+      expect(screen.getByTestId("label-pill-A").props.pointerEvents).toBe("none");
+    });
+
+    // zoom in again => show again
     fireEvent(map, "regionChangeComplete", {
       latitude: 1,
       longitude: 2,
       latitudeDelta: 0.009,
       longitudeDelta: 0.009,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("label-pill-A").props.pointerEvents).toBe("auto");
     });
   });
 

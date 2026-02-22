@@ -373,6 +373,7 @@ export default function CampusMap({
             tappable={false}
           >
             <Animated.View
+              testID={`label-pill-${building.name}`}
               pointerEvents={labelsVisible ? "auto" : "none"}
               style={[
                 styles.codePill,
