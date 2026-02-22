@@ -11,7 +11,7 @@ jest.mock("@expo/vector-icons", () => ({
 
 jest.mock("../services/GoogleDirectionsService", () => ({
   getOutdoorRouteWithSteps: jest.fn(
-    () => new Promise<never>(() => {})
+    () => new Promise<never>(() => { })
   ),
 }));
 
@@ -164,6 +164,58 @@ describe("NavigationBar", () => {
       );
 
       expect(getByText("Get Directions")).toBeTruthy();
+    });
+    it("handles route summary error gracefully", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(new Error("API Error"));
+
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      await waitFor(() => {
+        expect(queryByText(/mins/)).toBeNull();
+      });
+    });
+    it("applies initialDestination and calls the applied callback", () => {
+      const mockInitialDest = {
+        name: "H",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+      };
+      const mockOnApplied = jest.fn();
+
+      const { getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          initialDestination={mockInitialDest as any}
+          onInitialDestinationApplied={mockOnApplied}
+        />
+      );
+
+      expect(getByPlaceholderText("To").props.value).toBe("Henry F. Hall Building (H)");
+      expect(mockOnApplied).toHaveBeenCalled();
+    });
+    it("updates the selected strategy when a mode button is pressed", () => {
+      const { getByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+
+      fireEvent.press(getByText("Car"));
+
+      fireEvent.press(getByText("Get Directions"));
+
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null, // start
+        null, // dest
+        expect.objectContaining({ mode: "driving", label: "Car" })
+      );
     });
   });
 

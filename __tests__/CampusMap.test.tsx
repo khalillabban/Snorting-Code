@@ -155,15 +155,18 @@ jest.mock("../utils/pointInPolygon", () => ({
 
 jest.mock("../components/BuildingInfoPopup", () => {
   const React = require("react");
-  const { Text, View } = require("react-native");
+  const { Text, View, Pressable } = require("react-native");
   return {
-    BuildingInfoPopup: ({ building, onClose }: any) => {
+    BuildingInfoPopup: ({ building, onClose, onGetDirections }: any) => {
       if (!building) return null;
       return (
         <View testID="building-info-popup">
           <Text testID="building-info-building-name">
             {building.displayName ?? building.name}
           </Text>
+          <Pressable testID="building-info-directions" onPress={() => onGetDirections(building)}>
+            <Text>Get Directions</Text>
+          </Pressable>
           <Text testID="building-info-close" onPress={onClose}>
             close
           </Text>
@@ -328,6 +331,31 @@ describe("CampusMap", () => {
         300
       );
     });
+  });
+
+  it("calls onGetDirectionsRequested and clears selected building when directions are requested", async () => {
+    const directionsSpy = jest.fn();
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        onGetDirectionsRequested={directionsSpy}
+      />
+    );
+
+    const polygons = await screen.findAllByTestId("polygon");
+    fireEvent.press(polygons[0]);
+
+    expect(screen.getByTestId("building-info-popup")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("building-info-directions"));
+
+    expect(directionsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "A" })
+    );
+
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
   });
 
   // --- Map/building interaction ---
@@ -537,12 +565,12 @@ describe("CampusMap", () => {
     });
 
     render(
-      <CampusMap 
-        coordinates={coordinates} 
-        focusTarget="sgw" 
-        startPoint={BUILDINGS[0]} 
-        destinationPoint={BUILDINGS[1]} 
-        strategy={transitStrategy as any} 
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={transitStrategy as any}
       />
     );
     const polyline = await screen.findByTestId("polyline-props");
