@@ -235,4 +235,24 @@ describe("BuildingInfoPopup", () => {
     // the new building's departments are not auto-expanded
     expect(screen.queryByText("Electrical Engineering")).toBeNull();
   });
+  // --- Directions Button ---
+
+  it("calls onGetDirections with the building when the button is pressed", () => {
+    const onGetDirections = jest.fn();
+    render(
+      <BuildingInfoPopup 
+        building={fullBuilding} 
+        onClose={onClose} 
+        onGetDirections={onGetDirections} 
+      />
+    );
+
+    // Find and press the button
+    const directionsButton = screen.getByText("Get Directions");
+    fireEvent.press(directionsButton);
+
+    // Assert the callback was called once with the correct building object
+    expect(onGetDirections).toHaveBeenCalledTimes(1);
+    expect(onGetDirections).toHaveBeenCalledWith(fullBuilding);
+  });
 });
