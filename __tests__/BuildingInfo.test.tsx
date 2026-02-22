@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { BuildingInfoPopup } from "../components/BuildingInfoPopup";
 import { Buildings } from "../constants/type";
@@ -72,7 +72,7 @@ describe("BuildingInfoPopup", () => {
     const { queryByText } = render(
       <BuildingInfoPopup building={null} onClose={onClose} />
     );
-    expect(queryByText("Get Directions")).toBeNull();
+    expect(queryByText("Set as start")).toBeNull();
   });
 
   it("renders building name, address, and campus", () => {
@@ -83,9 +83,10 @@ describe("BuildingInfoPopup", () => {
     expect(screen.getByText("SGW")).toBeTruthy();
   });
 
-  it("always shows the Get Directions button", () => {
+  it("shows Set as start and Set as destination buttons", () => {
     render(<BuildingInfoPopup building={fullBuilding} onClose={onClose} />);
-    expect(screen.getByText("Get Directions")).toBeTruthy();
+    expect(screen.getByText("Set as start")).toBeTruthy();
+    expect(screen.getByText("Set as destination")).toBeTruthy();
   });
 
   // --- Close button ---
@@ -235,24 +236,31 @@ describe("BuildingInfoPopup", () => {
     // the new building's departments are not auto-expanded
     expect(screen.queryByText("Electrical Engineering")).toBeNull();
   });
-  // --- Directions Button ---
-
-  it("calls onGetDirections with the building when the button is pressed", () => {
-    const onGetDirections = jest.fn();
+  it("calls onSetAsStart when Set as start is pressed", () => {
+    const onSetAsStart = jest.fn();
     render(
-      <BuildingInfoPopup 
-        building={fullBuilding} 
-        onClose={onClose} 
-        onGetDirections={onGetDirections} 
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        onSetAsStart={onSetAsStart}
       />
     );
+    fireEvent.press(screen.getByText("Set as start"));
+    expect(onSetAsStart).toHaveBeenCalledTimes(1);
+    expect(onSetAsStart).toHaveBeenCalledWith(fullBuilding);
+  });
 
-    // Find and press the button
-    const directionsButton = screen.getByText("Get Directions");
-    fireEvent.press(directionsButton);
-
-    // Assert the callback was called once with the correct building object
-    expect(onGetDirections).toHaveBeenCalledTimes(1);
-    expect(onGetDirections).toHaveBeenCalledWith(fullBuilding);
+  it("calls onSetAsDestination when Set as destination is pressed", () => {
+    const onSetAsDestination = jest.fn();
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        onSetAsDestination={onSetAsDestination}
+      />
+    );
+    fireEvent.press(screen.getByText("Set as destination"));
+    expect(onSetAsDestination).toHaveBeenCalledTimes(1);
+    expect(onSetAsDestination).toHaveBeenCalledWith(fullBuilding);
   });
 });

@@ -25,8 +25,11 @@ interface CampusMapProps {
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
   strategy: RouteStrategy;
+  demoCurrentBuilding?: Buildings | null;
   onRouteSteps?: (steps: RouteStep[]) => void;
-  onGetDirectionsRequested?: (building: Buildings) => void;
+  onSetAsStart?: (building: Buildings) => void;
+  onSetAsDestination?: (building: Buildings) => void;
+  onSetAsMyLocation?: (building: Buildings) => void;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -86,9 +89,10 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
     driving: colors.routeDrive,
     transit: colors.routeTransit,
   };
-  const color = strokeColors[mode] ?? colors.primary;
-  const lineDashPattern = mode === "transit" ? [8, 6] : undefined;
-  return { strokeColor: color, lineDashPattern };
+  const strokeColor = strokeColors[mode] ?? colors.primary;
+  const lineDashPattern =
+    mode === "transit" ? [8, 6] : mode === "bicycling" ? [4, 4] : undefined;
+  return { strokeColor, lineDashPattern };
 }
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -108,8 +112,11 @@ export default function CampusMap({
   startPoint,
   destinationPoint,
   strategy,
+  demoCurrentBuilding,
   onRouteSteps,
-  onGetDirectionsRequested,
+  onSetAsStart,
+  onSetAsDestination,
+  onSetAsMyLocation,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null
@@ -311,10 +318,10 @@ export default function CampusMap({
     }
   }, [selectedBuilding, mapReady]);
 
-  const currentBuilding = useMemo(
-    () => (userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null),
-    [userCoords]
-  );
+  const currentBuilding = useMemo(() => {
+    if (demoCurrentBuilding) return demoCurrentBuilding;
+    return userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null;
+  }, [userCoords, demoCurrentBuilding]);
 
   return (
     <View style={styles.container}>
@@ -408,17 +415,20 @@ export default function CampusMap({
           </Marker>
         ))}
 
-        {routeCoords.length > 0 && (
-          <Polyline
-            key={routeCoords.length}
-            coordinates={routeCoords}
-            strokeWidth={6}
-            {...getPolylineStyleForMode(strategy.mode)}
-            strokeColor={colors.primary}
-            lineJoin="round"
-            lineCap="round"
-          />
-        )}
+        {routeCoords.length > 0 && (() => {
+          const { strokeColor, lineDashPattern } = getPolylineStyleForMode(strategy.mode);
+          return (
+            <Polyline
+              key={`${routeCoords.length}-${strategy.mode}`}
+              coordinates={routeCoords}
+              strokeWidth={6}
+              strokeColor={strokeColor}
+              lineDashPattern={lineDashPattern}
+              lineJoin="round"
+              lineCap="round"
+            />
+          );
+        })()}
       </MapView>
 
       {locationError && (
@@ -430,8 +440,16 @@ export default function CampusMap({
       <BuildingInfoPopup
         building={selectedBuilding}
         onClose={() => setSelectedBuilding(null)}
-        onGetDirections={(building) => {
-          onGetDirectionsRequested?.(building);
+        onSetAsStart={(building) => {
+          onSetAsStart?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsDestination={(building) => {
+          onSetAsDestination?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsMyLocation={(building) => {
+          onSetAsMyLocation?.(building);
           setSelectedBuilding(null);
         }}
       />

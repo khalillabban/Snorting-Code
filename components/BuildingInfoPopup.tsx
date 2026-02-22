@@ -9,10 +9,18 @@ type TabKey = "departments" | "services";
 interface BuildingInfoPopupProps {
   building: Buildings | null;
   onClose: () => void;
-  onGetDirections?: (building: Buildings) => void;
+  onSetAsStart?: (building: Buildings) => void;
+  onSetAsDestination?: (building: Buildings) => void;
+  onSetAsMyLocation?: (building: Buildings) => void;
 }
 
-export const BuildingInfoPopup = ({ building, onClose, onGetDirections }: BuildingInfoPopupProps) => {
+export const BuildingInfoPopup = ({
+  building,
+  onClose,
+  onSetAsStart,
+  onSetAsDestination,
+  onSetAsMyLocation,
+}: BuildingInfoPopupProps) => {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
   // reset active tab when building changes
@@ -135,15 +143,37 @@ export const BuildingInfoPopup = ({ building, onClose, onGetDirections }: Buildi
           </>
         )}
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.actionButton}
-          onPress={() => onGetDirections?.(building)}
-          accessibilityRole="button"
-          accessibilityLabel={`Get directions to ${building.displayName}`}
-        >
-          <Text style={styles.actionButtonText}>Get Directions</Text>
-        </TouchableOpacity>
+        <View style={styles.navButtonsRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.actionButtonHalf]}
+            onPress={() => onSetAsStart?.(building)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set ${building.displayName} as starting point`}
+          >
+            <Text style={styles.actionButtonText}>Set as start</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.actionButtonHalf]}
+            onPress={() => onSetAsDestination?.(building)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set ${building.displayName} as destination`}
+          >
+            <Text style={styles.actionButtonText}>Set as destination</Text>
+          </TouchableOpacity>
+        </View>
+        {onSetAsMyLocation && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.demoButton]}
+            onPress={() => onSetAsMyLocation(building)}
+            accessibilityRole="button"
+            accessibilityLabel={`Use ${building.displayName} as my location (demo)`}
+          >
+            <Text style={styles.demoButtonText}>Set as my location (demo)</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

@@ -93,6 +93,9 @@ export const styles = StyleSheet.create({
     padding: spacing.sm,
     marginVertical: 2,
   },
+  pickButton: {
+    padding: spacing.sm,
+  },
   input: {
     flex: 1,
     fontSize: 16,

@@ -42,10 +42,10 @@ jest.mock("../components/CampusMap", () => {
           strategy: props.strategy,
         })}
       </Text>
-      <Button 
-          testID="trigger-get-directions" 
-          title="Get Directions" 
-          onPress={() => props.onGetDirectionsRequested({ name: "H", displayName: "Hall" })} 
+      <Button
+          testID="trigger-get-directions"
+          title="Get Directions"
+          onPress={() => props.onSetAsDestination?.({ name: "H", displayName: "Hall" })}
         />
         <Button 
           testID="trigger-route-steps" 

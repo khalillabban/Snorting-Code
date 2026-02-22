@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { BUILDINGS } from "../constants/buildings";
+import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
@@ -34,8 +35,11 @@ interface NavigationBarProps {
     destination: Buildings | null,
     strategy: RouteStrategy) => void;
   autoStartBuilding?: Buildings | null;
+  initialStart?: Buildings | null;
+  onInitialStartApplied?: () => void;
   initialDestination?: Buildings | null;
   onInitialDestinationApplied?: () => void;
+  currentCampus?: CampusKey;
 }
 
 export default function NavigationBar({
@@ -43,8 +47,11 @@ export default function NavigationBar({
   onClose,
   onConfirm,
   autoStartBuilding,
+  initialStart,
+  onInitialStartApplied,
   initialDestination,
   onInitialDestinationApplied,
+  currentCampus = "sgw",
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -119,6 +126,14 @@ export default function NavigationBar({
   }, [autoStartBuilding, startManuallyEdited]);
 
   useEffect(() => {
+    if (visible && initialStart) {
+      setStartLoc(initialStart.displayName);
+      setStartBuilding(initialStart);
+      onInitialStartApplied?.();
+    }
+  }, [visible, initialStart, onInitialStartApplied]);
+
+  useEffect(() => {
     if (visible && initialDestination) {
       setDestLoc(initialDestination.displayName);
       setDestBuilding(initialDestination);
@@ -155,6 +170,15 @@ export default function NavigationBar({
     }
     setFilteredBuildings([]);
     Keyboard.dismiss();
+  };
+
+  const showBuildingPicker = (type: "start" | "destination") => {
+    setActiveInput(type);
+    const campusNorm = currentCampus.toLowerCase();
+    const list = BUILDINGS.filter(
+      (b) => b.boundingBox && b.boundingBox.length >= 3 && (b.campusName || "").toLowerCase() === campusNorm
+    );
+    setFilteredBuildings(list);
   };
 
   const swapOriginDestination = () => {
@@ -230,6 +254,14 @@ export default function NavigationBar({
                   value={startLoc}
                   onChangeText={(text) => handleSearch(text, "start")}
                 />
+                <Pressable
+                  style={styles.pickButton}
+                  onPress={() => showBuildingPicker("start")}
+                  accessibilityLabel="Pick starting building from list"
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="list" size={22} color={colors.primary} />
+                </Pressable>
               </View>
               <Pressable
                 style={styles.swapButton}
@@ -250,6 +282,14 @@ export default function NavigationBar({
                   value={destLoc}
                   onChangeText={(text) => handleSearch(text, "destination")}
                 />
+                <Pressable
+                  style={styles.pickButton}
+                  onPress={() => showBuildingPicker("destination")}
+                  accessibilityLabel="Pick destination building from list"
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="list" size={22} color={colors.primary} />
+                </Pressable>
               </View>
             </View>
 

@@ -165,15 +165,23 @@ jest.mock("../components/BuildingInfoPopup", () => {
   const React = require("react");
   const { Text, View, Pressable } = require("react-native");
   return {
-    BuildingInfoPopup: ({ building, onClose, onGetDirections }: any) => {
+    BuildingInfoPopup: ({
+      building,
+      onClose,
+      onSetAsStart,
+      onSetAsDestination,
+    }: any) => {
       if (!building) return null;
       return (
         <View testID="building-info-popup">
           <Text testID="building-info-building-name">
             {building.displayName ?? building.name}
           </Text>
-          <Pressable testID="building-info-directions" onPress={() => onGetDirections(building)}>
-            <Text>Get Directions</Text>
+          <Pressable testID="building-info-set-start" onPress={() => onSetAsStart?.(building)}>
+            <Text>Set as start</Text>
+          </Pressable>
+          <Pressable testID="building-info-set-dest" onPress={() => onSetAsDestination?.(building)}>
+            <Text>Set as destination</Text>
           </Pressable>
           <Text testID="building-info-close" onPress={onClose}>
             close
@@ -341,15 +349,15 @@ describe("CampusMap", () => {
     });
   });
 
-  it("calls onGetDirectionsRequested and clears selected building when directions are requested", async () => {
-    const directionsSpy = jest.fn();
+  it("calls onSetAsDestination and clears selected building when Set as destination is pressed", async () => {
+    const onSetAsDestination = jest.fn();
     render(
       <CampusMap
         coordinates={coordinates}
         focusTarget="sgw"
         campus="sgw"
         strategy={WALKING_STRATEGY}
-        onGetDirectionsRequested={directionsSpy}
+        onSetAsDestination={onSetAsDestination}
       />
     );
 
@@ -358,9 +366,9 @@ describe("CampusMap", () => {
 
     expect(screen.getByTestId("building-info-popup")).toBeTruthy();
 
-    fireEvent.press(screen.getByTestId("building-info-directions"));
+    fireEvent.press(screen.getByTestId("building-info-set-dest"));
 
-    expect(directionsSpy).toHaveBeenCalledWith(
+    expect(onSetAsDestination).toHaveBeenCalledWith(
       expect.objectContaining({ name: "A" })
     );
 

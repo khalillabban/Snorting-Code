@@ -52,7 +52,9 @@ export default function CampusMapScreen() {
     useState<Buildings | null>(null);
 
   const [isNavVisible, setIsNavVisible] = useState(false);
+  const [initialStart, setInitialStart] = useState<Buildings | null>(null);
   const [initialDestination, setInitialDestination] = useState<Buildings | null>(null);
+  const [demoCurrentBuilding, setDemoCurrentBuilding] = useState<Buildings | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<{
     start: Buildings | null;
     dest: Buildings | null;
@@ -118,10 +120,18 @@ export default function CampusMapScreen() {
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
         strategy={selectedStrategy}
+        demoCurrentBuilding={demoCurrentBuilding}
         onRouteSteps={setRouteSteps}
-        onGetDirectionsRequested={(building) => {
+        onSetAsStart={(building) => {
+          setInitialStart(building);
+          setIsNavVisible(true);
+        }}
+        onSetAsDestination={(building) => {
           setInitialDestination(building);
           setIsNavVisible(true);
+        }}
+        onSetAsMyLocation={(building) => {
+          setDemoCurrentBuilding(building);
         }}
       />
 
@@ -202,12 +212,16 @@ export default function CampusMapScreen() {
         visible={isNavVisible}
         onClose={() => {
           setIsNavVisible(false);
+          setInitialStart(null);
           setInitialDestination(null);
         }}
         onConfirm={handleConfirmRoute}
-        autoStartBuilding={autoStartBuilding}
+        autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
+        initialStart={initialStart}
+        onInitialStartApplied={() => setInitialStart(null)}
         initialDestination={initialDestination}
         onInitialDestinationApplied={() => setInitialDestination(null)}
+        currentCampus={currentCampus}
       />
     </View>
   );
