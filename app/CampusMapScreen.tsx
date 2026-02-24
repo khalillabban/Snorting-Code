@@ -116,7 +116,6 @@ export default function CampusMapScreen() {
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}
-        campus={currentCampus}
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
         strategy={selectedStrategy}

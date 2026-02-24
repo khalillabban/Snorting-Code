@@ -21,7 +21,6 @@ import { BuildingInfoPopup } from "./BuildingInfoPopup";
 interface CampusMapProps {
   coordinates: Location;
   focusTarget: CampusKey | "user";
-  campus: CampusKey;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
   strategy: RouteStrategy;
@@ -98,17 +97,9 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-// NOTE: Temporary normalization helper.
-// TODO: Normalize all `campusName` values in buildings.ts to match CampusKey exactly ("sgw" | "loyola")
-// so we can drop this defensive logic.
-function normalizeCampusName(v?: string) {
-  return (v ?? "").trim().toLowerCase();
-}
-
 export default function CampusMap({
   coordinates,
   focusTarget,
-  campus,
   startPoint,
   destinationPoint,
   strategy,
@@ -184,12 +175,7 @@ export default function CampusMap({
     return clamp(raw, 0.9, 1.35);
   }, [region.latitudeDelta]);
 
-  const buildingsOnCampus = useMemo(() => {
-    const normalizedCampus = normalizeCampusName(campus);
-    return BUILDINGS.filter(
-      (b) => normalizeCampusName(b.campusName) === normalizedCampus
-    );
-  }, [campus]);
+  const buildingsOnCampus = useMemo(() => BUILDINGS, []);
 
   // Load current GPS location
   useEffect(() => {
