@@ -1,13 +1,8 @@
+import { Departure } from "@/constants/type";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { shuttleSchedule } from "../constants/shuttle";
-
 type Campus = "SGW" | "Loyola";
-
-interface Departure {
-  departureTime: string;
-  arrivalTime: string;
-}
 
 const getNextShuttleDepartures = (
   startCampus: Campus,
@@ -85,7 +80,7 @@ const ShuttleBus = ({ startLocation, endLocation }: ShuttleBusProps) => {
     const start = startLocation;
     const end = endLocation;
 
-    // Shuttle is only available between SGW and Loyola
+    // ONLY BETWEEN CAMPUS
     const shuttleAvailable =
       (start === "SGW" && end === "Loyola") ||
       (start === "Loyola" && end === "SGW");
@@ -100,9 +95,10 @@ const ShuttleBus = ({ startLocation, endLocation }: ShuttleBusProps) => {
 
   if (!isShuttleAvailable) return null;
 
+  // NOT SURE HOW IT WILL ACTUALLY LOOK LIKE DID NOT IMPLEMENT THIS ANYWHERE
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🚌 Next Shuttle Departures</Text>
+      <Text style={styles.title}>Next Shuttle Departures</Text>
       {nextDepartures.length > 0 ? (
         nextDepartures.map((departure, index) => (
           <View key={index} style={styles.departureRow}>

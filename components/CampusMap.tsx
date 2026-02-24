@@ -16,14 +16,14 @@ import { Buildings, Location } from "../constants/type";
 import { getOutdoorRoute } from "../services/GoogleDirectionsService";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
-import { useShuttleBus } from "./ShuttleBusTracker";
+import { useShuttleBus } from "./ShuttleBusTracker"; //NEEDED
 
 interface CampusMapProps {
   coordinates: Location;
   focusTarget: "sgw" | "loyola" | "user";
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
-  showShuttle: boolean;
+  showShuttle: boolean; //NEEDED
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -73,7 +73,7 @@ export default function CampusMap({
   focusTarget,
   startPoint,
   destinationPoint,
-  showShuttle,
+  showShuttle, //NEEDED
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -89,7 +89,7 @@ export default function CampusMap({
     longitude: number;
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  //  Shuttle buses
+  //  SHUTTLE BUSES
   const { activeBuses } = useShuttleBus();
 
   const handleMapPress = () => {
@@ -307,7 +307,7 @@ export default function CampusMap({
           />
         )}
 
-        {/* Live shuttle bus markers - Wrapped in Toggle logic */}
+        {/* Live shuttle bus markers */}
         {showShuttle && (
           <>
             {BUSSTOP.map((stop) => (
@@ -351,7 +351,7 @@ export default function CampusMap({
           </>
         )}
       </MapView>
-      {/* Live shuttle bus markers - Wrapped in Toggle logic */}
+      {/* Live shuttle bus markers (put the entire thing between comments in case of merge conflict we know we need all of that*/}
       {locationError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{locationError}</Text>
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     elevation: 5,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -447,5 +447,5 @@ const styles = StyleSheet.create({
   shuttleDisabled: {
     backgroundColor: "#666",
   },
-  //END FOR SHUTTLE
+  //END FOR SHUTTLE (Could go in other file to make it cleaner)
 });

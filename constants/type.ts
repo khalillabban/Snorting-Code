@@ -49,3 +49,8 @@ export interface ShuttleTime {
   departureTime: string;
   arrivalTime: string;
 }
+
+export interface Departure {
+  departureTime: string;
+  arrivalTime: string;
+}

@@ -2,12 +2,13 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { colors } from "../constants/theme";
 
+//FILE TO SEE FETCH THE BUS SO WE CAN SEE THEM IN REAL TIME FROM THE WEBSITE
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { BUSSTOP } from "../constants/shuttle";
 

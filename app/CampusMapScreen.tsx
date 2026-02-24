@@ -147,6 +147,7 @@ export default function CampusMapScreen() {
       </View>
 
       {/* Floating Buttons */}
+      {/* HERE IS THE BUTTON TO SHOW THE SHUTTLE */}
       <View style={styles.buttonStack}>
         <Pressable
           onPress={() => setShowShuttle(!showShuttle)}
