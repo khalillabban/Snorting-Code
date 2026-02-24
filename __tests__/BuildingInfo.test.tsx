@@ -263,4 +263,69 @@ describe("BuildingInfoPopup", () => {
     expect(onSetAsDestination).toHaveBeenCalledTimes(1);
     expect(onSetAsDestination).toHaveBeenCalledWith(fullBuilding);
   });
+
+  // --- Navigation button: Set as my location (demo) ---
+
+  it("calls onSetAsMyLocation when Set as my location button is pressed", () => {
+    const onSetAsMyLocation = jest.fn();
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        onSetAsMyLocation={onSetAsMyLocation}
+      />
+    );
+    fireEvent.press(screen.getByText("Set as my location (demo)"));
+    expect(onSetAsMyLocation).toHaveBeenCalledTimes(1);
+    expect(onSetAsMyLocation).toHaveBeenCalledWith(fullBuilding);
+  });
+
+  it("renders Set as my location button only when onSetAsMyLocation is provided", () => {
+    const onSetAsMyLocation = jest.fn();
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        onSetAsMyLocation={onSetAsMyLocation}
+      />
+    );
+    expect(screen.getByText("Set as my location (demo)")).toBeTruthy();
+  });
+
+  it("does not render Set as my location button when onSetAsMyLocation is not provided", () => {
+    render(<BuildingInfoPopup building={fullBuilding} onClose={onClose} />);
+    expect(screen.queryByText("Set as my location (demo)")).toBeNull();
+  });
+
+  it("does not call callbacks when they are not provided", () => {
+    // This test ensures the component doesn't crash when optional callbacks are undefined
+    render(<BuildingInfoPopup building={fullBuilding} onClose={onClose} />);
+    
+    // Should not crash when pressed
+    fireEvent.press(screen.getByText("Set as start"));
+    fireEvent.press(screen.getByText("Set as destination"));
+    
+    // No errors means success
+    expect(screen.getByText("Hall Building")).toBeTruthy();
+  });
+
+  it("renders all three navigation buttons when all callbacks are provided", () => {
+    const onSetAsStart = jest.fn();
+    const onSetAsDestination = jest.fn();
+    const onSetAsMyLocation = jest.fn();
+    
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        onSetAsStart={onSetAsStart}
+        onSetAsDestination={onSetAsDestination}
+        onSetAsMyLocation={onSetAsMyLocation}
+      />
+    );
+    
+    expect(screen.getByText("Set as start")).toBeTruthy();
+    expect(screen.getByText("Set as destination")).toBeTruthy();
+    expect(screen.getByText("Set as my location (demo)")).toBeTruthy();
+  });
 });
