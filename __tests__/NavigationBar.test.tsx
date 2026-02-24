@@ -26,7 +26,7 @@ jest.mock("../constants/buildings", () => ({
       icons: ["information", "wheelchair"],
       departments: ["Biology", "Chemistry and Biochemistry", "Physics"],
       services: ["Café", "Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [],
+      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
     },
     {
       name: "VL",
@@ -61,7 +61,7 @@ jest.mock("../constants/buildings", () => ({
         "Sociology and Anthropology",
       ],
       services: ["Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [],
+      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
     },
     {
       name: "EV",
@@ -560,6 +560,28 @@ describe("NavigationBar", () => {
       });
     });
 
+    describe("Building Picker (List Button)", () => {
+      it("filters buildings by campus and valid bounding box when picker is opened", async () => {
+        const { getByLabelText, getByText, queryByText } = render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            currentCampus="loyola"
+          />
+        );
+
+        const listButton = getByLabelText("Pick starting building from list");
+        fireEvent.press(listButton);
+
+        expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+        expect(queryByText("Henry F. Hall Building (H)")).toBeNull();
+
+        expect(queryByText("Building with no box")).toBeNull();
+      });
+    });
+
     describe("Swipe Down (Move)", () => {
       it("should update position when swiping down", () => {
         const rendered = render(
@@ -864,6 +886,53 @@ describe("NavigationBar", () => {
         } else {
           expect(true).toBe(true);
         }
+      });
+      it("does not overwrite start location with autoStartBuilding if user has manually edited it", () => {
+        const mockAuto = { name: "EV", displayName: "EV Building" };
+        const { getByPlaceholderText, rerender } = render(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={null} />
+        );
+
+        const input = getByPlaceholderText("From");
+
+        fireEvent.changeText(input, "User Typed Location");
+
+        rerender(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={mockAuto as any} />
+        );
+
+        expect(input.props.value).toBe("User Typed Location");
+      });
+      it("applies initialStart and calls the applied callback", () => {
+        const mockInitialStart = { name: "H", displayName: "Hall Building" };
+        const mockOnApplied = jest.fn();
+
+        const { getByPlaceholderText } = render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            initialStart={mockInitialStart as any}
+            onInitialStartApplied={mockOnApplied}
+          />
+        );
+
+        expect(getByPlaceholderText("From").props.value).toBe("Hall Building");
+        expect(mockOnApplied).toHaveBeenCalled();
+      });
+      it("shows 'Loading…' while the route is being fetched", async () => {
+        (getOutdoorRouteWithSteps as jest.Mock).mockReturnValue(new Promise(() => { }));
+
+        const { getByPlaceholderText, getByText } = render(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        );
+
+        fireEvent.changeText(getByPlaceholderText("From"), "Science");
+        fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+        fireEvent.changeText(getByPlaceholderText("To"), "Library");
+        fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+        expect(getByText("Loading…")).toBeTruthy();
       });
 
       it("should handle very large dy values", () => {
