@@ -80,7 +80,7 @@ function CurrentLocationMarker({
       coordinate={coordinate}
       title={CURRENT_LOCATION_MARKER_TITLE}
       anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={false}
+      tracksViewChanges={Platform.OS === 'android'}
     >
       <View style={styles.currentLocationDot} />
     </Marker>
@@ -356,7 +356,7 @@ export default function CampusMap({
             testID="marker-start"
             coordinate={startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
+            tracksViewChanges={Platform.OS === 'android'}
           >
             <View style={styles.startDot} />
           </Marker>
@@ -367,7 +367,7 @@ export default function CampusMap({
             testID="marker-destination"
             coordinate={destinationPoint.coordinates}
             anchor={{ x: 0.5, y: 1 }}
-            tracksViewChanges={false}
+            tracksViewChanges={Platform.OS === 'android'}
           >
             <View style={styles.destinationPinWrapper}>
               <MaterialIcons name="place" size={44} top={0.5} color="black" style={styles.destinationPinShadow} />
