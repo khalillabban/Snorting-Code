@@ -48,6 +48,9 @@ export default function CampusMapScreen() {
     campus === "loyola" ? "loyola" : "sgw",
   );
 
+  const [userFocusCounter, setUserFocusCounter] = useState(0);
+  const [routeFocusTrigger, setRouteFocusTrigger] = useState(0);
+
   const [autoStartBuilding, setAutoStartBuilding] =
     useState<Buildings | null>(null);
 
@@ -95,6 +98,7 @@ export default function CampusMapScreen() {
 
   const focusUserLocation = () => {
     setFocusTarget("user");
+    setUserFocusCounter((c) => c + 1);
   };
 
   const handleConfirmRoute = (
@@ -105,6 +109,9 @@ export default function CampusMapScreen() {
     setSelectedRoute({ start, dest });
     setSelectedStrategy(strategy);
     setIsNavVisible(false);
+    if (start) {
+      setRouteFocusTrigger((c) => c + 1);
+    }
   };
 
   const hasActiveRoute =
@@ -116,6 +123,8 @@ export default function CampusMapScreen() {
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}
+        userFocusCounter={userFocusCounter}
+        routeFocusTrigger={routeFocusTrigger}
         startPoint={selectedRoute.start}
         destinationPoint={selectedRoute.dest}
         strategy={selectedStrategy}
@@ -204,6 +213,7 @@ export default function CampusMapScreen() {
             setSelectedRoute({ start: null, dest: null });
             setRouteSteps([]);
           }}
+          onFocusUser={focusUserLocation}
         />
       )}
 
@@ -221,6 +231,7 @@ export default function CampusMapScreen() {
         initialDestination={initialDestination}
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
+        onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
       />
     </View>
   );

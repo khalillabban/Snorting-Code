@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import {
   Pressable,
@@ -16,6 +16,7 @@ interface DirectionStepsPanelProps {
   strategy: RouteStrategy;
   onChangeRoute: () => void;
   onDismiss?: () => void;
+  onFocusUser?: () => void;
 }
 
 export function DirectionStepsPanel({
@@ -23,6 +24,7 @@ export function DirectionStepsPanel({
   strategy,
   onChangeRoute,
   onDismiss,
+  onFocusUser,
 }: DirectionStepsPanelProps) {
   if (steps.length === 0) return null;
 
@@ -39,6 +41,16 @@ export function DirectionStepsPanel({
             <Text style={styles.modeLabel}>{strategy.label}</Text>
           </View>
           <View style={styles.headerActions}>
+            {onFocusUser && (
+              <Pressable
+                onPress={onFocusUser}
+                style={styles.locationButton}
+                accessibilityRole="button"
+                accessibilityLabel="Center on my location"
+              >
+                <MaterialIcons name="my-location" size={18} color={colors.primary} />
+              </Pressable>
+            )}
             <Pressable
               onPress={onChangeRoute}
               style={styles.changeButton}
@@ -94,7 +106,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
-    bottom: 120,
+    bottom: spacing.lg + spacing.md,
     maxHeight: "42%",
     zIndex: 100,
   },
@@ -135,7 +147,12 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
+    gap: spacing.sm,
+  },
+  locationButton: {
+    padding: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.gray100,
   },
   changeButton: {
     paddingVertical: spacing.sm,

@@ -40,6 +40,7 @@ interface NavigationBarProps {
   initialDestination?: Buildings | null;
   onInitialDestinationApplied?: () => void;
   currentCampus?: CampusKey;
+  onUseMyLocation?: () => Buildings | null;
 }
 
 export default function NavigationBar({
@@ -52,6 +53,7 @@ export default function NavigationBar({
   initialDestination,
   onInitialDestinationApplied,
   currentCampus = "sgw",
+  onUseMyLocation,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -173,12 +175,34 @@ export default function NavigationBar({
   };
 
   const showBuildingPicker = (type: "start" | "destination") => {
+    // Toggle: if already showing picker for same input, close it
+    if (activeInput === type && filteredBuildings.length > 0) {
+      setFilteredBuildings([]);
+      setActiveInput(null);
+      return;
+    }
     setActiveInput(type);
     const campusNorm = currentCampus.toLowerCase();
     const list = BUILDINGS.filter(
       (b) => b.boundingBox && b.boundingBox.length >= 3 && (b.campusName || "").toLowerCase() === campusNorm
     );
     setFilteredBuildings(list);
+  };
+
+  const handleUseMyLocation = () => {
+    if (!onUseMyLocation) return;
+    const building = onUseMyLocation();
+    if (building) {
+      setStartLoc(building.displayName);
+      setStartBuilding(building);
+      setStartManuallyEdited(true);
+    } else {
+      setStartLoc("My Location");
+      setStartBuilding(null);
+      setStartManuallyEdited(true);
+    }
+    setFilteredBuildings([]);
+    setActiveInput(null);
   };
 
   const swapOriginDestination = () => {
@@ -262,6 +286,16 @@ export default function NavigationBar({
                 >
                   <MaterialIcons name="list" size={22} color={colors.primary} />
                 </Pressable>
+                {onUseMyLocation && (
+                  <Pressable
+                    style={styles.pickButton}
+                    onPress={handleUseMyLocation}
+                    accessibilityLabel="Use my current location as start"
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="my-location" size={22} color={colors.primary} />
+                  </Pressable>
+                )}
               </View>
               <Pressable
                 style={styles.swapButton}

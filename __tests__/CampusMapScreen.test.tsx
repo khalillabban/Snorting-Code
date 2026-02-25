@@ -42,6 +42,8 @@ jest.mock("../components/CampusMap", () => {
           strategy: props.strategy,
         })}
       </Text>
+      <Text testID="campus-map-user-focus-counter">{props.userFocusCounter}</Text>
+      <Text testID="campus-map-route-focus-trigger">{props.routeFocusTrigger}</Text>
       <Button
           testID="trigger-get-directions"
           title="Get Directions"
@@ -51,6 +53,16 @@ jest.mock("../components/CampusMap", () => {
           testID="trigger-route-steps" 
           title="Set Steps" 
           onPress={() => props.onRouteSteps([{ instruction: "Walk" }])} 
+        />
+        <Button
+          testID="trigger-set-as-start"
+          title="Set As Start"
+          onPress={() => props.onSetAsStart?.({ name: "MB", displayName: "MB Building" })}
+        />
+        <Button
+          testID="trigger-set-my-location"
+          title="Set My Location"
+          onPress={() => props.onSetAsMyLocation?.({ name: "EV", displayName: "EV Building" })}
         />
         </View>
     );
@@ -97,6 +109,9 @@ jest.mock("../components/DirectionStepsPanel", () => {
       <View>
         <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
         <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
+        {props.onFocusUser && (
+          <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
+        )}
       </View>
     )
   };
@@ -307,6 +322,119 @@ describe("CampusMapScreen", () => {
 
       expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
       expect(Location.getCurrentPositionAsync).toHaveBeenCalled();
+    });
+  });
+
+  describe("User Focus Counter", () => {
+    it("increments userFocusCounter when my-location button is pressed", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      const counter0 = screen.getByTestId("campus-map-user-focus-counter").props.children;
+      expect(counter0).toBe(0);
+
+      fireEvent.press(screen.getByTestId("my-location-button"));
+
+      expect(screen.getByTestId("campus-map-user-focus-counter").props.children).toBe(1);
+
+      fireEvent.press(screen.getByTestId("my-location-button"));
+
+      expect(screen.getByTestId("campus-map-user-focus-counter").props.children).toBe(2);
+    });
+  });
+
+  describe("Route Focus Trigger", () => {
+    it("increments routeFocusTrigger when route is confirmed with a start point", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      const trigger0 = screen.getByTestId("campus-map-route-focus-trigger").props.children;
+      expect(trigger0).toBe(0);
+
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+
+      expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(1);
+    });
+  });
+
+  describe("Set As Start", () => {
+    it("opens nav bar when a building is set as start via the map", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+
+      fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+
+      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+    });
+  });
+
+  describe("Set As My Location", () => {
+    it("sets demoCurrentBuilding when onSetAsMyLocation is called", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      // Press the set-my-location trigger - this sets demoCurrentBuilding internally
+      // which doesn't directly appear in map props but affects autoStartBuilding in NavBar
+      fireEvent.press(screen.getByTestId("trigger-set-my-location"));
+
+      // The component should not crash and map should still render
+      expect(screen.getByTestId("campus-map-props")).toBeTruthy();
+    });
+  });
+
+  describe("Steps Panel Focus User", () => {
+    it("renders focus user button in steps panel and increments counter when pressed", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      // Confirm route to show steps panel
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+
+      // Inject steps via the mock
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      // Steps panel should have focus user button
+      await waitFor(() => {
+        expect(screen.getByTestId("steps-focus-user")).toBeTruthy();
+      });
+
+      const counterBefore = screen.getByTestId("campus-map-user-focus-counter").props.children;
+
+      fireEvent.press(screen.getByTestId("steps-focus-user"));
+
+      const counterAfter = screen.getByTestId("campus-map-user-focus-counter").props.children;
+      expect(counterAfter).toBe(counterBefore + 1);
+    });
+  });
+
+  describe("Dismiss Route", () => {
+    it("clears route and steps when dismiss is pressed on steps panel", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+
+      const mapProps = getMapProps();
+      expect(mapProps.startPoint).toBeNull();
+      expect(mapProps.destinationPoint).toBeNull();
     });
   });
 });

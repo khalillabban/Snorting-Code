@@ -6,6 +6,7 @@ import { RouteStep } from "../services/GoogleDirectionsService";
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialCommunityIcons: "MaterialCommunityIcons",
+  MaterialIcons: "MaterialIcons",
 }));
 
 const mockSteps: RouteStep[] = [
@@ -96,6 +97,44 @@ describe("DirectionStepsPanel", () => {
       />
     );
     expect(screen.getByText("Transit")).toBeTruthy();
+  });
+
+  it("renders the location button and calls onFocusUser when pressed", () => {
+    const onFocusUser = jest.fn();
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+        onFocusUser={onFocusUser}
+      />
+    );
+    const locationButton = screen.getByLabelText("Center on my location");
+    expect(locationButton).toBeTruthy();
+    fireEvent.press(locationButton);
+    expect(onFocusUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render location button when onFocusUser is not provided", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />
+    );
+    expect(screen.queryByLabelText("Center on my location")).toBeNull();
+  });
+
+  it("does not render dismiss button when onDismiss is not provided", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />
+    );
+    expect(screen.queryByLabelText("Close directions")).toBeNull();
   });
   
 });

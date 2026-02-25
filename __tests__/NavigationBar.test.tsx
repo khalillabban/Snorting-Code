@@ -1220,4 +1220,118 @@ describe("NavigationBar", () => {
       });
     });
   });
+
+  describe("Building Picker Toggle", () => {
+    it("closes building picker when same list button is pressed a second time", () => {
+      const { getByLabelText, queryByText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          currentCampus="loyola"
+        />
+      );
+
+      const listButton = getByLabelText("Pick starting building from list");
+
+      // First press: opens picker
+      fireEvent.press(listButton);
+      expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+      // Second press: closes picker (toggle)
+      fireEvent.press(listButton);
+      expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
+      expect(getByText("Get Directions")).toBeTruthy();
+    });
+
+    it("closes destination picker when same list button is pressed again", () => {
+      const { getByLabelText, queryByText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          currentCampus="loyola"
+        />
+      );
+
+      const listButton = getByLabelText("Pick destination building from list");
+
+      fireEvent.press(listButton);
+      expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+      fireEvent.press(listButton);
+      expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
+    });
+  });
+
+  describe("Use My Location Button", () => {
+    it("renders use-my-location button when onUseMyLocation callback is provided", () => {
+      const mockUseMyLocation = jest.fn(() => null);
+      const { getByLabelText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      expect(getByLabelText("Use my current location as start")).toBeTruthy();
+    });
+
+    it("does not render use-my-location button when onUseMyLocation is not provided", () => {
+      const { queryByLabelText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />
+      );
+
+      expect(queryByLabelText("Use my current location as start")).toBeNull();
+    });
+
+    it("sets start to building name when onUseMyLocation returns a building", () => {
+      const mockBuilding = {
+        name: "SP",
+        displayName: "Richard J Renaud Science Complex (SP)",
+        coordinates: { latitude: 45.4576633, longitude: -73.6413024 },
+      };
+      const mockUseMyLocation = jest.fn(() => mockBuilding as any);
+
+      const { getByLabelText, getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      expect(mockUseMyLocation).toHaveBeenCalled();
+      expect(getByPlaceholderText("From").props.value).toBe(
+        "Richard J Renaud Science Complex (SP)"
+      );
+    });
+
+    it("sets start to 'My Location' when onUseMyLocation returns null", () => {
+      const mockUseMyLocation = jest.fn(() => null);
+
+      const { getByLabelText, getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      expect(mockUseMyLocation).toHaveBeenCalled();
+      expect(getByPlaceholderText("From").props.value).toBe("My Location");
+    });
+  });
 });
