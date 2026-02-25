@@ -85,15 +85,34 @@ export const styles = StyleSheet.create({
     ...typography.body,
     color: colors.gray700,
   },
+  navButtonsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   actionButton: {
     backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: "center",
   },
+  actionButtonHalf: {
+    flex: 1,
+  },
   actionButtonText: {
     ...typography.button,
     color: colors.white,
+    fontSize: 14,
+  },
+  demoButton: {
+    backgroundColor: colors.offWhite,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+  },
+  demoButtonText: {
+    ...typography.body,
+    fontWeight: "600",
+    color: colors.gray700,
   },
   tabRow: {
     flexDirection: "row",

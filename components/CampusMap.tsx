@@ -1,3 +1,4 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import {
   Accuracy,
   getCurrentPositionAsync,
@@ -13,16 +14,24 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, Location } from "../constants/type";
-import { getOutdoorRoute } from "../services/GoogleDirectionsService";
+import { getOutdoorRouteWithSteps, RouteStep } from "../services/GoogleDirectionsService";
+import { RouteStrategy } from "../services/Routing";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 
 interface CampusMapProps {
   coordinates: Location;
   focusTarget: CampusKey | "user";
-  campus: CampusKey;
+  userFocusCounter?: number;
+  routeFocusTrigger?: number;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
+  strategy: RouteStrategy;
+  demoCurrentBuilding?: Buildings | null;
+  onRouteSteps?: (steps: RouteStep[]) => void;
+  onSetAsStart?: (building: Buildings) => void;
+  onSetAsDestination?: (building: Buildings) => void;
+  onSetAsMyLocation?: (building: Buildings) => void;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -70,28 +79,43 @@ function CurrentLocationMarker({
     <Marker
       coordinate={coordinate}
       title={CURRENT_LOCATION_MARKER_TITLE}
-      pinColor={colors.primary}
-    />
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={Platform.OS === 'android'}
+    >
+      <View style={styles.currentLocationDot} />
+    </Marker>
   );
 }
 
+function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
+  const strokeColors: Record<RouteStrategy["mode"], string> = {
+    walking: colors.routeWalk,
+    bicycling: colors.routeBike,
+    driving: colors.routeDrive,
+    transit: colors.routeTransit,
+  };
+  const strokeColor = strokeColors[mode] ?? colors.primary;
+  const lineDashPattern =
+    mode === "transit" ? [8, 6] : mode === "bicycling" ? [4, 4] : undefined;
+  return { strokeColor, lineDashPattern };
+}
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
-}
-
-// NOTE: Temporary normalization helper.
-// TODO: Normalize all `campusName` values in buildings.ts to match CampusKey exactly ("sgw" | "loyola")
-// so we can drop this defensive logic.
-function normalizeCampusName(v?: string) {
-  return (v ?? "").trim().toLowerCase();
 }
 
 export default function CampusMap({
   coordinates,
   focusTarget,
-  campus,
+  userFocusCounter = 0,
+  routeFocusTrigger = 0,
   startPoint,
   destinationPoint,
+  strategy,
+  demoCurrentBuilding,
+  onRouteSteps,
+  onSetAsStart,
+  onSetAsDestination,
+  onSetAsMyLocation,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null
@@ -159,12 +183,7 @@ export default function CampusMap({
     return clamp(raw, 0.9, 1.35);
   }, [region.latitudeDelta]);
 
-  const buildingsOnCampus = useMemo(() => {
-    const normalizedCampus = normalizeCampusName(campus);
-    return BUILDINGS.filter(
-      (b) => normalizeCampusName(b.campusName) === normalizedCampus
-    );
-  }, [campus]);
+  const buildingsOnCampus = useMemo(() => BUILDINGS, []);
 
   // Load current GPS location
   useEffect(() => {
@@ -224,29 +243,31 @@ export default function CampusMap({
     };
   }, []);
 
-  // Fetch route when start/destination changes
   useEffect(() => {
     let cancelled = false;
 
     async function fetchRoute() {
       if (!startPoint || !destinationPoint) {
         setRouteCoords([]);
+        onRouteSteps?.([]);
         return;
       }
 
       try {
-        const route = await getOutdoorRoute(
+        const { coordinates: route, steps } = await getOutdoorRouteWithSteps(
           startPoint.coordinates,
-          destinationPoint.coordinates
+          destinationPoint.coordinates,
+          strategy
         );
 
         if (cancelled) return;
 
         setRouteCoords(route);
-      } catch (error) {
+        onRouteSteps?.(steps);
+      } catch {
         if (!cancelled) {
-          console.log("Route error:", error);
           setRouteCoords([]);
+          onRouteSteps?.([]);
         }
       }
     }
@@ -256,7 +277,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, destinationPoint]);
+  }, [startPoint, destinationPoint, strategy, onRouteSteps]);
 
   // Animate map focus
   useEffect(() => {
@@ -275,7 +296,22 @@ export default function CampusMap({
       { ...coordinates, latitudeDelta: 0.01, longitudeDelta: 0.01 },
       250
     );
-  }, [focusTarget, coordinates, userCoords, mapReady]);
+  }, [focusTarget, coordinates, userCoords, mapReady, userFocusCounter]);
+
+  // Focus on start point when route is confirmed
+  useEffect(() => {
+    if (startPoint && mapReady && routeFocusTrigger > 0) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: startPoint.coordinates.latitude,
+          longitude: startPoint.coordinates.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        500
+      );
+    }
+  }, [startPoint, mapReady, routeFocusTrigger]);
 
   useEffect(() => {
     if (selectedBuilding && mapReady) {
@@ -291,10 +327,10 @@ export default function CampusMap({
     }
   }, [selectedBuilding, mapReady]);
 
-  const currentBuilding = useMemo(
-    () => (userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null),
-    [userCoords]
-  );
+  const currentBuilding = useMemo(() => {
+    if (demoCurrentBuilding) return demoCurrentBuilding;
+    return userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null;
+  }, [userCoords, demoCurrentBuilding]);
 
   return (
     <View style={styles.container}>
@@ -320,17 +356,25 @@ export default function CampusMap({
             testID="marker-start"
             coordinate={startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={Platform.OS === 'android'}
           >
-            <View style={styles.blueDotInner} />
+            <View style={styles.startDot} />
           </Marker>
         )}
 
         {destinationPoint && (
           <Marker
+            testID="marker-destination"
             coordinate={destinationPoint.coordinates}
-            title="Destination"
-            pinColor="red"
-          />
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={Platform.OS === 'android'}
+          >
+            <View style={styles.destinationPinWrapper}>
+              <MaterialIcons name="place" size={44} top={0.5} color="black" style={styles.destinationPinShadow} />
+              <MaterialIcons name="place" size={30} top={6} color="black" style={styles.destinationPinShadow} />
+              <MaterialIcons name="place" size={40} color={colors.error} style={styles.destinationPinFront} />
+            </View>
+          </Marker>
         )}
 
         {/* Building polygons (only for current campus) */}
@@ -388,16 +432,35 @@ export default function CampusMap({
           </Marker>
         ))}
 
-        {routeCoords.length > 0 && (
-          <Polyline
-            key={routeCoords.length}
-            coordinates={routeCoords}
-            strokeWidth={6}
-            strokeColor={colors.primary}
-            lineJoin="round"
-            lineCap="round"
-          />
-        )}
+        {routeCoords.length > 0 && (() => {
+          const { strokeColor, lineDashPattern } = getPolylineStyleForMode(strategy.mode);
+          return (
+            <>
+              <Polyline
+                testID="polyline-border"
+                key={`border-${routeCoords.length}-${strategy.mode}`}
+                coordinates={routeCoords}
+                strokeWidth={8}
+                strokeColor="black"
+                lineDashPattern={lineDashPattern}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={1}
+              />
+              <Polyline
+                testID="polyline-main"
+                key={`main-${routeCoords.length}-${strategy.mode}`}
+                coordinates={routeCoords}
+                strokeWidth={6}
+                strokeColor={strokeColor}
+                lineDashPattern={lineDashPattern}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={2}
+              />
+            </>
+          );
+        })()}
       </MapView>
 
       {locationError && (
@@ -409,6 +472,18 @@ export default function CampusMap({
       <BuildingInfoPopup
         building={selectedBuilding}
         onClose={() => setSelectedBuilding(null)}
+        onSetAsStart={(building) => {
+          onSetAsStart?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsDestination={(building) => {
+          onSetAsDestination?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsMyLocation={(building) => {
+          onSetAsMyLocation?.(building);
+          setSelectedBuilding(null);
+        }}
       />
     </View>
   );
@@ -427,13 +502,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorText: { color: colors.white, textAlign: "center" },
-  blueDotInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  currentLocationDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 14,
     backgroundColor: "#007AFF",
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: "white",
+  },
+  startDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 14,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "black",
+  },
+  destinationPinWrapper: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  destinationPinShadow: {
+    position: "absolute",
+  },
+  destinationPinFront: {
+    position: "absolute",
   },
 
   codePill: {
@@ -446,5 +541,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.white,
-  },
+  }
 });

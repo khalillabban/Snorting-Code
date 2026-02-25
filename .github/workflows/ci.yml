@@ -37,5 +37,3 @@ jobs:
           files: ./coverage/lcov.info
           fail_ci_if_error: true
           verbose: true
-          disable_comment: false
-          disable_ci_link: false
