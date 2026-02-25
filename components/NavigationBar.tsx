@@ -278,14 +278,6 @@ export default function NavigationBar({
                   value={startLoc}
                   onChangeText={(text) => handleSearch(text, "start")}
                 />
-                <Pressable
-                  style={styles.pickButton}
-                  onPress={() => showBuildingPicker("start")}
-                  accessibilityLabel="Pick starting building from list"
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="list" size={22} color={colors.primary} />
-                </Pressable>
                 {onUseMyLocation && (
                   <Pressable
                     style={styles.pickButton}
@@ -296,6 +288,14 @@ export default function NavigationBar({
                     <MaterialIcons name="my-location" size={22} color={colors.primary} />
                   </Pressable>
                 )}
+                <Pressable
+                  style={styles.pickButton}
+                  onPress={() => showBuildingPicker("start")}
+                  accessibilityLabel="Pick starting building from list"
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="list" size={22} color={colors.primary} />
+                </Pressable>
               </View>
               <Pressable
                 style={styles.swapButton}
