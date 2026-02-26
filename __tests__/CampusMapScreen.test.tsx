@@ -235,7 +235,7 @@ describe("CampusMapScreen", () => {
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
     });
@@ -245,7 +245,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
 
       fireEvent.press(screen.getByTestId("nav-close"));
@@ -257,7 +257,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       const mapProps = getMapProps();
@@ -271,7 +271,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
@@ -282,13 +282,13 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(getMapProps().startPoint).toBe("H");
       expect(getMapProps().destinationPoint).toBe("MB");
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-close"));
 
       expect(getMapProps().startPoint).toBe("H");
@@ -353,7 +353,7 @@ describe("CampusMapScreen", () => {
       const trigger0 = screen.getByTestId("campus-map-route-focus-trigger").props.children;
       expect(trigger0).toBe(0);
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(1);
@@ -396,7 +396,7 @@ describe("CampusMapScreen", () => {
       await renderScreen();
 
       // Confirm route to show steps panel
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       // Inject steps via the mock
@@ -422,7 +422,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
       fireEvent.press(screen.getByTestId("trigger-route-steps"));
 

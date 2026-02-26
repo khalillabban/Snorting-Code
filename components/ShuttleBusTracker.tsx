@@ -30,7 +30,13 @@ export function useShuttleBus() {
 
   useEffect(() => {
     let cancelled = false;
-
+    const isTest = process.env.NODE_ENV === "test";
+    if (isTest) {
+      // In tests, don't hit the real Concordia shuttle site.
+      setActiveBuses([]);
+      setLoading(false);
+      return;
+    }
     const fetchBusData = async () => {
       try {
         // Step 1: GET to establish session cookies

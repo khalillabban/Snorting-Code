@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -188,6 +189,7 @@ export default function CampusMapScreen() {
       {/* HERE IS THE BUTTON TO SHOW THE SHUTTLE */}
       <View style={styles.buttonStack}>
         <Pressable
+          testID="show-shuttle-button"
           onPress={() => setShowShuttle(!showShuttle)}
           style={[styles.actionButton, !showShuttle && styles.shuttleDisabled]}
         >
@@ -199,6 +201,8 @@ export default function CampusMapScreen() {
         </Pressable>
 
         <Pressable
+          testID="directions-button"
+          accessibilityLabel="directions-button"
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
@@ -206,6 +210,8 @@ export default function CampusMapScreen() {
         </Pressable>
 
         <Pressable
+          testID="my-location-button"
+          accessibilityLabel="my-location-button"
           onPress={focusUserLocation}
           style={[
             styles.actionButton,
