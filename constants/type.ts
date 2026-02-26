@@ -54,3 +54,19 @@ export interface Departure {
   departureTime: string;
   arrivalTime: string;
 }
+
+export interface RouteSegment {
+  coordinates: LatLng[];
+  mode: "walking" | "shuttle";
+}
+
+export interface LatLng {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RouteStep {
+  instruction: string;
+  distance?: string;
+  duration?: string;
+}
