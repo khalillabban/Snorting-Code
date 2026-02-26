@@ -1,5 +1,4 @@
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -7,6 +6,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
+import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
+import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
@@ -113,6 +114,14 @@ export default function CampusMapScreen() {
     }
   };
   const [showShuttle, setShowShuttle] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] = useState(false);
+  const shuttleStatus = useShuttleAvailability(currentCampus);
+
+  useEffect(() => {
+    if (!shuttleStatus.available && showShuttle) {
+      setShowShuttle(false);
+    }
+  }, [shuttleStatus.available, showShuttle]);
 
   const hasActiveRoute =
     selectedRoute.start != null && selectedRoute.dest != null;
@@ -145,53 +154,79 @@ export default function CampusMapScreen() {
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
-        <View style={styles.campusToggle}>
-          <Pressable
-            onPress={() => selectCampus("sgw")}
-            testID="campus-toggle-sgw"
-            style={[
-              styles.campusToggleOption,
-              styles.campusToggleOptionLeft,
-              currentCampus === "sgw" && styles.campusToggleOptionActive,
-            ]}
-          >
-            <Text
+        <View style={styles.campusToggleRow}>
+          <View style={styles.campusToggle}>
+            <Pressable
+              onPress={() => selectCampus("sgw")}
+              testID="campus-toggle-sgw"
               style={[
-                styles.campusToggleText,
-                currentCampus === "sgw" && styles.campusToggleTextActive,
+                styles.campusToggleOption,
+                styles.campusToggleOptionLeft,
+                currentCampus === "sgw" && styles.campusToggleOptionActive,
               ]}
             >
-              SGW
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.campusToggleText,
+                  currentCampus === "sgw" && styles.campusToggleTextActive,
+                ]}
+              >
+                SGW
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => selectCampus("loyola")}
+              testID="campus-toggle-loyola"
+              style={[
+                styles.campusToggleOption,
+                currentCampus === "loyola" && styles.campusToggleOptionActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.campusToggleText,
+                  currentCampus === "loyola" && styles.campusToggleTextActive,
+                ]}
+              >
+                Loyola
+              </Text>
+            </Pressable>
+          </View>
 
           <Pressable
-            onPress={() => selectCampus("loyola")}
-            testID="campus-toggle-loyola"
-            style={[
-              styles.campusToggleOption,
-              currentCampus === "loyola" && styles.campusToggleOptionActive,
-            ]}
+            onPress={() => {
+              setShowShuttleSchedulePanel(true);
+              if (shuttleStatus.available) setShowShuttle(true);
+            }}
+            style={styles.routeFromCampusButton}
+            testID="shuttle-button"
+            accessibilityRole="button"
+            accessibilityLabel="Show shuttle route and schedule"
           >
-            <Text
-              style={[
-                styles.campusToggleText,
-                currentCampus === "loyola" && styles.campusToggleTextActive,
-              ]}
-            >
-              Loyola
-            </Text>
+            <MaterialCommunityIcons name="bus" size={18} color={colors.white} />
+            <Text style={styles.routeFromCampusButtonText}>Shuttle</Text>
           </Pressable>
         </View>
       </View>
 
       {/* Floating Buttons */}
-      {/* HERE IS THE BUTTON TO SHOW THE SHUTTLE */}
       <View style={styles.buttonStack}>
         <Pressable
           testID="show-shuttle-button"
-          onPress={() => setShowShuttle(!showShuttle)}
-          style={[styles.actionButton, !showShuttle && styles.shuttleDisabled]}
+          onPress={() => {
+            if (shuttleStatus.available) setShowShuttle(!showShuttle);
+          }}
+          style={[
+            styles.actionButton,
+            (!showShuttle || !shuttleStatus.available) && styles.shuttleDisabled,
+          ]}
+          accessibilityState={{ disabled: !shuttleStatus.available }}
+          accessibilityLabel={
+            shuttleStatus.available
+              ? (showShuttle ? "Hide shuttle" : "Show shuttle")
+              : "Shuttle not available"
+          }
         >
           <MaterialCommunityIcons
             name={showShuttle ? "bus-clock" : "bus-stop"}
@@ -221,6 +256,10 @@ export default function CampusMapScreen() {
           <MaterialIcons name="my-location" size={22} color={colors.white} />
         </Pressable>
       </View>
+
+      {showShuttleSchedulePanel && (
+        <ShuttleSchedulePanel onClose={() => setShowShuttleSchedulePanel(false)} />
+      )}
 
       {showStepsPanel && (
         <DirectionStepsPanel
@@ -264,6 +303,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 10,
   },
+  campusToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   campusToggle: {
     flexDirection: "row",
     backgroundColor: colors.offWhite,
@@ -273,6 +317,23 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     maxWidth: 160,
     opacity: 0.93,
+  },
+  routeFromCampusButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primaryDarker,
+    opacity: 0.93,
+  },
+  routeFromCampusButtonText: {
+    ...typography.button,
+    color: colors.white,
+    fontSize: 14,
   },
   campusToggleOption: {
     flex: 1,

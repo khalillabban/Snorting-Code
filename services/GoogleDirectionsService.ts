@@ -1,4 +1,5 @@
-import { WALKING_STRATEGY } from '../constants/strategies';
+import { BUSSTOP } from '../constants/shuttle';
+import { DRIVING_STRATEGY, WALKING_STRATEGY } from '../constants/strategies';
 import { RouteStrategy } from './Routing';
 
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -51,11 +52,12 @@ function requireGoogleApiKey(): string {
 
 function buildDirectionsUrl(origin: LatLng, destination: LatLng, strategy: RouteStrategy): string {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
+  const mode = strategy.mode === "shuttle" ? DRIVING_STRATEGY.mode : strategy.mode;
 
   url.search = new URLSearchParams({
     origin: `${origin.latitude},${origin.longitude}`,
     destination: `${destination.latitude},${destination.longitude}`,
-    mode: strategy.mode,
+    mode,
     key: requireGoogleApiKey(),
   }).toString();
 
@@ -77,7 +79,16 @@ export async function getOutdoorRouteWithSteps(
   if (!process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) {
     return { coordinates: [], steps: [], duration: undefined, distance: undefined };
   }
-  const url = buildDirectionsUrl(origin, destination, strategy);
+
+  let effectiveOrigin = origin;
+  let effectiveDestination = destination;
+
+  if (strategy.mode === "shuttle") {
+    effectiveOrigin = BUSSTOP[0].coordinates;
+    effectiveDestination = BUSSTOP[1].coordinates;
+  }
+
+  const url = buildDirectionsUrl(effectiveOrigin, effectiveDestination, strategy);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -101,15 +112,28 @@ export async function getOutdoorRouteWithSteps(
     return encoded ? decodePolyline(encoded) : [];
   });
 
-  const routeSteps: RouteStep[] = steps.map((step) => ({
-    instruction: step.html_instructions ? stripHtml(step.html_instructions) : "",
-    distance: step.distance?.text,
-    duration: step.duration?.text,
-  }));
+  let routeSteps: RouteStep[];
+  let duration: string | undefined;
+  let distance: string | undefined;
 
-  const leg = data.routes?.[0]?.legs?.[0];
-  const duration = leg?.duration?.text;
-  const distance = leg?.distance?.text;
+  if (strategy.mode === "shuttle") {
+    routeSteps = [
+      { instruction: `Board Concordia shuttle at ${BUSSTOP[0].name}`, distance: undefined, duration: undefined },
+      { instruction: `Get off at ${BUSSTOP[1].name}`, distance: undefined, duration: undefined },
+    ];
+    const leg = data.routes?.[0]?.legs?.[0];
+    duration = leg?.duration?.text;
+    distance = leg?.distance?.text;
+  } else {
+    routeSteps = steps.map((step) => ({
+      instruction: step.html_instructions ? stripHtml(step.html_instructions) : "",
+      distance: step.distance?.text,
+      duration: step.duration?.text,
+    }));
+    const leg = data.routes?.[0]?.legs?.[0];
+    duration = leg?.duration?.text;
+    distance = leg?.distance?.text;
+  }
 
   return { coordinates, steps: routeSteps, duration, distance };
 }

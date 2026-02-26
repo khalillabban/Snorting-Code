@@ -24,5 +24,17 @@ export const TRANSIT_STRATEGY: RouteStrategy = {
   icon: 'bus',
 };
 
+export const SHUTTLE_STRATEGY: RouteStrategy = {
+  mode: 'shuttle',
+  label: 'Shuttle',
+  icon: 'bus-clock',
+};
+
 // Helper to get all strategies for a UI loop
-export const ALL_STRATEGIES = [WALKING_STRATEGY, BIKING_STRATEGY, DRIVING_STRATEGY, TRANSIT_STRATEGY];
+export const ALL_STRATEGIES = [
+  WALKING_STRATEGY,
+  BIKING_STRATEGY,
+  DRIVING_STRATEGY,
+  TRANSIT_STRATEGY,
+  SHUTTLE_STRATEGY,
+];

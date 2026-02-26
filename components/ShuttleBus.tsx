@@ -2,6 +2,8 @@ import { Departure } from "@/constants/type";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { shuttleSchedule } from "../constants/shuttle";
+import { getScheduleKeyForDate } from "../utils/shuttleAvailability";
+
 type Campus = "SGW" | "Loyola";
 
 const getNextShuttleDepartures = (
@@ -10,18 +12,11 @@ const getNextShuttleDepartures = (
   limit: number = 2,
 ): Departure[] => {
   const now = new Date();
-  const dayOfWeek = now.getDay();
+  const scheduleKey = getScheduleKeyForDate(now);
+
+  if (scheduleKey === "weekend") return [];
+
   const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-
-  let scheduleKey: "monday-thursday" | "friday" | "weekend";
-
-  if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-    scheduleKey = "monday-thursday";
-  } else if (dayOfWeek === 5) {
-    scheduleKey = "friday";
-  } else {
-    return [];
-  }
 
   const directionKey = `${startCampus}_to_${endCampus}` as
     | "SGW_to_Loyola"

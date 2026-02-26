@@ -12,6 +12,7 @@ import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import type { Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
+import { DRIVING_STRATEGY } from "../constants/strategies";
 import { BUSSTOP } from "../constants/shuttle";
 import type { CampusKey } from "../constants/campuses";
 import { colors, spacing } from "../constants/theme";
@@ -98,10 +99,11 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
     bicycling: colors.routeBike,
     driving: colors.routeDrive,
     transit: colors.routeTransit,
+    shuttle: colors.routeTransit,
   };
   const strokeColor = strokeColors[mode] ?? colors.primary;
   const lineDashPattern =
-    mode === "transit" ? [8, 6] : mode === "bicycling" ? [4, 4] : undefined;
+    mode === "transit" || mode === "shuttle" ? [8, 6] : mode === "bicycling" ? [4, 4] : undefined;
   return { strokeColor, lineDashPattern };
 }
 
@@ -128,6 +130,9 @@ export default function CampusMap({
     null
   );
   const [routeCoords, setRouteCoords] = useState<
+    { latitude: number; longitude: number }[]
+  >([]);
+  const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
 
@@ -288,6 +293,38 @@ export default function CampusMap({
       cancelled = true;
     };
   }, [startPoint, destinationPoint, strategy, onRouteSteps]);
+
+  // Fetch shuttle route (campus to campus) via Google Directions when showShuttle is true
+  useEffect(() => {
+    if (!showShuttle) {
+      setShuttleRouteCoords([]);
+      return;
+    }
+
+    let cancelled = false;
+    const origin = BUSSTOP[0].coordinates;
+    const destination = BUSSTOP[1].coordinates;
+
+    async function fetchShuttleRoute() {
+      try {
+        const { coordinates } = await getOutdoorRouteWithSteps(
+          origin,
+          destination,
+          DRIVING_STRATEGY
+        );
+        if (!cancelled) setShuttleRouteCoords(coordinates ?? []);
+      } catch (_e) {
+        if (!cancelled) setShuttleRouteCoords([]);
+      }
+    }
+
+    fetchShuttleRoute().catch(() => {
+      if (!cancelled) setShuttleRouteCoords([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showShuttle]);
 
   // Animate map focus
   useEffect(() => {
@@ -490,21 +527,50 @@ export default function CampusMap({
           );
         })()}
 
-        {/* Live shuttle markers */}
+        {/* Shuttle route (Google Directions) + live shuttle markers */}
         {showShuttle && (
           <>
-            {BUSSTOP.map((stop) => (
-              <Marker
-                key={stop.id}
-                coordinate={stop.coordinates}
-                title={stop.name}
-                description={stop.address}
-              >
-                <View style={styles.busStopMarker}>
-                  <Text style={styles.busStopIcon}>🚏</Text>
-                </View>
-              </Marker>
-            ))}
+            {shuttleRouteCoords.length > 0 && (
+              <Polyline
+                coordinates={shuttleRouteCoords}
+                strokeWidth={6}
+                strokeColor={colors.routeTransit}
+                lineDashPattern={[10, 6]}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={1}
+              />
+            )}
+            {BUSSTOP.map((stop, index) => {
+              const campusLabel =
+                stop.id === "SGW_Stop" ? "SGW" : "Loyola";
+              const startOrEnd = index === 0 ? "Start" : "End";
+              return (
+                <Marker
+                  key={stop.id}
+                  coordinate={stop.coordinates}
+                  title={stop.name}
+                  description={stop.address}
+                  anchor={{ x: 0.5, y: 1 }}
+                >
+                  <View style={styles.shuttleStopMarker}>
+                    <View style={styles.shuttleStopPin}>
+                      <MaterialCommunityIcons
+                        name="bus-stop-covered"
+                        size={24}
+                        color={colors.white}
+                      />
+                    </View>
+                    <View style={styles.shuttleStopLabel}>
+                      <Text style={styles.shuttleStopCampus}>{campusLabel}</Text>
+                      <Text style={styles.shuttleStopStartEnd}>
+                        Shuttle {startOrEnd}
+                      </Text>
+                    </View>
+                  </View>
+                </Marker>
+              );
+            })}
 
             {activeBuses.map((bus) => (
               <Marker
@@ -586,6 +652,39 @@ const styles = StyleSheet.create({
   },
   busStopIcon: {
     fontSize: 22,
+  },
+  shuttleStopMarker: {
+    alignItems: "center",
+  },
+  shuttleStopPin: {
+    backgroundColor: colors.routeTransit,
+    borderRadius: 20,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: colors.white,
+  },
+  shuttleStopLabel: {
+    marginTop: 4,
+    backgroundColor: colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    alignItems: "center",
+    minWidth: 72,
+  },
+  shuttleStopCampus: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primaryDark,
+  },
+  shuttleStopStartEnd: {
+    fontSize: 11,
+    color: colors.gray500,
+    marginTop: 1,
   },
   busPin: {
     alignItems: "center",
