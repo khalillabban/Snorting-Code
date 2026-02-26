@@ -149,8 +149,9 @@ export const styles = StyleSheet.create({
   },
   modeContainer: {
     flexDirection: "row",
-    gap: spacing.sm,
     flexWrap: "wrap",
+    justifyContent: "space-between", 
+    gap: 4,
   },
   routeSummaryText: {
     marginTop: spacing.sm,
@@ -160,13 +161,12 @@ export const styles = StyleSheet.create({
   },
   modeButton: {
     flex: 1,
-    minWidth: 72,
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 2,
+    borderRadius: 8,
     backgroundColor: colors.gray100,
   },
   activeModeButton: {
@@ -178,8 +178,8 @@ export const styles = StyleSheet.create({
     elevation: 2,
   },
   modeText: {
-    marginLeft: 6,
-    fontSize: 14,
+    fontSize: 10,
+    marginTop: 2,
     fontWeight: "600",
   },
 });

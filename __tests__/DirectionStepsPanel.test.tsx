@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
-import { RouteStep } from "../services/GoogleDirectionsService";
+import { RouteStep } from "../constants/type";
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialCommunityIcons: "MaterialCommunityIcons",

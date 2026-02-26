@@ -7,14 +7,13 @@ import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
-import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing, typography } from "../constants/theme";
-import { Buildings } from "../constants/type";
-import { RouteStep } from "../services/GoogleDirectionsService";
+import { Buildings, RouteStep } from "../constants/type";
+import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -193,21 +192,17 @@ export default function CampusMapScreen() {
               </Text>
             </Pressable>
           </View>
-
-          <Pressable
-            onPress={() => {
-              setShowShuttleSchedulePanel(true);
-              if (shuttleStatus.available) setShowShuttle(true);
-            }}
-            style={styles.routeFromCampusButton}
-            testID="shuttle-button"
-            accessibilityRole="button"
-            accessibilityLabel="Show shuttle route and schedule"
-          >
-            <MaterialCommunityIcons name="bus" size={18} color={colors.white} />
-            <Text style={styles.routeFromCampusButtonText}>Shuttle</Text>
-          </Pressable>
+          
         </View>
+      </View>
+
+      <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
+      <Pressable
+        onPress={() => setShowShuttleSchedulePanel(true)}
+        style={[styles.actionButton]}
+      >
+        <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
+      </Pressable>
       </View>
 
       {/* Floating Buttons */}

@@ -60,6 +60,23 @@ function buildDirectionsUrl(
   return url.toString();
 }
 
+function parseToMinutes(timeStr?: string): number {
+  if (!timeStr) return 0;
+  let total = 0;
+  const hourMatch = timeStr.match(/(\d+)\s*hour/);
+  const minMatch = timeStr.match(/(\d+)\s*min/);
+  if (hourMatch) total += parseInt(hourMatch[1]) * 60;
+  if (minMatch) total += parseInt(minMatch[1]);
+  return total;
+}
+
+function formatMinutes(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${totalMinutes} mins`;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return m > 0 ? `${h} hour ${m} mins` : `${h} hour`;
+}
+
 export interface OutdoorRouteResult {
   coordinates: LatLng[];
   segments: RouteSegment[]; // <-- add this
@@ -84,73 +101,66 @@ export async function getOutdoorRouteWithSteps(
   }
 
   if (strategy.mode === "shuttle") {
-    // Leg 1: Walk from origin to first bus stop
-    const walkToStop = await getOutdoorRouteWithSteps(
-      origin,
-      BUSSTOP[0].coordinates,
-      WALKING_STRATEGY,
-    );
+    const distToSGW = Math.abs(origin.latitude - BUSSTOP[0].coordinates.latitude);
+    const fromStop = distToSGW < 0.01 ? BUSSTOP[0] : BUSSTOP[1];
+    const toStop = fromStop === BUSSTOP[0] ? BUSSTOP[1] : BUSSTOP[0];
 
-    // Leg 2: Shuttle between stops
-    const shuttleUrl = buildDirectionsUrl(
-      BUSSTOP[0].coordinates,
-      BUSSTOP[1].coordinates,
-      DRIVING_STRATEGY,
-    );
+    // Walk to the stop
+    const walkToStop = await getOutdoorRouteWithSteps(origin, fromStop.coordinates, WALKING_STRATEGY);
+
+    // Shuttle ride
+    const shuttleUrl = buildDirectionsUrl(fromStop.coordinates, toStop.coordinates, DRIVING_STRATEGY);
     const shuttleResponse = await fetch(shuttleUrl);
     const shuttleData: DirectionsResponse = await shuttleResponse.json();
     const shuttleLeg = shuttleData.routes?.[0]?.legs?.[0];
+
     const shuttleCoords = (shuttleLeg?.steps ?? []).flatMap((step) => {
       const encoded = step.polyline?.points;
       return encoded ? decodePolyline(encoded) : [];
     });
 
-    // Leg 3: Walk from second bus stop to destination
-    const walkFromStop = await getOutdoorRouteWithSteps(
-      BUSSTOP[1].coordinates,
-      destination,
-      WALKING_STRATEGY,
-    );
+    // Walk from the stop to destination
+    const walkFromStop = await getOutdoorRouteWithSteps(toStop.coordinates, destination, WALKING_STRATEGY);
+
+    // Filter out "Empty" walking legs (if user is already at the stop)
+    const validWalkToSteps = walkToStop.steps.filter(s => s.duration !== "1 min" || s.distance !== "0 m");
+    const validWalkFromSteps = walkFromStop.steps.filter(s => s.duration !== "1 min" || s.distance !== "0 m");
+
+    const totalMins =
+      parseToMinutes(walkToStop.duration) +
+      parseToMinutes(shuttleLeg?.duration?.text) +
+      parseToMinutes(walkFromStop.duration);
+
+
+    const parseDistance = (d?: string) => {
+      if (!d) return 0;
+      if (d.includes("km")) return parseFloat(d);
+      if (d.includes("m")) return parseFloat(d) / 1000; // Convert meters to km
+      return 0;
+    };
+
+    const totalDistance = parseDistance(walkToStop.distance) +
+      parseDistance(shuttleLeg?.distance?.text) +
+      parseDistance(walkFromStop.distance);
 
     return {
-      coordinates: [
-        ...walkToStop.coordinates,
-        ...shuttleCoords,
-        ...walkFromStop.coordinates,
-      ],
+      coordinates: [...walkToStop.coordinates, ...shuttleCoords, ...walkFromStop.coordinates],
       segments: [
         { coordinates: walkToStop.coordinates, mode: "walking" },
         { coordinates: shuttleCoords, mode: "shuttle" },
         { coordinates: walkFromStop.coordinates, mode: "walking" },
       ],
       steps: [
-        ...walkToStop.steps,
+        ...validWalkToSteps,
         {
-          instruction: `Board Concordia shuttle at ${BUSSTOP[0].name}`,
+          instruction: `Board Concordia shuttle at ${fromStop.name}`,
           distance: shuttleLeg?.distance?.text,
           duration: shuttleLeg?.duration?.text,
         },
-        ...walkFromStop.steps,
-        {
-          instruction: `Arrive at destination`,
-          distance: undefined,
-          duration: undefined,
-        },
+        ...validWalkFromSteps,
       ],
-      duration: [
-        walkToStop.duration,
-        shuttleLeg?.duration?.text,
-        walkFromStop.duration,
-      ]
-        .filter(Boolean)
-        .join(" + "),
-      distance: [
-        walkToStop.distance,
-        shuttleLeg?.distance?.text,
-        walkFromStop.distance,
-      ]
-        .filter(Boolean)
-        .join(" + "),
+      duration: formatMinutes(totalMins),
+      distance: `${totalDistance.toFixed(1)} km`,
     };
   }
 

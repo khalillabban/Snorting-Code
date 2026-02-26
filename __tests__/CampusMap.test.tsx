@@ -77,7 +77,7 @@ jest.mock("react-native-maps", () => {
           })}
         </Text>
 
-        {/* ✅ IMPORTANT: render children so label pills exist in the tree */}
+        {/* IMPORTANT: render children so label pills exist in the tree */}
         {props.children}
       </View>
     );
@@ -232,7 +232,7 @@ describe("CampusMap", () => {
   // --- Rendering basics ---
 
   it("renders the map and polygons (and warns on empty boundingBox)", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     expect(screen.getByTestId("map-view")).toBeTruthy();
     expect(screen.getAllByTestId("polygon")).toHaveLength(3);
@@ -249,7 +249,7 @@ describe("CampusMap", () => {
   it("shows an error when location services are disabled", async () => {
     (hasServicesEnabledAsync as jest.Mock).mockResolvedValue(false);
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     expect(
       await screen.findByText("Location services are disabled."),
@@ -266,7 +266,7 @@ describe("CampusMap", () => {
       status: "denied",
     });
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     expect(
       await screen.findByText("Permission to access location was denied."),
@@ -275,7 +275,7 @@ describe("CampusMap", () => {
   });
 
   it("sets user coords and renders the current location marker on success", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
   });
@@ -283,7 +283,7 @@ describe("CampusMap", () => {
   it("shows an error when current location cannot be retrieved", async () => {
     (getCurrentPositionAsync as jest.Mock).mockRejectedValue(new Error("boom"));
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     expect(
       await screen.findByText("Unable to get your current location."),
@@ -295,7 +295,7 @@ describe("CampusMap", () => {
   it("animates to campus coordinates when focusTarget is not user", async () => {
     const mapsMock = getMapsMock();
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     await waitFor(() => {
       expect(mapsMock.__animateToRegion).toHaveBeenCalled();
@@ -314,7 +314,7 @@ describe("CampusMap", () => {
   it("animates to user coordinates when focusTarget is user", async () => {
     const mapsMock = getMapsMock();
 
-    render(<CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     await waitFor(() => {
       expect(mapsMock.__animateToRegion).toHaveBeenCalled();
@@ -334,7 +334,7 @@ describe("CampusMap", () => {
 
   it("animates to building location when a building is selected", async () => {
     const mapsMock = getMapsMock();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[0]); // Select Building A
@@ -356,8 +356,7 @@ describe("CampusMap", () => {
         coordinates={coordinates}
         focusTarget="sgw"
         strategy={WALKING_STRATEGY}
-        onSetAsDestination={onSetAsDestination}
-      />
+        onSetAsDestination={onSetAsDestination} showShuttle={false}      />
     );
 
     const polygons = await screen.findAllByTestId("polygon");
@@ -377,7 +376,7 @@ describe("CampusMap", () => {
   // --- Map/building interaction ---
 
   it("selects a building on polygon press and clears it on map press", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[1]);
@@ -390,7 +389,7 @@ describe("CampusMap", () => {
   });
 
   it("clears selection when the popup close is pressed", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[0]);
@@ -406,7 +405,7 @@ describe("CampusMap", () => {
   it("applies current, selected, and default polygon styles", async () => {
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(BUILDINGS[0]);
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
 
     const polygons = await screen.findAllByTestId("polygon");
 
@@ -452,6 +451,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         startPoint={startBuilding}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -474,6 +474,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         destinationPoint={destinationBuilding}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -499,6 +500,7 @@ describe("CampusMap", () => {
         startPoint={startBuilding}
         destinationPoint={destinationBuilding}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -518,6 +520,7 @@ describe("CampusMap", () => {
         startPoint={undefined}
         destinationPoint={undefined}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -550,6 +553,7 @@ describe("CampusMap", () => {
         startPoint={startBuilding}
         destinationPoint={destinationBuilding}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -585,6 +589,7 @@ describe("CampusMap", () => {
         startPoint={BUILDINGS[0]}
         destinationPoint={BUILDINGS[1]}
         strategy={transitStrategy as any}
+        showShuttle={false}
       />
     );
     const polyline = await screen.findByTestId("polyline-main-props");
@@ -607,6 +612,7 @@ describe("CampusMap", () => {
         startPoint={startBuilding}
         destinationPoint={destinationBuilding}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -618,7 +624,7 @@ describe("CampusMap", () => {
   });
 
   it("toggles labelsVisible correctly based on zoom thresholds", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false}/>);
 
     await screen.findByTestId("marker-You are here");
     const map = screen.getByTestId("map-view");
@@ -685,6 +691,7 @@ describe("CampusMap", () => {
         startPoint={BUILDINGS[0]}
         destinationPoint={BUILDINGS[1]}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -722,6 +729,7 @@ describe("CampusMap", () => {
         startPoint={BUILDINGS[0]}
         destinationPoint={BUILDINGS[1]}
         strategy={bikeStrategy as any}
+        showShuttle={false}
       />,
     );
 
@@ -745,6 +753,7 @@ describe("CampusMap", () => {
         startPoint={BUILDINGS[0]}
         destinationPoint={BUILDINGS[1]}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -759,7 +768,7 @@ describe("CampusMap", () => {
     const mapsMock = getMapsMock();
 
     const { rerender } = render(
-      <CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} userFocusCounter={0} />,
+      <CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} userFocusCounter={0} showShuttle={false}/>,
     );
 
     await waitFor(() => {
@@ -769,7 +778,7 @@ describe("CampusMap", () => {
     mapsMock.__animateToRegion.mockClear();
 
     rerender(
-      <CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} userFocusCounter={1} />,
+      <CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} userFocusCounter={1} showShuttle={false}/>,
     );
 
     await waitFor(() => {
@@ -792,6 +801,7 @@ describe("CampusMap", () => {
         strategy={WALKING_STRATEGY}
         startPoint={BUILDINGS[0]}
         routeFocusTrigger={0}
+        showShuttle={false}
       />,
     );
 
@@ -808,6 +818,7 @@ describe("CampusMap", () => {
         strategy={WALKING_STRATEGY}
         startPoint={BUILDINGS[0]}
         routeFocusTrigger={1}
+        showShuttle={false}
       />,
     );
 
@@ -831,6 +842,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         startPoint={BUILDINGS[0]}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -846,6 +858,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         destinationPoint={BUILDINGS[1]}
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -865,6 +878,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         strategy={WALKING_STRATEGY}
         onSetAsStart={onSetAsStart}
+        showShuttle={false}
       />,
     );
 
@@ -890,6 +904,7 @@ describe("CampusMap", () => {
         focusTarget="sgw"
         strategy={WALKING_STRATEGY}
         demoCurrentBuilding={BUILDINGS[1]}
+        showShuttle={false}
       />,
     );
 
@@ -922,6 +937,7 @@ describe("CampusMap", () => {
         coordinates={coordinates}
         focusTarget="sgw"
         strategy={WALKING_STRATEGY}
+        showShuttle={false}
       />,
     );
 
@@ -950,6 +966,7 @@ describe("CampusMap", () => {
         destinationPoint={BUILDINGS[1]}
         strategy={WALKING_STRATEGY}
         onRouteSteps={onRouteSteps}
+        showShuttle={false}
       />,
     );
 
@@ -965,7 +982,7 @@ describe("CampusMap", () => {
       status: "granted",
     });
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} />);
+    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false}/>);
 
     await screen.findByTestId("marker-You are here");
 
