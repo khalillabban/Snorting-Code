@@ -2,10 +2,17 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { Animated, Keyboard } from "react-native";
 import NavigationBar from "../components/NavigationBar";
+import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 
-// Mock dependencies
 jest.mock("@expo/vector-icons", () => ({
   MaterialIcons: "MaterialIcons",
+  MaterialCommunityIcons: "MaterialCommunityIcons",
+}));
+
+jest.mock("../services/GoogleDirectionsService", () => ({
+  getOutdoorRouteWithSteps: jest.fn(
+    () => new Promise<never>(() => { })
+  ),
 }));
 
 jest.mock("../constants/buildings", () => ({
@@ -19,7 +26,7 @@ jest.mock("../constants/buildings", () => ({
       icons: ["information", "wheelchair"],
       departments: ["Biology", "Chemistry and Biochemistry", "Physics"],
       services: ["Café", "Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [],
+      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
     },
     {
       name: "VL",
@@ -54,7 +61,7 @@ jest.mock("../constants/buildings", () => ({
         "Sociology and Anthropology",
       ],
       services: ["Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [],
+      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
     },
     {
       name: "EV",
@@ -129,7 +136,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      expect(queryByPlaceholderText("Starting location")).toBeNull();
+      expect(queryByPlaceholderText("From")).toBeNull();
     });
 
     it("should render when visible is true", async () => {
@@ -142,8 +149,8 @@ describe("NavigationBar", () => {
       );
 
       await waitFor(() => {
-        expect(getByPlaceholderText("Starting location")).toBeTruthy();
-        expect(getByPlaceholderText("Search Here")).toBeTruthy();
+        expect(getByPlaceholderText("From")).toBeTruthy();
+        expect(getByPlaceholderText("To")).toBeTruthy();
       });
     });
 
@@ -157,6 +164,58 @@ describe("NavigationBar", () => {
       );
 
       expect(getByText("Get Directions")).toBeTruthy();
+    });
+    it("handles route summary error gracefully", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(new Error("API Error"));
+
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      await waitFor(() => {
+        expect(queryByText(/mins/)).toBeNull();
+      });
+    });
+    it("applies initialDestination and calls the applied callback", () => {
+      const mockInitialDest = {
+        name: "H",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+      };
+      const mockOnApplied = jest.fn();
+
+      const { getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          initialDestination={mockInitialDest as any}
+          onInitialDestinationApplied={mockOnApplied}
+        />
+      );
+
+      expect(getByPlaceholderText("To").props.value).toBe("Henry F. Hall Building (H)");
+      expect(mockOnApplied).toHaveBeenCalled();
+    });
+    it("updates the selected strategy when a mode button is pressed", () => {
+      const { getByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+
+      fireEvent.press(getByText("Car"));
+
+      fireEvent.press(getByText("Get Directions"));
+
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null, // start
+        null, // dest
+        expect.objectContaining({ mode: "driving", label: "Car" })
+      );
     });
   });
 
@@ -212,7 +271,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
@@ -227,7 +286,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const destInput = getByPlaceholderText("Search Here");
+      const destInput = getByPlaceholderText("To");
       fireEvent.changeText(destInput, "Library");
 
       expect(getByText("Concordia Vanier Library (VL)")).toBeTruthy();
@@ -242,7 +301,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
@@ -257,7 +316,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
 
       fireEvent.changeText(startInput, "Science");
 
@@ -278,7 +337,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -298,7 +357,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const destInput = getByPlaceholderText("Search Here");
+      const destInput = getByPlaceholderText("To");
       fireEvent.changeText(destInput, "Library");
 
       const suggestion = getByText("Concordia Vanier Library (VL)");
@@ -316,7 +375,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -337,7 +396,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -357,11 +416,11 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
       fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
 
-      const destInput = getByPlaceholderText("Search Here");
+      const destInput = getByPlaceholderText("To");
       fireEvent.changeText(destInput, "Library");
       fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
@@ -377,6 +436,7 @@ describe("NavigationBar", () => {
           name: "VL",
           displayName: "Concordia Vanier Library (VL)",
         }),
+        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
       );
     });
 
@@ -407,7 +467,11 @@ describe("NavigationBar", () => {
       const confirmButton = getByText("Get Directions");
       fireEvent.press(confirmButton);
 
-      expect(mockOnConfirm).toHaveBeenCalledWith(null, null);
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null,
+        null,
+        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+      );
     });
   });
 
@@ -493,6 +557,28 @@ describe("NavigationBar", () => {
         } else {
           expect(true).toBe(true);
         }
+      });
+    });
+
+    describe("Building Picker (List Button)", () => {
+      it("filters buildings by campus and valid bounding box when picker is opened", async () => {
+        const { getByLabelText, getByText, queryByText } = render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            currentCampus="loyola"
+          />
+        );
+
+        const listButton = getByLabelText("Pick starting building from list");
+        fireEvent.press(listButton);
+
+        expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+        expect(queryByText("Henry F. Hall Building (H)")).toBeNull();
+
+        expect(queryByText("Building with no box")).toBeNull();
       });
     });
 
@@ -801,6 +887,53 @@ describe("NavigationBar", () => {
           expect(true).toBe(true);
         }
       });
+      it("does not overwrite start location with autoStartBuilding if user has manually edited it", () => {
+        const mockAuto = { name: "EV", displayName: "EV Building" };
+        const { getByPlaceholderText, rerender } = render(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={null} />
+        );
+
+        const input = getByPlaceholderText("From");
+
+        fireEvent.changeText(input, "User Typed Location");
+
+        rerender(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={mockAuto as any} />
+        );
+
+        expect(input.props.value).toBe("User Typed Location");
+      });
+      it("applies initialStart and calls the applied callback", () => {
+        const mockInitialStart = { name: "H", displayName: "Hall Building" };
+        const mockOnApplied = jest.fn();
+
+        const { getByPlaceholderText } = render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            initialStart={mockInitialStart as any}
+            onInitialStartApplied={mockOnApplied}
+          />
+        );
+
+        expect(getByPlaceholderText("From").props.value).toBe("Hall Building");
+        expect(mockOnApplied).toHaveBeenCalled();
+      });
+      it("shows 'Loading…' while the route is being fetched", async () => {
+        (getOutdoorRouteWithSteps as jest.Mock).mockReturnValue(new Promise(() => { }));
+
+        const { getByPlaceholderText, getByText } = render(
+          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        );
+
+        fireEvent.changeText(getByPlaceholderText("From"), "Science");
+        fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+        fireEvent.changeText(getByPlaceholderText("To"), "Library");
+        fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+        expect(getByText("Loading…")).toBeTruthy();
+      });
 
       it("should handle very large dy values", () => {
         const rendered = render(
@@ -866,7 +999,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Test");
 
       expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
@@ -881,7 +1014,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       const longQuery = "a".repeat(1000);
 
       expect(() => {
@@ -898,7 +1031,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
 
       fireEvent.changeText(startInput, "E");
       fireEvent.changeText(startInput, "En");
@@ -917,7 +1050,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
 
       expect(() => {
         fireEvent.changeText(startInput, "@#$%^&*()");
@@ -935,8 +1068,8 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
-      const destInput = getByPlaceholderText("Search Here");
+      const startInput = getByPlaceholderText("From");
+      const destInput = getByPlaceholderText("To");
 
       fireEvent.changeText(startInput, "Science");
       fireEvent.changeText(destInput, "Library");
@@ -954,12 +1087,12 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("Starting location");
+      const startInput = getByPlaceholderText("From");
       fireEvent.changeText(startInput, "Science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
 
-      const destInput = getByPlaceholderText("Search Here");
+      const destInput = getByPlaceholderText("To");
       fireEvent.changeText(destInput, "Library");
 
       expect(queryByText("Concordia Vanier Library (VL)")).toBeTruthy();
@@ -992,7 +1125,7 @@ describe("NavigationBar", () => {
 
       await waitFor(() => {
         expect(
-          getByPlaceholderText("Starting location").props.value
+          getByPlaceholderText("From").props.value
         ).toBe(mockAutoBuilding.displayName);
       });
     });
@@ -1015,7 +1148,8 @@ describe("NavigationBar", () => {
           displayName:
             "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
         }),
-        null
+        null,
+        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
       );
     });
 
@@ -1029,8 +1163,175 @@ describe("NavigationBar", () => {
         />
       );
 
-      expect(getByPlaceholderText("Starting location").props.value).toBe("");
+      expect(getByPlaceholderText("From").props.value).toBe("");
     });
   });
 
+  describe("Swap and route summary", () => {
+    it("swaps origin and destination when swap button is pressed", () => {
+      const { getByPlaceholderText, getByLabelText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const fromInput = getByPlaceholderText("From");
+      const toInput = getByPlaceholderText("To");
+
+      fireEvent.changeText(fromInput, "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(toInput, "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      expect(fromInput.props.value).toContain("Richard J Renaud");
+      expect(toInput.props.value).toContain("Vanier Library");
+
+      fireEvent.press(getByLabelText("Swap origin and destination"));
+
+      expect(fromInput.props.value).toContain("Vanier Library");
+      expect(toInput.props.value).toContain("Richard J Renaud");
+    });
+
+    it("shows route summary when both locations set and API returns duration and distance", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValueOnce({
+        coordinates: [],
+        steps: [],
+        duration: "12 mins",
+        distance: "2.1 km",
+      });
+
+      const { getByPlaceholderText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      await waitFor(() => {
+        expect(getByText("12 mins · 2.1 km")).toBeTruthy();
+      });
+    });
+  });
+
+  describe("Building Picker Toggle", () => {
+    it("closes building picker when same list button is pressed a second time", () => {
+      const { getByLabelText, queryByText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          currentCampus="loyola"
+        />
+      );
+
+      const listButton = getByLabelText("Pick starting building from list");
+
+      // First press: opens picker
+      fireEvent.press(listButton);
+      expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+      // Second press: closes picker (toggle)
+      fireEvent.press(listButton);
+      expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
+      expect(getByText("Get Directions")).toBeTruthy();
+    });
+
+    it("closes destination picker when same list button is pressed again", () => {
+      const { getByLabelText, queryByText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          currentCampus="loyola"
+        />
+      );
+
+      const listButton = getByLabelText("Pick destination building from list");
+
+      fireEvent.press(listButton);
+      expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+
+      fireEvent.press(listButton);
+      expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
+    });
+  });
+
+  describe("Use My Location Button", () => {
+    it("renders use-my-location button when onUseMyLocation callback is provided", () => {
+      const mockUseMyLocation = jest.fn(() => null);
+      const { getByLabelText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      expect(getByLabelText("Use my current location as start")).toBeTruthy();
+    });
+
+    it("does not render use-my-location button when onUseMyLocation is not provided", () => {
+      const { queryByLabelText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />
+      );
+
+      expect(queryByLabelText("Use my current location as start")).toBeNull();
+    });
+
+    it("sets start to building name when onUseMyLocation returns a building", () => {
+      const mockBuilding = {
+        name: "SP",
+        displayName: "Richard J Renaud Science Complex (SP)",
+        coordinates: { latitude: 45.4576633, longitude: -73.6413024 },
+      };
+      const mockUseMyLocation = jest.fn(() => mockBuilding as any);
+
+      const { getByLabelText, getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      expect(mockUseMyLocation).toHaveBeenCalled();
+      expect(getByPlaceholderText("From").props.value).toBe(
+        "Richard J Renaud Science Complex (SP)"
+      );
+    });
+
+    it("sets start to 'My Location' when onUseMyLocation returns null", () => {
+      const mockUseMyLocation = jest.fn(() => null);
+
+      const { getByLabelText, getByPlaceholderText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onUseMyLocation={mockUseMyLocation}
+        />
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      expect(mockUseMyLocation).toHaveBeenCalled();
+      expect(getByPlaceholderText("From").props.value).toBe("My Location");
+    });
+  });
 });

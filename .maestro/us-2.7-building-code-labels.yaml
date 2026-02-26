@@ -1,0 +1,25 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Concordia Maps"
+    timeout: 10000
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 10000
+
+- tapOn: "SGW Campus"
+
+- doubleTapOn:
+    point: "50%,55%"
+
+- waitForAnimationToEnd:
+    timeout: 1200
+
+- extendedWaitUntil:
+    visible: "MB"
+    timeout: 8000

@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { MaterialIcons } from "@expo/vector-icons";
 import {
   Accuracy,
   getCurrentPositionAsync,
@@ -6,29 +7,49 @@ import {
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
 } from "expo-location";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import type { Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import { BUSSTOP } from "../constants/shuttle";
+import type { CampusKey } from "../constants/campuses";
 import { colors, spacing } from "../constants/theme";
-import { Buildings, Location } from "../constants/type";
-import { getOutdoorRoute } from "../services/GoogleDirectionsService";
+import type { Buildings, Location } from "../constants/type";
+import {
+  getOutdoorRouteWithSteps,
+  type RouteStep,
+} from "../services/GoogleDirectionsService";
+import type { RouteStrategy } from "../services/Routing";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
-import { useShuttleBus } from "./ShuttleBusTracker"; //NEEDED
+import { useShuttleBus } from "./ShuttleBusTracker";
 
 interface CampusMapProps {
   coordinates: Location;
-  focusTarget: "sgw" | "loyola" | "user";
+  focusTarget: CampusKey | "user";
+  userFocusCounter?: number;
+  routeFocusTrigger?: number;
   startPoint?: Buildings | null;
   destinationPoint?: Buildings | null;
-  showShuttle: boolean; //NEEDED
+  showShuttle: boolean;
+  strategy: RouteStrategy;
+  demoCurrentBuilding?: Buildings | null;
+  onRouteSteps?: (steps: RouteStep[]) => void;
+  onSetAsStart?: (building: Buildings) => void;
+  onSetAsDestination?: (building: Buildings) => void;
+  onSetAsMyLocation?: (building: Buildings) => void;
 }
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
+
+/**
+ * Labels show/hide thresholds based on zoom level (latitudeDelta).
+ */
+const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
+const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isCurrent) {
@@ -63,20 +84,48 @@ function CurrentLocationMarker({
     <Marker
       coordinate={coordinate}
       title={CURRENT_LOCATION_MARKER_TITLE}
-      pinColor={colors.primary}
-    />
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={Platform.OS === "android"}
+    >
+      <View style={styles.currentLocationDot} />
+    </Marker>
   );
+}
+
+function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
+  const strokeColors: Record<RouteStrategy["mode"], string> = {
+    walking: colors.routeWalk,
+    bicycling: colors.routeBike,
+    driving: colors.routeDrive,
+    transit: colors.routeTransit,
+  };
+  const strokeColor = strokeColors[mode] ?? colors.primary;
+  const lineDashPattern =
+    mode === "transit" ? [8, 6] : mode === "bicycling" ? [4, 4] : undefined;
+  return { strokeColor, lineDashPattern };
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
 }
 
 export default function CampusMap({
   coordinates,
   focusTarget,
+  userFocusCounter = 0,
+  routeFocusTrigger = 0,
   startPoint,
   destinationPoint,
-  showShuttle, //NEEDED
+  showShuttle,
+  strategy,
+  demoCurrentBuilding,
+  onRouteSteps,
+  onSetAsStart,
+  onSetAsDestination,
+  onSetAsMyLocation,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
-    null,
+    null
   );
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
@@ -89,8 +138,28 @@ export default function CampusMap({
     longitude: number;
   } | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  //  SHUTTLE BUSES
+
+  // Shuttle buses
   const { activeBuses } = useShuttleBus();
+
+  const [region, setRegion] = useState<Region>({
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+
+  // Sync region center when campus changes
+  useEffect(() => {
+    setRegion((prev) => ({
+      ...prev,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    }));
+  }, [coordinates.latitude, coordinates.longitude]);
+
+  const [labelsVisible, setLabelsVisible] = useState(false);
+  const labelsOpacity = useRef(new Animated.Value(0)).current;
 
   const handleMapPress = () => {
     if (selectedBuilding) setSelectedBuilding(null);
@@ -99,6 +168,31 @@ export default function CampusMap({
   const handleBuildingPress = (building: Buildings) => {
     setSelectedBuilding(building);
   };
+
+  const handleRegionChangeComplete = useCallback((next: Region) => {
+    setRegion(next);
+
+    setLabelsVisible((prev) => {
+      if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
+      return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
+    });
+  }, []);
+
+  useEffect(() => {
+    Animated.timing(labelsOpacity, {
+      toValue: labelsVisible ? 1 : 0,
+      duration: labelsVisible ? 180 : 140,
+      useNativeDriver: true,
+    }).start();
+  }, [labelsVisible, labelsOpacity]);
+
+  const labelScale = useMemo(() => {
+    const d = region.latitudeDelta || 0.01;
+    const raw = 0.65 / d;
+    return clamp(raw, 0.9, 1.35);
+  }, [region.latitudeDelta]);
+
+  const buildingsOnCampus = useMemo(() => BUILDINGS, []);
 
   // Load current GPS location
   useEffect(() => {
@@ -158,29 +252,32 @@ export default function CampusMap({
     };
   }, []);
 
-  // Fetch route when start/destination changes
+  // Fetch route (and steps) when start/destination/strategy changes
   useEffect(() => {
     let cancelled = false;
 
     async function fetchRoute() {
       if (!startPoint || !destinationPoint) {
         setRouteCoords([]);
+        onRouteSteps?.([]);
         return;
       }
 
       try {
-        const route = await getOutdoorRoute(
+        const { coordinates: route, steps } = await getOutdoorRouteWithSteps(
           startPoint.coordinates,
           destinationPoint.coordinates,
+          strategy
         );
 
         if (cancelled) return;
 
         setRouteCoords(route);
-      } catch (error) {
+        onRouteSteps?.(steps);
+      } catch {
         if (!cancelled) {
-          console.log("Route error:", error);
           setRouteCoords([]);
+          onRouteSteps?.([]);
         }
       }
     }
@@ -190,7 +287,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, destinationPoint]);
+  }, [startPoint, destinationPoint, strategy, onRouteSteps]);
 
   // Animate map focus
   useEffect(() => {
@@ -200,17 +297,33 @@ export default function CampusMap({
       if (!userCoords) return;
       mapRef.current?.animateToRegion(
         { ...userCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-        250,
+        250
       );
       return;
     }
 
     mapRef.current?.animateToRegion(
       { ...coordinates, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-      250,
+      250
     );
-  }, [focusTarget, coordinates, userCoords, mapReady]);
+  }, [focusTarget, coordinates, userCoords, mapReady, userFocusCounter]);
 
+  // Focus on start point when route is confirmed
+  useEffect(() => {
+    if (startPoint && mapReady && routeFocusTrigger > 0) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: startPoint.coordinates.latitude,
+          longitude: startPoint.coordinates.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        500
+      );
+    }
+  }, [startPoint, mapReady, routeFocusTrigger]);
+
+  // Focus selected building
   useEffect(() => {
     if (selectedBuilding && mapReady) {
       mapRef.current?.animateToRegion(
@@ -220,18 +333,15 @@ export default function CampusMap({
           latitudeDelta: 0.004,
           longitudeDelta: 0.004,
         },
-        300,
+        300
       );
     }
   }, [selectedBuilding, mapReady]);
 
-  const currentBuilding = useMemo(
-    () =>
-      userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null,
-    [userCoords],
-  );
-
-  console.log("route points:", routeCoords.length);
+  const currentBuilding = useMemo(() => {
+    if (demoCurrentBuilding) return demoCurrentBuilding;
+    return userCoords ? getBuildingContainingPoint(userCoords, BUILDINGS) : null;
+  }, [userCoords, demoCurrentBuilding]);
 
   return (
     <View style={styles.container}>
@@ -242,6 +352,7 @@ export default function CampusMap({
         showsUserLocation={false}
         onPress={handleMapPress}
         onMapReady={() => setMapReady(true)}
+        onRegionChangeComplete={handleRegionChangeComplete}
         initialRegion={{
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
@@ -253,29 +364,54 @@ export default function CampusMap({
 
         {startPoint && (
           <Marker
+            testID="marker-start"
             coordinate={startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={Platform.OS === "android"}
           >
-            <View style={styles.blueDotInner} />
+            <View style={styles.startDot} />
           </Marker>
         )}
 
         {destinationPoint && (
           <Marker
+            testID="marker-destination"
             coordinate={destinationPoint.coordinates}
-            title="Destination"
-            pinColor="red"
-          />
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={Platform.OS === "android"}
+          >
+            <View style={styles.destinationPinWrapper}>
+              <MaterialIcons
+                name="place"
+                size={44}
+                color="black"
+                style={styles.destinationPinShadow}
+              />
+              <MaterialIcons
+                name="place"
+                size={30}
+                color="black"
+                style={[styles.destinationPinShadow, { top: 6 }]}
+              />
+              <MaterialIcons
+                name="place"
+                size={40}
+                color={colors.error}
+                style={styles.destinationPinFront}
+              />
+            </View>
+          </Marker>
         )}
 
-        {BUILDINGS.map((building) => {
+        {/* Building polygons */}
+        {buildingsOnCampus.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
             console.warn(
-              `Building ${building.name} has no boundingBox coordinates.`,
+              `Building ${building.name} has no boundingBox coordinates.`
             );
             return null;
           }
@@ -296,27 +432,71 @@ export default function CampusMap({
           );
         })}
 
-        {routeCoords.length > 0 && (
-          <Polyline
-            key={routeCoords.length}
-            coordinates={routeCoords}
-            strokeWidth={6}
-            strokeColor={colors.primary}
-            lineJoin="round"
-            lineCap="round"
-          />
-        )}
+        {/* Labels */}
+        {buildingsOnCampus.map((building) => (
+          <Marker
+            key={`label-${building.name}`}
+            coordinate={building.coordinates}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={labelsVisible}
+            tappable={false}
+          >
+            <Animated.View
+              testID={`label-pill-${building.name}`}
+              pointerEvents={labelsVisible ? "auto" : "none"}
+              style={[
+                styles.codePill,
+                {
+                  transform: [{ scale: labelScale }],
+                  opacity: labelsOpacity,
+                },
+              ]}
+            >
+              <Text style={styles.codeText}>{building.name}</Text>
+            </Animated.View>
+          </Marker>
+        ))}
 
-        {/* Live shuttle bus markers */}
+        {/* Route */}
+        {routeCoords.length > 0 && (() => {
+          const { strokeColor, lineDashPattern } = getPolylineStyleForMode(
+            strategy.mode
+          );
+          return (
+            <>
+              <Polyline
+                testID="polyline-border"
+                key={`border-${routeCoords.length}-${strategy.mode}`}
+                coordinates={routeCoords}
+                strokeWidth={8}
+                strokeColor="black"
+                lineDashPattern={lineDashPattern}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={1}
+              />
+              <Polyline
+                testID="polyline-main"
+                key={`main-${routeCoords.length}-${strategy.mode}`}
+                coordinates={routeCoords}
+                strokeWidth={6}
+                strokeColor={strokeColor}
+                lineDashPattern={lineDashPattern}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={2}
+              />
+            </>
+          );
+        })()}
+
+        {/* Live shuttle markers */}
         {showShuttle && (
           <>
             {BUSSTOP.map((stop) => (
               <Marker
                 key={stop.id}
-                coordinate={{
-                  latitude: stop.coordinates.latitude,
-                  longitude: stop.coordinates.longitude,
-                }}
+                coordinate={stop.coordinates}
                 title={stop.name}
                 description={stop.address}
               >
@@ -351,7 +531,7 @@ export default function CampusMap({
           </>
         )}
       </MapView>
-      {/* Live shuttle bus markers (put the entire thing between comments in case of merge conflict we know we need all of that*/}
+
       {locationError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{locationError}</Text>
@@ -361,6 +541,18 @@ export default function CampusMap({
       <BuildingInfoPopup
         building={selectedBuilding}
         onClose={() => setSelectedBuilding(null)}
+        onSetAsStart={(building) => {
+          onSetAsStart?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsDestination={(building) => {
+          onSetAsDestination?.(building);
+          setSelectedBuilding(null);
+        }}
+        onSetAsMyLocation={(building) => {
+          onSetAsMyLocation?.(building);
+          setSelectedBuilding(null);
+        }}
       />
     </View>
   );
@@ -379,29 +571,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorText: { color: colors.white, textAlign: "center" },
-  blueDotInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  currentLocationDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 14,
     backgroundColor: "#007AFF",
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: "white",
   },
 
-  //ADD FOR THE SHUTTLE
   busStopMarker: {
     alignItems: "center",
     justifyContent: "center",
   },
   busStopIcon: {
     fontSize: 22,
-  },
-  busMarker: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  busIcon: {
-    fontSize: 26,
   },
   busPin: {
     alignItems: "center",
@@ -428,24 +612,37 @@ const styles = StyleSheet.create({
     borderRightColor: "transparent",
     borderTopColor: colors.primary,
   },
-  shuttleToggle: {
-    position: "absolute",
-    bottom: 170,
-    right: spacing.md,
-    backgroundColor: colors.primary,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
+
+  startDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 14,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "black",
+  },
+  destinationPinWrapper: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    elevation: 5,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    justifyContent: "center",
   },
-  shuttleDisabled: {
-    backgroundColor: "#666",
+  destinationPinShadow: {
+    position: "absolute",
   },
-  //END FOR SHUTTLE (Could go in other file to make it cleaner)
+  destinationPinFront: {
+    position: "absolute",
+  },
+
+  codePill: {
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  codeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.white,
+  },
 });
