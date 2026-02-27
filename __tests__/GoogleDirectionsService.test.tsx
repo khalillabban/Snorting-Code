@@ -194,7 +194,7 @@ describe("getOutdoorRouteWithSteps", () => {
 
         expect(result).toEqual({
             coordinates: [],
-            segments: [], // <--- THIS WAS THE CAUSE OF THE FAILURE
+            segments: [], 
             steps: [],
             duration: undefined,
             distance: undefined,
@@ -202,5 +202,113 @@ describe("getOutdoorRouteWithSteps", () => {
         expect(global.fetch).not.toHaveBeenCalled();
 
         process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = orig;
+    });
+});
+
+describe("getOutdoorRouteWithSteps - Shuttle Strategy", () => {
+    const origin = { latitude: 45.497, longitude: -73.578 }; // SGW area
+    const destination = { latitude: 45.458, longitude: -73.639 }; // Loyola area
+    const samplePolyline = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.fetch = jest.fn();
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = "test-api-key";
+    });
+
+    afterAll(() => {
+        jest.restoreAllMocks();
+    });
+
+    it("handles shuttle routing by combining walk, shuttle, and walk segments", async () => {
+        // Mock a successful Google API response that all 3 calls will use
+        (global.fetch as jest.Mock).mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: jest.fn().mockResolvedValue({
+                status: "OK",
+                routes: [
+                    {
+                        legs: [
+                            {
+                                distance: { text: "1.0 km" },
+                                duration: { text: "10 mins" },
+                                steps: [
+                                    {
+                                        polyline: { points: samplePolyline },
+                                        html_instructions: "Walk",
+                                        distance: { text: "1.0 km" },
+                                        duration: { text: "10 min" }, // Changed from mins to min for regex parser
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }),
+        });
+
+        const shuttleStrategy = { mode: "shuttle", label: "Shuttle", icon: "bus" };
+
+        const result = await getOutdoorRouteWithSteps(origin, destination, shuttleStrategy as any);
+
+        // 1. Verify fetch was called 3 times (Walk to stop, Drive shuttle, Walk to dest)
+        expect(global.fetch).toHaveBeenCalledTimes(3);
+
+        // 2. Verify segments are divided correctly
+        expect(result.segments).toHaveLength(3);
+        expect(result.segments[0].mode).toBe("walking");
+        expect(result.segments[1].mode).toBe("shuttle");
+        expect(result.segments[2].mode).toBe("walking");
+
+        // 3. Verify custom shuttle instruction was injected
+        const hasBoardInstruction = result.steps.some((step) => 
+            step.instruction.includes("Board Concordia shuttle")
+        );
+        expect(hasBoardInstruction).toBe(true);
+
+        // 4. Verify total distance and duration parsing logic 
+        // 10m walk + 10m drive + 10m walk = 30 mins
+        expect(result.duration).toBe("30 mins");
+        // 1km + 1km + 1km = 3.0 km
+        expect(result.distance).toBe("3.0 km");
+    });
+
+    it("filters out empty 0m/1min walking legs", async () => {
+        // Mock response specifically simulating a "0 meter" walk
+        (global.fetch as jest.Mock).mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: jest.fn().mockResolvedValue({
+                status: "OK",
+                routes: [
+                    {
+                        legs: [
+                            {
+                                distance: { text: "0 m" },
+                                duration: { text: "1 min" },
+                                steps: [
+                                    {
+                                        polyline: { points: samplePolyline },
+                                        html_instructions: "Walk 0 meters",
+                                        distance: { text: "0 m" },
+                                        duration: { text: "1 min" },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }),
+        });
+
+        const shuttleStrategy = { mode: "shuttle", label: "Shuttle", icon: "bus" };
+        const result = await getOutdoorRouteWithSteps(origin, destination, shuttleStrategy as any);
+
+        // Since all 3 legs (walk, drive, walk) returned 0m/1min in this mock,
+        // your code's `.filter(s => s.duration !== "1 min" || s.distance !== "0 m")` 
+        // should remove the walking steps, leaving ONLY the injected shuttle boarding instruction.
+        expect(result.steps).toHaveLength(1);
+        expect(result.steps[0].instruction).toContain("Board Concordia shuttle");
     });
 });
