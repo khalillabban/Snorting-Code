@@ -1,4 +1,4 @@
-export type TransportMode = 'walking' | 'bicycling' | 'driving' | 'transit';
+export type TransportMode = 'walking' | 'bicycling' | 'driving' | 'transit' | 'shuttle';
 
 // The Strategy Interface
 export interface RouteStrategy {

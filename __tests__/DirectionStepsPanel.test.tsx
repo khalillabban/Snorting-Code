@@ -2,12 +2,17 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
-import { RouteStep } from "../services/GoogleDirectionsService";
+import { RouteStep } from "../constants/type";
 
-jest.mock("@expo/vector-icons", () => ({
-  MaterialCommunityIcons: "MaterialCommunityIcons",
-  MaterialIcons: "MaterialIcons",
-}));
+// Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  return {
+    MaterialCommunityIcons: (props: any) => <Text testID="mci-icon">{props.name}</Text>,
+    MaterialIcons: (props: any) => <Text testID="mi-icon">{props.name}</Text>,
+  };
+});
 
 const mockSteps: RouteStep[] = [
   { instruction: "Head north on Main St", distance: "100 m", duration: "1 min" },
@@ -74,17 +79,60 @@ describe("DirectionStepsPanel", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("renders step numbers", () => {
+  // --- NEW COVERAGE: Shuttle logic & icons ---
+  it("identifies shuttle steps using 'shuttle' or 'board' keywords and renders correct icons", () => {
+    const shuttleSteps: RouteStep[] = [
+      { instruction: "Walk to the stop", distance: "100 m" },
+      { instruction: "Board the Shuttle to Loyola", duration: "15 min" },
+      { instruction: "Take the SHUTTLE back", distance: "5 km" },
+    ];
+    
     render(
       <DirectionStepsPanel
-        steps={mockSteps}
+        steps={shuttleSteps}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />
     );
-    expect(screen.getByText("1")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
+    
+    expect(screen.getByText("Walk to the stop")).toBeTruthy();
+    expect(screen.getByText("Board the Shuttle to Loyola")).toBeTruthy();
+    expect(screen.getByText("Take the SHUTTLE back")).toBeTruthy();
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map(icon => icon.props.children);
+    
+    // Total icons should be 4: 
+    // 1 for the Header Badge (walk)
+    // 1 for Step 0 (walk)
+    // 1 for Step 1 (bus - triggered by 'Board')
+    // 1 for Step 2 (bus - triggered by 'SHUTTLE')
+    expect(iconNames.filter(name => name === "bus").length).toBe(2);
+    expect(iconNames.filter(name => name === "walk").length).toBe(2);
+  });
+
+  // --- NEW COVERAGE: Distance / Duration combinations ---
+  it("formats metadata correctly when missing distance or duration", () => {
+    const mixedSteps: RouteStep[] = [
+      { instruction: "Only distance", distance: "50 m" },
+      { instruction: "Only duration", duration: "2 mins" },
+      { instruction: "Neither" },
+      { instruction: "Both", distance: "10 m", duration: "1 min" }
+    ];
+
+    render(
+      <DirectionStepsPanel
+        steps={mixedSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />
+    );
+
+    // Verifies `[step.distance, step.duration].filter(Boolean).join(" · ")` logic
+    expect(screen.getByText("50 m")).toBeTruthy();
+    expect(screen.getByText("2 mins")).toBeTruthy();
+    expect(screen.getByText("10 m · 1 min")).toBeTruthy();
+    // The "Neither" step shouldn't render any metadata text block
   });
 
   it("renders different strategy label for transit", () => {
@@ -136,5 +184,4 @@ describe("DirectionStepsPanel", () => {
     );
     expect(screen.queryByLabelText("Close directions")).toBeNull();
   });
-  
 });

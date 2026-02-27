@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
-import { RouteStep } from "../services/GoogleDirectionsService";
+import { RouteStep } from "../constants/type";
 import { RouteStrategy } from "../services/Routing";
 
 interface DirectionStepsPanelProps {
@@ -77,24 +77,46 @@ export function DirectionStepsPanel({
           showsVerticalScrollIndicator
           keyboardShouldPersistTaps="handled"
         >
-          {steps.map((step, index) => (
-            <View key={index} style={styles.stepRow}>
-              <View style={styles.stepLeft}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+          {steps.map((step, index) => {
+            // Check if this is a shuttle-specific step
+            const isShuttle = 
+              step.instruction.toLowerCase().includes("shuttle") || 
+              step.instruction.toLowerCase().includes("board");
+
+            return (
+              <View key={index} style={styles.stepRow}>
+                <View style={styles.stepLeft}>
+                  <View style={[
+                    styles.stepIconContainer, 
+                    isShuttle && styles.shuttleStepHighlight
+                  ]}>
+                    <MaterialCommunityIcons 
+                      name={isShuttle ? "bus" : "walk"} 
+                      size={14} 
+                      color={colors.white} 
+                    />
+                  </View>
+                  {index < steps.length - 1 && <View style={styles.stepLine} />}
                 </View>
-                {index < steps.length - 1 && <View style={styles.stepLine} />}
-              </View>
-              <View style={styles.stepBody}>
-                <Text style={styles.stepInstruction}>{step.instruction}</Text>
-                {(step.distance || step.duration) && (
-                  <Text style={styles.stepMeta}>
-                    {[step.distance, step.duration].filter(Boolean).join(" · ")}
+
+                <View style={styles.stepBody}>
+                  {/* Make the shuttle instruction bold to stand out */}
+                  <Text style={[
+                    styles.stepInstruction,
+                    isShuttle && styles.shuttleTextBold
+                  ]}>
+                    {step.instruction}
                   </Text>
-                )}
+                  
+                  {(step.distance || step.duration) && (
+                    <Text style={styles.stepMeta}>
+                      {[step.distance, step.duration].filter(Boolean).join(" · ")}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       </View>
     </View>
@@ -187,13 +209,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: spacing.sm + 2,
   },
-  stepNumber: {
+  stepIconContainer: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary, // Default walking color (maroon)
     alignItems: "center",
     justifyContent: "center",
+  },
+  shuttleStepHighlight: {
+    backgroundColor: '#800000', // A slightly darker/different red for the bus
+  },
+  shuttleTextBold: {
+    fontWeight: "700",
+    color: colors.black,
   },
   stepLine: {
     width: 2,
@@ -201,11 +230,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     backgroundColor: colors.gray100,
     borderRadius: 1,
-  },
-  stepNumberText: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: "700",
   },
   stepBody: {
     flex: 1,

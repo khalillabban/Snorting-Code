@@ -9,18 +9,37 @@ import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
+import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+
 
 jest.mock("@expo/vector-icons", () => {
   const React = require("react");
   const { Text } = require("react-native");
+
+  const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
+
   return {
-    MaterialIcons: (props: any) => <Text>{props?.name ?? "icon"}</Text>,
+    __esModule: true,
+    MaterialIcons: MockIcon,
+    MaterialCommunityIcons: MockIcon,
+    Ionicons: MockIcon,
+    FontAwesome: MockIcon,
+    default: MockIcon,
   };
 });
 
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: jest.fn(),
-}));
+jest.mock("expo-router", () => {
+  const React = require("react");
+  return {
+    useLocalSearchParams: jest.fn(),
+    useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
+    useNavigation: jest.fn(() => ({ setOptions: jest.fn() })),
+    // Mock Stack and Stack.Screen so they don't evaluate to undefined
+    Stack: {
+      Screen: () => null,
+    },
+  };
+});
 
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -30,9 +49,9 @@ jest.mock("expo-location", () => ({
 jest.mock("../components/CampusMap", () => {
   const React = require("react");
   const { View, Text, Button } = require("react-native");
-  return function MockCampusMap(props: any) {
-    return (
-      <View>
+
+  const MockCampusMap = (props: any) => (
+    <View>
       <Text testID="campus-map-props">
         {JSON.stringify({
           coordinates: props.coordinates,
@@ -45,27 +64,32 @@ jest.mock("../components/CampusMap", () => {
       <Text testID="campus-map-user-focus-counter">{props.userFocusCounter}</Text>
       <Text testID="campus-map-route-focus-trigger">{props.routeFocusTrigger}</Text>
       <Button
-          testID="trigger-get-directions"
-          title="Get Directions"
-          onPress={() => props.onSetAsDestination?.({ name: "H", displayName: "Hall" })}
-        />
-        <Button 
-          testID="trigger-route-steps" 
-          title="Set Steps" 
-          onPress={() => props.onRouteSteps([{ instruction: "Walk" }])} 
-        />
-        <Button
-          testID="trigger-set-as-start"
-          title="Set As Start"
-          onPress={() => props.onSetAsStart?.({ name: "MB", displayName: "MB Building" })}
-        />
-        <Button
-          testID="trigger-set-my-location"
-          title="Set My Location"
-          onPress={() => props.onSetAsMyLocation?.({ name: "EV", displayName: "EV Building" })}
-        />
-        </View>
-    );
+        testID="trigger-get-directions"
+        title="Get Directions"
+        onPress={() => props.onSetAsDestination?.({ name: "H", displayName: "Hall" })}
+      />
+      <Button
+        testID="trigger-route-steps"
+        title="Set Steps"
+        onPress={() => props.onRouteSteps([{ instruction: "Walk" }])}
+      />
+      <Button
+        testID="trigger-set-as-start"
+        title="Set As Start"
+        onPress={() => props.onSetAsStart?.({ name: "MB", displayName: "MB Building" })}
+      />
+      <Button
+        testID="trigger-set-my-location"
+        title="Set My Location"
+        onPress={() => props.onSetAsMyLocation?.({ name: "EV", displayName: "EV Building" })}
+      />
+    </View>
+  );
+
+  return {
+    __esModule: true,
+    default: MockCampusMap,
+    CampusMap: MockCampusMap,
   };
 });
 
@@ -75,46 +99,151 @@ jest.mock("../constants/campuses", () => ({
     loyola: { coordinates: { latitude: 3, longitude: 4 } },
   },
 }));
+
+
 const mockWalkingStrategy = { mode: 'walking', label: 'Walk', icon: 'walk' };
+
+jest.mock("../components/ShuttleBusTracker", () => ({
+  useShuttleBus: () => ({
+    activeBuses: [],
+  }),
+}));
+
+
 jest.mock("../components/NavigationBar", () => {
   const React = require("react");
   const { View, Text, Pressable } = require("react-native");
 
-  return function MockNavigationBar(props: any) {
-    return (
-      <View>
-        <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
+  const MockNavigationBar = (props: any) => (
+    <View>
+      <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
 
-        <Pressable
-          testID="nav-confirm"
-          onPress={() => props.onConfirm("H", "MB", mockWalkingStrategy)}
-        >
-          <Text>Confirm</Text>
-        </Pressable>
-        <Pressable testID="nav-applied" onPress={props.onInitialDestinationApplied}>
-          <Text>Applied</Text>
-        </Pressable>
-        <Pressable testID="nav-close" onPress={props.onClose}>
-          <Text>Close</Text>
-        </Pressable>
-      </View>
-    );
-  };
+      <Text testID="nav-initial-start">
+        {props.initialStart ? JSON.stringify(props.initialStart) : "null"}
+      </Text>
+      <Text testID="nav-initial-destination">
+        {props.initialDestination ? JSON.stringify(props.initialDestination) : "null"}
+      </Text>
+
+      <Text testID="nav-auto-start">
+        {props.autoStartBuilding ? JSON.stringify(props.autoStartBuilding) : "null"}
+      </Text>
+
+      <Pressable
+        testID="nav-confirm"
+        onPress={() => props.onConfirm("H", "MB", { mode: "walking", label: "Walk", icon: "walk" })}
+      >
+        <Text>Confirm</Text>
+      </Pressable>
+
+      {/* NEW: confirm with null start -> covers routeFocusTrigger no-increment branch */}
+      <Pressable
+        testID="nav-confirm-nullstart"
+        onPress={() => props.onConfirm(null, "MB", { mode: "walking", label: "Walk", icon: "walk" })}
+      >
+        <Text>Confirm Null Start</Text>
+      </Pressable>
+
+      {/* NEW: cover onInitialStartApplied */}
+      <Pressable testID="nav-start-applied" onPress={props.onInitialStartApplied}>
+        <Text>Start Applied</Text>
+      </Pressable>
+
+      <Pressable testID="nav-applied" onPress={props.onInitialDestinationApplied}>
+        <Text>Applied</Text>
+      </Pressable>
+
+      {/* NEW: cover onUseMyLocation branches */}
+      <Pressable
+        testID="nav-use-my-location"
+        onPress={() => {
+          const res = props.onUseMyLocation?.();
+          props.__onUseMyLocationResult?.(res);
+        }}
+      >
+        <Text>Use My Location</Text>
+      </Pressable>
+
+      <Pressable testID="nav-close" onPress={props.onClose}>
+        <Text>Close</Text>
+      </Pressable>
+    </View>
+  );
+
+  return { __esModule: true, default: MockNavigationBar, NavigationBar: MockNavigationBar };
 });
+
 jest.mock("../components/DirectionStepsPanel", () => {
   const React = require("react");
   const { View, Button } = require("react-native");
+
+  const MockDirectionStepsPanel = (props: any) => (
+    <View testID="steps-panel">
+      <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
+      <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
+      {props.onFocusUser && (
+        <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
+      )}
+    </View>
+  );
+
   return {
-    DirectionStepsPanel: (props: any) => (
-      <View>
-        <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
-        <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
-        {props.onFocusUser && (
-          <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
-        )}
-      </View>
-    )
+    __esModule: true,
+    default: MockDirectionStepsPanel,
+    DirectionStepsPanel: MockDirectionStepsPanel,
   };
+});
+
+jest.mock("../hooks/useShuttleAvailability", () => ({
+  useShuttleAvailability: jest.fn(),
+}));
+
+jest.mock("../constants/buildings", () => ({
+  BUILDINGS: [
+    // invalid bbox -> should be skipped
+    { name: "BAD", displayName: "Bad", boundingBox: [] },
+
+    // valid polygon A (distance will be 10)
+    {
+      name: "A",
+      displayName: "A Building",
+      boundingBox: [
+        { latitude: 10, longitude: 0 },
+        { latitude: 10, longitude: 1 },
+        { latitude: 10, longitude: 2 },
+      ],
+    },
+
+    // valid polygon B (distance will be 5) -> nearest
+    {
+      name: "B",
+      displayName: "B Building",
+      boundingBox: [
+        { latitude: 5, longitude: 0 },
+        { latitude: 5, longitude: 1 },
+        { latitude: 5, longitude: 2 },
+      ],
+    },
+  ],
+}));
+
+jest.mock("../utils/pointInPolygon", () => ({
+  // return "distance" based on the first vertex latitude
+  getDistanceToPolygon: jest.fn((_pt: any, polygon: any[]) => polygon[0].latitude),
+}));
+
+jest.mock("../components/ShuttleSchedulePanel", () => {
+  const React = require("react");
+  const { View, Text, Pressable } = require("react-native");
+  const Mock = (props: any) => (
+    <View testID="shuttle-schedule-panel">
+      <Text>Schedule</Text>
+      <Pressable testID="shuttle-schedule-close" onPress={props.onClose}>
+        <Text>Close</Text>
+      </Pressable>
+    </View>
+  );
+  return { __esModule: true, ShuttleSchedulePanel: Mock, default: Mock };
 });
 
 const getMapProps = () =>
@@ -139,6 +268,8 @@ describe("CampusMapScreen", () => {
           longitude: -73.578,
         },
       });
+
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
   });
 
   it("defaults to SGW when no campus param is provided", async () => {
@@ -185,30 +316,30 @@ describe("CampusMapScreen", () => {
     });
   });
   it("handles initial destination lifecycle", async () => {
-      await renderScreen();
+    await renderScreen();
 
-      // 1. Set destination from Map (Covers: setInitialDestination(building), setIsNavVisible(true))
-      fireEvent.press(screen.getByTestId("trigger-get-directions"));
-      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+    // 1. Set destination from Map (Covers: setInitialDestination(building), setIsNavVisible(true))
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
 
-      // 2. Clear destination from Nav (Covers: onInitialDestinationApplied)
-      fireEvent.press(screen.getByTestId("nav-applied"));
-    });
+    // 2. Clear destination from Nav (Covers: onInitialDestinationApplied)
+    fireEvent.press(screen.getByTestId("nav-applied"));
+  });
 
-    it("handles route steps panel interactions", async () => {
-      await renderScreen();
+  it("handles route steps panel interactions", async () => {
+    await renderScreen();
 
-      // Trigger a route and steps so the panel renders
-      fireEvent.press(screen.getByTestId("nav-confirm"));
-      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+    // Trigger a route and steps so the panel renders
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-      // 1. Test Change Route (Covers: onChangeRoute)
-      fireEvent.press(screen.getByTestId("steps-change"));
-      expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+    // 1. Test Change Route (Covers: onChangeRoute)
+    fireEvent.press(screen.getByTestId("steps-change"));
+    expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
 
-      // 2. Test Dismiss (Covers: onDismiss and state clearing)
-      fireEvent.press(screen.getByTestId("steps-dismiss"));
-    });
+    // 2. Test Dismiss (Covers: onDismiss and state clearing)
+    fireEvent.press(screen.getByTestId("steps-dismiss"));
+  });
 
   it("centers on user location without changing campus coordinates", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
@@ -235,7 +366,7 @@ describe("CampusMapScreen", () => {
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
     });
@@ -245,7 +376,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
 
       fireEvent.press(screen.getByTestId("nav-close"));
@@ -257,13 +388,13 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       const mapProps = getMapProps();
       expect(mapProps.startPoint).toBe("H");
       expect(mapProps.destinationPoint).toBe("MB");
-      expect(mapProps.strategy).toEqual(WALKING_STRATEGY); 
+      expect(mapProps.strategy).toEqual(WALKING_STRATEGY);
     });
 
     it("closes navigation bar after route is confirmed", async () => {
@@ -271,7 +402,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
@@ -282,13 +413,13 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(getMapProps().startPoint).toBe("H");
       expect(getMapProps().destinationPoint).toBe("MB");
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-close"));
 
       expect(getMapProps().startPoint).toBe("H");
@@ -353,7 +484,7 @@ describe("CampusMapScreen", () => {
       const trigger0 = screen.getByTestId("campus-map-route-focus-trigger").props.children;
       expect(trigger0).toBe(0);
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(1);
@@ -396,7 +527,7 @@ describe("CampusMapScreen", () => {
       await renderScreen();
 
       // Confirm route to show steps panel
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
       // Inject steps via the mock
@@ -422,7 +553,7 @@ describe("CampusMapScreen", () => {
 
       await renderScreen();
 
-      fireEvent.press(screen.getByText("directions"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
       fireEvent.press(screen.getByTestId("nav-confirm"));
       fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
@@ -436,5 +567,139 @@ describe("CampusMapScreen", () => {
       expect(mapProps.startPoint).toBeNull();
       expect(mapProps.destinationPoint).toBeNull();
     });
+  });
+
+  it("keeps focusTarget as user when campus param changes (prev === 'user' branch)", async () => {
+    const params: any = { campus: "sgw" };
+    (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => { });
+
+    // set focus target to user
+    fireEvent.press(screen.getByTestId("my-location-button"));
+    expect(getMapProps().focusTarget).toBe("user");
+
+    // change route param to loyola and rerender
+    params.campus = "loyola";
+    rerender(<CampusMapScreen />);
+    await waitFor(() => { });
+
+    // campus coords update, focusTarget stays user
+    expect(getMapProps().coordinates).toEqual({ latitude: 3, longitude: 4 });
+    expect(getMapProps().focusTarget).toBe("user");
+  });
+
+  it("computes nearest building on mount (skips invalid bbox and chooses nearest)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+    await renderScreen();
+
+    // our mocks make B the nearest building (distance 5 vs 10, and BAD skipped)
+    await waitFor(() => {
+      expect(screen.getByTestId("nav-auto-start").props.children).toContain('"name":"B"');
+    });
+  });
+
+  it("opens and closes the ShuttleSchedulePanel", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    expect(screen.queryByTestId("shuttle-schedule-panel")).toBeNull();
+
+    // calendar button has no testID; easiest is press by icon text
+    // because icons are mocked to <Text>{name}</Text>
+    fireEvent.press(screen.getByText("calendar-clock"));
+
+    expect(screen.getByTestId("shuttle-schedule-panel")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("shuttle-schedule-close"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("shuttle-schedule-panel")).toBeNull();
+    });
+  });
+
+  it("does not toggle shuttle when shuttle is not available (and label shows not available)", async () => {
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: false });
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+    await renderScreen();
+
+    const btn = screen.getByTestId("show-shuttle-button");
+    expect(btn.props.accessibilityState.disabled).toBe(true);
+    expect(btn.props.accessibilityLabel).toBe("Shuttle not available");
+
+    // press should do nothing
+    fireEvent.press(btn);
+
+    // icon should remain bus-stop (showShuttle false)
+    expect(screen.getByText("bus-stop")).toBeTruthy();
+  });
+
+  it("toggles shuttle when available and auto-hides if availability becomes false while showing", async () => {
+    const shuttle = { available: true };
+    (useShuttleAvailability as jest.Mock).mockImplementation(() => shuttle);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => { });
+
+    const btn = screen.getByTestId("show-shuttle-button");
+    expect(btn.props.accessibilityLabel).toBe("Show shuttle");
+
+    // turn on
+    fireEvent.press(btn);
+    await waitFor(() => {
+      expect(screen.getByText("bus-clock")).toBeTruthy();
+    });
+
+    // availability flips false -> effect should hide shuttle
+    shuttle.available = false;
+    rerender(<CampusMapScreen />);
+    await waitFor(() => {
+      expect(screen.getByText("bus-stop")).toBeTruthy();
+    });
+  });
+
+  it("clears initialStart and initialDestination when nav is closed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    // set start
+    fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+    expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
+    expect(screen.getByTestId("nav-initial-start").props.children).not.toBe("null");
+
+    // set destination
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    expect(screen.getByTestId("nav-initial-destination").props.children).not.toBe("null");
+
+    // close should clear both
+    fireEvent.press(screen.getByTestId("nav-close"));
+    await waitFor(() => {
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+      expect(screen.getByTestId("nav-initial-start").props.children).toBe("null");
+      expect(screen.getByTestId("nav-initial-destination").props.children).toBe("null");
+    });
+  });
+
+  it("covers onInitialStartApplied and does not increment routeFocusTrigger when start is null", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    // cover onInitialStartApplied
+    fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+    fireEvent.press(screen.getByTestId("nav-start-applied"));
+    await waitFor(() => {
+      expect(screen.getByTestId("nav-initial-start").props.children).toBe("null");
+    });
+
+    const trigger0 = screen.getByTestId("campus-map-route-focus-trigger").props.children;
+
+    // confirm route with null start -> should NOT increment routeFocusTrigger
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm-nullstart"));
+
+    expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(trigger0);
   });
 });
