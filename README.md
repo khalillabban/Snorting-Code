@@ -1,5 +1,18 @@
 # Welcome to your Expo app 👋
+## Team 
+The team is composed of 10 full-stack developers: <br>
+Khalil Al Labban - 40282892 <br>
+Zachary Corber - 40246724 <br>
+Jessica Codreanu - 40262017 <br>
+Jingnan Wang - 40282296 <br>
+Philippe Nikolov - 40245641 <br>
+Clark Long - 40183902 <br>
+Yousef Bisharah - 40151411 <br>
+Nicholas Gallacher - 40248681 <br>
+Chris Egener - 40196182 <br>
+Nicolas Landry- 40263725 <br>
 
+## Project
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
@@ -8,6 +21,9 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
    ```bash
    npm install
+   ```
+    ```bash
+   npx expo install axios
    ```
 
 2. Start the app

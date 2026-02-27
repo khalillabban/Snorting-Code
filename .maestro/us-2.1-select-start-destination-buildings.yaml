@@ -1,0 +1,47 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 10000
+
+- tapOn: "Loyola Campus"
+
+#  Opens directions
+- tapOn:
+    point: "90%,84%"
+
+# Scenario: Select buildings by typing building names
+
+# Re-open directions sheet if it closed
+
+- extendedWaitUntil:
+    visible: "Get Directions"
+    timeout: 8000
+
+# Type start building
+- assertVisible: "Starting location"
+
+- tapOn: "Starting location"
+- inputText: "Hall"
+- hideKeyboard
+- tapOn:
+    point: "50%,29%"
+
+- tapOn:
+    point: "90%,84%"
+
+# Type destination building
+- tapOn: "Search Here"
+- inputText: "L"
+- hideKeyboard
+- tapOn:
+    point: "50%,29%"
+
+- tapOn:
+    point: "90%,84%"
+
+- tapOn: "Get Directions"
