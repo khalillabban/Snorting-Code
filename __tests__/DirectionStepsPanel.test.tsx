@@ -74,17 +74,24 @@ describe("DirectionStepsPanel", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("renders step numbers", () => {
+  // Tested shuttle-specific parsing instead of removed step numbers
+  it("renders normal and shuttle-specific instructions without crashing", () => {
+    const shuttleSteps: RouteStep[] = [
+      { instruction: "Walk to the stop", distance: "100 m" },
+      { instruction: "Board the Shuttle to Loyola", duration: "15 min" },
+    ];
+    
     render(
       <DirectionStepsPanel
-        steps={mockSteps}
+        steps={shuttleSteps}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />
     );
-    expect(screen.getByText("1")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
+    
+    // Verifies text logic renders safely with the new isShuttle boolean triggers
+    expect(screen.getByText("Walk to the stop")).toBeTruthy();
+    expect(screen.getByText("Board the Shuttle to Loyola")).toBeTruthy();
   });
 
   it("renders different strategy label for transit", () => {
@@ -136,5 +143,4 @@ describe("DirectionStepsPanel", () => {
     );
     expect(screen.queryByLabelText("Close directions")).toBeNull();
   });
-  
 });

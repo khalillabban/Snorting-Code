@@ -525,6 +525,7 @@ export default function CampusMap({
             return (
               <React.Fragment key={i}>
                 <Polyline
+                  testID="polyline-border"
                   coordinates={seg.coordinates}
                   strokeWidth={8}
                   strokeColor="black"
@@ -534,6 +535,7 @@ export default function CampusMap({
                   zIndex={1}
                 />
                 <Polyline
+                  testID="polyline-main"
                   coordinates={seg.coordinates}
                   strokeWidth={6}
                   strokeColor={strokeColor}

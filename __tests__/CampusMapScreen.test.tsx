@@ -13,14 +13,31 @@ import { WALKING_STRATEGY } from "../constants/strategies";
 jest.mock("@expo/vector-icons", () => {
   const React = require("react");
   const { Text } = require("react-native");
+  
+  const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
+  
   return {
-    MaterialIcons: (props: any) => <Text>{props?.name ?? "icon"}</Text>,
+    __esModule: true,
+    MaterialIcons: MockIcon,
+    MaterialCommunityIcons: MockIcon,
+    Ionicons: MockIcon,
+    FontAwesome: MockIcon,
+    default: MockIcon,
   };
 });
 
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: jest.fn(),
-}));
+jest.mock("expo-router", () => {
+  const React = require("react");
+  return {
+    useLocalSearchParams: jest.fn(),
+    useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
+    useNavigation: jest.fn(() => ({ setOptions: jest.fn() })),
+    // Mock Stack and Stack.Screen so they don't evaluate to undefined
+    Stack: {
+      Screen: () => null, 
+    },
+  };
+});
 
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -30,9 +47,9 @@ jest.mock("expo-location", () => ({
 jest.mock("../components/CampusMap", () => {
   const React = require("react");
   const { View, Text, Button } = require("react-native");
-  return function MockCampusMap(props: any) {
-    return (
-      <View>
+  
+  const MockCampusMap = (props: any) => (
+    <View>
       <Text testID="campus-map-props">
         {JSON.stringify({
           coordinates: props.coordinates,
@@ -45,27 +62,32 @@ jest.mock("../components/CampusMap", () => {
       <Text testID="campus-map-user-focus-counter">{props.userFocusCounter}</Text>
       <Text testID="campus-map-route-focus-trigger">{props.routeFocusTrigger}</Text>
       <Button
-          testID="trigger-get-directions"
-          title="Get Directions"
-          onPress={() => props.onSetAsDestination?.({ name: "H", displayName: "Hall" })}
-        />
-        <Button 
-          testID="trigger-route-steps" 
-          title="Set Steps" 
-          onPress={() => props.onRouteSteps([{ instruction: "Walk" }])} 
-        />
-        <Button
-          testID="trigger-set-as-start"
-          title="Set As Start"
-          onPress={() => props.onSetAsStart?.({ name: "MB", displayName: "MB Building" })}
-        />
-        <Button
-          testID="trigger-set-my-location"
-          title="Set My Location"
-          onPress={() => props.onSetAsMyLocation?.({ name: "EV", displayName: "EV Building" })}
-        />
-        </View>
-    );
+        testID="trigger-get-directions"
+        title="Get Directions"
+        onPress={() => props.onSetAsDestination?.({ name: "H", displayName: "Hall" })}
+      />
+      <Button 
+        testID="trigger-route-steps" 
+        title="Set Steps" 
+        onPress={() => props.onRouteSteps([{ instruction: "Walk" }])} 
+      />
+      <Button
+        testID="trigger-set-as-start"
+        title="Set As Start"
+        onPress={() => props.onSetAsStart?.({ name: "MB", displayName: "MB Building" })}
+      />
+      <Button
+        testID="trigger-set-my-location"
+        title="Set My Location"
+        onPress={() => props.onSetAsMyLocation?.({ name: "EV", displayName: "EV Building" })}
+      />
+    </View>
+  );
+
+  return {
+    __esModule: true,
+    default: MockCampusMap,
+    CampusMap: MockCampusMap,
   };
 });
 
@@ -75,45 +97,64 @@ jest.mock("../constants/campuses", () => ({
     loyola: { coordinates: { latitude: 3, longitude: 4 } },
   },
 }));
+
+
 const mockWalkingStrategy = { mode: 'walking', label: 'Walk', icon: 'walk' };
+
+jest.mock("../components/ShuttleBusTracker", () => ({
+  useShuttleBus: () => ({
+    activeBuses: [],
+  }),
+}));
+
+
 jest.mock("../components/NavigationBar", () => {
   const React = require("react");
   const { View, Text, Pressable } = require("react-native");
 
-  return function MockNavigationBar(props: any) {
-    return (
-      <View>
-        <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
+  const MockNavigationBar = (props: any) => (
+    <View>
+      <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
+      <Pressable
+        testID="nav-confirm"
+        onPress={() => props.onConfirm("H", "MB", { mode: 'walking', label: 'Walk', icon: 'walk' })}
+      >
+        <Text>Confirm</Text>
+      </Pressable>
+      <Pressable testID="nav-applied" onPress={props.onInitialDestinationApplied}>
+        <Text>Applied</Text>
+      </Pressable>
+      <Pressable testID="nav-close" onPress={props.onClose}>
+        <Text>Close</Text>
+      </Pressable>
+    </View>
+  );
 
-        <Pressable
-          testID="nav-confirm"
-          onPress={() => props.onConfirm("H", "MB", mockWalkingStrategy)}
-        >
-          <Text>Confirm</Text>
-        </Pressable>
-        <Pressable testID="nav-applied" onPress={props.onInitialDestinationApplied}>
-          <Text>Applied</Text>
-        </Pressable>
-        <Pressable testID="nav-close" onPress={props.onClose}>
-          <Text>Close</Text>
-        </Pressable>
-      </View>
-    );
+  return {
+    __esModule: true,
+    default: MockNavigationBar,
+    NavigationBar: MockNavigationBar,
   };
 });
+
 jest.mock("../components/DirectionStepsPanel", () => {
   const React = require("react");
   const { View, Button } = require("react-native");
+  
+  const MockDirectionStepsPanel = (props: any) => (
+    <View testID="steps-panel">
+      <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
+      <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
+      {props.onFocusUser && (
+        <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
+      )}
+    </View>
+  );
+
   return {
-    DirectionStepsPanel: (props: any) => (
-      <View>
-        <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
-        <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
-        {props.onFocusUser && (
-          <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
-        )}
-      </View>
-    )
+    __esModule: true,
+    default: MockDirectionStepsPanel,
+    DirectionStepsPanel: MockDirectionStepsPanel,
   };
 });
 
