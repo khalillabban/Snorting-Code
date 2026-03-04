@@ -25,7 +25,9 @@ import {
 import { colors } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.7;
+const SHEET_HEIGHT =
+  Platform.OS === "android" ? SCREEN_HEIGHT * 0.75 : SCREEN_HEIGHT * 0.7;
+const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 
 interface NavigationBarProps {
   visible: boolean;
@@ -33,7 +35,8 @@ interface NavigationBarProps {
   onConfirm: (
     start: Buildings | null,
     destination: Buildings | null,
-    strategy: RouteStrategy) => void;
+    strategy: RouteStrategy,
+  ) => void;
   autoStartBuilding?: Buildings | null;
   initialStart?: Buildings | null;
   onInitialStartApplied?: () => void;
@@ -67,8 +70,12 @@ export default function NavigationBar({
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
   >(null);
-  const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
-  const [routeSummary, setRouteSummary] = useState<{ duration?: string; distance?: string } | null>(null);
+  const [selectedStrategy, setSelectedStrategy] =
+    useState<RouteStrategy>(WALKING_STRATEGY);
+  const [routeSummary, setRouteSummary] = useState<{
+    duration?: string;
+    distance?: string;
+  } | null>(null);
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
 
   useEffect(() => {
@@ -82,7 +89,7 @@ export default function NavigationBar({
     getOutdoorRouteWithSteps(
       startBuilding.coordinates,
       destBuilding.coordinates,
-      selectedStrategy
+      selectedStrategy,
     )
       .then((res) => {
         if (!cancelled) {
@@ -106,7 +113,7 @@ export default function NavigationBar({
     if (visible) {
       setShouldRender(true);
       Animated.spring(translateY, {
-        toValue: SCREEN_HEIGHT - SHEET_HEIGHT,
+        toValue: SHEET_TOP,
         useNativeDriver: true,
         damping: 20,
         stiffness: 150,
@@ -175,7 +182,6 @@ export default function NavigationBar({
   };
 
   const showBuildingPicker = (type: "start" | "destination") => {
-    // Toggle: if already showing picker for same input, close it
     if (activeInput === type && filteredBuildings.length > 0) {
       setFilteredBuildings([]);
       setActiveInput(null);
@@ -184,7 +190,10 @@ export default function NavigationBar({
     setActiveInput(type);
     const campusNorm = currentCampus.toLowerCase();
     const list = BUILDINGS.filter(
-      (b) => b.boundingBox && b.boundingBox.length >= 3 && (b.campusName || "").toLowerCase() === campusNorm
+      (b) =>
+        b.boundingBox &&
+        b.boundingBox.length >= 3 &&
+        (b.campusName || "").toLowerCase() === campusNorm,
     );
     setFilteredBuildings(list);
   };
@@ -225,7 +234,7 @@ export default function NavigationBar({
         Math.abs(gestureState.dy) > 10,
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
-          translateY.setValue(SCREEN_HEIGHT - SHEET_HEIGHT + gestureState.dy);
+          translateY.setValue(SHEET_TOP + gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -233,9 +242,10 @@ export default function NavigationBar({
           onClose();
         } else {
           Animated.spring(translateY, {
-            toValue: SCREEN_HEIGHT - SHEET_HEIGHT,
+            toValue: SHEET_TOP,
             useNativeDriver: true,
-            bounciness: 4,
+            damping: 20,
+            stiffness: 150,
           }).start();
         }
       },
@@ -256,7 +266,7 @@ export default function NavigationBar({
       </TouchableWithoutFeedback>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardContainer}
         pointerEvents="box-none"
       >
@@ -285,7 +295,11 @@ export default function NavigationBar({
                     accessibilityLabel="Use my current location as start"
                     accessibilityRole="button"
                   >
-                    <MaterialIcons name="my-location" size={22} color={colors.primary} />
+                    <MaterialIcons
+                      name="my-location"
+                      size={22}
+                      color={colors.primary}
+                    />
                   </Pressable>
                 )}
                 <Pressable
@@ -303,11 +317,19 @@ export default function NavigationBar({
                 accessibilityLabel="Swap origin and destination"
                 accessibilityRole="button"
               >
-                <MaterialIcons name="swap-vert" size={22} color={colors.gray500} />
+                <MaterialIcons
+                  name="swap-vert"
+                  size={22}
+                  color={colors.gray500}
+                />
               </Pressable>
               <View style={[styles.inputGroup, styles.inputGroupLast]}>
                 <View style={styles.inputIconWrap}>
-                  <MaterialIcons name="place" size={20} color={colors.primary} />
+                  <MaterialIcons
+                    name="place"
+                    size={20}
+                    color={colors.primary}
+                  />
                 </View>
                 <TextInput
                   style={styles.input}
@@ -336,18 +358,30 @@ export default function NavigationBar({
                       onPress={() => setSelectedStrategy(strategy)}
                       style={[
                         styles.modeButton,
-                        selectedStrategy.mode === strategy.mode && styles.activeModeButton
+                        selectedStrategy.mode === strategy.mode &&
+                          styles.activeModeButton,
                       ]}
                     >
                       <MaterialCommunityIcons
                         name={strategy.icon as any}
                         size={22}
-                        color={selectedStrategy.mode === strategy.mode ? colors.white : colors.primary}
+                        color={
+                          selectedStrategy.mode === strategy.mode
+                            ? colors.white
+                            : colors.primary
+                        }
                       />
-                      <Text style={[
-                        styles.modeText,
-                        { color: selectedStrategy.mode === strategy.mode ? colors.white : colors.primary }
-                      ]}>
+                      <Text
+                        style={[
+                          styles.modeText,
+                          {
+                            color:
+                              selectedStrategy.mode === strategy.mode
+                                ? colors.white
+                                : colors.primary,
+                          },
+                        ]}
+                      >
                         {strategy.label}
                       </Text>
                     </Pressable>
@@ -357,7 +391,9 @@ export default function NavigationBar({
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
                     {routeSummaryLoading
                       ? "Loading…"
-                      : [routeSummary?.duration, routeSummary?.distance].filter(Boolean).join(" · ") || "—"}
+                      : [routeSummary?.duration, routeSummary?.distance]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
                   </Text>
                 )}
               </View>
