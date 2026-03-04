@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": [
       "snortingcode",
-      "com.googleusercontent.apps.345295669755-c3g3a7cv9htgkrrnl7usdmp50aier6af"
+      "com.googleusercontent.apps." //Add your own ios clientID #s and characters after apps.
     ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
