@@ -6,8 +6,14 @@ import { colors, spacing, typography } from "../constants/theme";
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   fetchCalendarEventsInRange,
-  type GoogleCalendarEvent
+  type GoogleCalendarEvent,
 } from "../services/GoogleCalendarService";
+import {
+  deleteGoogleAccessToken,
+  getGoogleAccessToken,
+  isTokenLikelyExpired,
+  saveGoogleAccessToken,
+} from "../services/TokenStore";
 import { parseCourseEvents, type ScheduleItem } from "../utils/parseCourseEvents";
 
 type UiState =
@@ -19,13 +25,13 @@ type UiState =
   | { status: "empty" };
 
 function getSemesterRange(): { start: Date; end: Date } {
+  // ✅ Adjust these two dates to your actual semester.
   const start = new Date("2026-01-06T00:00:00");
   const end = new Date("2026-04-30T23:59:59");
   return { start, end };
 }
 
 export default function ScheduleScreen() {
-  // Dev build / production build: proxy should be false.
   const { request, promptAsync, getResultFromResponse, response } =
     useGoogleCalendarAuth({ useProxy: false });
 
@@ -34,29 +40,58 @@ export default function ScheduleScreen() {
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
-  // When OAuth response arrives, exchange code -> token (async)
+  // Load a saved token on first mount
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const res = await getResultFromResponse();
-      if (!res || cancelled) return;
+      try {
+        const saved = await getGoogleAccessToken();
+        if (cancelled) return;
 
-      if (!res.ok) {
-        if (res.reason === "cancelled") {
-          setUi({ status: "idle" });
-          return;
+        if (saved.accessToken) {
+          if (isTokenLikelyExpired(saved.meta)) {
+            await deleteGoogleAccessToken();
+            if (cancelled) return;
+            setAccessToken(null);
+            setUi({ status: "idle" });
+            return;
+          }
+
+          setAccessToken(saved.accessToken);
+          // UI will move to loading when loadSchedule runs
         }
-        setUi({ status: "error", message: res.message ?? "Login failed." });
-        return;
+      } catch {
+        // Ignore secure store errors; user can still connect manually
       }
-
-      setAccessToken(res.accessToken);
     })();
 
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // When OAuth response arrives, extract token + store it
+  useEffect(() => {
+    const res = getResultFromResponse();
+    if (!res) return;
+
+    if (!res.ok) {
+      if (res.reason === "cancelled") {
+        setUi({ status: "idle" });
+        return;
+      }
+      setUi({ status: "error", message: res.message ?? "Login failed." });
+      return;
+    }
+
+    setAccessToken(res.accessToken);
+
+    // Save token (don’t block UI)
+    saveGoogleAccessToken(res.accessToken, {
+      issuedAt: res.issuedAt,
+      expiresIn: res.expiresIn,
+    }).catch(() => {});
   }, [response, getResultFromResponse]);
 
   const connect = async () => {
@@ -71,13 +106,18 @@ export default function ScheduleScreen() {
     }
   };
 
+  const disconnect = async () => {
+    try {
+      await deleteGoogleAccessToken();
+    } finally {
+      setAccessToken(null);
+      setUi({ status: "idle" });
+    }
+  };
+
   const loadSchedule = async (token: string) => {
     try {
       setUi({ status: "loading" });
-
-      // Optional: useful for debugging which calendars exist
-      // const calendars = await fetchCalendarList(token);
-      // console.log("Calendars:", calendars);
 
       const calendarId = "primary";
 
@@ -113,9 +153,36 @@ export default function ScheduleScreen() {
 
   const header = (
     <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
-      <Text style={{ ...typography.title, color: colors.primaryDark }}>
-        My Schedule
-      </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: spacing.md,
+        }}
+      >
+        <Text style={{ ...typography.title, color: colors.primaryDark }}>
+          My Schedule
+        </Text>
+
+        {accessToken ? (
+          <Pressable
+            onPress={disconnect}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: colors.primaryDark,
+            }}
+          >
+            <Text style={{ ...typography.button, color: colors.primaryDark }}>
+              Disconnect
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       <Text style={{ marginTop: 6, color: colors.gray700 }}>
         Showing events from {start.toLocaleDateString()} to{" "}
         {end.toLocaleDateString()}
@@ -216,11 +283,30 @@ export default function ScheduleScreen() {
               {accessToken ? "Try Again" : "Connect Google Calendar"}
             </Text>
           </Pressable>
+
+          {accessToken ? (
+            <Pressable
+              onPress={disconnect}
+              style={{
+                marginTop: 8,
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: colors.primaryDark,
+              }}
+            >
+              <Text style={{ ...typography.button, color: colors.primaryDark }}>
+                Disconnect
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     );
   }
 
+  // ready
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       {header}
