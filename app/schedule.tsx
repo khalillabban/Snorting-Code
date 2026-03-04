@@ -4,7 +4,10 @@ import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
 import { colors, spacing, typography } from "../constants/theme";
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
-import { fetchCalendarEventsInRange } from "../services/GoogleCalendarService";
+import {
+  fetchCalendarEventsInRange,
+  type GoogleCalendarEvent
+} from "../services/GoogleCalendarService";
 import { parseCourseEvents, type ScheduleItem } from "../utils/parseCourseEvents";
 
 type UiState =
@@ -16,46 +19,55 @@ type UiState =
   | { status: "empty" };
 
 function getSemesterRange(): { start: Date; end: Date } {
-  // ✅ Adjust these two dates to your actual semester.
-  // Example: Winter term (Jan 6 → Apr 30)
   const start = new Date("2026-01-06T00:00:00");
   const end = new Date("2026-04-30T23:59:59");
   return { start, end };
 }
 
 export default function ScheduleScreen() {
+  // Dev build / production build: proxy should be false.
   const { request, promptAsync, getResultFromResponse, response } =
-    useGoogleCalendarAuth();
+    useGoogleCalendarAuth({ useProxy: false });
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [ui, setUi] = useState<UiState>({ status: "idle" });
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
-  // When OAuth response arrives, extract the token
+  // When OAuth response arrives, exchange code -> token (async)
   useEffect(() => {
-    const res = getResultFromResponse();
-    if (!res) return;
+    let cancelled = false;
 
-    if (!res.ok) {
-      if (res.reason === "cancelled") {
-        setUi({ status: "idle" });
+    (async () => {
+      const res = await getResultFromResponse();
+      if (!res || cancelled) return;
+
+      if (!res.ok) {
+        if (res.reason === "cancelled") {
+          setUi({ status: "idle" });
+          return;
+        }
+        setUi({ status: "error", message: res.message ?? "Login failed." });
         return;
       }
-      setUi({ status: "error", message: res.message ?? "Login failed." });
-      return;
-    }
 
-    setAccessToken(res.accessToken);
+      setAccessToken(res.accessToken);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [response, getResultFromResponse]);
 
   const connect = async () => {
     try {
       setUi({ status: "connecting" });
-      // Expo Go friendly
       await promptAsync();
     } catch (e: any) {
-      setUi({ status: "error", message: e?.message ?? "Could not start login." });
+      setUi({
+        status: "error",
+        message: e?.message ?? "Could not start login.",
+      });
     }
   };
 
@@ -63,10 +75,17 @@ export default function ScheduleScreen() {
     try {
       setUi({ status: "loading" });
 
-      const rawEvents = await fetchCalendarEventsInRange({
+      // Optional: useful for debugging which calendars exist
+      // const calendars = await fetchCalendarList(token);
+      // console.log("Calendars:", calendars);
+
+      const calendarId = "primary";
+
+      const rawEvents: GoogleCalendarEvent[] = await fetchCalendarEventsInRange({
         accessToken: token,
         timeMin: start,
         timeMax: end,
+        calendarId,
       });
 
       const items = parseCourseEvents(rawEvents);
@@ -202,7 +221,6 @@ export default function ScheduleScreen() {
     );
   }
 
-  // ready
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       {header}
