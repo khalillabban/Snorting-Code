@@ -55,7 +55,7 @@ export function DirectionStepsPanel({
               onPress={onChangeRoute}
               style={styles.changeButton}
               accessibilityRole="button"
-              accessibilityLabel="Change route or travel mode"
+              accessibilityLabel="Change route"
             >
               <Text style={styles.changeButtonText}>Change route</Text>
             </Pressable>

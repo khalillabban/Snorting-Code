@@ -236,7 +236,7 @@ export default function CampusMapScreen() {
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
-          <MaterialIcons name="directions" size={24} color={colors.white} />
+          <MaterialIcons name="directions" size={24} color={colors.white} importantForAccessibility="no-hide-descendants" />
         </Pressable>
 
         <Pressable

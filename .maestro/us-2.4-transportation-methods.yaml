@@ -1,0 +1,64 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible: 
+      id: "directions-button"
+    timeout: 10000
+- tapOn: "directions-button"
+
+- tapOn:
+    id: "start-location-input"
+- eraseText
+- inputText: "John Molson Building"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-MB"
+    timeout: 5000
+- tapOn:
+    id: "suggestion-MB"
+
+- tapOn:
+    id: "dest-location-input"
+- eraseText
+- inputText: "Faubourg Building"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-FB"
+    timeout: 5000
+- tapOn:
+    id: "suggestion-FB"
+
+- tapOn:
+    id: "mode-button-walking"
+- tapOn: "Get Directions"
+- assertVisible: "Walk"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-bicycling"
+- tapOn: "Get Directions"
+- assertVisible: "Bike"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-driving"
+- tapOn: "Get Directions"
+- assertVisible: "Car"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-transit"
+- tapOn: "Get Directions"
+- assertVisible: "Transit"
