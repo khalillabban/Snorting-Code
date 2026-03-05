@@ -1,23 +1,41 @@
-// __tests__/GoogleAuthService.test.tsx
 import { render } from "@testing-library/react-native";
 import React from "react";
-import { Text } from "react-native";
+import { Platform, Text } from "react-native";
 
-const mockMakeRedirectUri = jest.fn((..._args: any[]) => "proxy://redirect");
-const mockUseAuthRequest: jest.Mock<any, any> = jest.fn(); // ✅ prevent narrow tuple inference
-const mockMaybeCompleteAuthSession = jest.fn((..._args: any[]) => undefined);
+// --------------------
+// Mocks (top-level, once)
+// --------------------
+const mockMakeRedirectUri = jest.fn(() => "proxy://redirect");
+const mockUseAuthRequest: jest.Mock<any, any> = jest.fn();
+const mockMaybeCompleteAuthSession = jest.fn();
 
 jest.mock("expo-auth-session", () => ({
-  makeRedirectUri: (...args: any[]) => mockMakeRedirectUri(...args),
+  makeRedirectUri: mockMakeRedirectUri,
 }));
 
 jest.mock("expo-auth-session/providers/google", () => ({
-  useAuthRequest: (...args: any[]) => mockUseAuthRequest(...args),
+  useAuthRequest: mockUseAuthRequest,
 }));
 
 jest.mock("expo-web-browser", () => ({
-  maybeCompleteAuthSession: (...args: any[]) => mockMaybeCompleteAuthSession(...args),
+  maybeCompleteAuthSession: mockMaybeCompleteAuthSession,
 }));
+
+// IMPORTANT: require AFTER mocks are declared (and only once)
+const GoogleAuthService = require("../services/GoogleAuthService") as typeof import("../services/GoogleAuthService");
+const { useGoogleCalendarAuth } = GoogleAuthService;
+
+// --------------------
+// Helpers
+// --------------------
+const originalOS = Platform.OS;
+function setPlatformOS(os: "ios" | "android") {
+  Object.defineProperty(Platform, "OS", { value: os, configurable: true });
+}
+
+afterAll(() => {
+  Object.defineProperty(Platform, "OS", { value: originalOS, configurable: true });
+});
 
 function HookHarness({
   options,
@@ -26,28 +44,45 @@ function HookHarness({
   options?: any;
   onValue: (val: any) => void;
 }) {
-  const { useGoogleCalendarAuth } = require("../services/GoogleAuthService");
   const val = useGoogleCalendarAuth(options);
   onValue(val);
   return <Text>ok</Text>;
 }
 
+// --------------------
+// Tests
+// --------------------
 describe("services/GoogleAuthService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    setPlatformOS("ios");
+
     delete process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    delete process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
     delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
     mockUseAuthRequest.mockReturnValue([{ id: "req" }, null, jest.fn()]);
   });
 
   it("calls maybeCompleteAuthSession on module import", () => {
+    // Only this test needs a fresh import to observe the import-side-effect.
+    jest.resetModules();
+
+    // Re-apply the same mocks after resetModules (required!)
+    jest.doMock("expo-auth-session", () => ({
+      makeRedirectUri: mockMakeRedirectUri,
+    }));
+    jest.doMock("expo-auth-session/providers/google", () => ({
+      useAuthRequest: mockUseAuthRequest,
+    }));
+    jest.doMock("expo-web-browser", () => ({
+      maybeCompleteAuthSession: mockMaybeCompleteAuthSession,
+    }));
+
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
 
-    jest.isolateModules(() => {
-      require("../services/GoogleAuthService");
-    });
+    require("../services/GoogleAuthService");
 
     expect(mockMaybeCompleteAuthSession).toHaveBeenCalledTimes(1);
   });
@@ -58,7 +93,7 @@ describe("services/GoogleAuthService", () => {
     }).toThrow(/Missing Google OAuth client IDs/i);
   });
 
-  it("useProxy true uses makeRedirectUri and does not require iosClientId", () => {
+  it("useProxy true uses makeRedirectUri and does not require native client IDs", () => {
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = "web-client-id";
 
     let result: any;
@@ -68,7 +103,8 @@ describe("services/GoogleAuthService", () => {
     expect(result.redirectUri).toBe("proxy://redirect");
   });
 
-  it("useProxy false throws if iosClientId missing even when webClientId exists", () => {
+  it("useProxy false on iOS throws if iosClientId missing even when webClientId exists", () => {
+    setPlatformOS("ios");
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = "web-client-id";
 
     expect(() => {
@@ -76,13 +112,34 @@ describe("services/GoogleAuthService", () => {
     }).toThrow(/Missing EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID/i);
   });
 
+  it("useProxy false on Android throws if androidClientId missing", () => {
+    setPlatformOS("android");
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = "web-client-id";
+
+    expect(() => {
+      render(<HookHarness options={{ useProxy: false }} onValue={() => {}} />);
+    }).toThrow(/Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID/i);
+  });
+
   it("computes redirect URI from ios client id when not using proxy", () => {
+    setPlatformOS("ios");
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
 
     let result: any;
     render(<HookHarness onValue={(v) => (result = v)} />);
 
-    expect(result.redirectUri).toBe("com.googleusercontent.apps.123:/oauthredirect");
+    expect(result.redirectUri).toBe("com.googleusercontent.apps.123:/schedule");
+    expect(mockMakeRedirectUri).not.toHaveBeenCalled();
+  });
+
+  it("computes redirect URI from android client id when not using proxy", () => {
+    setPlatformOS("android");
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID = "456.apps.googleusercontent.com";
+
+    let result: any;
+    render(<HookHarness onValue={(v) => (result = v)} />);
+
+    expect(result.redirectUri).toBe("com.googleusercontent.apps.456:/schedule");
     expect(mockMakeRedirectUri).not.toHaveBeenCalled();
   });
 
@@ -182,7 +239,6 @@ describe("services/GoogleAuthService", () => {
 
   it("dismiss returns cancelled", () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
-
     mockUseAuthRequest.mockReturnValue([{}, { type: "dismiss" }, jest.fn()]);
 
     let result: any;
@@ -193,7 +249,6 @@ describe("services/GoogleAuthService", () => {
 
   it("cancel returns cancelled", () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
-
     mockUseAuthRequest.mockReturnValue([{}, { type: "cancel" }, jest.fn()]);
 
     let result: any;
@@ -242,7 +297,6 @@ describe("services/GoogleAuthService", () => {
 
   it("error with no params returns generic message", () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
-
     mockUseAuthRequest.mockReturnValue([{}, { type: "error" }, jest.fn()]);
 
     let result: any;
