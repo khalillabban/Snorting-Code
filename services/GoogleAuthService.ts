@@ -1,10 +1,7 @@
-// services/GoogleAuthService.ts
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
-import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback } from "react";
-import { Platform } from "react-native";
+import { useCallback, useMemo } from "react";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -13,67 +10,75 @@ const GOOGLE_SCOPES = [
 ] as const;
 
 export type GoogleAuthResult =
-  | { ok: true; accessToken: string; expiresIn?: number; issuedAt?: number }
+  | {
+      ok: true;
+      accessToken: string;
+      expiresIn?: number;
+      issuedAt?: number;
+    }
   | { ok: false; reason: "cancelled" | "failed"; message?: string };
 
 function getGoogleClientIds() {
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
-  if (!iosClientId && !androidClientId && !webClientId) {
+  if (!iosClientId && !webClientId && !androidClientId) {
     throw new Error(
       "Missing Google OAuth client IDs. Set at least one of:\n" +
         "- EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID\n" +
         "- EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID\n" +
-        "- EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID\n" +
+        "- EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (optional)\n" +
         "Then restart Expo.",
     );
   }
-  return { iosClientId, androidClientId, webClientId };
+
+  return { iosClientId, webClientId, androidClientId };
 }
 
-function isExpoGo(): boolean {
-  return Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+function computeRedirectUriFromClientId(clientId: string) {
+  const prefix = clientId.split(".apps.googleusercontent.com")[0];
+  return `com.googleusercontent.apps.${prefix}:/schedule`;
 }
 
-/**
- * In Expo Go: makeRedirectUri() returns exp://192.168.x.x:8081
- * Google does NOT accept dynamic IPs as redirect URIs.
- *
- * Solution: use your WEB client ID + redirect to a fixed localhost URI
- * that Google allows, handled entirely in the browser flow.
- *
- * For standalone builds: use the reverse client-id native scheme.
- */
-function buildRedirectUri(ids: ReturnType<typeof getGoogleClientIds>): string {
-  if (isExpoGo()) {
-    // Use a fixed localhost URI — works for Expo Go via the browser flow.
-    // Register exactly this in Google Console → Web client → Authorized redirect URIs.
-    return AuthSession.makeRedirectUri({
-      scheme: "exp",
-      path: "oauthredirect",
-    });
+function getNativeRedirectUri(ids: ReturnType<typeof getGoogleClientIds>) {
+  const { Platform } = require("react-native");
+
+  if (Platform.OS === "android") {
+    if (!ids.androidClientId) {
+      throw new Error(
+        "Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID. Android native auth requires an Android client ID.",
+      );
+    }
+    return computeRedirectUriFromClientId(ids.androidClientId);
   }
 
-  // Standalone build — reverse client-id native scheme
-  const clientId =
-    Platform.OS === "android" ? ids.androidClientId : ids.iosClientId;
-  if (!clientId) throw new Error(`Missing ${Platform.OS} Google client ID.`);
-  const prefix = clientId.replace(".apps.googleusercontent.com", "");
-  return `com.googleusercontent.apps.${prefix}:/oauthredirect`;
+  // iOS fallback
+  if (!ids.iosClientId) {
+    throw new Error(
+      "Missing EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID. iOS native auth requires an iOS client ID.",
+    );
+  }
+  return computeRedirectUriFromClientId(ids.iosClientId);
 }
 
-export function useGoogleCalendarAuth(options?: { scopes?: string[] }) {
+export function useGoogleCalendarAuth(options?: {
+  useProxy?: boolean;
+  scopes?: string[];
+}) {
   const ids = getGoogleClientIds();
-  const redirectUri = buildRedirectUri(ids);
+  const useProxy = options?.useProxy ?? false;
+
+  const redirectUri = useMemo(() => {
+    if (useProxy) {
+      return AuthSession.makeRedirectUri({ useProxy: true } as any);
+    }
+    return getNativeRedirectUri(ids);
+  }, [ids.iosClientId, ids.androidClientId, useProxy]);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: ids.iosClientId,
     androidClientId: ids.androidClientId,
-    // ⚠️ In Expo Go you MUST use the webClientId for the OAuth flow
-    // because the native client IDs require a registered app binary.
-    clientId: isExpoGo() ? ids.webClientId : undefined,
     webClientId: ids.webClientId,
     scopes: options?.scopes ?? [...GOOGLE_SCOPES],
     redirectUri,
@@ -81,14 +86,15 @@ export function useGoogleCalendarAuth(options?: { scopes?: string[] }) {
 
   const getResultFromResponse = useCallback((): GoogleAuthResult | null => {
     if (!response) return null;
-
     if (response.type === "success") {
       const auth = response.authentication;
       if (!auth?.accessToken) {
         return {
           ok: false,
           reason: "failed",
-          message: "No access token returned.",
+          message:
+            "Login succeeded but no access token was returned. " +
+            "Check auth configuration / scopes.",
         };
       }
       return {
@@ -118,8 +124,13 @@ export function useGoogleCalendarAuth(options?: { scopes?: string[] }) {
   return {
     request,
     response,
-    redirectUri, // log this — paste it exactly into Google Console
-    promptAsync: () => promptAsync(),
+    redirectUri,
+    promptAsync: (promptOptions?: any) =>
+      promptAsync(
+        useProxy
+          ? ({ ...(promptOptions ?? {}), useProxy: true } as any)
+          : promptOptions,
+      ),
     getResultFromResponse,
   };
 }
