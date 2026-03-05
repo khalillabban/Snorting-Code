@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect } from "react";
 
 export default function OAuthRedirect() {
   const router = useRouter();
@@ -8,7 +8,7 @@ export default function OAuthRedirect() {
   useEffect(() => {
     WebBrowser.maybeCompleteAuthSession();
     router.replace("/schedule");
-  }, []);
+  }, [router]);
 
   return null;
 }
