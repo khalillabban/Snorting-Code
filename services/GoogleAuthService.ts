@@ -37,8 +37,6 @@ function getGoogleClientIds() {
   return { iosClientId, webClientId, androidClientId };
 }
 
-const GOOGLE_CLIENT_IDS = getGoogleClientIds();
-
 function computeRedirectUriFromClientId(clientId: string) {
   const prefix = clientId.split(".apps.googleusercontent.com")[0];
   return `com.googleusercontent.apps.${prefix}:/schedule`;
@@ -54,12 +52,12 @@ function getNativeRedirectUri(ids: ReturnType<typeof getGoogleClientIds>) {
     return computeRedirectUriFromClientId(ids.androidClientId);
   }
 
-  // iOS fallback
   if (!ids.iosClientId) {
     throw new Error(
       "Missing EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID. iOS native auth requires an iOS client ID.",
     );
   }
+
   return computeRedirectUriFromClientId(ids.iosClientId);
 }
 
@@ -67,7 +65,7 @@ export function useGoogleCalendarAuth(options?: {
   useProxy?: boolean;
   scopes?: string[];
 }) {
-  const ids = GOOGLE_CLIENT_IDS;
+  const ids = getGoogleClientIds();
   const useProxy = options?.useProxy ?? false;
 
   const redirectUri = useMemo(() => {
@@ -87,6 +85,7 @@ export function useGoogleCalendarAuth(options?: {
 
   const getResultFromResponse = useCallback((): GoogleAuthResult | null => {
     if (!response) return null;
+
     if (response.type === "success") {
       const auth = response.authentication;
       if (!auth?.accessToken) {
@@ -94,10 +93,10 @@ export function useGoogleCalendarAuth(options?: {
           ok: false,
           reason: "failed",
           message:
-            "Login succeeded but no access token was returned. " +
-            "Check auth configuration / scopes.",
+            "Login succeeded but no access token was returned. Check auth configuration / scopes.",
         };
       }
+
       return {
         ok: true,
         accessToken: auth.accessToken,
@@ -112,6 +111,7 @@ export function useGoogleCalendarAuth(options?: {
 
     const errorDesc = (response as any)?.params?.error_description;
     const error = (response as any)?.params?.error;
+
     return {
       ok: false,
       reason: "failed",

@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { render, waitFor } from "@testing-library/react-native";
 import React from "react";
 
 const mockReplace = jest.fn();
@@ -18,7 +18,7 @@ jest.mock("expo-web-browser", () => ({
   },
 }));
 
-// ✅ require AFTER mocks are declared
+// require AFTER mocks are declared
 const OAuthRedirect = require("../app/oauthredirect").default;
 
 describe("OAuthRedirect", () => {
@@ -26,10 +26,12 @@ describe("OAuthRedirect", () => {
     jest.clearAllMocks();
   });
 
-  it("completes auth session and redirects to /schedule", () => {
+  it("completes auth session and redirects to /schedule", async () => {
     render(<OAuthRedirect />);
 
-    expect(mockMaybeCompleteAuthSession).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith("/schedule");
+    await waitFor(() => {
+      expect(mockMaybeCompleteAuthSession).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith("/schedule");
+    });
   });
 });
