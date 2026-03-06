@@ -3,6 +3,7 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
+import { parseCourseEvents, saveSchedule, loadCachedSchedule, type ScheduleItem, getNextClass } from "../utils/parseCourseEvents";
 import {
   SEMESTER_END,
   SEMESTER_START,
@@ -19,7 +20,6 @@ import {
   isTokenLikelyExpired,
   saveGoogleAccessToken,
 } from "../services/TokenStore";
-import { parseCourseEvents, type ScheduleItem } from "../utils/parseCourseEvents";
 
 type UiState =
   | { status: "idle" }
@@ -69,31 +69,27 @@ export default function ScheduleScreen() {
   // Load a saved token on first mount
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
+        const cached = await loadCachedSchedule();
+        if (cached && !cancelled) {
+          setUi({ status: "ready", items: cached });
+          // Don't return early — still need to load the token for the button
+        }
         const saved = await getGoogleAccessToken();
         if (cancelled) return;
-
         if (saved.accessToken) {
           if (isTokenLikelyExpired(saved.meta)) {
             await deleteGoogleAccessToken();
-            if (cancelled) return;
             setAccessToken(null);
             setUi({ status: "idle" });
             return;
           }
-
-          setAccessToken(saved.accessToken);
+          setAccessToken(saved.accessToken); // ← this makes the button appear
         }
-      } catch {
-        // Ignore secure store errors; user can still connect manually
-      }
+      } catch {}
     })();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   // When OAuth response arrives, extract token + store it
@@ -133,6 +129,8 @@ export default function ScheduleScreen() {
   const disconnect = useCallback(async () => {
     try {
       await deleteGoogleAccessToken();
+      await AsyncStorage.removeItem("scheduleItems"); // ← clears the cache
+
     } finally {
       setAccessToken(null);
       setUi({ status: "idle" });
@@ -151,12 +149,16 @@ export default function ScheduleScreen() {
             timeMax: end,
             calendarId: "primary",
           });
+
       // To only see the school stuff from your calendar
         const academicRegex = /\b(LEC|TUT|LAB)\b/i;
         const filteredEvents = rawEvents.filter(event =>
             academicRegex.test(event.summary || "")
         );
         const items = parseCourseEvents(filteredEvents);
+        await saveSchedule(items);
+        const next = await getNextClass();
+        console.log("Next class:", next?.courseName, next?.start, next?.location);
 
         if (items.length === 0) {
           setUi({ status: "empty" });

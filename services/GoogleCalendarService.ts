@@ -35,6 +35,7 @@ export type GoogleCalendarEvent = {
   attendees?: GoogleCalendarAttendee[];
 };
 
+
 export type GoogleCalendarListItem = {
   id: string;
   summary?: string;

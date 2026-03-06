@@ -73,8 +73,8 @@ export interface RouteStep {
 
 export interface CalendarEvent {
     className: string;
-    startTime: string;
-    endTime: string;
+    startTime: Date;
+    endTime: Date;
     daysOfWeek: string[];
     endDate: string;
     campus: 'SGW' | 'Loyola';
