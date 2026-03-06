@@ -2,6 +2,7 @@ import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useMemo } from "react";
+import { Platform } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -36,14 +37,14 @@ function getGoogleClientIds() {
   return { iosClientId, webClientId, androidClientId };
 }
 
+const GOOGLE_CLIENT_IDS = getGoogleClientIds();
+
 function computeRedirectUriFromClientId(clientId: string) {
   const prefix = clientId.split(".apps.googleusercontent.com")[0];
   return `com.googleusercontent.apps.${prefix}:/schedule`;
 }
 
 function getNativeRedirectUri(ids: ReturnType<typeof getGoogleClientIds>) {
-  const { Platform } = require("react-native");
-
   if (Platform.OS === "android") {
     if (!ids.androidClientId) {
       throw new Error(
@@ -66,7 +67,7 @@ export function useGoogleCalendarAuth(options?: {
   useProxy?: boolean;
   scopes?: string[];
 }) {
-  const ids = getGoogleClientIds();
+  const ids = GOOGLE_CLIENT_IDS;
   const useProxy = options?.useProxy ?? false;
 
   const redirectUri = useMemo(() => {
