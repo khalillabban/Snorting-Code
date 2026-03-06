@@ -6,6 +6,16 @@ export type GoogleCalendarDateTime = {
   timeZone?: string;
 };
 
+export type GoogleCalendarPerson = {
+  email?: string;
+  displayName?: string;
+};
+
+export type GoogleCalendarAttendee = {
+  email?: string;
+  responseStatus?: string;
+};
+
 export type GoogleCalendarEvent = {
   id?: string;
   status?: string;
@@ -19,13 +29,10 @@ export type GoogleCalendarEvent = {
   recurringEventId?: string;
   originalStartTime?: GoogleCalendarDateTime;
 
-  organizer?: { email?: string; displayName?: string };
-  creator?: { email?: string; displayName?: string };
+  organizer?: GoogleCalendarPerson;
+  creator?: GoogleCalendarPerson;
 
-  attendees?: Array<{ email?: string; responseStatus?: string }>;
-
-  // Allow extra fields without TypeScript complaining
-  [key: string]: any;
+  attendees?: GoogleCalendarAttendee[];
 };
 
 export type GoogleCalendarListItem = {
@@ -35,7 +42,16 @@ export type GoogleCalendarListItem = {
   primary?: boolean;
   accessRole?: string;
   timeZone?: string;
-  [key: string]: any;
+};
+
+type GoogleCalendarListResponse = {
+  items?: GoogleCalendarListItem[];
+  nextPageToken?: string;
+};
+
+type GoogleCalendarEventsResponse = {
+  items?: GoogleCalendarEvent[];
+  nextPageToken?: string;
 };
 
 async function readErrorText(res: Response) {
@@ -48,8 +64,18 @@ async function readErrorText(res: Response) {
 }
 
 function assertToken(accessToken: string) {
-  if (!accessToken || typeof accessToken !== "string") {
+  if (typeof accessToken !== "string") {
     throw new Error("Missing access token.");
+  }
+
+  const normalizedToken = accessToken.trim();
+
+  if (!normalizedToken) {
+    throw new Error("Missing access token.");
+  }
+
+  if (/\s/.test(normalizedToken)) {
+    throw new Error("Invalid access token format.");
   }
 }
 
@@ -74,13 +100,15 @@ export async function fetchCalendarList(
     throw new Error(`Calendar list failed (${res.status}): ${text}`);
   }
 
-  const data = await res.json();
-  return data?.items ?? [];
+  const data: GoogleCalendarListResponse = await res.json();
+  return data.items ?? [];
 }
 
 /**
  * Fetch events for a given calendar within a time range.
  * Default calendarId is "primary".
+ * Supports pagination because Google Calendar may return a nextPageToken
+ * when the result set exceeds the maxResults limit.
  */
 export async function fetchCalendarEventsInRange(params: {
   accessToken: string;
@@ -102,30 +130,42 @@ export async function fetchCalendarEventsInRange(params: {
     throw new Error("timeMax must be a valid Date.");
   }
 
-  const qs = new URLSearchParams({
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
-    singleEvents: "true",
-    orderBy: "startTime",
-    maxResults: String(maxResults),
-  });
+  const items: GoogleCalendarEvent[] = [];
+  let nextPageToken: string | undefined;
 
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-    calendarId,
-  )}/events?${qs.toString()}`;
+  do {
+    const qs = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: String(maxResults),
+    });
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-  });
+    if (nextPageToken) {
+      qs.set("pageToken", nextPageToken);
+    }
 
-  if (!res.ok) {
-    const text = await readErrorText(res);
-    throw new Error(`Events fetch failed (${res.status}): ${text}`);
-  }
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId,
+    )}/events?${qs.toString()}`;
 
-  const data = await res.json();
-  return data?.items ?? [];
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      const text = await readErrorText(res);
+      throw new Error(`Events fetch failed (${res.status}): ${text}`);
+    }
+
+    const data: GoogleCalendarEventsResponse = await res.json();
+    items.push(...(data.items ?? []));
+    nextPageToken = data.nextPageToken;
+  } while (nextPageToken);
+
+  return items;
 }
