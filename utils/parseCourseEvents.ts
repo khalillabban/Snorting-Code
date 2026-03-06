@@ -1,14 +1,7 @@
-// utils/parseCourseEvents.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
+import {ScheduleItem} from "../constants/ScheduleItem"
 
-export interface ScheduleItem {
-  id: string;
-  courseName: string;
-  start: Date;
-  end: Date;
-  location: string;
-}
 
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;

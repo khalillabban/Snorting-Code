@@ -83,3 +83,11 @@ export interface CalendarEvent {
     roomNumber: string;
     fullLocationString: string;
 }
+
+export interface ScheduleItem {
+  id: string;
+  courseName: string;
+  start: Date;
+  end: Date;
+  location: string;
+}

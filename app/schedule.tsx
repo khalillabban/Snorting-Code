@@ -3,12 +3,14 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
-import { parseCourseEvents, saveSchedule, loadCachedSchedule, type ScheduleItem, getNextClass } from "../utils/parseCourseEvents";
+import { parseCourseEvents, saveSchedule, loadCachedSchedule, getNextClass } from "../utils/parseCourseEvents";
 import {
   SEMESTER_END,
   SEMESTER_START,
 } from "../constants/semesterConfig";
 import { colors, spacing, typography } from "../constants/theme";
+import { ScheduleItem } from "../constants/type";
+
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   fetchCalendarEventsInRange,
@@ -74,7 +76,6 @@ export default function ScheduleScreen() {
         const cached = await loadCachedSchedule();
         if (cached && !cancelled) {
           setUi({ status: "ready", items: cached });
-          // Don't return early — still need to load the token for the button
         }
         const saved = await getGoogleAccessToken();
         if (cancelled) return;
@@ -85,7 +86,7 @@ export default function ScheduleScreen() {
             setUi({ status: "idle" });
             return;
           }
-          setAccessToken(saved.accessToken); // ← this makes the button appear
+          setAccessToken(saved.accessToken); //
         }
       } catch {}
     })();
@@ -129,7 +130,7 @@ export default function ScheduleScreen() {
   const disconnect = useCallback(async () => {
     try {
       await deleteGoogleAccessToken();
-      await AsyncStorage.removeItem("scheduleItems"); // ← clears the cache
+      await AsyncStorage.removeItem("scheduleItems");
 
     } finally {
       setAccessToken(null);
@@ -151,12 +152,15 @@ export default function ScheduleScreen() {
           });
 
       // To only see the school stuff from your calendar
-        const academicRegex = /\b(LEC|TUT|LAB)\b/i;
+        const academicRegex = /\b(LEC|TUT|LAB)\b/i; //Filtering
         const filteredEvents = rawEvents.filter(event =>
             academicRegex.test(event.summary || "")
         );
         const items = parseCourseEvents(filteredEvents);
+        //The save in the storage
         await saveSchedule(items);
+
+        //Test to see if I can collect my next class for the dev
         const next = await getNextClass();
         console.log("Next class:", next?.courseName, next?.start, next?.location);
 
