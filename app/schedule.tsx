@@ -42,6 +42,12 @@ export default function ScheduleScreen() {
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
+  const today = new Date().toLocaleDateString('en-CA', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
+
   useEffect(() => {
     const handleURL = ({ url }: { url: string }) => {
       if (url.includes("oauthredirect")) {
@@ -145,8 +151,12 @@ export default function ScheduleScreen() {
             timeMax: end,
             calendarId: "primary",
           });
-
-        const items = parseCourseEvents(rawEvents);
+      // To only see the school stuff from your calendar
+        const academicRegex = /\b(LEC|TUT|LAB)\b/i;
+        const filteredEvents = rawEvents.filter(event =>
+            academicRegex.test(event.summary || "")
+        );
+        const items = parseCourseEvents(filteredEvents);
 
         if (items.length === 0) {
           setUi({ status: "empty" });

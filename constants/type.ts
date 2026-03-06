@@ -70,3 +70,16 @@ export interface RouteStep {
   distance?: string;
   duration?: string;
 }
+
+export interface CalendarEvent {
+    className: string;
+    startTime: string;
+    endTime: string;
+    daysOfWeek: string[];
+    endDate: string;
+    campus: 'SGW' | 'Loyola';
+    buildingCode: string;
+    floorLevel: number;
+    roomNumber: string;
+    fullLocationString: string;
+}
