@@ -162,7 +162,12 @@ export default function ScheduleScreen() {
 
         //Test to see if I can collect my next class for the dev
         const next = await getNextClass();
-        console.log("Next class:", next?.courseName, next?.start, next?.location);
+        console.log("=== Next Class ===");
+        console.log("Course:  ", next?.courseName);
+        console.log("Start:   ", next?.start);
+        console.log("Campus:  ", next?.campus);
+        console.log("Building:", next?.building);
+        console.log("Room:    ", next?.room);
 
         if (items.length === 0) {
           setUi({ status: "empty" });

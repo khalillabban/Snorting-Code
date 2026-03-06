@@ -12,6 +12,18 @@ function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   return d;
 }
 
+function parseLocation(raw: string): { campus: string; building: string; room: string } {
+  // Matches "SGW - H 535" or "SGW- MB 2.445"
+  const match = raw.trim().match(/^(\w+)\s*-\s*(\w+)\s+(.+)$/);
+  if (!match) return { campus: "", building: "", room: "" };
+
+  return {
+    campus:   match[1].trim(),   // "SGW"
+    building: match[2].trim(),   // "H"
+    room:     match[3].trim(),   // "535"
+  };
+}
+
 export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[] {
   return events
     .map((ev) => {
@@ -19,12 +31,18 @@ export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[]
       const end = parseGoogleDateTime(ev, "end");
       if (!ev.id || !start || !end) return null;
 
+      const location = (ev.location ?? "").trim() || "Location not provided";
+      const { campus, building, room } = parseLocation(location);
+
       return {
         id:         ev.id,
-        courseName: (ev.summary  ?? "").trim() || "Untitled class",
+        courseName: (ev.summary ?? "").trim() || "Untitled class",
         start,
         end,
-        location:   (ev.location ?? "").trim() || "Location not provided",
+        location,
+        campus,
+        building,
+        room,
       };
     })
     .filter((x): x is ScheduleItem => Boolean(x))

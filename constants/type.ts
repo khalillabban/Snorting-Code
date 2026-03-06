@@ -89,5 +89,8 @@ export interface ScheduleItem {
   courseName: string;
   start: Date;
   end: Date;
-  location: string;
+  location: string;   // full original string "SGW - H 535"
+  campus: string;     // "SGW"
+  building: string;   // "H"
+  room: string;       // "535"
 }
