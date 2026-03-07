@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-import {ScheduleItem} from "../constants/ScheduleItem"
+import {ScheduleItem} from "../constants/type"
 
 
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
@@ -13,14 +13,13 @@ function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
 }
 
 function parseLocation(raw: string): { campus: string; building: string; room: string } {
-  // Matches "SGW - H 535" or "SGW- MB 2.445"
   const match = raw.trim().match(/^(\w+)\s*-\s*(\w+)\s+(.+)$/);
   if (!match) return { campus: "", building: "", room: "" };
 
   return {
-    campus:   match[1].trim(),   // "SGW"
-    building: match[2].trim(),   // "H"
-    room:     match[3].trim(),   // "535"
+    campus:   match[1].trim(),
+    building: match[2].trim(),
+    room:     match[3].trim(),
   };
 }
 

@@ -1,15 +1,18 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
-import { parseCourseEvents, saveSchedule, loadCachedSchedule, getNextClass } from "../utils/parseCourseEvents";
-import {
-  SEMESTER_END,
-  SEMESTER_START,
-} from "../constants/semesterConfig";
+import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
 import { colors, spacing, typography } from "../constants/theme";
 import { ScheduleItem } from "../constants/type";
+import {
+  getNextClass,
+  loadCachedSchedule,
+  parseCourseEvents,
+  saveSchedule,
+} from "../utils/parseCourseEvents";
 
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
@@ -44,10 +47,10 @@ export default function ScheduleScreen() {
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
-  const today = new Date().toLocaleDateString('en-CA', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
+  const today = new Date().toLocaleDateString("en-CA", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
   });
 
   useEffect(() => {
@@ -90,7 +93,9 @@ export default function ScheduleScreen() {
         }
       } catch {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // When OAuth response arrives, extract token + store it
@@ -131,7 +136,6 @@ export default function ScheduleScreen() {
     try {
       await deleteGoogleAccessToken();
       await AsyncStorage.removeItem("scheduleItems");
-
     } finally {
       setAccessToken(null);
       setUi({ status: "idle" });
@@ -151,10 +155,10 @@ export default function ScheduleScreen() {
             calendarId: "primary",
           });
 
-      // To only see the school stuff from your calendar
+        // To only see the school stuff from your calendar
         const academicRegex = /\b(LEC|TUT|LAB)\b/i; //Filtering
-        const filteredEvents = rawEvents.filter(event =>
-            academicRegex.test(event.summary || "")
+        const filteredEvents = rawEvents.filter((event) =>
+          academicRegex.test(event.summary || ""),
         );
         const items = parseCourseEvents(filteredEvents);
         //The save in the storage
@@ -306,7 +310,9 @@ export default function ScheduleScreen() {
         <View style={{ padding: spacing.lg, gap: spacing.md }}>
           <Text style={{ color: colors.error }}>{ui.message}</Text>
           <Pressable
-            onPress={() => (accessToken ? loadSchedule(accessToken) : connect())}
+            onPress={() =>
+              accessToken ? loadSchedule(accessToken) : connect()
+            }
             style={{
               backgroundColor: colors.primaryDark,
               paddingVertical: 14,

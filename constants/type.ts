@@ -72,16 +72,16 @@ export interface RouteStep {
 }
 
 export interface CalendarEvent {
-    className: string;
-    startTime: Date;
-    endTime: Date;
-    daysOfWeek: string[];
-    endDate: string;
-    campus: 'SGW' | 'Loyola';
-    buildingCode: string;
-    floorLevel: number;
-    roomNumber: string;
-    fullLocationString: string;
+  className: string;
+  startTime: Date;
+  endTime: Date;
+  daysOfWeek: string[];
+  endDate: string;
+  campus: "SGW" | "Loyola";
+  buildingCode: string;
+  floorLevel: number;
+  roomNumber: string;
+  fullLocationString: string;
 }
 
 export interface ScheduleItem {
@@ -89,8 +89,8 @@ export interface ScheduleItem {
   courseName: string;
   start: Date;
   end: Date;
-  location: string;   // full original string "SGW - H 535"
-  campus: string;     // "SGW"
-  building: string;   // "H"
-  room: string;       // "535"
+  location: string;
+  campus: string;
+  building: string;
+  room: string;
 }
