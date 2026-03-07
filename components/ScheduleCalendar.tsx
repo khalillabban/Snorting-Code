@@ -2,7 +2,7 @@
 import React, { useMemo } from "react";
 import { SectionList, Text, View } from "react-native";
 import { colors, spacing, typography } from "../constants/theme";
-import type { ScheduleItem } from "../utils/parseCourseEvents";
+import type { ScheduleItem } from "../constants/type";
 
 function dayKey(d: Date) {
   // local day grouping
@@ -14,7 +14,10 @@ function dayKey(d: Date) {
 }
 
 function timeRange(start: Date, end: Date) {
-  const s = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const s = start.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const e = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `${s} – ${e}`;
 }
