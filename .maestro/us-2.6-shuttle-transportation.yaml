@@ -1,0 +1,67 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible:
+      id: "directions-button"
+    timeout: 10000
+- tapOn:
+    id: "directions-button"
+
+- extendedWaitUntil:
+    visible: "Get Directions"
+    timeout: 8000
+
+- tapOn:
+    id: "start-location-input"
+- eraseText
+- inputText: "John Molson Building"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-MB"
+    timeout: 5000
+- tapOn:
+    id: "suggestion-MB"
+
+- swipe:
+    direction: DOWN
+    duration: 600
+    startX: 50%
+    startY: 60%
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- assertVisible: "Loyola"
+- tapOn: "Loyola"
+- waitForAnimationToEnd:
+    timeout: 1500
+
+- doubleTapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd:
+    timeout: 1200
+
+- tapOn:
+    id: "label-marker-SP"
+- tapOn:
+    id: "popup-set-as-destination"
+
+- extendedWaitUntil:
+    visible:
+      id: "mode-button-shuttle"
+    timeout: 5000
+- tapOn:
+    id: "mode-button-shuttle"
+
+- tapOn: "Get Directions"
+
+- assertVisible: "Shuttle"

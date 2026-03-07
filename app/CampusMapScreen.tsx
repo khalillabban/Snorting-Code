@@ -198,6 +198,8 @@ export default function CampusMapScreen() {
 
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
       <Pressable
+        testID="shuttle-schedule-button"
+        accessibilityLabel="shuttle-schedule-button"
         onPress={() => setShowShuttleSchedulePanel(true)}
         style={[styles.actionButton]}
       >
@@ -236,7 +238,7 @@ export default function CampusMapScreen() {
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
-          <MaterialIcons name="directions" size={24} color={colors.white} />
+          <MaterialIcons name="directions" size={24} color={colors.white} importantForAccessibility="no-hide-descendants" />
         </Pressable>
 
         <Pressable

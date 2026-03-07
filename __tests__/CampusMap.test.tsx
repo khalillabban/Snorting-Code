@@ -75,7 +75,9 @@ jest.mock("react-native-maps", () => {
 
   const Marker = (props: any) => {
     return (
-      <View testID={props.testID ?? `marker-${props.title ?? "marker"}`}>
+      <View testID={props.testID ?? `marker-${props.title ?? "marker"}`}
+        onPress={props.tappable ? props.onPress : undefined}
+      >
         <Text testID="marker-props">
           {JSON.stringify({
             coordinate: props.coordinate,
@@ -466,4 +468,35 @@ describe("CampusMap", () => {
     await screen.findByTestId("marker-You are here");
     expect(screen.getByTestId("map-view")).toBeTruthy();
   });
+it("label marker tap and polygon tap both open the same building popup", async () => {
+  render(
+    <CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />
+  );
+  await screen.findByTestId("marker-You are here");
+
+  // Via polygon
+  const polygons = screen.getAllByTestId("polygon");
+  fireEvent.press(polygons[0]);
+  expect(screen.getByTestId("building-info-building-name").props.children).toBe("Building A");
+
+  // Close it
+  fireEvent.press(screen.getByTestId("building-info-close"));
+  expect(screen.queryByTestId("building-info-popup")).toBeNull();
+
+  // Via label marker
+  fireEvent.press(screen.getByTestId("label-marker-A"));
+  expect(screen.getByTestId("building-info-building-name").props.children).toBe("Building A");
+});
+
+it("label pill exists for each building with a boundingBox", async () => {
+  render(
+    <CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />
+  );
+  await screen.findByTestId("marker-You are here");
+
+  expect(screen.getByTestId("label-pill-A")).toBeTruthy();
+  expect(screen.getByTestId("label-pill-B")).toBeTruthy();
+  expect(screen.getByTestId("label-pill-C")).toBeTruthy();
+});
+
 });

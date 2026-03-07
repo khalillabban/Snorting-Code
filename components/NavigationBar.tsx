@@ -282,6 +282,7 @@ export default function NavigationBar({
                   <View style={styles.originDot} />
                 </View>
                 <TextInput
+                  testID="start-location-input"
                   style={styles.input}
                   placeholder="From"
                   placeholderTextColor={colors.gray500}
@@ -332,6 +333,7 @@ export default function NavigationBar({
                   />
                 </View>
                 <TextInput
+                  testID="dest-location-input"
                   style={styles.input}
                   placeholder="To"
                   placeholderTextColor={colors.gray500}
@@ -355,6 +357,7 @@ export default function NavigationBar({
                   {ALL_STRATEGIES.map((strategy) => (
                     <Pressable
                       key={strategy.mode}
+                      testID={`mode-button-${strategy.mode}`}
                       onPress={() => setSelectedStrategy(strategy)}
                       style={[
                         styles.modeButton,
@@ -407,6 +410,7 @@ export default function NavigationBar({
                 style={styles.suggestionList}
                 renderItem={({ item }) => (
                   <Pressable
+                    testID={`suggestion-${item.name}`} 
                     style={styles.suggestionItem}
                     onPress={() => selectBuilding(item)}
                   >

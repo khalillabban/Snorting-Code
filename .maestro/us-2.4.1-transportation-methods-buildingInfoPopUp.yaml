@@ -1,0 +1,61 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+- tapOn: "SGW Campus"
+
+- doubleTapOn:
+    point: "50%,45%"
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+- extendedWaitUntil:
+    visible:
+      id: "label-marker-LB"
+    timeout: 10000
+- tapOn:
+    id: "label-marker-LB"
+
+- tapOn:
+    id: "popup-set-as-start"
+
+- swipe:
+    direction: DOWN
+    duration: 600
+    startX: 50%
+    startY: 60%
+
+- tapOn:
+    id: "label-marker-FB"
+
+- tapOn:
+    id: "popup-set-as-destination"
+
+- tapOn:
+    id: "mode-button-walking"
+- tapOn: "Get Directions"
+- assertVisible: "Walk"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-bicycling"
+- tapOn: "Get Directions"
+- assertVisible: "Bike"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-driving"
+- tapOn: "Get Directions"
+- assertVisible: "Car"
+- tapOn: "Change route"
+
+- tapOn:
+    id: "mode-button-transit"
+- tapOn: "Get Directions"
+- assertVisible: "Transit"

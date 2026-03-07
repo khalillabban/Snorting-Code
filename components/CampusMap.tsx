@@ -495,14 +495,16 @@ export default function CampusMap({
         {buildingsOnCampus.map((building) => (
           <Marker
             key={`label-${building.name}`}
+            testID={`label-marker-${building.name}`}
             coordinate={building.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={labelsVisible}
-            tappable={false}
+            tappable={true}
+            onPress={() => handleBuildingPress(building)} 
           >
             <Animated.View
               testID={`label-pill-${building.name}`}
-              pointerEvents={labelsVisible ? "auto" : "none"}
+              pointerEvents="none"
               style={[
                 styles.codePill,
                 {

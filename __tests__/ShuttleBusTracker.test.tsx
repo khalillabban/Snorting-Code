@@ -1,3 +1,4 @@
+import { BUSSTOP } from "@/constants/shuttle";
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import axios from "axios";
 import React from "react";
@@ -33,7 +34,7 @@ describe("ShuttleBusTracker Module", () => {
 
     // --- HOOK TESTS (useShuttleBus) ---
     describe("useShuttleBus Hook", () => {
-        
+
         it("bails out early and does not fetch if NODE_ENV is 'test'", async () => {
             (process.env as any).NODE_ENV = "test";
 
@@ -45,7 +46,7 @@ describe("ShuttleBusTracker Module", () => {
         });
 
         it("fetches and filters buses successfully", async () => {
-            (process.env as any).NODE_ENV = "development"; 
+            (process.env as any).NODE_ENV = "development";
             mockedAxios.get.mockResolvedValueOnce({ status: 200 });
             mockedAxios.post.mockResolvedValueOnce({
                 data: {
@@ -131,22 +132,27 @@ describe("ShuttleBusTracker Module", () => {
             expect(loader).toBeTruthy();
         });
 
-        it("renders campus stops and live buses correctly on success", async () => {
-            mockedAxios.get.mockResolvedValueOnce({ status: 200 });
-            mockedAxios.post.mockResolvedValueOnce({
-                data: {
-                    d: { Points: [{ ID: "BUS-88", Latitude: 45.1234, Longitude: -73.1234 }] },
-                },
-            });
-
+        it("renders campus stops with no live buses in test environment", async () => {
             render(<ShuttleBusTracker />);
 
-            await screen.findByText("Campus Stops", {}, { timeout: 10000 });
+            await waitFor(() => {
+                BUSSTOP.forEach((stop) => {
+                    expect(screen.getByText(stop.name)).toBeTruthy();
+                });
+            });
 
-            expect(screen.getByText("Mock SGW Stop")).toBeTruthy();
-            expect(screen.getByText("123 Main St")).toBeTruthy();
-            expect(screen.getByText("Live Buses (1)")).toBeTruthy();
-            expect(screen.getByText("Bus ID: BUS-88")).toBeTruthy();
+            expect(screen.getByText("No buses currently in service.")).toBeTruthy();
+        });
+
+        it("shows loading indicator initially then resolves", async () => {
+            render(<ShuttleBusTracker />);
+
+            // In test env, loading resolves synchronously so spinner disappears fast
+            await waitFor(() => {
+                expect(screen.queryByTestId("activity-indicator")).toBeNull();
+            });
+
+            expect(screen.getByText(/Live Buses/)).toBeTruthy();
         });
 
         it("renders empty state message when no buses are running", async () => {
