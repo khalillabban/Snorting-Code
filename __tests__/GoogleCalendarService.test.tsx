@@ -118,6 +118,20 @@ describe("services/GoogleCalendarService", () => {
         "Calendar list failed (500): Server Error",
       );
     });
+
+    it("throws for a non-string token", async () => {
+      await expect(fetchCalendarList(null as any)).rejects.toThrow(
+        "Missing access token.",
+      );
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("throws for a token containing whitespace", async () => {
+      await expect(fetchCalendarList("TOKEN WITH SPACE")).rejects.toThrow(
+        "Invalid access token format.",
+      );
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
   });
 
   describe("fetchCalendarEventsInRange", () => {
@@ -291,6 +305,60 @@ describe("services/GoogleCalendarService", () => {
           timeMax: new Date("2026-01-02T00:00:00.000Z"),
         }),
       ).rejects.toThrow("Events fetch failed (500): Server Error");
+    });
+
+    it("follows nextPageToken and accumulates items across pages", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "e1" }, { id: "e2" }],
+          nextPageToken: "token-page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "e3" }],
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      const items = await fetchCalendarEventsInRange({
+        accessToken: "TOKEN",
+        timeMin: new Date("2026-01-01T00:00:00.000Z"),
+        timeMax: new Date("2026-06-01T00:00:00.000Z"),
+      });
+
+      expect(items).toHaveLength(3);
+      expect(items.map((i) => i.id)).toEqual(["e1", "e2", "e3"]);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      // Second call should include the pageToken
+      const [secondUrl] = (global.fetch as jest.Mock).mock.calls[1];
+      expect(secondUrl).toContain("pageToken=token-page-2");
+    });
+
+    it("throws for a non-string token", async () => {
+      await expect(
+        fetchCalendarEventsInRange({
+          accessToken: null as any,
+          timeMin: new Date(),
+          timeMax: new Date(),
+        }),
+      ).rejects.toThrow("Missing access token.");
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("throws for a token containing whitespace", async () => {
+      await expect(
+        fetchCalendarEventsInRange({
+          accessToken: "TOKEN WITH SPACE",
+          timeMin: new Date(),
+          timeMax: new Date(),
+        }),
+      ).rejects.toThrow("Invalid access token format.");
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 });

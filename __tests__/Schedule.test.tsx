@@ -26,8 +26,14 @@ jest.mock("../services/GoogleCalendarService", () => ({
 }));
 
 const mockParseCourseEvents = jest.fn();
+const mockLoadCachedSchedule = jest.fn();
+const mockSaveSchedule = jest.fn();
+const mockGetNextClass = jest.fn();
 jest.mock("../utils/parseCourseEvents", () => ({
   parseCourseEvents: (...args: any[]) => mockParseCourseEvents(...args),
+  loadCachedSchedule: (...args: any[]) => mockLoadCachedSchedule(...args),
+  saveSchedule: (...args: any[]) => mockSaveSchedule(...args),
+  getNextClass: (...args: any[]) => mockGetNextClass(...args),
 }));
 
 // ScheduleCalendar component mock
@@ -103,6 +109,9 @@ describe("ScheduleScreen", () => {
 
     mockFetchCalendarEventsInRange.mockResolvedValue([]);
     mockParseCourseEvents.mockReturnValue([]);
+    mockLoadCachedSchedule.mockResolvedValue(null);
+    mockSaveSchedule.mockResolvedValue(undefined);
+    mockGetNextClass.mockResolvedValue(null);
 
     mockSaveGoogleAccessToken.mockResolvedValue(undefined);
 
