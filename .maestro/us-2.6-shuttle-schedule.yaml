@@ -1,0 +1,47 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible:
+      id: "shuttle-schedule-button"
+    timeout: 10000
+- tapOn:
+    id: "shuttle-schedule-button"
+- waitForAnimationToEnd:
+    timeout: 10000
+
+- extendedWaitUntil:
+    visible: "Shuttle Schedule"
+    timeout: 10000
+- assertVisible: "Shuttle Schedule"
+
+- assertVisible:
+    id: "tab-sgw-to-loyola"
+- assertVisible:
+    id: "tab-loyola-to-sgw"
+
+- tapOn:
+    id: "tab-loyola-to-sgw"
+
+- tapOn:
+    id: "tab-sgw-to-loyola"
+
+- tapOn:
+    id: "pill-all-times"
+- assertVisible:
+    id: "pill-all-times"
+
+- tapOn:
+    id: "pill-upcoming"
+- assertVisible: "Next departures"
+
+- tapOn:
+    id: "close-schedule-button"

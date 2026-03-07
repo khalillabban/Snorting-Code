@@ -198,6 +198,8 @@ export default function CampusMapScreen() {
 
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
       <Pressable
+        testID="shuttle-schedule-button"
+        accessibilityLabel="shuttle-schedule-button"
         onPress={() => setShowShuttleSchedulePanel(true)}
         style={[styles.actionButton]}
       >

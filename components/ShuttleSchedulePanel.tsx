@@ -190,6 +190,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
           </View>
 
           <Pressable
+            testID="close-schedule-button"
             onPress={onClose}
             hitSlop={20}
             style={styles.closeButton}
@@ -215,6 +216,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
             {/* Direction Tabs */}
             <View style={styles.tabsRow}>
               <Pressable
+                testID="tab-sgw-to-loyola"
                 onPress={() => setDirection("SGW_to_Loyola")}
                 style={[
                   styles.tab,
@@ -234,6 +236,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
               </Pressable>
 
               <Pressable
+                testID="tab-loyola-to-sgw"
                 onPress={() => setDirection("Loyola_to_SGW")}
                 style={[
                   styles.tab,
@@ -285,6 +288,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
             {/* View mode toggles */}
             <View style={styles.modeRow}>
               <Pressable
+                testID="pill-upcoming"
                 onPress={() => setViewMode("upcoming")}
                 style={[
                   styles.modePill,
@@ -304,6 +308,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
               </Pressable>
 
               <Pressable
+                testID="pill-all-times"
                 onPress={() => setViewMode("all")}
                 style={[
                   styles.modePill,
