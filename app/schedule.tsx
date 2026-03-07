@@ -47,12 +47,6 @@ export default function ScheduleScreen() {
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
-  const today = new Date().toLocaleDateString("en-CA", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
   useEffect(() => {
     const handleURL = ({ url }: { url: string }) => {
       if (url.includes("oauthredirect")) {
