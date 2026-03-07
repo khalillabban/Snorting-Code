@@ -23,12 +23,10 @@ describe("ShuttleBusTracker Module", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        // Suppress console.warn for the error handling test to keep output clean
         consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
     });
 
     afterEach(() => {
-        // Restore the original environment and timers after each test
         (process.env as any).NODE_ENV = originalEnv;
         consoleWarnSpy.mockRestore();
         jest.useRealTimers();
@@ -40,7 +38,6 @@ describe("ShuttleBusTracker Module", () => {
         it("bails out early and does not fetch if NODE_ENV is 'test'", async () => {
             (process.env as any).NODE_ENV = "test";
 
-            // renderHook already wraps in act() internally
             const { result } = renderHook(() => useShuttleBus());
 
             expect(result.current.loading).toBe(false);
@@ -64,7 +61,6 @@ describe("ShuttleBusTracker Module", () => {
 
             const { result } = renderHook(() => useShuttleBus());
 
-            // Wait for the async state update to finish
             await waitFor(() => {
                 expect(result.current.loading).toBe(false);
             });
@@ -101,8 +97,6 @@ describe("ShuttleBusTracker Module", () => {
 
             const { result } = renderHook(() => useShuttleBus());
 
-            // FIX: Manually flush the async microtasks instead of using waitFor.
-            // This prevents the fake timers from freezing RTL's polling mechanism.
             await act(async () => {
                 await Promise.resolve();
                 await Promise.resolve();
@@ -112,7 +106,6 @@ describe("ShuttleBusTracker Module", () => {
             expect(result.current.loading).toBe(false);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
 
-            // Trigger the interval and manually flush the second set of promises
             await act(async () => {
                 jest.advanceTimersByTime(15000);
                 await Promise.resolve();
@@ -131,7 +124,6 @@ describe("ShuttleBusTracker Module", () => {
         });
 
         it("renders loading indicator initially", () => {
-            // Promise that never resolves to freeze the loading state
             mockedAxios.get.mockImplementationOnce(() => new Promise(() => { }));
 
             render(<ShuttleBusTracker />);
@@ -171,9 +163,7 @@ describe("ShuttleBusTracker Module", () => {
 
             render(<ShuttleBusTracker />);
 
-            await waitFor(() => {
-                expect(screen.getByText("Campus Stops")).toBeTruthy();
-            });
+            await screen.findByText("Campus Stops", {}, { timeout: 10000 });
 
             expect(screen.getByText("Live Buses (0)")).toBeTruthy();
             expect(screen.getByText("No buses currently in service.")).toBeTruthy();
