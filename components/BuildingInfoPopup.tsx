@@ -145,6 +145,7 @@ export const BuildingInfoPopup = ({
 
         <View style={styles.navButtonsRow}>
           <TouchableOpacity
+            testID="popup-set-as-start"
             activeOpacity={0.8}
             style={[styles.actionButton, styles.actionButtonHalf]}
             onPress={() => onSetAsStart?.(building)}
@@ -154,6 +155,7 @@ export const BuildingInfoPopup = ({
             <Text style={styles.actionButtonText}>Set as start</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            testID="popup-set-as-destination"
             activeOpacity={0.8}
             style={[styles.actionButton, styles.actionButtonHalf]}
             onPress={() => onSetAsDestination?.(building)}
