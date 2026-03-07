@@ -25,10 +25,6 @@ export default function Index() {
       <Pressable style={styles.button} onPress={() => goToCampus("loyola")}>
         <Text style={styles.buttonText}>Loyola Campus</Text>
       </Pressable>
-
-      <Pressable style={styles.button} onPress={() => router.push("/schedule" as any)}>
-        <Text style={styles.buttonText}>My Schedule</Text>
-      </Pressable>
     </View>
   );
 }

@@ -1,4 +1,4 @@
-# App package (Android) / bundle id (iOS). Must match app.config.js expo.android.package / expo.ios.bundleIdentifier.
+# App package (Android) / bundle id (iOS). Must match app.json expo.android.package / expo.ios.bundleIdentifier.
 appId: com.concordia.snortingcode
 ---
 - stopApp
