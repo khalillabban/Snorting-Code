@@ -431,11 +431,20 @@ describe("ScheduleScreen", () => {
     });
   });
 
-  it("ignores secure store read errors (catch branch in token load)", async () => {
-    mockGetGoogleAccessToken.mockRejectedValueOnce(new Error("secure store broke"));
+  it("shows an error when secure store read fails", async () => {
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
 
-    const screen = render(<ScheduleScreen />);
-    expect(screen.getByText("Connect Google Calendar")).toBeTruthy();
-    expect(mockFetchCalendarEventsInRange).not.toHaveBeenCalled();
+    try {
+      mockGetGoogleAccessToken.mockRejectedValueOnce(
+        new Error("secure store broke"),
+      );
+
+      const screen = render(<ScheduleScreen />);
+
+      expect(await screen.findByText("secure store broke")).toBeTruthy();
+      expect(mockFetchCalendarEventsInRange).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });
