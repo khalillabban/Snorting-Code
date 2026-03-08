@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-import {ScheduleItem} from "../constants/type"
-
 
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;
@@ -12,18 +11,24 @@ function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   return d;
 }
 
-function parseLocation(raw: string): { campus: string; building: string; room: string } {
+function parseLocation(raw: string): {
+  campus: string;
+  building: string;
+  room: string;
+} {
   const match = raw.trim().match(/^(\w+)\s*-\s*(\w+)\s+(.+)$/);
   if (!match) return { campus: "", building: "", room: "" };
 
   return {
-    campus:   match[1].trim(),
+    campus: match[1].trim(),
     building: match[2].trim(),
-    room:     match[3].trim(),
+    room: match[3].trim(),
   };
 }
 
-export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[] {
+export function parseCourseEvents(
+  events: GoogleCalendarEvent[],
+): ScheduleItem[] {
   return events
     .map((ev) => {
       const start = parseGoogleDateTime(ev, "start");
@@ -34,7 +39,7 @@ export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[]
       const { campus, building, room } = parseLocation(location);
 
       return {
-        id:         ev.id,
+        id: ev.id,
         courseName: (ev.summary ?? "").trim() || "Untitled class",
         start,
         end,
@@ -50,20 +55,29 @@ export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[]
 
 // Save items to AsyncStorage (call this after parseCourseEvents)
 export async function saveSchedule(items: ScheduleItem[]): Promise<void> {
-  await AsyncStorage.setItem("scheduleItems", JSON.stringify(items));
-  console.log(`Saved ${items.length} items to AsyncStorage`);
+  await AsyncStorage.setItem(SCHEDULE_ITEMS, JSON.stringify(items));
+  if (__DEV__) {
+    console.log(`Saved ${items.length} items to AsyncStorage`);
+  }
 }
 
 // Load and revive Date objects on app start
 export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
-  const raw = await AsyncStorage.getItem("scheduleItems");
-  if (!raw) return null;
+  try {
+    const raw = await AsyncStorage.getItem(SCHEDULE_ITEMS);
+    if (!raw) return null;
 
-  return JSON.parse(raw).map((item: any) => ({
-    ...item,
-    start: new Date(item.start),
-    end:   new Date(item.end),
-  }));
+    return JSON.parse(raw).map((item: any) => ({
+      ...item,
+      start: new Date(item.start),
+      end: new Date(item.end),
+    }));
+  } catch (error) {
+    if (__DEV__)
+      console.warn("Failed to load cached schedule, clearing cache:", error);
+    await AsyncStorage.removeItem(SCHEDULE_ITEMS);
+    return null;
+  }
 }
 
 export async function getNextClass(): Promise<ScheduleItem | null> {
@@ -71,5 +85,5 @@ export async function getNextClass(): Promise<ScheduleItem | null> {
   if (!items) return null;
 
   const now = new Date();
-  return items.find(item => item.start > now) ?? null;
+  return items.find((item) => item.start > now) ?? null;
 }

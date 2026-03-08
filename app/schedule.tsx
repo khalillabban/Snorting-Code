@@ -6,7 +6,7 @@ import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
 import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
 import { colors, spacing, typography } from "../constants/theme";
-import { ScheduleItem } from "../constants/type";
+import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import {
   getNextClass,
   loadCachedSchedule,
@@ -137,7 +137,7 @@ export default function ScheduleScreen() {
   const disconnect = useCallback(async () => {
     try {
       await deleteGoogleAccessToken();
-      await AsyncStorage.removeItem("scheduleItems");
+      await AsyncStorage.removeItem(SCHEDULE_ITEMS);
     } finally {
       setAccessToken(null);
       setUi({ status: "idle" });

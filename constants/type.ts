@@ -94,3 +94,5 @@ export interface ScheduleItem {
   building: string;
   room: string;
 }
+
+export const SCHEDULE_ITEMS = "scheduleItems" as const;

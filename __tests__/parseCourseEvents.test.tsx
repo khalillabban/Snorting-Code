@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
 import {
   getNextClass,
@@ -6,7 +7,6 @@ import {
   parseCourseEvents,
   saveSchedule,
 } from "../utils/parseCourseEvents";
-import type { ScheduleItem } from "../constants/type";
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -257,8 +257,26 @@ describe("loadCachedSchedule", () => {
 
   it("returns multiple items with correct shape", async () => {
     const data = [
-      { id: "1", courseName: "A LEC", start: "2026-01-01T08:00:00Z", end: "2026-01-01T09:00:00Z", location: "", campus: "", building: "", room: "" },
-      { id: "2", courseName: "B TUT", start: "2026-01-02T08:00:00Z", end: "2026-01-02T09:00:00Z", location: "", campus: "", building: "", room: "" },
+      {
+        id: "1",
+        courseName: "A LEC",
+        start: "2026-01-01T08:00:00Z",
+        end: "2026-01-01T09:00:00Z",
+        location: "",
+        campus: "",
+        building: "",
+        room: "",
+      },
+      {
+        id: "2",
+        courseName: "B TUT",
+        start: "2026-01-02T08:00:00Z",
+        end: "2026-01-02T09:00:00Z",
+        location: "",
+        campus: "",
+        building: "",
+        room: "",
+      },
     ];
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
@@ -280,7 +298,16 @@ describe("getNextClass", () => {
 
   it("returns null when all cached items are in the past", async () => {
     const data = [
-      { id: "old1", courseName: "HIST LEC", start: "2020-01-01T10:00:00Z", end: "2020-01-01T11:00:00Z", location: "", campus: "", building: "", room: "" },
+      {
+        id: "old1",
+        courseName: "HIST LEC",
+        start: "2020-01-01T10:00:00Z",
+        end: "2020-01-01T11:00:00Z",
+        location: "",
+        campus: "",
+        building: "",
+        room: "",
+      },
     ];
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
@@ -292,8 +319,26 @@ describe("getNextClass", () => {
     const later = new Date(Date.now() + 3_600_000).toISOString();
     // Items must be stored sorted by start time (as parseCourseEvents always produces)
     const data = [
-      { id: "soon",  courseName: "COMP 001 LEC", start: soon,  end: soon,  location: "", campus: "SGW", building: "H", room: "200" },
-      { id: "later", courseName: "COMP 999 LEC", start: later, end: later, location: "", campus: "SGW", building: "H", room: "100" },
+      {
+        id: "soon",
+        courseName: "COMP 001 LEC",
+        start: soon,
+        end: soon,
+        location: "",
+        campus: "SGW",
+        building: "H",
+        room: "200",
+      },
+      {
+        id: "later",
+        courseName: "COMP 999 LEC",
+        start: later,
+        end: later,
+        location: "",
+        campus: "SGW",
+        building: "H",
+        room: "100",
+      },
     ];
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
@@ -305,8 +350,26 @@ describe("getNextClass", () => {
   it("returns the only future class when mixed with past classes", async () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     const data = [
-      { id: "past",   courseName: "OLD LEC",  start: "2020-01-01T10:00:00Z", end: "2020-01-01T11:00:00Z", location: "", campus: "", building: "", room: "" },
-      { id: "future", courseName: "NEXT LEC", start: future, end: future, location: "", campus: "SGW", building: "EV", room: "101" },
+      {
+        id: "past",
+        courseName: "OLD LEC",
+        start: "2020-01-01T10:00:00Z",
+        end: "2020-01-01T11:00:00Z",
+        location: "",
+        campus: "",
+        building: "",
+        room: "",
+      },
+      {
+        id: "future",
+        courseName: "NEXT LEC",
+        start: future,
+        end: future,
+        location: "",
+        campus: "SGW",
+        building: "EV",
+        room: "101",
+      },
     ];
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
