@@ -116,9 +116,9 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
   const strokeColor = strokeColors[mode] ?? colors.primary;
   let lineDashPattern: number[] | undefined;
 
-  if (mode == "transit" || mode == "shuttle") {
+  if (mode === "transit" || mode === "shuttle") {
     lineDashPattern = [8, 6];
-  } else if (mode == "bicycling") {
+  } else if (mode === "bicycling") {
     lineDashPattern = [4, 4];
   }
   return { strokeColor, lineDashPattern };
@@ -146,9 +146,6 @@ export default function CampusMap({
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
-  const [routeCoords, setRouteCoords] = useState<
-    { latitude: number; longitude: number }[]
-  >([]);
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -281,7 +278,6 @@ export default function CampusMap({
 
     async function fetchRoute() {
       if (!startPoint || !destinationPoint) {
-        setRouteCoords([]);
         setRouteSegments([]);
         onRouteSteps?.([]);
         return;
@@ -289,7 +285,6 @@ export default function CampusMap({
 
       try {
         const {
-          coordinates: route,
           steps,
           segments,
         } = await getOutdoorRouteWithSteps(
@@ -300,12 +295,10 @@ export default function CampusMap({
 
         if (cancelled) return;
 
-        setRouteCoords(route);
         setRouteSegments(segments);
         onRouteSteps?.(steps);
       } catch {
         if (!cancelled) {
-          setRouteCoords([]);
           onRouteSteps?.([]);
           setRouteSegments([]);
         }
@@ -564,21 +557,18 @@ export default function CampusMap({
         {/* Shuttle route (Google Directions) + live shuttle markers */}
         {showShuttle && (
           <>
-            {/* {shuttleRouteCoords.length > 0 && (
-                  <Polyline
-                    coordinates={shuttleRouteCoords}
-                    strokeWidth={6}
-                    strokeColor={colors.routeTransit}
-                    lineDashPattern={[10, 6]}
-                    lineJoin="round"
-                    lineCap="round"
-                    zIndex={1}
-                  />
-                )} 
-            )}*/}
-            {BUSSTOP.map((stop, index) => {
-              const campusLabel = stop.id === "SGW_Stop" ? "SGW" : "Loyola";
-              const startOrEnd = index === 0 ? "Start" : "End";
+            {shuttleRouteCoords.length > 0 && (
+              <Polyline
+                coordinates={shuttleRouteCoords}
+                strokeWidth={6}
+                strokeColor={colors.routeTransit}
+                lineDashPattern={[10, 6]}
+                lineJoin="round"
+                lineCap="round"
+                zIndex={1}
+              />
+            )}
+            {BUSSTOP.map((stop) => {
               return (
                 <Marker
                   key={stop.id}
