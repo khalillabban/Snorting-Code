@@ -183,4 +183,123 @@ describe("components/ScheduleCalendar", () => {
     expect(getByText("Class A")).toBeTruthy();
     expect(getByText("Class B")).toBeTruthy();
   });
+
+  // ---------------------------------------------------------------------------
+  // String date normalization
+  // ---------------------------------------------------------------------------
+  it("normalizes string dates to Date objects", () => {
+    const futureDate = hoursFromNow(1);
+    const futureEnd = hoursFromNow(2);
+    
+    // Create items with string dates (simulating serialized data)
+    const items = [
+      {
+        id: "str1",
+        courseName: "String Date Class",
+        start: futureDate.toISOString() as unknown as Date,
+        end: futureEnd.toISOString() as unknown as Date,
+        location: "Room A",
+        campus: "SGW",
+        building: "H",
+        room: "123",
+        level: "1",
+      },
+    ] as ScheduleItem[];
+
+    const { getByText } = render(<ScheduleCalendar items={items} />);
+    expect(getByText("String Date Class")).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Past classes rendering
+  // ---------------------------------------------------------------------------
+  it("renders multiple past classes when past section is expanded", () => {
+    const items: ScheduleItem[] = [
+      makeItem("p1", "Past A", hoursAgo(5), hoursAgo(4), "Room A"),
+      makeItem("p2", "Past B", hoursAgo(3), hoursAgo(2), "Room B"),
+    ];
+
+    const { getByTestId, getByText } = render(<ScheduleCalendar items={items} />);
+
+    fireEvent.press(getByTestId("accordion-past"));
+
+    expect(getByText("Past A")).toBeTruthy();
+    expect(getByText("Past B")).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Re-expanding collapsed section
+  // ---------------------------------------------------------------------------
+  it("re-expands upcoming section after collapsing", () => {
+    const items: ScheduleItem[] = [
+      makeItem("u1", "Toggle Class", hoursFromNow(1), hoursFromNow(2)),
+    ];
+
+    const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
+
+    // Initially visible
+    expect(queryByText("Toggle Class")).toBeTruthy();
+
+    // Collapse
+    fireEvent.press(getByTestId("accordion-upcoming"));
+    expect(queryByText("Toggle Class")).toBeNull();
+
+    // Re-expand
+    fireEvent.press(getByTestId("accordion-upcoming"));
+    expect(queryByText("Toggle Class")).toBeTruthy();
+  });
+
+  it("collapses past section after expanding", () => {
+    const items: ScheduleItem[] = [
+      makeItem("p1", "Past Toggle", hoursAgo(2), hoursAgo(1)),
+    ];
+
+    const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
+
+    // Initially hidden (past collapsed by default)
+    expect(queryByText("Past Toggle")).toBeNull();
+
+    // Expand
+    fireEvent.press(getByTestId("accordion-past"));
+    expect(queryByText("Past Toggle")).toBeTruthy();
+
+    // Collapse again
+    fireEvent.press(getByTestId("accordion-past"));
+    expect(queryByText("Past Toggle")).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Time display
+  // ---------------------------------------------------------------------------
+  it("displays time range with en-dash separator", () => {
+    const items: ScheduleItem[] = [
+      makeItem("t1", "Time Test", hoursFromNow(1), hoursFromNow(2)),
+    ];
+
+    const { getByText } = render(<ScheduleCalendar items={items} />);
+    
+    // With our mock, times will be in HH:MM format
+    // The component uses " – " (en-dash with spaces) as separator
+    expect(getByText(/–/)).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Sorting past items
+  // ---------------------------------------------------------------------------
+  it("sorts past items by start time", () => {
+    const earlier = makeItem("e", "Earlier Past", hoursAgo(4), hoursAgo(3), "Room A");
+    const later = makeItem("l", "Later Past", hoursAgo(2), hoursAgo(1), "Room B");
+
+    // Pass items in reverse order
+    const { getByTestId, getAllByText } = render(
+      <ScheduleCalendar items={[later, earlier]} />,
+    );
+
+    fireEvent.press(getByTestId("accordion-past"));
+
+    const titles = getAllByText(/(Earlier Past|Later Past)/).map(
+      (n) => n.props.children,
+    );
+    expect(titles).toEqual(["Earlier Past", "Later Past"]);
+  });
 });

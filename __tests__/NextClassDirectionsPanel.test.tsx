@@ -510,5 +510,280 @@ describe("NextClassDirectionsPanel", () => {
         );
       });
     });
+
+    it("clears building list when search text is emptied", async () => {
+      const { getByTestId, queryByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Type to show buildings
+      fireEvent.changeText(getByTestId("next-class-start-input"), "Hall");
+      await waitFor(() => {
+        expect(queryByText("Henry F. Hall Building (H)")).toBeTruthy();
+      });
+
+      // Clear text to hide buildings
+      fireEvent.changeText(getByTestId("next-class-start-input"), "");
+      await waitFor(() => {
+        expect(queryByText("Henry F. Hall Building (H)")).toBeNull();
+      });
+    });
+
+    it("clears course list when search text is emptied", async () => {
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Type to show courses
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+      await waitFor(() => {
+        expect(getByTestId("nc-course-2")).toBeTruthy();
+      });
+
+      // Clear text to hide courses
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "");
+      await waitFor(() => {
+        expect(queryByTestId("nc-course-2")).toBeNull();
+      });
+    });
+
+    it("selects a building from the building list", async () => {
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      fireEvent.changeText(getByTestId("next-class-start-input"), "Hall");
+
+      await waitFor(() => {
+        expect(getByText("Henry F. Hall Building (H)")).toBeTruthy();
+      });
+
+      fireEvent.press(getByText("Henry F. Hall Building (H)"));
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-start-input").props.value).toBe(
+          "Henry F. Hall Building (H)",
+        );
+      });
+    });
+
+    it("toggles building picker closed when pressed while open", async () => {
+      const { getByLabelText, queryByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          currentCampus="sgw"
+        />,
+      );
+
+      // Open building picker
+      fireEvent.press(getByLabelText("Pick starting building from list"));
+      await waitFor(() => {
+        expect(queryByText("Henry F. Hall Building (H)")).toBeTruthy();
+      });
+
+      // Press again to close
+      fireEvent.press(getByLabelText("Pick starting building from list"));
+      await waitFor(() => {
+        expect(queryByText("Henry F. Hall Building (H)")).toBeNull();
+      });
+    });
+
+    it("toggles course picker closed when pressed while open", async () => {
+      const { getByLabelText, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Open course picker
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+      await waitFor(() => {
+        expect(queryByTestId("nc-course-1")).toBeTruthy();
+      });
+
+      // Press again to close
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+      await waitFor(() => {
+        expect(queryByTestId("nc-course-1")).toBeNull();
+      });
+    });
+
+    it("sets My Location text when onUseMyLocation returns null", async () => {
+      const mockLocationNull = jest.fn(() => null);
+
+      const { getByLabelText, getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          onUseMyLocation={mockLocationNull}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-start-input").props.value).toBe("My Location");
+      });
+    });
+
+    it("shows error when selecting a course with unrecognized building", async () => {
+      const badCourseItems: ScheduleItem[] = [
+        {
+          id: "bad",
+          courseName: "BAD 101",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW XX 100",
+          campus: "SGW",
+          building: "XX",
+          room: "100",
+          level: "1",
+        },
+      ];
+
+      const { getByLabelText, getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={badCourseItems}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+
+      await waitFor(() => {
+        expect(getByTestId("nc-course-bad")).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId("nc-course-bad"));
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-error")).toBeTruthy();
+      });
+    });
+
+    it("does not render when visible becomes false", async () => {
+      const { rerender, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("next-class-name")).toBeTruthy();
+      });
+
+      rerender(
+        <NextClassDirectionsPanel
+          visible={false}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("next-class-name")).toBeNull();
+      });
+    });
+
+    it("renders without nextClass (null case)", async () => {
+      const { queryByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={null}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("next-class-name")).toBeNull();
+        expect(getByText("Get Directions")).toBeTruthy();
+      });
+    });
+
+    it("deduplicates courses with same name, building, and room", async () => {
+      const duplicateCourses: ScheduleItem[] = [
+        {
+          id: "1",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+        {
+          id: "2",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 86_400_000),
+          end: new Date(Date.now() + 90_000_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+      ];
+
+      const { getByLabelText, queryAllByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={duplicateCourses[0]}
+          scheduleItems={duplicateCourses}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+
+      await waitFor(() => {
+        // Only one course should appear (deduplicated)
+        const courses = queryAllByTestId(/^nc-course-/);
+        expect(courses.length).toBe(1);
+      });
+    });
   });
 });
+

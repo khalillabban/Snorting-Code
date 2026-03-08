@@ -10,6 +10,7 @@ import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import { getNextClassFromItems, loadCachedSchedule } from "../utils/parseCourseEvents";
 
 
 jest.mock("@expo/vector-icons", () => {
@@ -246,6 +247,48 @@ jest.mock("../components/ShuttleSchedulePanel", () => {
   return { __esModule: true, ShuttleSchedulePanel: Mock, default: Mock };
 });
 
+jest.mock("../components/NextClassDirectionsPanel", () => {
+  const React = require("react");
+  const { View, Text, Pressable } = require("react-native");
+
+  const MockNextClassPanel = (props: any) => (
+    <View testID="next-class-panel">
+      <Text testID="next-class-visible">{props.visible ? "visible" : "hidden"}</Text>
+      <Text testID="next-class-info">
+        {props.nextClass ? JSON.stringify(props.nextClass) : "null"}
+      </Text>
+      <Pressable
+        testID="next-class-confirm"
+        onPress={() => {
+          props.onConfirm("H", "MB", { mode: "walking", label: "Walk", icon: "walk" });
+          props.onClose();
+        }}
+      >
+        <Text>Confirm</Text>
+      </Pressable>
+      <Pressable testID="next-class-close" onPress={props.onClose}>
+        <Text>Close</Text>
+      </Pressable>
+      <Pressable
+        testID="next-class-use-location"
+        onPress={() => {
+          const res = props.onUseMyLocation?.();
+          props.__onUseMyLocationResult?.(res);
+        }}
+      >
+        <Text>Use Location</Text>
+      </Pressable>
+    </View>
+  );
+
+  return { __esModule: true, default: MockNextClassPanel };
+});
+
+jest.mock("../utils/parseCourseEvents", () => ({
+  loadCachedSchedule: jest.fn(),
+  getNextClassFromItems: jest.fn(),
+}));
+
 const getMapProps = () =>
   JSON.parse(screen.getByTestId("campus-map-props").props.children);
 
@@ -270,6 +313,9 @@ describe("CampusMapScreen", () => {
       });
 
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
   });
 
   it("defaults to SGW when no campus param is provided", async () => {
@@ -701,5 +747,122 @@ describe("CampusMapScreen", () => {
     fireEvent.press(screen.getByTestId("nav-confirm-nullstart"));
 
     expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(trigger0);
+  });
+
+  describe("Next Class Directions Panel", () => {
+    it("opens next class panel when next-class button is pressed", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("visible");
+    });
+
+    it("closes next class panel when close button is pressed", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("visible");
+
+      fireEvent.press(screen.getByTestId("next-class-close"));
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+    });
+
+    it("loads schedule from cache on mount", async () => {
+      const mockSchedule = [
+        {
+          id: "1",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+      ];
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue(mockSchedule);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockSchedule[0]);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      expect(loadCachedSchedule).toHaveBeenCalled();
+    });
+
+    it("confirms route from next class panel", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+      fireEvent.press(screen.getByTestId("next-class-confirm"));
+
+      // Panel should close and route should be set
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+      const mapProps = getMapProps();
+      expect(mapProps.startPoint).toBe("H");
+      expect(mapProps.destinationPoint).toBe("MB");
+    });
+
+    it("recomputes next class when panel is opened", async () => {
+      const mockSchedule = [
+        {
+          id: "1",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+      ];
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue(mockSchedule);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockSchedule[0]);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      // Open the panel - this should trigger recompute
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      // getNextClassFromItems should have been called again
+      expect(getNextClassFromItems).toHaveBeenCalled();
+    });
+
+    it("displays next class info when schedule is loaded", async () => {
+      const mockNextClass = {
+        id: "1",
+        courseName: "SOEN 390",
+        start: new Date(Date.now() + 3_600_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW H 820",
+        campus: "SGW",
+        building: "H",
+        room: "820",
+        level: "8",
+      };
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue([mockNextClass]);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockNextClass);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      await waitFor(() => {
+        const nextClassInfo = screen.getByTestId("next-class-info").props.children;
+        expect(nextClassInfo).toContain("SOEN 390");
+      });
+    });
   });
 });
