@@ -9,10 +9,12 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  StyleProp,
   Text,
   TextInput,
   TouchableWithoutFeedback,
   View,
+  ViewStyle,
 } from "react-native";
 
 import { BUILDINGS } from "../constants/buildings";
@@ -66,6 +68,33 @@ function fmtRoom(building: string, room: string): string {
   return `${building}-${room}`;
 }
 
+// Single row inside a suggestion list
+interface SuggestionRowProps {
+  testID: string;
+  iconName: React.ComponentProps<typeof MaterialIcons>["name"];
+  primaryText: string;
+  secondaryText: string;
+  onPress: () => void;
+}
+
+function SuggestionRow({
+  testID,
+  iconName,
+  primaryText,
+  secondaryText,
+  onPress,
+}: Readonly<SuggestionRowProps>) {
+  return (
+    <Pressable testID={testID} style={styles.suggestionItem} onPress={onPress}>
+      <MaterialIcons name={iconName} size={20} color={colors.primary} />
+      <View style={{ marginLeft: 10 }}>
+        <Text style={styles.suggestionText}>{primaryText}</Text>
+        <Text style={styles.suggestionSubtext}>{secondaryText}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 // Unified suggestion list for buildings or courses
 interface SuggestionListProps {
   buildings: Buildings[];
@@ -88,17 +117,13 @@ function SuggestionList({
         keyboardShouldPersistTaps="handled"
         style={styles.suggestionList}
         renderItem={({ item }) => (
-          <Pressable
+          <SuggestionRow
             testID={`nc-suggestion-${item.name}`}
-            style={styles.suggestionItem}
+            iconName="business"
+            primaryText={item.displayName}
+            secondaryText={item.campusName}
             onPress={() => onSelectBuilding(item)}
-          >
-            <MaterialIcons name="business" size={20} color={colors.primary} />
-            <View style={{ marginLeft: 10 }}>
-              <Text style={styles.suggestionText}>{item.displayName}</Text>
-              <Text style={styles.suggestionSubtext}>{item.campusName}</Text>
-            </View>
-          </Pressable>
+          />
         )}
       />
     );
@@ -111,24 +136,66 @@ function SuggestionList({
         keyboardShouldPersistTaps="handled"
         style={styles.suggestionList}
         renderItem={({ item }) => (
-          <Pressable
+          <SuggestionRow
             testID={`nc-course-${item.id}`}
-            style={styles.suggestionItem}
+            iconName="school"
+            primaryText={item.courseName}
+            secondaryText={`${fmtRoom(item.building, item.room)} · ${item.campus}`}
             onPress={() => onSelectCourse(item)}
-          >
-            <MaterialIcons name="school" size={20} color={colors.primary} />
-            <View style={{ marginLeft: 10 }}>
-              <Text style={styles.suggestionText}>{item.courseName}</Text>
-              <Text style={styles.suggestionSubtext}>
-                {fmtRoom(item.building, item.room)} · {item.campus}
-              </Text>
-            </View>
-          </Pressable>
+          />
         )}
       />
     );
   }
   return null;
+}
+
+// Shared input row for start and destination
+interface LocationInputRowProps {
+  testID: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  groupStyle: StyleProp<ViewStyle>;
+  iconSlot: React.ReactNode;
+  onPickPress: () => void;
+  pickLabel: string;
+  extraButton?: React.ReactNode;
+}
+
+function LocationInputRow({
+  testID,
+  placeholder,
+  value,
+  onChangeText,
+  groupStyle,
+  iconSlot,
+  onPickPress,
+  pickLabel,
+  extraButton,
+}: Readonly<LocationInputRowProps>) {
+  return (
+    <View style={groupStyle}>
+      <View style={styles.inputIconWrap}>{iconSlot}</View>
+      <TextInput
+        testID={testID}
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={colors.gray500}
+        value={value}
+        onChangeText={onChangeText}
+      />
+      {extraButton}
+      <Pressable
+        style={styles.pickButton}
+        onPress={onPickPress}
+        accessibilityLabel={pickLabel}
+        accessibilityRole="button"
+      >
+        <MaterialIcons name="list" size={22} color={colors.primary} />
+      </Pressable>
+    </View>
+  );
 }
 
 interface NextClassDirectionsPanelProps {
@@ -280,39 +347,33 @@ export default function NextClassDirectionsPanel({
     }
   }, [visible]);
 
-  // Search the start input (filters buildings)
-  const handleSearchStart = (text: string) => {
-    setActiveInput("start");
-    setStartLoc(text);
-    setFilteredCourses([]);
-    if (text.length > 0) {
-      setFilteredBuildings(
-        BUILDINGS.filter(
-          (b) =>
-            b.displayName.toLowerCase().includes(text.toLowerCase()) ||
-            b.name.toLowerCase().includes(text.toLowerCase()),
-        ),
-      );
-    } else {
-      setFilteredBuildings([]);
-    }
-  };
-
-  // Search the destination input (filters courses)
-  const handleSearchDest = (text: string) => {
-    setActiveInput("destination");
-    setDestLoc(text);
-    setFilteredBuildings([]);
-    if (text.length > 0) {
-      setFilteredCourses(
-        deduplicateCourses(
-          scheduleItems.filter((item) =>
-            item.courseName.toLowerCase().includes(text.toLowerCase()),
-          ),
-        ),
-      );
-    } else {
+  // Unified search handler for both start and destination inputs
+  const handleSearch = (field: "start" | "destination", text: string) => {
+    setActiveInput(field);
+    if (field === "start") {
+      setStartLoc(text);
       setFilteredCourses([]);
+      setFilteredBuildings(
+        text.length > 0
+          ? BUILDINGS.filter(
+              (b) =>
+                b.displayName.toLowerCase().includes(text.toLowerCase()) ||
+                b.name.toLowerCase().includes(text.toLowerCase()),
+            )
+          : [],
+      );
+    } else {
+      setDestLoc(text);
+      setFilteredBuildings([]);
+      setFilteredCourses(
+        text.length > 0
+          ? deduplicateCourses(
+              scheduleItems.filter((item) =>
+                item.courseName.toLowerCase().includes(text.toLowerCase()),
+              ),
+            )
+          : [],
+      );
     }
   };
 
@@ -484,41 +545,32 @@ export default function NextClassDirectionsPanel({
             
             {/* Origin / Destination */}
             <View style={styles.originDestinationCard}>
-              <View style={[styles.inputGroup, styles.inputGroupFirst]}>
-                <View style={styles.inputIconWrap}>
-                  <View style={styles.originDot} />
-                </View>
-                <TextInput
-                  testID="next-class-start-input"
-                  style={styles.input}
-                  placeholder="From"
-                  placeholderTextColor={colors.gray500}
-                  value={startLoc}
-                  onChangeText={handleSearchStart}
-                />
-                {onUseMyLocation && (
-                  <Pressable
-                    style={styles.pickButton}
-                    onPress={handleUseMyLocation}
-                    accessibilityLabel="Use my current location as start"
-                    accessibilityRole="button"
-                  >
-                    <MaterialIcons
-                      name="my-location"
-                      size={22}
-                      color={colors.primary}
-                    />
-                  </Pressable>
-                )}
-                <Pressable
-                  style={styles.pickButton}
-                  onPress={showBuildingPicker}
-                  accessibilityLabel="Pick starting building from list"
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="list" size={22} color={colors.primary} />
-                </Pressable>
-              </View>
+              <LocationInputRow
+                testID="next-class-start-input"
+                placeholder="From"
+                value={startLoc}
+                onChangeText={(t) => handleSearch("start", t)}
+                groupStyle={[styles.inputGroup, styles.inputGroupFirst]}
+                iconSlot={<View style={styles.originDot} />}
+                onPickPress={showBuildingPicker}
+                pickLabel="Pick starting building from list"
+                extraButton={
+                  onUseMyLocation ? (
+                    <Pressable
+                      style={styles.pickButton}
+                      onPress={handleUseMyLocation}
+                      accessibilityLabel="Use my current location as start"
+                      accessibilityRole="button"
+                    >
+                      <MaterialIcons
+                        name="my-location"
+                        size={22}
+                        color={colors.primary}
+                      />
+                    </Pressable>
+                  ) : undefined
+                }
+              />
 
               <Pressable
                 style={styles.swapButton}
@@ -533,72 +585,50 @@ export default function NextClassDirectionsPanel({
                 />
               </Pressable>
 
-              <View style={[styles.inputGroup, styles.inputGroupLast]}>
-                <View style={styles.inputIconWrap}>
-                  <MaterialIcons
-                    name="place"
-                    size={20}
-                    color={colors.primary}
-                  />
-                </View>
-                <TextInput
-                  testID="next-class-dest-input"
-                  style={styles.input}
-                  placeholder="To (select a course)"
-                  placeholderTextColor={colors.gray500}
-                  value={destLoc}
-                  onChangeText={handleSearchDest}
-                />
-                <Pressable
-                  style={styles.pickButton}
-                  onPress={showCoursePicker}
-                  accessibilityLabel="Pick destination from course list"
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="list" size={22} color={colors.primary} />
-                </Pressable>
-              </View>
+              <LocationInputRow
+                testID="next-class-dest-input"
+                placeholder="To (select a course)"
+                value={destLoc}
+                onChangeText={(t) => handleSearch("destination", t)}
+                groupStyle={[styles.inputGroup, styles.inputGroupLast]}
+                iconSlot={
+                  <MaterialIcons name="place" size={20} color={colors.primary} />
+                }
+                onPickPress={showCoursePicker}
+                pickLabel="Pick destination from course list"
+              />
             </View>
 
             {/* Strategy buttons (hidden while picking) */}
             {!showingList && (
               <View style={styles.modeSection}>
                 <View style={styles.modeContainer}>
-                  {ALL_STRATEGIES.map((strategy) => (
-                    <Pressable
-                      key={strategy.mode}
-                      testID={`next-class-mode-${strategy.mode}`}
-                      onPress={() => setSelectedStrategy(strategy)}
-                      style={[
-                        styles.modeButton,
-                        selectedStrategy.mode === strategy.mode &&
-                          styles.activeModeButton,
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={strategy.icon as any}
-                        size={22}
-                        color={
-                          selectedStrategy.mode === strategy.mode
-                            ? colors.white
-                            : colors.primary
-                        }
-                      />
-                      <Text
+                  {ALL_STRATEGIES.map((strategy) => {
+                    const isActive = selectedStrategy.mode === strategy.mode;
+                    const strategyColor = isActive ? colors.white : colors.primary;
+                    return (
+                      <Pressable
+                        key={strategy.mode}
+                        testID={`next-class-mode-${strategy.mode}`}
+                        onPress={() => setSelectedStrategy(strategy)}
                         style={[
-                          styles.modeText,
-                          {
-                            color:
-                              selectedStrategy.mode === strategy.mode
-                                ? colors.white
-                                : colors.primary,
-                          },
+                          styles.modeButton,
+                          isActive && styles.activeModeButton,
                         ]}
                       >
-                        {strategy.label}
-                      </Text>
-                    </Pressable>
-                  ))}
+                        <MaterialCommunityIcons
+                          name={strategy.icon as any}
+                          size={22}
+                          color={strategyColor}
+                        />
+                        <Text
+                          style={[styles.modeText, { color: strategyColor }]}
+                        >
+                          {strategy.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
