@@ -1,13 +1,19 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
-import {
-  SEMESTER_END,
-  SEMESTER_START,
-} from "../constants/semesterConfig";
+import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
 import { colors, spacing, typography } from "../constants/theme";
+import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
+import {
+  getNextClass,
+  loadCachedSchedule,
+  parseCourseEvents,
+  saveSchedule,
+} from "../utils/parseCourseEvents";
+
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   fetchCalendarEventsInRange,
@@ -19,7 +25,6 @@ import {
   isTokenLikelyExpired,
   saveGoogleAccessToken,
 } from "../services/TokenStore";
-import { parseCourseEvents, type ScheduleItem } from "../utils/parseCourseEvents";
 
 type UiState =
   | { status: "idle" }
@@ -63,28 +68,33 @@ export default function ScheduleScreen() {
   // Load a saved token on first mount
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
+        const cached = await loadCachedSchedule();
+        if (cached && !cancelled) {
+          setUi({ status: "ready", items: cached });
+        }
         const saved = await getGoogleAccessToken();
         if (cancelled) return;
-
         if (saved.accessToken) {
           if (isTokenLikelyExpired(saved.meta)) {
             await deleteGoogleAccessToken();
-            if (cancelled) return;
             setAccessToken(null);
             setUi({ status: "idle" });
             return;
           }
-
           setAccessToken(saved.accessToken);
         }
-      } catch {
-        // Ignore secure store errors; user can still connect manually
+      } catch (error) {
+        if (cancelled) return;
+        if (__DEV__) console.error("Schedule init failed:", error);
+        setUi({
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to load schedule",
+        });
       }
     })();
-
     return () => {
       cancelled = true;
     };
@@ -127,6 +137,7 @@ export default function ScheduleScreen() {
   const disconnect = useCallback(async () => {
     try {
       await deleteGoogleAccessToken();
+      await AsyncStorage.removeItem(SCHEDULE_ITEMS);
     } finally {
       setAccessToken(null);
       setUi({ status: "idle" });
@@ -146,7 +157,26 @@ export default function ScheduleScreen() {
             calendarId: "primary",
           });
 
-        const items = parseCourseEvents(rawEvents);
+        // To only see the school stuff from your calendar
+        const academicRegex = /\b(LEC|TUT|LAB)\b/i; //Filtering
+        const filteredEvents = rawEvents.filter((event) =>
+          academicRegex.test(event.summary || ""),
+        );
+        const items = parseCourseEvents(filteredEvents);
+        //The save in the storage
+        await saveSchedule(items);
+
+        //Test to see if I can collect my next class for the dev
+        const next = await getNextClass();
+        if (__DEV__) {
+          console.log("=== Next Class ===");
+          console.log("Course:  ", next?.courseName);
+          console.log("Start:   ", next?.start);
+          console.log("Campus:  ", next?.campus);
+          console.log("Building:", next?.building);
+          console.log("Room:    ", next?.room);
+          console.log("Level:    ", next?.level);
+        }
 
         if (items.length === 0) {
           setUi({ status: "empty" });
@@ -183,7 +213,7 @@ export default function ScheduleScreen() {
         <Text style={{ ...typography.title, color: colors.primaryDark }}>
           My Schedule
         </Text>
-        {accessToken ? (
+        {accessToken || ui.status === "ready" ? (
           <Pressable
             onPress={disconnect}
             style={{
@@ -285,7 +315,9 @@ export default function ScheduleScreen() {
         <View style={{ padding: spacing.lg, gap: spacing.md }}>
           <Text style={{ color: colors.error }}>{ui.message}</Text>
           <Pressable
-            onPress={() => (accessToken ? loadSchedule(accessToken) : connect())}
+            onPress={() =>
+              accessToken ? loadSchedule(accessToken) : connect()
+            }
             style={{
               backgroundColor: colors.primaryDark,
               paddingVertical: 14,

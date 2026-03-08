@@ -1,7 +1,6 @@
-// __tests__/GoogleCalendarService.test.ts
 import {
-    fetchCalendarEventsInRange,
-    fetchCalendarList,
+  fetchCalendarEventsInRange,
+  fetchCalendarList,
 } from "../services/GoogleCalendarService";
 
 type MockResponse = {
@@ -23,20 +22,86 @@ function makeRes(overrides: Partial<MockResponse> = {}): MockResponse {
   };
 }
 
+function expectMissingToken(
+  call: () => Promise<unknown>,
+  expectedMessage = "Missing access token.",
+) {
+  return expect(call()).rejects.toThrow(expectedMessage);
+}
+
+function expectInvalidTokenFormat(
+  call: () => Promise<unknown>,
+  expectedMessage = "Invalid access token format.",
+) {
+  return expect(call()).rejects.toThrow(expectedMessage);
+}
+
 describe("services/GoogleCalendarService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
   });
 
-  describe("fetchCalendarList", () => {
-    it("throws if accessToken is missing", async () => {
-      await expect(fetchCalendarList("" as any)).rejects.toThrow(
-        "Missing access token.",
-      );
-      expect(global.fetch).not.toHaveBeenCalled();
+  describe("shared access token validation", () => {
+    describe("fetchCalendarList", () => {
+      it("throws for a missing token", async () => {
+        await expectMissingToken(() => fetchCalendarList("" as any));
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+
+      it("throws for a non-string token", async () => {
+        await expectMissingToken(() => fetchCalendarList(null as any));
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+
+      it("throws for a token containing whitespace", async () => {
+        await expectInvalidTokenFormat(() =>
+          fetchCalendarList("TOKEN WITH SPACE"),
+        );
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
     });
 
+    describe("fetchCalendarEventsInRange", () => {
+      const baseArgs = {
+        timeMin: new Date("2026-01-01T00:00:00.000Z"),
+        timeMax: new Date("2026-01-02T00:00:00.000Z"),
+      };
+
+      it("throws for a missing token", async () => {
+        await expectMissingToken(() =>
+          fetchCalendarEventsInRange({
+            accessToken: "" as any,
+            ...baseArgs,
+          }),
+        );
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+
+      it("throws for a non-string token", async () => {
+        await expectMissingToken(() =>
+          fetchCalendarEventsInRange({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            accessToken: null as any,
+            ...baseArgs,
+          }),
+        );
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+
+      it("throws for a token containing whitespace", async () => {
+        await expectInvalidTokenFormat(() =>
+          fetchCalendarEventsInRange({
+            accessToken: "TOKEN WITH SPACE",
+            ...baseArgs,
+          }),
+        );
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("fetchCalendarList", () => {
     it("calls the calendarList endpoint with Bearer token and returns items", async () => {
       const res = makeRes({
         json: jest.fn(async () => ({
@@ -121,18 +186,6 @@ describe("services/GoogleCalendarService", () => {
   });
 
   describe("fetchCalendarEventsInRange", () => {
-    it("throws if accessToken is missing", async () => {
-      await expect(
-        fetchCalendarEventsInRange({
-          accessToken: "" as any,
-          timeMin: new Date(),
-          timeMax: new Date(),
-        }),
-      ).rejects.toThrow("Missing access token.");
-
-      expect(global.fetch).not.toHaveBeenCalled();
-    });
-
     it("throws if timeMin is not a valid Date", async () => {
       await expect(
         fetchCalendarEventsInRange({
@@ -180,8 +233,12 @@ describe("services/GoogleCalendarService", () => {
       expect(calledUrl).toContain(
         "https://www.googleapis.com/calendar/v3/calendars/primary/events?",
       );
-      expect(calledUrl).toContain(`timeMin=${encodeURIComponent(timeMin.toISOString())}`);
-      expect(calledUrl).toContain(`timeMax=${encodeURIComponent(timeMax.toISOString())}`);
+      expect(calledUrl).toContain(
+        `timeMin=${encodeURIComponent(timeMin.toISOString())}`,
+      );
+      expect(calledUrl).toContain(
+        `timeMax=${encodeURIComponent(timeMax.toISOString())}`,
+      );
       expect(calledUrl).toContain("singleEvents=true");
       expect(calledUrl).toContain("orderBy=startTime");
       expect(calledUrl).toContain("maxResults=2500");
@@ -291,6 +348,41 @@ describe("services/GoogleCalendarService", () => {
           timeMax: new Date("2026-01-02T00:00:00.000Z"),
         }),
       ).rejects.toThrow("Events fetch failed (500): Server Error");
+    });
+
+    it("follows nextPageToken and accumulates items across pages", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "e1" }, { id: "e2" }],
+          nextPageToken: "token-page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "e3" }],
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      const items = await fetchCalendarEventsInRange({
+        accessToken: "TOKEN",
+        timeMin: new Date("2026-01-01T00:00:00.000Z"),
+        timeMax: new Date("2026-06-01T00:00:00.000Z"),
+      });
+
+      expect(items).toHaveLength(3);
+      expect(items.map((i) => i.id)).toEqual(["e1", "e2", "e3"]);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      const [secondUrl] = (global.fetch as jest.Mock).mock.calls[1] as [string];
+
+      const url = new URL(secondUrl);
+      const params = new URLSearchParams(url.search);
+
+      expect(params.get("pageToken")).toBe("token-page-2");
     });
   });
 });

@@ -70,3 +70,30 @@ export interface RouteStep {
   distance?: string;
   duration?: string;
 }
+
+export interface CalendarEvent {
+  className: string;
+  startTime: Date;
+  endTime: Date;
+  daysOfWeek: string[];
+  endDate: string;
+  campus: "SGW" | "Loyola";
+  buildingCode: string;
+  floorLevel: number;
+  roomNumber: string;
+  fullLocationString: string;
+}
+
+export interface ScheduleItem {
+  id: string;
+  courseName: string;
+  start: Date;
+  end: Date;
+  location: string;
+  campus: string;
+  building: string;
+  room: string;
+  level: string;
+}
+
+export const SCHEDULE_ITEMS = "scheduleItems" as const;

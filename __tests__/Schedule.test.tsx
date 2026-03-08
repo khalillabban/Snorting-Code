@@ -1,6 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import ScheduleScreen from "../app/schedule";
+import type * as ParseCourseEventsModule from "../utils/parseCourseEvents";
 
 // -------------------- Mocks --------------------
 const mockUseGoogleCalendarAuth = jest.fn();
@@ -26,8 +27,25 @@ jest.mock("../services/GoogleCalendarService", () => ({
 }));
 
 const mockParseCourseEvents = jest.fn();
+const mockLoadCachedSchedule = jest.fn();
+const mockSaveSchedule = jest.fn();
+const mockGetNextClass = jest.fn();
+type ParseCourseEventsArgs =
+  Parameters<typeof ParseCourseEventsModule.parseCourseEvents>;
+type LoadCachedScheduleArgs =
+  Parameters<typeof ParseCourseEventsModule.loadCachedSchedule>;
+type SaveScheduleArgs =
+  Parameters<typeof ParseCourseEventsModule.saveSchedule>;
+type GetNextClassArgs =
+  Parameters<typeof ParseCourseEventsModule.getNextClass>;
+
 jest.mock("../utils/parseCourseEvents", () => ({
-  parseCourseEvents: (...args: any[]) => mockParseCourseEvents(...args),
+  parseCourseEvents: (...args: ParseCourseEventsArgs) =>
+    mockParseCourseEvents(...args),
+  loadCachedSchedule: (...args: LoadCachedScheduleArgs) =>
+    mockLoadCachedSchedule(...args),
+  saveSchedule: (...args: SaveScheduleArgs) => mockSaveSchedule(...args),
+  getNextClass: (...args: GetNextClassArgs) => mockGetNextClass(...args),
 }));
 
 // ScheduleCalendar component mock
@@ -103,6 +121,9 @@ describe("ScheduleScreen", () => {
 
     mockFetchCalendarEventsInRange.mockResolvedValue([]);
     mockParseCourseEvents.mockReturnValue([]);
+    mockLoadCachedSchedule.mockResolvedValue(null);
+    mockSaveSchedule.mockResolvedValue(undefined);
+    mockGetNextClass.mockResolvedValue(null);
 
     mockSaveGoogleAccessToken.mockResolvedValue(undefined);
 
@@ -126,9 +147,11 @@ describe("ScheduleScreen", () => {
   });
 
   it("connect button is disabled when request is null", () => {
+    const promptAsync = jest.fn();
+
     mockUseGoogleCalendarAuth.mockReturnValue({
       request: null,
-      promptAsync: jest.fn(),
+      promptAsync,
       getResultFromResponse: jest.fn().mockReturnValue(null),
       response: null,
     });
@@ -136,9 +159,9 @@ describe("ScheduleScreen", () => {
     const screen = render(<ScheduleScreen />);
     const btn = screen.getByText("Connect Google Calendar").parent as any;
 
-    // Pressing should do nothing because disabled=true
     fireEvent.press(btn);
-    expect(mockUseGoogleCalendarAuth().promptAsync).not.toHaveBeenCalled();
+
+    expect(promptAsync).not.toHaveBeenCalled();
   });
 
   it("pressing connect sets connecting UI and calls promptAsync", async () => {
@@ -422,11 +445,20 @@ describe("ScheduleScreen", () => {
     });
   });
 
-  it("ignores secure store read errors (catch branch in token load)", async () => {
-    mockGetGoogleAccessToken.mockRejectedValueOnce(new Error("secure store broke"));
+  it("shows an error when secure store read fails", async () => {
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
 
-    const screen = render(<ScheduleScreen />);
-    expect(screen.getByText("Connect Google Calendar")).toBeTruthy();
-    expect(mockFetchCalendarEventsInRange).not.toHaveBeenCalled();
+    try {
+      mockGetGoogleAccessToken.mockRejectedValueOnce(
+        new Error("secure store broke"),
+      );
+
+      const screen = render(<ScheduleScreen />);
+
+      expect(await screen.findByText("secure store broke")).toBeTruthy();
+      expect(mockFetchCalendarEventsInRange).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

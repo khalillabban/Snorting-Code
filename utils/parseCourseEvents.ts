@@ -1,44 +1,136 @@
-// utils/parseCourseEvents.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-
-export interface ScheduleItem {
-  id: string;
-  courseName: string;
-  start: Date;
-  end: Date;
-  location: string; // always non-empty (fallback)
-}
-
+type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end"> & {
+  start: string;
+  end: string;
+};
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;
   const raw = obj?.dateTime ?? obj?.date;
   if (!raw) return null;
-
-  // dateTime is ISO; date is YYYY-MM-DD (all-day). We treat all-day as midnight local.
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return null;
   return d;
 }
 
-export function parseCourseEvents(events: GoogleCalendarEvent[]): ScheduleItem[] {
+const CAMPUSES = ["SGW", "LOY"] as const;
+
+function parseLocation(raw: string): {
+  campus: string;
+  building: string;
+  room: string;
+} {
+  const trimmed = raw.trim().toUpperCase();
+
+  for (const campus of CAMPUSES) {
+    if (!trimmed.startsWith(campus)) continue;
+
+    const rest = trimmed.slice(campus.length).replace(/^[\s-]+/, "");
+
+    const withRoom = rest.match(/^([\w-]+)\s+(.+)$/);
+    if (withRoom) {
+      return {
+        campus,
+        building: withRoom[1].trim(),
+        room: withRoom[2].trim(),
+      };
+    }
+
+    const noRoom = rest.match(/^([A-Z]+)-(.+)$/);
+    if (noRoom) {
+      return {
+        campus,
+        building: noRoom[1].trim(),
+        room: noRoom[2].trim(),
+      };
+    }
+
+    if (rest.length > 0) {
+      return { campus, building: rest, room: "" };
+    }
+  }
+
+  if (__DEV__) console.warn("parseLocation: unexpected format:", raw);
+  return { campus: "", building: raw, room: "" };
+}
+function splitRoom(room: string): { level: string; room: string } {
+  const dotMatch = room.match(/^([A-Z0-9]+)\.(\d+)$/i);
+  if (dotMatch) {
+    return { level: dotMatch[1].toUpperCase(), room: dotMatch[2] };
+  }
+
+  const digitMatch = room.match(/^(\d)(\d+)$/);
+  if (digitMatch) {
+    return { level: digitMatch[1], room: room };
+  }
+
+  return { level: "", room };
+}
+export function parseCourseEvents(
+  events: GoogleCalendarEvent[],
+): ScheduleItem[] {
   return events
     .map((ev) => {
       const start = parseGoogleDateTime(ev, "start");
       const end = parseGoogleDateTime(ev, "end");
-
       if (!ev.id || !start || !end) return null;
 
-      const courseName = (ev.summary ?? "").trim() || "Untitled class";
       const location = (ev.location ?? "").trim() || "Location not provided";
+      const { campus, building, room: rawRoom } = parseLocation(location);
+      const { level, room } = splitRoom(rawRoom);
 
       return {
         id: ev.id,
-        courseName,
+        courseName: (ev.summary ?? "").trim() || "Untitled class",
         start,
         end,
         location,
+        campus,
+        building,
+        room,
+        level,
       };
     })
     .filter((x): x is ScheduleItem => Boolean(x))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+// Save items to AsyncStorage (call this after parseCourseEvents)
+export async function saveSchedule(items: ScheduleItem[]): Promise<void> {
+  await AsyncStorage.setItem(SCHEDULE_ITEMS, JSON.stringify(items));
+  if (__DEV__) {
+    console.log(`Saved ${items.length} items to AsyncStorage`);
+  }
+}
+
+// Load and revive Date objects on app start
+export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SCHEDULE_ITEMS);
+    if (!raw) return null;
+
+    return JSON.parse(raw).map((item: SerializedScheduleItem) => ({
+      ...item,
+      start: new Date(item.start),
+      end: new Date(item.end),
+    }));
+  } catch (error) {
+    if (__DEV__)
+      console.warn("Failed to load cached schedule, clearing cache:", error);
+    await AsyncStorage.removeItem(SCHEDULE_ITEMS);
+    return null;
+  }
+}
+
+export async function getNextClass(): Promise<ScheduleItem | null> {
+  const items = await loadCachedSchedule();
+  if (!items) return null;
+
+  const now = new Date();
+  return (
+    items
+      .filter((item) => item.start > now)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())[0] ?? null
+  );
 }
