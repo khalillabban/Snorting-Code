@@ -751,6 +751,22 @@ describe("CampusMapScreen", () => {
 
   describe("Next Class Directions Panel", () => {
     it("opens next class panel when next-class button is pressed", async () => {
+      const mockSchedule = [
+        {
+          id: "1",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+      ];
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue(mockSchedule);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockSchedule[0]);
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
@@ -762,6 +778,22 @@ describe("CampusMapScreen", () => {
     });
 
     it("closes next class panel when close button is pressed", async () => {
+      const mockSchedule = [
+        {
+          id: "1",
+          courseName: "COMP 335",
+          start: new Date(Date.now() + 3_600_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW MB 1.210",
+          campus: "SGW",
+          building: "MB",
+          room: "1.210",
+          level: "1",
+        },
+      ];
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue(mockSchedule);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockSchedule[0]);
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 

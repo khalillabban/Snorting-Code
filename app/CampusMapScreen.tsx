@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
@@ -75,24 +75,22 @@ export default function CampusMapScreen() {
   // Next class state
   const [isNextClassVisible, setIsNextClassVisible] = useState(false);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
-  const [nextClass, setNextClass] = useState<ScheduleItem | null>(null);
+
+  const nextClass = useMemo(
+    () => getNextClassFromItems(scheduleItems),
+    [scheduleItems],
+  );
 
   // Load schedule from cache
   useEffect(() => {
-    loadCachedSchedule().then((items) => {
-      if (items) {
-        setScheduleItems(items);
-        setNextClass(getNextClassFromItems(items));
-      }
-    });
+    loadCachedSchedule()
+      .then((items) => {
+        if (items) setScheduleItems(items);
+      })
+      .catch(() => {
+        setScheduleItems([]);
+      });
   }, []);
-
-  // Recompute next class when schedule changes or when panel opens
-  useEffect(() => {
-    if (isNextClassVisible) {
-      setNextClass(getNextClassFromItems(scheduleItems));
-    }
-  }, [isNextClassVisible, scheduleItems]);
 
   useEffect(() => {
     const campusValue = campus === "loyola" ? "loyola" : "sgw";
@@ -276,7 +274,12 @@ export default function CampusMapScreen() {
           testID="next-class-button"
           accessibilityLabel="Navigate to next class"
           onPress={() => setIsNextClassVisible(true)}
-          style={[styles.actionButton, styles.nextClassButton]}
+          disabled={nextClass === null}
+          style={[
+            styles.actionButton,
+            styles.nextClassButton,
+            nextClass === null && styles.nextClassButtonDisabled,
+          ]}
         >
           <MaterialIcons name="school" size={24} color={colors.white} />
         </Pressable>
@@ -446,5 +449,10 @@ const styles = StyleSheet.create({
   nextClassButton: {
     backgroundColor: colors.secondary,
     borderColor: colors.secondaryDark,
+  },
+  nextClassButtonDisabled: {
+    backgroundColor: colors.gray500,
+    borderColor: colors.gray500,
+    opacity: 0.5,
   },
 });
