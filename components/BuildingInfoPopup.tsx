@@ -50,8 +50,6 @@ export const BuildingInfoPopup = ({
   return (
     <View style={styles.overlayWrapper} pointerEvents="box-none">
       <View style={styles.card}>
-        {/* TODO: Add drag handle if we implement a bottom-sheet interaction.*/}
-
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{building.displayName}</Text>

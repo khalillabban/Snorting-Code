@@ -335,7 +335,8 @@ export default function CampusMap({
           DRIVING_STRATEGY,
         );
         if (!cancelled) setShuttleRouteCoords(coordinates ?? []);
-      } catch (_e) {
+      } catch (e) {
+        console.error("Shuttle route fetch failed:", e);
         if (!cancelled) setShuttleRouteCoords([]);
       }
     }

@@ -13,14 +13,14 @@ export const CAMPUSES: Record<
   sgw: {
     name: "SGW Campus",
     coordinates: {
-      latitude: 45.4950,
+      latitude: 45.495,
       longitude: -73.5781,
     },
   },
   loyola: {
     name: "Loyola Campus",
     coordinates: {
-      latitude: 45.4580,
+      latitude: 45.458,
       longitude: -73.6395,
     },
   },
