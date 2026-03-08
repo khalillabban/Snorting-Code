@@ -11,6 +11,7 @@ import {
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
+  (global as any).__DEV__ = false;
 });
 
 // ---------------------------------------------------------------------------
@@ -62,6 +63,69 @@ describe("parseCourseEvents", () => {
     expect(res[0].room).toBe("219");
   });
 
+  it("parses noRoom campus format like 'SGW H-920'", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "no-room-branch",
+        summary: "COMP 345 LAB",
+        location: "SGW H-920",
+        start: { dateTime: "2026-02-10T10:00:00Z" },
+        end: { dateTime: "2026-02-10T12:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res[0]).toMatchObject({
+      campus: "SGW",
+      building: "H",
+      room: "920",
+      level: "9",
+    });
+  });
+
+  it("parses campus/building when room is missing", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "building-only",
+        summary: "COMP 353 LEC",
+        location: "LOY - VL",
+        start: { dateTime: "2026-02-11T10:00:00Z" },
+        end: { dateTime: "2026-02-11T11:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res[0]).toMatchObject({
+      campus: "LOY",
+      building: "VL",
+      room: "",
+      level: "",
+    });
+  });
+
+  it("uses splitRoom default branch for non-numeric room values", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "default-room",
+        summary: "COMP 472 LAB",
+        location: "SGW - MB LAB",
+        start: { dateTime: "2026-02-12T10:00:00Z" },
+        end: { dateTime: "2026-02-12T11:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res[0]).toMatchObject({
+      campus: "SGW",
+      building: "MB",
+      room: "LAB",
+      level: "",
+    });
+  });
+
   it("leaves campus/building/room empty when location does not match pattern", () => {
     const events: GoogleCalendarEvent[] = [
       {
@@ -75,15 +139,33 @@ describe("parseCourseEvents", () => {
 
     const res = parseCourseEvents(events);
     expect(res[0].campus).toBe("");
-    expect(res[0].building).toBe("Hall Building"); // ← was ""
+    expect(res[0].building).toBe("Hall Building");
     expect(res[0].room).toBe("");
   });
 
+  it("warns in __DEV__ when location format is unexpected", () => {
+    (global as any).__DEV__ = true;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "warn-location",
+        summary: "MATH 200 LEC",
+        location: "Hall Building",
+        start: { dateTime: "2026-01-01T10:00:00Z" },
+        end: { dateTime: "2026-01-01T11:00:00Z" },
+      },
+    ];
+
+    parseCourseEvents(events);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "parseLocation: unexpected format:",
+      "Hall Building",
+    );
+  });
+
   it("supports all-day events using date", () => {
-    // NOTE: All-day events (using `date` instead of `dateTime`) are currently
-    // parsed as classes. If all-day events shouldn't trigger routing in the
-    // "next class / directions" feature, they should be filtered upstream
-    // before reaching parseCourseEvents.
     const events: GoogleCalendarEvent[] = [
       {
         id: "4",
@@ -123,6 +205,7 @@ describe("parseCourseEvents", () => {
 
     expect(parseCourseEvents(events)).toHaveLength(0);
   });
+
   it("filters events with invalid end date", () => {
     const events: GoogleCalendarEvent[] = [
       {
@@ -130,6 +213,32 @@ describe("parseCourseEvents", () => {
         summary: "Invalid",
         start: { dateTime: "2026-01-01T09:00:00Z" },
         end: { dateTime: "not-a-date" },
+      },
+    ];
+
+    expect(parseCourseEvents(events)).toHaveLength(0);
+  });
+
+  it("filters events when start has neither dateTime nor date", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "missing-start-raw",
+        summary: "Invalid",
+        start: {},
+        end: { dateTime: "2026-01-01T11:00:00Z" },
+      },
+    ];
+
+    expect(parseCourseEvents(events)).toHaveLength(0);
+  });
+
+  it("filters events when end has neither dateTime nor date", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "missing-end-raw",
+        summary: "Invalid",
+        start: { dateTime: "2026-01-01T10:00:00Z" },
+        end: {},
       },
     ];
 
@@ -148,11 +257,38 @@ describe("parseCourseEvents", () => {
     expect(parseCourseEvents(events)[0].courseName).toBe("Untitled class");
   });
 
+  it("uses fallback course name when summary is only whitespace", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "5b",
+        summary: "   ",
+        start: { dateTime: "2026-01-01T10:00:00Z" },
+        end: { dateTime: "2026-01-01T11:00:00Z" },
+      },
+    ];
+
+    expect(parseCourseEvents(events)[0].courseName).toBe("Untitled class");
+  });
+
   it("uses fallback location when missing", () => {
     const events: GoogleCalendarEvent[] = [
       {
         id: "6",
         summary: "COMP 999 LEC",
+        start: { dateTime: "2026-01-01T10:00:00Z" },
+        end: { dateTime: "2026-01-01T11:00:00Z" },
+      },
+    ];
+
+    expect(parseCourseEvents(events)[0].location).toBe("Location not provided");
+  });
+
+  it("uses fallback location when location is only whitespace", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "6b",
+        summary: "COMP 999 LEC",
+        location: "   ",
         start: { dateTime: "2026-01-01T10:00:00Z" },
         end: { dateTime: "2026-01-01T11:00:00Z" },
       },
@@ -175,6 +311,9 @@ describe("parseCourseEvents", () => {
     const res = parseCourseEvents(events);
     expect(res[0].courseName).toBe("SOEN 321 LEC");
     expect(res[0].location).toBe("SGW - EV 2.260");
+    expect(res[0].building).toBe("EV");
+    expect(res[0].room).toBe("260");
+    expect(res[0].level).toBe("2");
   });
 
   it("filters invalid events and sorts remaining by start time", () => {
@@ -240,6 +379,15 @@ describe("saveSchedule", () => {
     const stored = await AsyncStorage.getItem("scheduleItems");
     expect(JSON.parse(stored!)).toEqual([]);
   });
+
+  it("logs in __DEV__ after saving", async () => {
+    (global as any).__DEV__ = true;
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await saveSchedule([]);
+
+    expect(logSpy).toHaveBeenCalledWith("Saved 0 items to AsyncStorage");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -303,6 +451,33 @@ describe("loadCachedSchedule", () => {
     expect(items![0].id).toBe("1");
     expect(items![1].id).toBe("2");
   });
+
+  it("clears cache and returns null when AsyncStorage.getItem throws", async () => {
+    const getItemSpy = jest
+      .spyOn(AsyncStorage, "getItem")
+      .mockRejectedValueOnce(new Error("boom"));
+    const removeSpy = jest.spyOn(AsyncStorage, "removeItem");
+
+    await expect(loadCachedSchedule()).resolves.toBeNull();
+
+    expect(getItemSpy).toHaveBeenCalledWith("scheduleItems");
+    expect(removeSpy).toHaveBeenCalledWith("scheduleItems");
+  });
+
+  it("warns in __DEV__ when cache loading fails", async () => {
+    (global as any).__DEV__ = true;
+    const err = new Error("boom");
+    jest.spyOn(AsyncStorage, "getItem").mockRejectedValueOnce(err);
+    jest.spyOn(AsyncStorage, "removeItem").mockResolvedValueOnce();
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    await loadCachedSchedule();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Failed to load cached schedule, clearing cache:",
+      err,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -311,6 +486,11 @@ describe("loadCachedSchedule", () => {
 
 describe("getNextClass", () => {
   it("returns null when no schedule is cached", async () => {
+    await expect(getNextClass()).resolves.toBeNull();
+  });
+
+  it("returns null when cached schedule is empty", async () => {
+    await AsyncStorage.setItem("scheduleItems", JSON.stringify([]));
     await expect(getNextClass()).resolves.toBeNull();
   });
 
@@ -335,8 +515,7 @@ describe("getNextClass", () => {
   it("returns the soonest future class", async () => {
     const soon = new Date(Date.now() + 60_000).toISOString();
     const later = new Date(Date.now() + 3_600_000).toISOString();
-    // Cached items are usually sorted by parseCourseEvents, but getNextClass should
-    // still return the earliest future class even if cached order is wrong.
+
     const data = [
       {
         id: "soon",
