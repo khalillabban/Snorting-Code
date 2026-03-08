@@ -1,7 +1,6 @@
-// __tests__/GoogleCalendarService.test.ts
 import {
-    fetchCalendarEventsInRange,
-    fetchCalendarList,
+  fetchCalendarEventsInRange,
+  fetchCalendarList,
 } from "../services/GoogleCalendarService";
 
 type MockResponse = {
@@ -194,8 +193,12 @@ describe("services/GoogleCalendarService", () => {
       expect(calledUrl).toContain(
         "https://www.googleapis.com/calendar/v3/calendars/primary/events?",
       );
-      expect(calledUrl).toContain(`timeMin=${encodeURIComponent(timeMin.toISOString())}`);
-      expect(calledUrl).toContain(`timeMax=${encodeURIComponent(timeMax.toISOString())}`);
+      expect(calledUrl).toContain(
+        `timeMin=${encodeURIComponent(timeMin.toISOString())}`,
+      );
+      expect(calledUrl).toContain(
+        `timeMax=${encodeURIComponent(timeMax.toISOString())}`,
+      );
       expect(calledUrl).toContain("singleEvents=true");
       expect(calledUrl).toContain("orderBy=startTime");
       expect(calledUrl).toContain("maxResults=2500");
@@ -342,7 +345,8 @@ describe("services/GoogleCalendarService", () => {
     it("throws for a non-string token", async () => {
       await expect(
         fetchCalendarEventsInRange({
-          accessToken: null as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          accessToken: null as any, // Bypasses TS to test runtime validation
           timeMin: new Date(),
           timeMax: new Date(),
         }),

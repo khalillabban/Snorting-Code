@@ -80,6 +80,10 @@ describe("parseCourseEvents", () => {
   });
 
   it("supports all-day events using date", () => {
+    // NOTE: All-day events (using `date` instead of `dateTime`) are currently
+    // parsed as classes. If all-day events shouldn't trigger routing in the
+    // "next class / directions" feature, they should be filtered upstream
+    // before reaching parseCourseEvents.
     const events: GoogleCalendarEvent[] = [
       {
         id: "4",
@@ -114,6 +118,18 @@ describe("parseCourseEvents", () => {
         summary: "Invalid",
         start: { dateTime: "not-a-date" },
         end: { dateTime: "2026-01-01T11:00:00Z" },
+      },
+    ];
+
+    expect(parseCourseEvents(events)).toHaveLength(0);
+  });
+  it("filters events with invalid end date", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "bad",
+        summary: "Invalid",
+        start: { dateTime: "2026-01-01T09:00:00Z" },
+        end: { dateTime: "not-a-date" },
       },
     ];
 
