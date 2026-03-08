@@ -28,6 +28,9 @@ import { findBuildingByCode } from "../utils/findBuildingByCode";
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_TOP = SCREEN_HEIGHT - FULL_HEIGHT;
 
+// Shared spring animation config
+const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
+
 // Format a Date to a short time string like "10:30am"
 function fmtTime(d: Date): string {
   let h = d.getHours();
@@ -61,6 +64,71 @@ function fmtRoom(building: string, room: string): string {
   if (!building) return "";
   if (!room) return building;
   return `${building}-${room}`;
+}
+
+// Unified suggestion list for buildings or courses
+interface SuggestionListProps {
+  buildings: Buildings[];
+  courses: ScheduleItem[];
+  onSelectBuilding: (b: Buildings) => void;
+  onSelectCourse: (c: ScheduleItem) => void;
+}
+
+function SuggestionList({
+  buildings,
+  courses,
+  onSelectBuilding,
+  onSelectCourse,
+}: Readonly<SuggestionListProps>) {
+  if (buildings.length > 0) {
+    return (
+      <FlatList
+        data={buildings}
+        keyExtractor={(item) => item.name}
+        keyboardShouldPersistTaps="handled"
+        style={styles.suggestionList}
+        renderItem={({ item }) => (
+          <Pressable
+            testID={`nc-suggestion-${item.name}`}
+            style={styles.suggestionItem}
+            onPress={() => onSelectBuilding(item)}
+          >
+            <MaterialIcons name="business" size={20} color={colors.primary} />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.suggestionText}>{item.displayName}</Text>
+              <Text style={styles.suggestionSubtext}>{item.campusName}</Text>
+            </View>
+          </Pressable>
+        )}
+      />
+    );
+  }
+  if (courses.length > 0) {
+    return (
+      <FlatList
+        data={courses}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        style={styles.suggestionList}
+        renderItem={({ item }) => (
+          <Pressable
+            testID={`nc-course-${item.id}`}
+            style={styles.suggestionItem}
+            onPress={() => onSelectCourse(item)}
+          >
+            <MaterialIcons name="school" size={20} color={colors.primary} />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.suggestionText}>{item.courseName}</Text>
+              <Text style={styles.suggestionSubtext}>
+                {fmtRoom(item.building, item.room)} · {item.campus}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+      />
+    );
+  }
+  return null;
 }
 
 interface NextClassDirectionsPanelProps {
@@ -202,12 +270,7 @@ export default function NextClassDirectionsPanel({
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
-      Animated.spring(translateY, {
-        toValue: SHEET_TOP,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 150,
-      }).start();
+      Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
     } else {
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
@@ -253,12 +316,16 @@ export default function NextClassDirectionsPanel({
     }
   };
 
+  // Helper: finalize selection and dismiss
+  const finalizeSelection = () => {
+    clearActiveSearch();
+    Keyboard.dismiss();
+  };
+
   const selectBuilding = (building: Buildings) => {
     setStartLoc(building.displayName);
     setStartBuilding(building);
-    setFilteredBuildings([]);
-    setActiveInput(null);
-    Keyboard.dismiss();
+    finalizeSelection();
   };
 
   // When user picks a course from the destination list
@@ -269,39 +336,43 @@ export default function NextClassDirectionsPanel({
     } else {
       clearDestWithError(item.courseName);
     }
+    finalizeSelection();
+  };
+
+  // Generic toggle picker: if already open, close; else open with provided items
+  const togglePicker = (
+    inputType: "start" | "destination",
+    currentList: unknown[],
+    populateList: () => void,
+  ) => {
+    if (activeInput === inputType && currentList.length > 0) {
+      clearActiveSearch();
+      return;
+    }
+    setActiveInput(inputType);
+    setFilteredBuildings([]);
     setFilteredCourses([]);
-    setActiveInput(null);
-    Keyboard.dismiss();
+    populateList();
   };
 
   const showBuildingPicker = () => {
-    if (activeInput === "start" && filteredBuildings.length > 0) {
-      setFilteredBuildings([]);
-      setActiveInput(null);
-      return;
-    }
-    setActiveInput("start");
-    setFilteredCourses([]);
-    const campusNorm = currentCampus.toLowerCase();
-    setFilteredBuildings(
-      BUILDINGS.filter(
-        (b) =>
-          b.boundingBox &&
-          b.boundingBox.length >= 3 &&
-          (b.campusName || "").toLowerCase() === campusNorm,
-      ),
-    );
+    togglePicker("start", filteredBuildings, () => {
+      const campusNorm = currentCampus.toLowerCase();
+      setFilteredBuildings(
+        BUILDINGS.filter(
+          (b) =>
+            b.boundingBox &&
+            b.boundingBox.length >= 3 &&
+            (b.campusName || "").toLowerCase() === campusNorm,
+        ),
+      );
+    });
   };
 
   const showCoursePicker = () => {
-    if (activeInput === "destination" && filteredCourses.length > 0) {
-      setFilteredCourses([]);
-      setActiveInput(null);
-      return;
-    }
-    setActiveInput("destination");
-    setFilteredBuildings([]);
-    setFilteredCourses(deduplicateCourses(scheduleItems));
+    togglePicker("destination", filteredCourses, () => {
+      setFilteredCourses(deduplicateCourses(scheduleItems));
+    });
   };
 
   const handleUseMyLocation = () => {
@@ -341,12 +412,7 @@ export default function NextClassDirectionsPanel({
         if (g.dy > 120 || g.vy > 0.5) {
           onClose();
         } else {
-          Animated.spring(translateY, {
-            toValue: SHEET_TOP,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 150,
-          }).start();
+          Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
         }
       },
     }),
@@ -546,67 +612,13 @@ export default function NextClassDirectionsPanel({
               </View>
             )}
 
-            {/* Building suggestions (start input) */}
-            {filteredBuildings.length > 0 && (
-              <FlatList
-                data={filteredBuildings}
-                keyExtractor={(item) => item.name}
-                keyboardShouldPersistTaps="handled"
-                style={styles.suggestionList}
-                renderItem={({ item }) => (
-                  <Pressable
-                    testID={`nc-suggestion-${item.name}`}
-                    style={styles.suggestionItem}
-                    onPress={() => selectBuilding(item)}
-                  >
-                    <MaterialIcons
-                      name="business"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <View style={{ marginLeft: 10 }}>
-                      <Text style={styles.suggestionText}>
-                        {item.displayName}
-                      </Text>
-                      <Text style={styles.suggestionSubtext}>
-                        {item.campusName}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-              />
-            )}
-
-            {/* Course suggestions (destination input) */}
-            {filteredCourses.length > 0 && (
-              <FlatList
-                data={filteredCourses}
-                keyExtractor={(item) => item.id}
-                keyboardShouldPersistTaps="handled"
-                style={styles.suggestionList}
-                renderItem={({ item }) => (
-                  <Pressable
-                    testID={`nc-course-${item.id}`}
-                    style={styles.suggestionItem}
-                    onPress={() => selectCourse(item)}
-                  >
-                    <MaterialIcons
-                      name="school"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <View style={{ marginLeft: 10 }}>
-                      <Text style={styles.suggestionText}>
-                        {item.courseName}
-                      </Text>
-                      <Text style={styles.suggestionSubtext}>
-                        {fmtRoom(item.building, item.room)} · {item.campus}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-              />
-            )}
+            {/* Unified suggestion list */}
+            <SuggestionList
+              buildings={filteredBuildings}
+              courses={filteredCourses}
+              onSelectBuilding={selectBuilding}
+              onSelectCourse={selectCourse}
+            />
 
             {/* Get Directions button */}
             {!showingList && (
