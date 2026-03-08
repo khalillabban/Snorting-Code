@@ -109,13 +109,15 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
     transit: colors.routeTransit,
     shuttle: colors.routeTransit,
   };
+
   const strokeColor = strokeColors[mode] ?? colors.primary;
-  const lineDashPattern =
-    mode === "transit" || mode === "shuttle"
-      ? [8, 6]
-      : mode === "bicycling"
-        ? [4, 4]
-        : undefined;
+  let lineDashPattern: number[] | undefined;
+
+  if (mode == "transit" || mode == "shuttle") {
+    lineDashPattern = [8, 6];
+  } else if (mode == "bicycling") {
+    lineDashPattern = [4, 4];
+  }
   return { strokeColor, lineDashPattern };
 }
 
@@ -500,7 +502,7 @@ export default function CampusMap({
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={labelsVisible}
             tappable={true}
-            onPress={() => handleBuildingPress(building)} 
+            onPress={() => handleBuildingPress(building)}
           >
             <Animated.View
               testID={`label-pill-${building.name}`}

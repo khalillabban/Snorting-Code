@@ -24,7 +24,16 @@ const MINUTES_PER_DAY = 24 * 60;
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
-  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+
+  let hour: number;
+  if (h === 0) {
+    hour = 12;
+  } else if (h > 12) {
+    hour = h - 12;
+  } else {
+    hour = h;
+  }
+
   return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
@@ -80,11 +89,20 @@ function sortTripsClosestToNow(trips: Trip[], nowMinutes: number) {
 function hourLabelFromMinutes(mins: number) {
   const hour24 = Math.floor(mins / 60);
   const period = hour24 >= 12 ? "PM" : "AM";
-  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+
+  let hour12: number;
+  if (hour24 === 0) {
+    hour12 = 12;
+  } else if (hour24 > 12) {
+    hour12 = hour24 - 12;
+  } else {
+    hour12 = hour24;
+  }
+
   return `${hour12} ${period}`;
 }
 
-function buildHourSections(trips: Trip[], nowMinutes: number) {
+function buildHourSections(trips: Trip[]) {
   // For "All", it’s nicer to show them in time-of-day order (not wrapped by "closest")
   const sorted = [...trips].sort(
     (a, b) => timeToMinutes(a.departureTime) - timeToMinutes(b.departureTime)
@@ -156,10 +174,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
 
   const nextTrip = closestSorted[0] ?? null;
 
-  const sections = useMemo(() => buildHourSections(trips, currentMinutes), [
-    trips,
-    currentMinutes,
-  ]);
+  const sections = useMemo(() => buildHourSections(trips), [trips]);
 
   return (
     <View style={styles.overlay}>
@@ -343,25 +358,29 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
                   const nowTrip = isTripHappeningNow(dep, arr, currentMinutes);
                   const nextUpcoming = index === 0;
 
+                  let badge: { label: string; kind: "now" | "next" | "eta" };
+
+                  if (nowTrip) {
+                    badge = { label: "Now", kind: "now" };
+                  } else if (nextUpcoming) {
+                    badge = {
+                      label: `Next • ${formatETA(minutesUntilDeparture(dep, currentMinutes))}`,
+                      kind: "next",
+                    };
+                  } else {
+                    badge = {
+                      label: formatETA(minutesUntilDeparture(dep, currentMinutes)),
+                      kind: "eta",
+                    };
+                  }
+
                   return (
                     <TripRow
                       key={`${t.departureTime}-${t.arrivalTime}`}
                       trip={t}
                       currentMinutes={currentMinutes}
                       highlight={nowTrip}
-                      badge={
-                        nowTrip
-                          ? { label: "Now", kind: "now" }
-                          : nextUpcoming
-                            ? {
-                              label: `Next • ` + formatETA(minutesUntilDeparture(dep, currentMinutes)),
-                              kind: "next",
-                            }
-                            : {
-                              label: formatETA(minutesUntilDeparture(dep, currentMinutes)),
-                              kind: "eta",
-                            }
-                      }
+                      badge={badge}
                     />
                   );
                 })}
@@ -391,7 +410,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
                     <Text style={styles.hourHeaderText}>{section.title}</Text>
                   </View>
                 )}
-                renderItem={({ item, index, section }) => {
+                renderItem={({ item }) => {
                   const dep = timeToMinutes(item.departureTime);
                   const arr = timeToMinutes(item.arrivalTime);
                   const nowTrip = isTripHappeningNow(dep, arr, currentMinutes);
@@ -401,21 +420,24 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
                     nextTrip?.departureTime === item.departureTime &&
                     nextTrip?.arrivalTime === item.arrivalTime;
 
+                  let badge: null | { label: string; kind: "now" | "next" | "eta" };
+                  if (nowTrip) {
+                    badge = { label: "Now", kind: "now" };
+                  } else if (isNext) {
+                    badge = {
+                      label: `Next • ${formatETA(minutesUntilDeparture(dep, currentMinutes))}`,
+                      kind: "next",
+                    };
+                  } else {
+                    badge = null;
+                  }
+
                   return (
                     <TripRow
                       trip={item}
                       currentMinutes={currentMinutes}
                       highlight={nowTrip}
-                      badge={
-                        nowTrip
-                          ? { label: "Now", kind: "now" }
-                          : isNext
-                            ? {
-                              label: `Next • ` + formatETA(minutesUntilDeparture(dep, currentMinutes)),
-                              kind: "next",
-                            }
-                            : null
-                      }
+                      badge={badge}
                     />
                   );
                 }}
@@ -714,7 +736,7 @@ const styles = StyleSheet.create({
   },
   timeCell: {
     fontSize: 15,
-    color: colors.gray700 ?? colors.gray700,
+    color: colors.gray700,
     fontWeight: "700",
   },
   timeCellHighlight: {

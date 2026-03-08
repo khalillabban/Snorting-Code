@@ -38,17 +38,18 @@ export const BuildingInfoPopup = ({
     setActiveTab((prev) => (prev === tab ? null : tab));
   };
 
-  const activeList =
-  activeTab === "departments"
-    ? building.departments ?? []
-    : activeTab === "services"
-      ? building.services ?? []
-      : [];
+  let activeList: string[];
+  if (activeTab === "departments") {
+    activeList = building.departments ?? [];
+  } else if (activeTab === "services") {
+    activeList = building.services ?? [];
+  } else {
+    activeList = [];
+  }
 
   return (
     <View style={styles.overlayWrapper} pointerEvents="box-none">
       <View style={styles.card}>
-        
         {/* TODO: Add drag handle if we implement a bottom-sheet interaction.*/}
 
         <View style={styles.header}>

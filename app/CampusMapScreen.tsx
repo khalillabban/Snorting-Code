@@ -67,11 +67,16 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
+
   useEffect(() => {
-    setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
-    setFocusTarget((prev) =>
-      prev === "user" ? prev : campus === "loyola" ? "loyola" : "sgw",
-    );
+    const campusValue = campus === "loyola" ? "loyola" : "sgw";
+    setCurrentCampus(campusValue);
+    setFocusTarget((prev) => {
+      if (prev === "user") {
+        return prev;
+      }
+      return campusValue;
+    });
   }, [campus]);
 
   useEffect(() => {
@@ -115,6 +120,16 @@ export default function CampusMapScreen() {
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] = useState(false);
   const shuttleStatus = useShuttleAvailability(currentCampus);
+
+  let accessibilityLabel: string;
+
+  if (!shuttleStatus.available) {
+    accessibilityLabel = "Shuttle not available";
+  } else if (showShuttle) {
+    accessibilityLabel = "Hide shuttle";
+  } else {
+    accessibilityLabel = "Show shuttle";
+  }
 
   useEffect(() => {
     if (!shuttleStatus.available && showShuttle) {
@@ -192,19 +207,19 @@ export default function CampusMapScreen() {
               </Text>
             </Pressable>
           </View>
-          
+
         </View>
       </View>
 
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
-      <Pressable
-        testID="shuttle-schedule-button"
-        accessibilityLabel="shuttle-schedule-button"
-        onPress={() => setShowShuttleSchedulePanel(true)}
-        style={[styles.actionButton]}
-      >
-        <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
-      </Pressable>
+        <Pressable
+          testID="shuttle-schedule-button"
+          accessibilityLabel="shuttle-schedule-button"
+          onPress={() => setShowShuttleSchedulePanel(true)}
+          style={[styles.actionButton]}
+        >
+          <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
+        </Pressable>
       </View>
 
       {/* Floating Buttons */}
@@ -212,18 +227,16 @@ export default function CampusMapScreen() {
         <Pressable
           testID="show-shuttle-button"
           onPress={() => {
-            if (shuttleStatus.available) setShowShuttle(!showShuttle);
+            if (shuttleStatus.available) {
+              setShowShuttle(!showShuttle);
+            }
           }}
           style={[
             styles.actionButton,
             (!showShuttle || !shuttleStatus.available) && styles.shuttleDisabled,
           ]}
           accessibilityState={{ disabled: !shuttleStatus.available }}
-          accessibilityLabel={
-            shuttleStatus.available
-              ? (showShuttle ? "Hide shuttle" : "Show shuttle")
-              : "Shuttle not available"
-          }
+          accessibilityLabel={accessibilityLabel}
         >
           <MaterialCommunityIcons
             name={showShuttle ? "bus-clock" : "bus-stop"}
