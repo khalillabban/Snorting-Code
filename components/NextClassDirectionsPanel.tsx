@@ -116,6 +116,27 @@ export default function NextClassDirectionsPanel({
   // Error state
   const [error, setError] = useState<string | null>(null);
 
+  // Helper: set destination with error
+  const clearDestWithError = (courseName: string) => {
+    setError(`Missing course details for "${courseName}".`);
+    setDestLoc("");
+    setDestBuilding(null);
+  };
+
+  // Helper: set destination from building
+  const setDestFromBuilding = (building: Buildings) => {
+    setError(null);
+    setDestLoc(building.displayName);
+    setDestBuilding(building);
+  };
+
+  // Helper: clear search state
+  const clearActiveSearch = () => {
+    setFilteredBuildings([]);
+    setFilteredCourses([]);
+    setActiveInput(null);
+  };
+
   // Destination from nextClass
   useEffect(() => {
     if (!nextClass) {
@@ -125,22 +146,10 @@ export default function NextClassDirectionsPanel({
     }
 
     const building = findBuildingByCode(nextClass.building);
-    if (!building && nextClass.building) {
-      setError(
-        `Missing course details for "${nextClass.courseName}".`,
-      );
-      setDestLoc("");
-      setDestBuilding(null);
-    } else if (!nextClass.building) {
-      setError(
-        `Missing course details for "${nextClass.courseName}".`,
-      );
-      setDestLoc("");
-      setDestBuilding(null);
+    if (building) {
+      setDestFromBuilding(building);
     } else {
-      setError(null);
-      setDestLoc(building!.displayName);
-      setDestBuilding(building);
+      clearDestWithError(nextClass.courseName);
     }
   }, [nextClass]);
 
@@ -255,14 +264,10 @@ export default function NextClassDirectionsPanel({
   // When user picks a course from the destination list
   const selectCourse = (item: ScheduleItem) => {
     const building = findBuildingByCode(item.building);
-    if (!building) {
-      setError(`Missing course details for "${item.courseName}".`);
-      setDestLoc("");
-      setDestBuilding(null);
+    if (building) {
+      setDestFromBuilding(building);
     } else {
-      setError(null);
-      setDestLoc(building.displayName);
-      setDestBuilding(building);
+      clearDestWithError(item.courseName);
     }
     setFilteredCourses([]);
     setActiveInput(null);
@@ -309,9 +314,7 @@ export default function NextClassDirectionsPanel({
       setStartLoc("My Location");
       setStartBuilding(null);
     }
-    setFilteredBuildings([]);
-    setFilteredCourses([]);
-    setActiveInput(null);
+    clearActiveSearch();
   };
 
   const swapOriginDestination = () => {

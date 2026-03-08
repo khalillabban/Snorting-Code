@@ -32,12 +32,12 @@ function groupByDay(items: ScheduleItem[]): { title: string; data: ScheduleItem[
   return Array.from(map.entries())
     .map(([title, data]) => ({
       title,
-      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
+      data: data.toSorted((a, b) => a.start.getTime() - b.start.getTime()),
     }))
-    .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
+    .toSorted((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
 
-function ClassCard({ item }: { item: ScheduleItem }) {
+function ClassCard({ item }: Readonly<{ item: ScheduleItem }>) {
   return (
     <View
       style={{
@@ -69,7 +69,7 @@ interface AccordionHeaderProps {
   testID?: string;
 }
 
-function AccordionHeader({ title, expanded, onToggle, testID }: AccordionHeaderProps) {
+function AccordionHeader({ title, expanded, onToggle, testID }: Readonly<AccordionHeaderProps>) {
   return (
     <View
       style={{
@@ -105,7 +105,7 @@ function AccordionHeader({ title, expanded, onToggle, testID }: AccordionHeaderP
   );
 }
 
-export default function ScheduleCalendar({ items }: { items: ScheduleItem[] }) {
+export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleItem[] }>) {
   const [pastExpanded, setPastExpanded] = useState(false);
   const [upcomingExpanded, setUpcomingExpanded] = useState(true);
 
