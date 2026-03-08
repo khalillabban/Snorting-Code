@@ -6,15 +6,20 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
+import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing, typography } from "../constants/theme";
-import { Buildings, RouteStep } from "../constants/type";
+import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
+import {
+  getNextClassFromItems,
+  loadCachedSchedule,
+} from "../utils/parseCourseEvents";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
 type FocusTarget = CampusKey | "user";
@@ -66,6 +71,28 @@ export default function CampusMapScreen() {
 
   const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+
+  // Next class state 
+  const [isNextClassVisible, setIsNextClassVisible] = useState(false);
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [nextClass, setNextClass] = useState<ScheduleItem | null>(null);
+
+  // Load schedule from cache
+  useEffect(() => {
+    loadCachedSchedule().then((items) => {
+      if (items) {
+        setScheduleItems(items);
+        setNextClass(getNextClassFromItems(items));
+      }
+    });
+  }, []);
+
+  // Recompute next class when schedule changes or when panel opens
+  useEffect(() => {
+    if (isNextClassVisible) {
+      setNextClass(getNextClassFromItems(scheduleItems));
+    }
+  }, [isNextClassVisible, scheduleItems]);
 
   useEffect(() => {
     setCurrentCampus(campus === "loyola" ? "loyola" : "sgw");
@@ -196,19 +223,8 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
+      {/* Left button stack: shuttle status + shuttle schedule */}
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
-      <Pressable
-        testID="shuttle-schedule-button"
-        accessibilityLabel="shuttle-schedule-button"
-        onPress={() => setShowShuttleSchedulePanel(true)}
-        style={[styles.actionButton]}
-      >
-        <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
-      </Pressable>
-      </View>
-
-      {/* Floating Buttons */}
-      <View style={styles.buttonStack}>
         <Pressable
           testID="show-shuttle-button"
           onPress={() => {
@@ -230,6 +246,27 @@ export default function CampusMapScreen() {
             size={24}
             color={colors.white}
           />
+        </Pressable>
+
+        <Pressable
+          testID="shuttle-schedule-button"
+          accessibilityLabel="shuttle-schedule-button"
+          onPress={() => setShowShuttleSchedulePanel(true)}
+          style={[styles.actionButton]}
+        >
+          <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
+        </Pressable>
+      </View>
+
+      {/* Right button stack: next-class + directions + my-location */}
+      <View style={styles.buttonStack}>
+        <Pressable
+          testID="next-class-button"
+          accessibilityLabel="Navigate to next class"
+          onPress={() => setIsNextClassVisible(true)}
+          style={[styles.actionButton, styles.nextClassButton]}
+        >
+          <MaterialIcons name="school" size={24} color={colors.white} />
         </Pressable>
 
         <Pressable
@@ -284,6 +321,17 @@ export default function CampusMapScreen() {
         onInitialStartApplied={() => setInitialStart(null)}
         initialDestination={initialDestination}
         onInitialDestinationApplied={() => setInitialDestination(null)}
+        currentCampus={currentCampus}
+        onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+      />
+
+      <NextClassDirectionsPanel
+        visible={isNextClassVisible}
+        onClose={() => setIsNextClassVisible(false)}
+        onConfirm={handleConfirmRoute}
+        nextClass={nextClass}
+        scheduleItems={scheduleItems}
+        autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
         currentCampus={currentCampus}
         onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
       />
@@ -377,5 +425,10 @@ const styles = StyleSheet.create({
   shuttleDisabled: {
     backgroundColor: "#666",
     opacity: 0.8,
+  },
+
+  nextClassButton: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondaryDark,
   },
 });

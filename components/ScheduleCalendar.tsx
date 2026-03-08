@@ -43,7 +43,7 @@ export default function ScheduleCalendar({ items }: { items: ScheduleItem[] }) {
       sections={sections}
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}
-      stickySectionHeadersEnabled
+      stickySectionHeadersEnabled={false}
       renderSectionHeader={({ section }) => (
         <View
           style={{

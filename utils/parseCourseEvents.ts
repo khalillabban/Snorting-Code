@@ -125,12 +125,39 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
 
 export async function getNextClass(): Promise<ScheduleItem | null> {
   const items = await loadCachedSchedule();
-  if (!items) return null;
+  if (!items || items.length === 0) return null;
 
   const now = new Date();
-  return (
-    items
-      .filter((item) => item.start > now)
-      .sort((a, b) => a.start.getTime() - b.start.getTime())[0] ?? null
+  const sorted = [...items].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
   );
+
+  // Find the next class whose start time is after current time
+  // Handle overlapping classes – the soonest upcoming start wins
+  const upcoming = sorted.find((item) => item.start > now);
+  if (upcoming) return upcoming;
+
+  // No future classes left → wrap around to the earliest class in schedule
+  return sorted[0];
+}
+
+/**
+ * Synchronous version: receives items directly instead of reading AsyncStorage.
+ * Useful from components that already hold the schedule in state.
+ */
+export function getNextClassFromItems(
+  items: ScheduleItem[],
+): ScheduleItem | null {
+  if (items.length === 0) return null;
+
+  const now = new Date();
+  const sorted = [...items].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
+
+  const upcoming = sorted.find((item) => item.start > now);
+  if (upcoming) return upcoming;
+
+  // Wrap around
+  return sorted[0];
 }

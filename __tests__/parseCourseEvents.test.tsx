@@ -3,6 +3,7 @@ import type { ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
 import {
   getNextClass,
+  getNextClassFromItems,
   loadCachedSchedule,
   parseCourseEvents,
   saveSchedule,
@@ -494,7 +495,7 @@ describe("getNextClass", () => {
     await expect(getNextClass()).resolves.toBeNull();
   });
 
-  it("returns null when all cached items are in the past", async () => {
+  it("wraps around to earliest class when all events are in the past", async () => {
     const data = [
       {
         id: "old1",
@@ -509,7 +510,9 @@ describe("getNextClass", () => {
     ];
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
-    await expect(getNextClass()).resolves.toBeNull();
+    const next = await getNextClass();
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("old1");
   });
 
   it("returns the soonest future class", async () => {
@@ -619,5 +622,122 @@ describe("getNextClass", () => {
     const next = await getNextClass();
     expect(next!.id).toBe("future");
     expect(next!.building).toBe("EV");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getNextClassFromItems (synchronous version)
+// ---------------------------------------------------------------------------
+
+describe("getNextClassFromItems", () => {
+  it("returns null for empty array", () => {
+    expect(getNextClassFromItems([])).toBeNull();
+  });
+
+  it("returns the soonest future class", () => {
+    const soon = new Date(Date.now() + 60_000);
+    const later = new Date(Date.now() + 3_600_000);
+
+    const items: ScheduleItem[] = [
+      {
+        id: "later",
+        courseName: "COMP 999",
+        start: later,
+        end: later,
+        location: "SGW H 100",
+        campus: "SGW",
+        building: "H",
+        room: "100",
+        level: "1",
+      },
+      {
+        id: "soon",
+        courseName: "COMP 001",
+        start: soon,
+        end: soon,
+        location: "SGW EV 200",
+        campus: "SGW",
+        building: "EV",
+        room: "200",
+        level: "2",
+      },
+    ];
+
+    const next = getNextClassFromItems(items);
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("soon");
+  });
+
+  it("wraps around to earliest class when all are in the past", () => {
+    const old1 = new Date("2020-01-01T10:00:00Z");
+    const old2 = new Date("2020-06-01T10:00:00Z");
+
+    const items: ScheduleItem[] = [
+      {
+        id: "old2",
+        courseName: "COMP 200",
+        start: old2,
+        end: old2,
+        location: "SGW MB 100",
+        campus: "SGW",
+        building: "MB",
+        room: "100",
+        level: "1",
+      },
+      {
+        id: "old1",
+        courseName: "COMP 100",
+        start: old1,
+        end: old1,
+        location: "SGW H 200",
+        campus: "SGW",
+        building: "H",
+        room: "200",
+        level: "2",
+      },
+    ];
+
+    const next = getNextClassFromItems(items);
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("old1"); // earliest in schedule
+  });
+
+  it("still returns next upcoming class during an overlapping class", () => {
+    const now = Date.now();
+    // Class currently in progress
+    const currentStart = new Date(now - 30 * 60_000);
+    const currentEnd = new Date(now + 30 * 60_000);
+    // Next class starting soon
+    const nextStart = new Date(now + 10 * 60_000);
+    const nextEnd = new Date(now + 70 * 60_000);
+
+    const items: ScheduleItem[] = [
+      {
+        id: "current",
+        courseName: "COMP 100",
+        start: currentStart,
+        end: currentEnd,
+        location: "SGW H 200",
+        campus: "SGW",
+        building: "H",
+        room: "200",
+        level: "2",
+      },
+      {
+        id: "next",
+        courseName: "COMP 200",
+        start: nextStart,
+        end: nextEnd,
+        location: "SGW MB 100",
+        campus: "SGW",
+        building: "MB",
+        room: "100",
+        level: "1",
+      },
+    ];
+
+    const next = getNextClassFromItems(items);
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("next");
   });
 });
