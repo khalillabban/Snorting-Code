@@ -128,5 +128,9 @@ export async function getNextClass(): Promise<ScheduleItem | null> {
   if (!items) return null;
 
   const now = new Date();
-  return items.find((item) => item.start > now) ?? null;
+  return (
+    items
+      .filter((item) => item.start > now)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())[0] ?? null
+  );
 }

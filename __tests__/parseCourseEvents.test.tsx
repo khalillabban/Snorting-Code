@@ -335,7 +335,8 @@ describe("getNextClass", () => {
   it("returns the soonest future class", async () => {
     const soon = new Date(Date.now() + 60_000).toISOString();
     const later = new Date(Date.now() + 3_600_000).toISOString();
-    // Items must be stored sorted by start time (as parseCourseEvents always produces)
+    // Cached items are usually sorted by parseCourseEvents, but getNextClass should
+    // still return the earliest future class even if cached order is wrong.
     const data = [
       {
         id: "soon",
@@ -358,6 +359,51 @@ describe("getNextClass", () => {
         room: "100",
       },
     ];
+    await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
+
+    const next = await getNextClass();
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("soon");
+  });
+
+  it("returns the earliest upcoming class even when cached future items are out of order", async () => {
+    const later = new Date(Date.now() + 3_600_000).toISOString();
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    const middle = new Date(Date.now() + 1_800_000).toISOString();
+
+    const data = [
+      {
+        id: "later",
+        courseName: "COMP 999 LEC",
+        start: later,
+        end: later,
+        location: "",
+        campus: "SGW",
+        building: "H",
+        room: "100",
+      },
+      {
+        id: "soon",
+        courseName: "COMP 001 LEC",
+        start: soon,
+        end: soon,
+        location: "",
+        campus: "SGW",
+        building: "H",
+        room: "200",
+      },
+      {
+        id: "middle",
+        courseName: "COMP 500 LEC",
+        start: middle,
+        end: middle,
+        location: "",
+        campus: "SGW",
+        building: "EV",
+        room: "101",
+      },
+    ];
+
     await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
 
     const next = await getNextClass();

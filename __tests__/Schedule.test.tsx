@@ -1,6 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import ScheduleScreen from "../app/schedule";
+import type * as ParseCourseEventsModule from "../utils/parseCourseEvents";
 
 // -------------------- Mocks --------------------
 const mockUseGoogleCalendarAuth = jest.fn();
@@ -29,11 +30,22 @@ const mockParseCourseEvents = jest.fn();
 const mockLoadCachedSchedule = jest.fn();
 const mockSaveSchedule = jest.fn();
 const mockGetNextClass = jest.fn();
+type ParseCourseEventsArgs =
+  Parameters<typeof ParseCourseEventsModule.parseCourseEvents>;
+type LoadCachedScheduleArgs =
+  Parameters<typeof ParseCourseEventsModule.loadCachedSchedule>;
+type SaveScheduleArgs =
+  Parameters<typeof ParseCourseEventsModule.saveSchedule>;
+type GetNextClassArgs =
+  Parameters<typeof ParseCourseEventsModule.getNextClass>;
+
 jest.mock("../utils/parseCourseEvents", () => ({
-  parseCourseEvents: (...args: any[]) => mockParseCourseEvents(...args),
-  loadCachedSchedule: (...args: any[]) => mockLoadCachedSchedule(...args),
-  saveSchedule: (...args: any[]) => mockSaveSchedule(...args),
-  getNextClass: (...args: any[]) => mockGetNextClass(...args),
+  parseCourseEvents: (...args: ParseCourseEventsArgs) =>
+    mockParseCourseEvents(...args),
+  loadCachedSchedule: (...args: LoadCachedScheduleArgs) =>
+    mockLoadCachedSchedule(...args),
+  saveSchedule: (...args: SaveScheduleArgs) => mockSaveSchedule(...args),
+  getNextClass: (...args: GetNextClassArgs) => mockGetNextClass(...args),
 }));
 
 // ScheduleCalendar component mock
@@ -135,9 +147,11 @@ describe("ScheduleScreen", () => {
   });
 
   it("connect button is disabled when request is null", () => {
+    const promptAsync = jest.fn();
+
     mockUseGoogleCalendarAuth.mockReturnValue({
       request: null,
-      promptAsync: jest.fn(),
+      promptAsync,
       getResultFromResponse: jest.fn().mockReturnValue(null),
       response: null,
     });
@@ -145,9 +159,9 @@ describe("ScheduleScreen", () => {
     const screen = render(<ScheduleScreen />);
     const btn = screen.getByText("Connect Google Calendar").parent as any;
 
-    // Pressing should do nothing because disabled=true
     fireEvent.press(btn);
-    expect(mockUseGoogleCalendarAuth().promptAsync).not.toHaveBeenCalled();
+
+    expect(promptAsync).not.toHaveBeenCalled();
   });
 
   it("pressing connect sets connecting UI and calls promptAsync", async () => {
