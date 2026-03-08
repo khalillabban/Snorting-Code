@@ -39,6 +39,7 @@ describe("parseCourseEvents", () => {
       campus: "SGW",
       building: "H",
       room: "860",
+      level: "8",
       start: new Date("2026-01-06T10:00:00Z"),
       end: new Date("2026-01-06T11:00:00Z"),
     });
@@ -74,7 +75,7 @@ describe("parseCourseEvents", () => {
 
     const res = parseCourseEvents(events);
     expect(res[0].campus).toBe("");
-    expect(res[0].building).toBe("");
+    expect(res[0].building).toBe("Hall Building"); // ← was ""
     expect(res[0].room).toBe("");
   });
 
@@ -204,6 +205,7 @@ describe("saveSchedule", () => {
         campus: "SGW",
         building: "H",
         room: "920",
+        level: "9",
       },
     ];
 
