@@ -37,7 +37,7 @@ export default function ScheduleCalendar({ items }: ScheduleCalendarProps) {
     }
 
     return Array.from(map.entries()).map(([title, data]) => {
-      const sortedData = data.sort(
+      const sortedData = data.toSorted(
         (a, b) => a.start.getTime() - b.start.getTime()
       );
       return { title, data: sortedData };

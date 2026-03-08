@@ -17,6 +17,12 @@ import {
 
 type Trip = { departureTime: string; arrivalTime: string };
 type DirectionKey = "SGW_to_Loyola" | "Loyola_to_SGW";
+type TripBadgeKind = "now" | "next" | "eta";
+
+type TripBadge = {
+  label: string;
+  kind: TripBadgeKind;
+};
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -358,7 +364,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
                   const nowTrip = isTripHappeningNow(dep, arr, currentMinutes);
                   const nextUpcoming = index === 0;
 
-                  let badge: { label: string; kind: "now" | "next" | "eta" };
+                  let badge: TripBadge;
 
                   if (nowTrip) {
                     badge = { label: "Now", kind: "now" };
@@ -420,7 +426,7 @@ export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
                     nextTrip?.departureTime === item.departureTime &&
                     nextTrip?.arrivalTime === item.arrivalTime;
 
-                  let badge: null | { label: string; kind: "now" | "next" | "eta" };
+                  let badge: TripBadge | null;
                   if (nowTrip) {
                     badge = { label: "Now", kind: "now" };
                   } else if (isNext) {
@@ -460,7 +466,7 @@ function TripRow({
   readonly trip: Trip;
   readonly currentMinutes: number;
   readonly highlight: boolean;
-  readonly badge: null | { label: string; kind: "now" | "next" | "eta" };
+  readonly badge: TripBadge | null;
 }) {
   const dep = timeToMinutes(trip.departureTime);
   const eta = minutesUntilDeparture(dep, currentMinutes);
