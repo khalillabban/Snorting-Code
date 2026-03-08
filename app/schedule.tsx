@@ -175,6 +175,7 @@ export default function ScheduleScreen() {
           console.log("Campus:  ", next?.campus);
           console.log("Building:", next?.building);
           console.log("Room:    ", next?.room);
+          console.log("Level:    ", next?.level);
         }
 
         if (items.length === 0) {

@@ -14,21 +14,59 @@ function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   return d;
 }
 
+const CAMPUSES = ["SGW", "LOY"] as const;
+
 function parseLocation(raw: string): {
   campus: string;
   building: string;
   room: string;
 } {
-  const match = raw.trim().match(/^(\w+)\s*-\s*(\w+)\s+(.+)$/);
-  if (!match) return { campus: "", building: "", room: "" };
+  const trimmed = raw.trim().toUpperCase();
 
-  return {
-    campus: match[1].trim(),
-    building: match[2].trim(),
-    room: match[3].trim(),
-  };
+  for (const campus of CAMPUSES) {
+    if (!trimmed.startsWith(campus)) continue;
+
+    const rest = trimmed.slice(campus.length).replace(/^[\s-]+/, "");
+
+    const withRoom = rest.match(/^([\w-]+)\s+(.+)$/);
+    if (withRoom) {
+      return {
+        campus,
+        building: withRoom[1].trim(),
+        room: withRoom[2].trim(),
+      };
+    }
+
+    const noRoom = rest.match(/^([A-Z]+)-(.+)$/);
+    if (noRoom) {
+      return {
+        campus,
+        building: noRoom[1].trim(),
+        room: noRoom[2].trim(),
+      };
+    }
+
+    if (rest.length > 0) {
+      return { campus, building: rest, room: "" };
+    }
+  }
+
+  if (__DEV__) console.warn("parseLocation: unexpected format:", raw);
+  return { campus: "", building: raw, room: "" };
 }
+function splitRoom(room: string): { level: string; room: string } {
+  const dotMatch = room.match(/^([A-Z0-9]+)\.(\d+)$/i);
+  if (dotMatch) {
+    return { level: dotMatch[1].toUpperCase(), room: dotMatch[2] };
+  }
 
+  const digitMatch = room.match(/^(\d)(\d+)$/);
+  if (digitMatch) {
+    return { level: digitMatch[1], room: room };
+  }
+
+  return { level: "", room };
+}
 export function parseCourseEvents(
   events: GoogleCalendarEvent[],
 ): ScheduleItem[] {
@@ -39,7 +77,8 @@ export function parseCourseEvents(
       if (!ev.id || !start || !end) return null;
 
       const location = (ev.location ?? "").trim() || "Location not provided";
-      const { campus, building, room } = parseLocation(location);
+      const { campus, building, room: rawRoom } = parseLocation(location);
+      const { level, room } = splitRoom(rawRoom);
 
       return {
         id: ev.id,
@@ -50,6 +89,7 @@ export function parseCourseEvents(
         campus,
         building,
         room,
+        level,
       };
     })
     .filter((x): x is ScheduleItem => Boolean(x))

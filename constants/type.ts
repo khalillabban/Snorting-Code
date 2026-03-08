@@ -93,6 +93,7 @@ export interface ScheduleItem {
   campus: string;
   building: string;
   room: string;
+  level: string;
 }
 
 export const SCHEDULE_ITEMS = "scheduleItems" as const;
