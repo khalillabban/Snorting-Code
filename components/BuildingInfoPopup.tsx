@@ -132,8 +132,8 @@ export const BuildingInfoPopup = ({
 
             {activeTab && activeList.length > 0 && (
               <ScrollView style={styles.tabContent} nestedScrollEnabled>
-                {activeList.map((item, index) => (
-                  <Text key={index} style={styles.tabItem}>
+                {activeList.map((item) => (
+                  <Text key={item} style={styles.tabItem}>
                     {item}
                   </Text>
                 ))}

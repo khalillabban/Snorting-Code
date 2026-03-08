@@ -79,21 +79,23 @@ export function DirectionStepsPanel({
         >
           {steps.map((step, index) => {
             // Check if this is a shuttle-specific step
-            const isShuttle = 
-              step.instruction.toLowerCase().includes("shuttle") || 
+            const isShuttle =
+              step.instruction.toLowerCase().includes("shuttle") ||
               step.instruction.toLowerCase().includes("board");
 
+            const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
+
             return (
-              <View key={index} style={styles.stepRow}>
+              <View key={stepKey} style={styles.stepRow}>
                 <View style={styles.stepLeft}>
                   <View style={[
-                    styles.stepIconContainer, 
+                    styles.stepIconContainer,
                     isShuttle && styles.shuttleStepHighlight
                   ]}>
-                    <MaterialCommunityIcons 
-                      name={isShuttle ? "bus" : "walk"} 
-                      size={14} 
-                      color={colors.white} 
+                    <MaterialCommunityIcons
+                      name={isShuttle ? "bus" : "walk"}
+                      size={14}
+                      color={colors.white}
                     />
                   </View>
                   {index < steps.length - 1 && <View style={styles.stepLine} />}
@@ -107,7 +109,7 @@ export function DirectionStepsPanel({
                   ]}>
                     {step.instruction}
                   </Text>
-                  
+
                   {(step.distance || step.duration) && (
                     <Text style={styles.stepMeta}>
                       {[step.distance, step.duration].filter(Boolean).join(" · ")}

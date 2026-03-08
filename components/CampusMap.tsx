@@ -523,12 +523,17 @@ export default function CampusMap({
 
         {/* Route */}
         {routeSegments.length > 0 &&
-          routeSegments.map((seg, i) => {
+          routeSegments.map((seg) => {
             const { strokeColor, lineDashPattern } = getPolylineStyleForMode(
               seg.mode,
             );
+
+            const segmentKey = `${seg.mode}-${seg.coordinates
+              .map((coord) => `${coord.latitude}-${coord.longitude}`)
+              .join("|")}`;
+
             return (
-              <React.Fragment key={i}>
+              <React.Fragment key={segmentKey}>
                 <Polyline
                   testID="polyline-border"
                   coordinates={seg.coordinates}

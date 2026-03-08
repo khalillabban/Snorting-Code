@@ -84,19 +84,23 @@ const ShuttleBus = ({ startLocation, endLocation }: ShuttleBusProps) => {
 
     if (shuttleAvailable) {
       const departures = getNextShuttleDepartures(start, end, 2);
-      setNextDepartures(departures.length > 0 ? departures : []);
+      setNextDepartures(departures);
+    } else {
+      setNextDepartures([]);
     }
   }, [startLocation, endLocation]);
 
   if (!isShuttleAvailable) return null;
 
-  // NOT SURE HOW IT WILL ACTUALLY LOOK LIKE DID NOT IMPLEMENT THIS ANYWHERE
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Next Shuttle Departures</Text>
       {nextDepartures.length > 0 ? (
         nextDepartures.map((departure, index) => (
-          <View key={index} style={styles.departureRow}>
+          <View
+            key={`${departure.departureTime}-${departure.arrivalTime}`}
+            style={styles.departureRow}
+          >
             <Text style={styles.label}>Departure {index + 1}:</Text>
             <Text style={styles.time}>{departure.departureTime}</Text>
             <Text style={styles.label}>Arrives:</Text>
