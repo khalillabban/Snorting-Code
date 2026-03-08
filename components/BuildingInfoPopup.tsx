@@ -38,19 +38,18 @@ export const BuildingInfoPopup = ({
     setActiveTab((prev) => (prev === tab ? null : tab));
   };
 
-  const activeList =
-  activeTab === "departments"
-    ? building.departments ?? []
-    : activeTab === "services"
-      ? building.services ?? []
-      : [];
+  let activeList: string[];
+  if (activeTab === "departments") {
+    activeList = building.departments ?? [];
+  } else if (activeTab === "services") {
+    activeList = building.services ?? [];
+  } else {
+    activeList = [];
+  }
 
   return (
     <View style={styles.overlayWrapper} pointerEvents="box-none">
       <View style={styles.card}>
-        
-        {/* TODO: Add drag handle if we implement a bottom-sheet interaction.*/}
-
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{building.displayName}</Text>
@@ -133,8 +132,8 @@ export const BuildingInfoPopup = ({
 
             {activeTab && activeList.length > 0 && (
               <ScrollView style={styles.tabContent} nestedScrollEnabled>
-                {activeList.map((item, index) => (
-                  <Text key={index} style={styles.tabItem}>
+                {activeList.map((item) => (
+                  <Text key={item} style={styles.tabItem}>
                     {item}
                   </Text>
                 ))}

@@ -8,9 +8,9 @@ export default function OAuthRedirect() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleRedirect = async () => {
+    const handleRedirect = () => {
       try {
-        await WebBrowser.maybeCompleteAuthSession();
+        WebBrowser.maybeCompleteAuthSession();
         router.replace("/schedule");
       } catch (e: any) {
         setError(e?.message ?? "Something went wrong. Please try again.");

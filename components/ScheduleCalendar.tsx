@@ -22,7 +22,11 @@ function timeRange(start: Date, end: Date) {
   return `${s} – ${e}`;
 }
 
-export default function ScheduleCalendar({ items }: { items: ScheduleItem[] }) {
+type ScheduleCalendarProps = {
+  readonly items: readonly ScheduleItem[];
+};
+
+export default function ScheduleCalendar({ items }: ScheduleCalendarProps) {
   const sections = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>();
     for (const it of items) {
@@ -32,10 +36,13 @@ export default function ScheduleCalendar({ items }: { items: ScheduleItem[] }) {
       map.set(k, arr);
     }
 
-    return Array.from(map.entries()).map(([title, data]) => ({
-      title,
-      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
-    }));
+    return Array.from(map.entries()).map(([title, data]) => {
+      const sortedData = data.toSorted(
+        (a, b) => a.start.getTime() - b.start.getTime()
+      );
+      return { title, data: sortedData };
+    });
+
   }, [items]);
 
   return (
