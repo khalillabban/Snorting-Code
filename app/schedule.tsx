@@ -212,7 +212,7 @@ export default function ScheduleScreen() {
         <Text style={{ ...typography.title, color: colors.primaryDark }}>
           My Schedule
         </Text>
-        {accessToken ? (
+        {accessToken || ui.status === "ready" ? (
           <Pressable
             onPress={disconnect}
             style={{

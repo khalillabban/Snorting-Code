@@ -1,7 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-
+type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end"> & {
+  start: string;
+  end: string;
+};
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;
   const raw = obj?.dateTime ?? obj?.date;
@@ -67,7 +70,7 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
     const raw = await AsyncStorage.getItem(SCHEDULE_ITEMS);
     if (!raw) return null;
 
-    return JSON.parse(raw).map((item: any) => ({
+    return JSON.parse(raw).map((item: SerializedScheduleItem) => ({
       ...item,
       start: new Date(item.start),
       end: new Date(item.end),
