@@ -121,7 +121,7 @@ describe("NextClassDirectionsPanel", () => {
   });
 
   describe("Rendering", () => {
-    it("does not render when visible is false", () => {
+    it("does not render when visible is false", async () => {
       const { queryByTestId } = render(
         <NextClassDirectionsPanel
           visible={false}
@@ -132,7 +132,9 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      expect(queryByTestId("next-class-name")).toBeNull();
+      await waitFor(() => {
+        expect(queryByTestId("next-class-name")).toBeNull();
+      });
     });
 
     it("renders next class info when visible", async () => {
@@ -153,7 +155,7 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
-    it("renders Get Directions button", () => {
+    it("renders Get Directions button", async () => {
       const { getByText } = render(
         <NextClassDirectionsPanel
           visible={true}
@@ -164,10 +166,12 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      expect(getByText("Get Directions")).toBeTruthy();
+      await waitFor(() => {
+        expect(getByText("Get Directions")).toBeTruthy();
+      });
     });
 
-    it("renders strategy mode buttons", () => {
+    it("renders strategy mode buttons", async () => {
       const { getByTestId } = render(
         <NextClassDirectionsPanel
           visible={true}
@@ -178,11 +182,13 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      expect(getByTestId("next-class-mode-walking")).toBeTruthy();
-      expect(getByTestId("next-class-mode-bicycling")).toBeTruthy();
-      expect(getByTestId("next-class-mode-driving")).toBeTruthy();
-      expect(getByTestId("next-class-mode-transit")).toBeTruthy();
-      expect(getByTestId("next-class-mode-shuttle")).toBeTruthy();
+      await waitFor(() => {
+        expect(getByTestId("next-class-mode-walking")).toBeTruthy();
+        expect(getByTestId("next-class-mode-bicycling")).toBeTruthy();
+        expect(getByTestId("next-class-mode-driving")).toBeTruthy();
+        expect(getByTestId("next-class-mode-transit")).toBeTruthy();
+        expect(getByTestId("next-class-mode-shuttle")).toBeTruthy();
+      });
     });
 
     it("auto-sets destination to next class building", async () => {
@@ -290,7 +296,7 @@ describe("NextClassDirectionsPanel", () => {
   });
 
   describe("Interactions", () => {
-    it("calls onConfirm and onClose when Get Directions is pressed", () => {
+    it("calls onConfirm and onClose when Get Directions is pressed", async () => {
       const { getByTestId } = render(
         <NextClassDirectionsPanel
           visible={true}
@@ -300,6 +306,10 @@ describe("NextClassDirectionsPanel", () => {
           scheduleItems={mockScheduleItems}
         />,
       );
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-get-directions")).toBeTruthy();
+      });
 
       fireEvent.press(getByTestId("next-class-get-directions"));
       expect(mockOnConfirm).toHaveBeenCalledTimes(1);

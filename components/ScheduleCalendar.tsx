@@ -29,10 +29,12 @@ function groupByDay(items: ScheduleItem[]): { title: string; data: ScheduleItem[
     arr.push(it);
     map.set(k, arr);
   }
-  return Array.from(map.entries()).map(([title, data]) => ({
-    title,
-    data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
-  }));
+  return Array.from(map.entries())
+    .map(([title, data]) => ({
+      title,
+      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
+    }))
+    .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
 
 function ClassCard({ item }: { item: ScheduleItem }) {
@@ -110,8 +112,13 @@ export default function ScheduleCalendar({ items }: { items: ScheduleItem[] }) {
   const now = new Date();
 
   const { pastGroups, upcomingGroups } = useMemo(() => {
-    const past = items.filter((it) => it.end < now);
-    const upcoming = items.filter((it) => it.end >= now);
+    const normalized = items.map((it) => ({
+      ...it,
+      start: it.start instanceof Date ? it.start : new Date(it.start),
+      end: it.end instanceof Date ? it.end : new Date(it.end),
+    }));
+    const past = normalized.filter((it) => it.end < now);
+    const upcoming = normalized.filter((it) => it.end >= now);
     return {
       pastGroups: groupByDay(past),
       upcomingGroups: groupByDay(upcoming),
