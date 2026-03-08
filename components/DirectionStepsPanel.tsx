@@ -12,11 +12,11 @@ import { RouteStep } from "../constants/type";
 import { RouteStrategy } from "../services/Routing";
 
 interface DirectionStepsPanelProps {
-  steps: RouteStep[];
-  strategy: RouteStrategy;
-  onChangeRoute: () => void;
-  onDismiss?: () => void;
-  onFocusUser?: () => void;
+  readonly steps: RouteStep[];
+  readonly strategy: RouteStrategy;
+  readonly onChangeRoute: () => void;
+  readonly onDismiss?: () => void;
+  readonly onFocusUser?: () => void;
 }
 
 export function DirectionStepsPanel({

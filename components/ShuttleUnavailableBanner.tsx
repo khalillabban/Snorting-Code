@@ -3,14 +3,14 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors, spacing, typography } from "../constants/theme";
 
-interface ShuttleUnavailableBannerProps {
+type ShuttleUnavailableBannerProps = Readonly<{
   /** Reason to show (e.g. "No bus available during weekend") */
   reason: string;
   /** Optional operating hours summary (e.g. "Mon–Fri 9:15 AM – 7:00 PM") */
   operatingSummary?: string;
   /** Compact style for use near the shuttle button */
   compact?: boolean;
-}
+}>;
 
 /**
  * Informs the user when the Concordia shuttle is not available (time or location).

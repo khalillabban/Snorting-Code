@@ -34,7 +34,7 @@ import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 import { useShuttleBus } from "./ShuttleBusTracker";
 
-interface CampusMapProps {
+type CampusMapProps = Readonly<{
   coordinates: Location;
   focusTarget: CampusKey | "user";
   userFocusCounter?: number;
@@ -48,7 +48,7 @@ interface CampusMapProps {
   onSetAsStart?: (building: Buildings) => void;
   onSetAsDestination?: (building: Buildings) => void;
   onSetAsMyLocation?: (building: Buildings) => void;
-}
+}>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
@@ -84,11 +84,14 @@ function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
 
 const CURRENT_LOCATION_MARKER_TITLE = "You are here";
 
-function CurrentLocationMarker({
-  coordinate,
-}: {
-  coordinate: { latitude: number; longitude: number };
-}) {
+type CurrentLocationMarkerProps = {
+  readonly coordinate: {
+    readonly latitude: number;
+    readonly longitude: number;
+  };
+};
+
+function CurrentLocationMarker({ coordinate }: CurrentLocationMarkerProps) {
   return (
     <Marker
       coordinate={coordinate}

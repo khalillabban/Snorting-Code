@@ -129,7 +129,7 @@ function buildHourSections(trips: Trip[]) {
 }
 
 interface ShuttleSchedulePanelProps {
-  onClose: () => void;
+  readonly onClose: () => void;
 }
 
 export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
@@ -457,10 +457,10 @@ function TripRow({
   highlight,
   badge,
 }: {
-  trip: Trip;
-  currentMinutes: number;
-  highlight: boolean;
-  badge: null | { label: string; kind: "now" | "next" | "eta" };
+  readonly trip: Trip;
+  readonly currentMinutes: number;
+  readonly highlight: boolean;
+  readonly badge: null | { label: string; kind: "now" | "next" | "eta" };
 }) {
   const dep = timeToMinutes(trip.departureTime);
   const eta = minutesUntilDeparture(dep, currentMinutes);
