@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 import { BUILDINGS } from "../constants/buildings";
@@ -45,6 +45,17 @@ function fmtDate(d: Date): string {
     day: "numeric",
   });
 }
+// Deduplicate schedule items by (courseName, building, room)
+function deduplicateCourses(items: ScheduleItem[]): ScheduleItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.courseName}|${item.building}|${item.room}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // Build a display string like "MB-1.210" from building + room
 function fmtRoom(building: string, room: string): string {
   if (!building) return "";
@@ -222,8 +233,10 @@ export default function NextClassDirectionsPanel({
     setFilteredBuildings([]);
     if (text.length > 0) {
       setFilteredCourses(
-        scheduleItems.filter((item) =>
-          item.courseName.toLowerCase().includes(text.toLowerCase()),
+        deduplicateCourses(
+          scheduleItems.filter((item) =>
+            item.courseName.toLowerCase().includes(text.toLowerCase()),
+          ),
         ),
       );
     } else {
@@ -283,7 +296,7 @@ export default function NextClassDirectionsPanel({
     }
     setActiveInput("destination");
     setFilteredBuildings([]);
-    setFilteredCourses(scheduleItems);
+    setFilteredCourses(deduplicateCourses(scheduleItems));
   };
 
   const handleUseMyLocation = () => {

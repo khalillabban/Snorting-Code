@@ -311,7 +311,11 @@ export default function CampusMapScreen() {
         <DirectionStepsPanel
           steps={routeSteps}
           strategy={selectedStrategy}
-          onChangeRoute={() => setIsNavVisible(true)}
+          onChangeRoute={() => {
+            setInitialStart(selectedRoute.start);
+            setInitialDestination(selectedRoute.dest);
+            setIsNavVisible(true);
+          }}
           onDismiss={() => {
             setSelectedRoute({ start: null, dest: null });
             setRouteSteps([]);

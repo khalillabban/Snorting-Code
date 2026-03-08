@@ -2,7 +2,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import React from "react";
 import ScheduleCalendar from "../components/ScheduleCalendar";
-import type { ScheduleItem } from "../utils/parseCourseEvents";
+import type { ScheduleItem } from "../constants/type";
 
 // Helpers to build past/future dates relative to now
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
@@ -14,8 +14,12 @@ function makeItem(
   start: Date,
   end: Date,
   location = "Room X",
+  campus = "SGW",
+  building = "H",
+  room = "123",
+  level = "1",
 ): ScheduleItem {
-  return { id, courseName, start, end, location };
+  return { id, courseName, start, end, location, campus, building, room, level };
 }
 
 describe("components/ScheduleCalendar", () => {
