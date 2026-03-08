@@ -386,7 +386,7 @@ export default function NextClassDirectionsPanel({
                     {fmtDate(nextClass.start)}
                   </Text>
                   <Text style={styles.classInfoTime}>
-                    {fmtTime(nextClass.start)}–{fmtTime(nextClass.end)}
+                    {fmtTime(nextClass.start)} – {fmtTime(nextClass.end)}
                   </Text>
                 </View>
               </View>

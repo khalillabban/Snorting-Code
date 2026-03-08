@@ -47,7 +47,7 @@ export const styles = StyleSheet.create({
     zIndex: 999,
   },
 
-  /* Next Class Info */
+  // Next Class Info
   classInfoCard: {
     backgroundColor: colors.offWhite,
     borderRadius: borderRadius.md,
@@ -91,7 +91,7 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
 
-  /* Error banner */
+  // Error banner
   errorBanner: {
     backgroundColor: "#fce4ec",
     borderRadius: borderRadius.sm,
@@ -107,7 +107,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
 
-  /* Origin/destination inputs */
+  // Origin/destination inputs 
   originDestinationCard: {
     backgroundColor: colors.offWhite,
     borderRadius: 12,
@@ -156,7 +156,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
-  /* Mode/strategy buttons */
+  // Mode/strategy buttons 
   modeSection: {
     marginBottom: spacing.md,
   },
@@ -196,7 +196,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* Suggestion list (courses/buildings) */
+  // Suggestion list (courses/buildings)
   suggestionList: {
     marginTop: spacing.xs,
     maxHeight: 220,
@@ -222,7 +222,7 @@ export const styles = StyleSheet.create({
     color: "#999",
   },
 
-  /* Get Directions button */
+  // Get Directions button
   searchButton: {
     backgroundColor: colors.primary,
     minHeight: 52,
