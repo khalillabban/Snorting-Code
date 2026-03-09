@@ -19,7 +19,18 @@ function makeItem(
   room = "123",
   level = "1",
 ): ScheduleItem {
-  return { id, courseName, start, end, location, campus, building, room, level };
+  return {
+    id,
+    kind: "class",
+    courseName,
+    start,
+    end,
+    location,
+    campus,
+    building,
+    room,
+    level,
+  };
 }
 
 describe("components/ScheduleCalendar", () => {
@@ -90,24 +101,24 @@ describe("components/ScheduleCalendar", () => {
   // ---------------------------------------------------------------------------
   it("hides past class content by default (past section collapsed)", () => {
     const items: ScheduleItem[] = [
-      makeItem("p1", "Old Course", hoursAgo(2), hoursAgo(1)),
+      makeItem("p1", "Old Course LEC", hoursAgo(2), hoursAgo(1)),
     ];
 
     const { queryByText } = render(<ScheduleCalendar items={items} />);
     // Past accordion is collapsed, so card text should not be visible
-    expect(queryByText("Old Course")).toBeNull();
+    expect(queryByText("Old Course LEC")).toBeNull();
   });
 
   it("expands past section when its header is pressed", () => {
     const items: ScheduleItem[] = [
-      makeItem("p1", "Old Course", hoursAgo(2), hoursAgo(1), "Hall 920"),
+      makeItem("p1", "Old Course LEC", hoursAgo(2), hoursAgo(1), "Hall 920"),
     ];
 
     const { getByTestId, getByText } = render(<ScheduleCalendar items={items} />);
 
-    fireEvent.press(getByTestId("accordion-past"));
+    fireEvent.press(getByTestId("accordion-past-classes"));
 
-    expect(getByText("Old Course")).toBeTruthy();
+    expect(getByText("Old Course LEC")).toBeTruthy();
     expect(getByText("Hall 920")).toBeTruthy();
   });
 
@@ -116,18 +127,18 @@ describe("components/ScheduleCalendar", () => {
   // ---------------------------------------------------------------------------
   it("collapses upcoming section when its header is pressed", () => {
     const items: ScheduleItem[] = [
-      makeItem("u1", "Future Course", hoursFromNow(1), hoursFromNow(2)),
+      makeItem("u1", "Future Course LEC", hoursFromNow(1), hoursFromNow(2)),
     ];
 
     const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
 
     // Visible before collapse
-    expect(queryByText("Future Course")).toBeTruthy();
+    expect(queryByText("Future Course LEC")).toBeTruthy();
 
-    fireEvent.press(getByTestId("accordion-upcoming"));
+    fireEvent.press(getByTestId("accordion-upcoming-classes"));
 
     // Hidden after collapse
-    expect(queryByText("Future Course")).toBeNull();
+    expect(queryByText("Future Course LEC")).toBeNull();
   });
 
   // ---------------------------------------------------------------------------
@@ -135,7 +146,7 @@ describe("components/ScheduleCalendar", () => {
   // ---------------------------------------------------------------------------
   it("shows 'No upcoming classes.' when all items are past", () => {
     const items: ScheduleItem[] = [
-      makeItem("p1", "Old Course", hoursAgo(2), hoursAgo(1)),
+      makeItem("p1", "Old Course LEC", hoursAgo(2), hoursAgo(1)),
     ];
 
     const { getByText } = render(<ScheduleCalendar items={items} />);
@@ -144,12 +155,12 @@ describe("components/ScheduleCalendar", () => {
 
   it("shows 'No past classes.' when all items are upcoming", () => {
     const items: ScheduleItem[] = [
-      makeItem("u1", "Future Course", hoursFromNow(1), hoursFromNow(2)),
+      makeItem("u1", "Future Course LEC", hoursFromNow(1), hoursFromNow(2)),
     ];
 
     const { getByTestId, getByText } = render(<ScheduleCalendar items={items} />);
     // Expand past section to see its empty message
-    fireEvent.press(getByTestId("accordion-past"));
+    fireEvent.press(getByTestId("accordion-past-classes"));
     expect(getByText("No past classes.")).toBeTruthy();
   });
 
@@ -195,6 +206,7 @@ describe("components/ScheduleCalendar", () => {
     const items = [
       {
         id: "str1",
+        kind: "class",
         courseName: "String Date Class",
         start: futureDate.toISOString() as unknown as Date,
         end: futureEnd.toISOString() as unknown as Date,
@@ -215,16 +227,16 @@ describe("components/ScheduleCalendar", () => {
   // ---------------------------------------------------------------------------
   it("renders multiple past classes when past section is expanded", () => {
     const items: ScheduleItem[] = [
-      makeItem("p1", "Past A", hoursAgo(5), hoursAgo(4), "Room A"),
-      makeItem("p2", "Past B", hoursAgo(3), hoursAgo(2), "Room B"),
+      makeItem("p1", "Past A LEC", hoursAgo(5), hoursAgo(4), "Room A"),
+      makeItem("p2", "Past B LEC", hoursAgo(3), hoursAgo(2), "Room B"),
     ];
 
     const { getByTestId, getByText } = render(<ScheduleCalendar items={items} />);
 
-    fireEvent.press(getByTestId("accordion-past"));
+    fireEvent.press(getByTestId("accordion-past-classes"));
 
-    expect(getByText("Past A")).toBeTruthy();
-    expect(getByText("Past B")).toBeTruthy();
+    expect(getByText("Past A LEC")).toBeTruthy();
+    expect(getByText("Past B LEC")).toBeTruthy();
   });
 
   // ---------------------------------------------------------------------------
@@ -232,40 +244,40 @@ describe("components/ScheduleCalendar", () => {
   // ---------------------------------------------------------------------------
   it("re-expands upcoming section after collapsing", () => {
     const items: ScheduleItem[] = [
-      makeItem("u1", "Toggle Class", hoursFromNow(1), hoursFromNow(2)),
+      makeItem("u1", "Toggle Class LEC", hoursFromNow(1), hoursFromNow(2)),
     ];
 
     const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
 
     // Initially visible
-    expect(queryByText("Toggle Class")).toBeTruthy();
+    expect(queryByText("Toggle Class LEC")).toBeTruthy();
 
     // Collapse
-    fireEvent.press(getByTestId("accordion-upcoming"));
-    expect(queryByText("Toggle Class")).toBeNull();
+    fireEvent.press(getByTestId("accordion-upcoming-classes"));
+    expect(queryByText("Toggle Class LEC")).toBeNull();
 
     // Re-expand
-    fireEvent.press(getByTestId("accordion-upcoming"));
-    expect(queryByText("Toggle Class")).toBeTruthy();
+    fireEvent.press(getByTestId("accordion-upcoming-classes"));
+    expect(queryByText("Toggle Class LEC")).toBeTruthy();
   });
 
   it("collapses past section after expanding", () => {
     const items: ScheduleItem[] = [
-      makeItem("p1", "Past Toggle", hoursAgo(2), hoursAgo(1)),
+      makeItem("p1", "Past Toggle LEC", hoursAgo(2), hoursAgo(1)),
     ];
 
     const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
 
     // Initially hidden (past collapsed by default)
-    expect(queryByText("Past Toggle")).toBeNull();
+    expect(queryByText("Past Toggle LEC")).toBeNull();
 
     // Expand
-    fireEvent.press(getByTestId("accordion-past"));
-    expect(queryByText("Past Toggle")).toBeTruthy();
+    fireEvent.press(getByTestId("accordion-past-classes"));
+    expect(queryByText("Past Toggle LEC")).toBeTruthy();
 
     // Collapse again
-    fireEvent.press(getByTestId("accordion-past"));
-    expect(queryByText("Past Toggle")).toBeNull();
+    fireEvent.press(getByTestId("accordion-past-classes"));
+    expect(queryByText("Past Toggle LEC")).toBeNull();
   });
 
   // ---------------------------------------------------------------------------
@@ -287,19 +299,19 @@ describe("components/ScheduleCalendar", () => {
   // Sorting past items
   // ---------------------------------------------------------------------------
   it("sorts past items by start time", () => {
-    const earlier = makeItem("e", "Earlier Past", hoursAgo(4), hoursAgo(3), "Room A");
-    const later = makeItem("l", "Later Past", hoursAgo(2), hoursAgo(1), "Room B");
+    const earlier = makeItem("e", "Earlier Past LEC", hoursAgo(4), hoursAgo(3), "Room A");
+    const later = makeItem("l", "Later Past LEC", hoursAgo(2), hoursAgo(1), "Room B");
 
     // Pass items in reverse order
     const { getByTestId, getAllByText } = render(
       <ScheduleCalendar items={[later, earlier]} />,
     );
 
-    fireEvent.press(getByTestId("accordion-past"));
+    fireEvent.press(getByTestId("accordion-past-classes"));
 
-    const titles = getAllByText(/(Earlier Past|Later Past)/).map(
+    const titles = getAllByText(/(Earlier Past LEC|Later Past LEC)/).map(
       (n) => n.props.children,
     );
-    expect(titles).toEqual(["Earlier Past", "Later Past"]);
+    expect(titles).toEqual(["Earlier Past LEC", "Later Past LEC"]);
   });
 });

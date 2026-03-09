@@ -1,10 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end"> & {
+type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end" | "kind"> & {
   start: string;
   end: string;
+  kind?: ScheduleItem["kind"];
 };
+
+const CLASS_KEYWORD_REGEX = /\b(LEC|TUT|LAB)\b/i;
+
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;
   const raw = obj?.dateTime ?? obj?.date;
@@ -67,6 +71,11 @@ function splitRoom(room: string): { level: string; room: string } {
 
   return { level: "", room };
 }
+
+export function classifyScheduleItemKind(courseName: string): ScheduleItem["kind"] {
+  return CLASS_KEYWORD_REGEX.test(courseName) ? "class" : "event";
+}
+
 export function parseCourseEvents(
   events: GoogleCalendarEvent[],
 ): ScheduleItem[] {
@@ -79,10 +88,12 @@ export function parseCourseEvents(
       const location = (ev.location ?? "").trim() || "Location not provided";
       const { campus, building, room: rawRoom } = parseLocation(location);
       const { level, room } = splitRoom(rawRoom);
+      const courseName = (ev.summary ?? "").trim() || "Untitled class";
 
       return {
         id: ev.id,
-        courseName: (ev.summary ?? "").trim() || "Untitled class",
+        kind: classifyScheduleItemKind(courseName),
+        courseName,
         start,
         end,
         location,
@@ -112,6 +123,7 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
 
     return JSON.parse(raw).map((item: SerializedScheduleItem) => ({
       ...item,
+      kind: item.kind ?? classifyScheduleItemKind(item.courseName),
       start: new Date(item.start),
       end: new Date(item.end),
     }));
