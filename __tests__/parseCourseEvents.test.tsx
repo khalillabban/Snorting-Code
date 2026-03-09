@@ -604,6 +604,61 @@ describe("getNextClass", () => {
     expect(next!.id).toBe("soon");
   });
 
+  it("returns null when cached schedule has only events", async () => {
+    const data = [
+      {
+        id: "event-only",
+        kind: "event",
+        courseName: "Career Fair",
+        start: new Date(Date.now() + 60_000).toISOString(),
+        end: new Date(Date.now() + 120_000).toISOString(),
+        location: "SGW - EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+      },
+    ];
+    await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
+
+    await expect(getNextClass()).resolves.toBeNull();
+  });
+
+  it("ignores earlier events and returns the next class", async () => {
+    const eventSoon = new Date(Date.now() + 60_000).toISOString();
+    const classLater = new Date(Date.now() + 3_600_000).toISOString();
+
+    const data = [
+      {
+        id: "event-soon",
+        kind: "event",
+        courseName: "Career Fair",
+        start: eventSoon,
+        end: eventSoon,
+        location: "SGW - EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+      },
+      {
+        id: "class-later",
+        kind: "class",
+        courseName: "COMP 248 LEC",
+        start: classLater,
+        end: classLater,
+        location: "SGW - H 820",
+        campus: "SGW",
+        building: "H",
+        room: "820",
+      },
+    ];
+    await AsyncStorage.setItem("scheduleItems", JSON.stringify(data));
+
+    const next = await getNextClass();
+
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("class-later");
+  });
+
   it("returns the earliest upcoming class even when cached future items are out of order", async () => {
     const later = new Date(Date.now() + 3_600_000).toISOString();
     const soon = new Date(Date.now() + 60_000).toISOString();
@@ -724,6 +779,59 @@ describe("getNextClassFromItems", () => {
     const next = getNextClassFromItems(items);
     expect(next).not.toBeNull();
     expect(next!.id).toBe("soon");
+  });
+
+  it("returns null when items contain only events", () => {
+    const items: ScheduleItem[] = [
+      {
+        id: "event-only",
+        kind: "event",
+        courseName: "Career Fair",
+        start: new Date(Date.now() + 60_000),
+        end: new Date(Date.now() + 120_000),
+        location: "SGW EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+        level: "",
+      },
+    ];
+
+    expect(getNextClassFromItems(items)).toBeNull();
+  });
+
+  it("ignores earlier events and returns the next class from items", () => {
+    const items: ScheduleItem[] = [
+      {
+        id: "event-soon",
+        kind: "event",
+        courseName: "Career Fair",
+        start: new Date(Date.now() + 60_000),
+        end: new Date(Date.now() + 120_000),
+        location: "SGW EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+        level: "",
+      },
+      {
+        id: "class-later",
+        kind: "class",
+        courseName: "COMP 248",
+        start: new Date(Date.now() + 3_600_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW H 820",
+        campus: "SGW",
+        building: "H",
+        room: "820",
+        level: "8",
+      },
+    ];
+
+    const next = getNextClassFromItems(items);
+
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("class-later");
   });
 
   it("wraps around to earliest class when all are in the past", () => {
