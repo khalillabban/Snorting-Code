@@ -33,6 +33,31 @@ function makeItem(
   };
 }
 
+function makeEvent(
+  id: string,
+  courseName: string,
+  start: Date,
+  end: Date,
+  location = "Event Room",
+  campus = "SGW",
+  building = "H",
+  room = "123",
+  level = "1",
+): ScheduleItem {
+  return {
+    id,
+    kind: "event",
+    courseName,
+    start,
+    end,
+    location,
+    campus,
+    building,
+    room,
+    level,
+  };
+}
+
 describe("components/ScheduleCalendar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -313,5 +338,31 @@ describe("components/ScheduleCalendar", () => {
       (n) => n.props.children,
     );
     expect(titles).toEqual(["Earlier Past LEC", "Later Past LEC"]);
+  });
+
+  it("uses item kind instead of title regex to place mixed items in class and event sections", () => {
+    const items: ScheduleItem[] = [
+      makeItem("class-no-keyword", "SOEN 321", hoursFromNow(1), hoursFromNow(2), "EV 3.123"),
+      makeEvent("event-with-keyword", "Career Fair LEC", hoursAgo(4), hoursAgo(3), "EV Atrium"),
+    ];
+
+    const { getByTestId, getByText, queryByText } = render(<ScheduleCalendar items={items} />);
+
+    expect(getByText("SOEN 321")).toBeTruthy();
+    expect(queryByText("Career Fair LEC")).toBeNull();
+
+    fireEvent.press(getByTestId("accordion-past-events"));
+
+    expect(getByText("Career Fair LEC")).toBeTruthy();
+  });
+
+  it("shows event empty state when only classes are present", () => {
+    const items: ScheduleItem[] = [
+      makeItem("class-only", "COMP 248", hoursFromNow(1), hoursFromNow(2)),
+    ];
+
+    const { getByText } = render(<ScheduleCalendar items={items} />);
+
+    expect(getByText("No upcoming events.")).toBeTruthy();
   });
 });

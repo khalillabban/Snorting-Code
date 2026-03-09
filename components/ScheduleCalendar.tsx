@@ -36,10 +36,6 @@ function groupByDay(items: ScheduleItem[]): { title: string; data: ScheduleItem[
     .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
 
-function isClassItem(item: ScheduleItem) {
-  return /\b(LEC|TUT|LAB)\b/i.test(item.courseName);
-}
-
 function ClassCard({ item }: Readonly<{ item: ScheduleItem }>) {
   return (
     <View
@@ -131,10 +127,10 @@ export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleIt
     const upcoming = normalized.filter((it) => it.end >= now);
     const past = normalized.filter((it) => it.end < now);
 
-    const upcomingClasses = upcoming.filter(isClassItem);
-    const pastClasses = past.filter(isClassItem);
-    const upcomingEvents = upcoming.filter((it) => !isClassItem(it));
-    const pastEvents = past.filter((it) => !isClassItem(it));
+    const upcomingClasses = upcoming.filter((it) => it.kind === "class");
+    const pastClasses = past.filter((it) => it.kind === "class");
+    const upcomingEvents = upcoming.filter((it) => it.kind === "event");
+    const pastEvents = past.filter((it) => it.kind === "event");
 
     return {
       upcomingClassGroups: groupByDay(upcomingClasses),
