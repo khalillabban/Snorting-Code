@@ -7,6 +7,7 @@ import ScheduleCalendar from "../components/ScheduleCalendar";
 import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
 import { colors, spacing, typography } from "../constants/theme";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
+import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   clearCachedGoogleCalendarEvents,
   clearGoogleCalendarCache,
@@ -21,7 +22,6 @@ import {
   saveCachedGoogleCalendarEvents,
   saveCachedGoogleCalendarList,
 } from "../services/GoogleCalendarCacheStore";
-import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   GoogleCalendarApiError,
   GoogleCalendarEvent,
@@ -647,6 +647,7 @@ export default function ScheduleScreen() {
               return (
                 <Pressable
                   key={calendar.id}
+                  testID={`calendar-toggle-${calendar.summary?.replace(/\s+/g, "-").toLowerCase()}`}
                   onPress={() => toggleCalendarSelection(calendar.id)}
                   style={{
                     paddingVertical: 8,

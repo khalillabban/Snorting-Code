@@ -126,6 +126,7 @@ function AccordionHeader({
         accessibilityState={{ expanded }}
       >
         <Text
+          testID={`${testID}-title`}
           style={{ ...typography.subtitle, color: colors.white, fontWeight: "600" }}
         >
           {title}
