@@ -92,7 +92,7 @@ describe("services/GoogleCalendarCacheStore", () => {
     );
   });
 
-  it("merges calendar list updates, filters hidden calendars, and reports staleness", () => {
+  it("merges calendar list updates, keeps hidden calendars visible, and reports staleness", () => {
     const merged = mergeCachedCalendarListItems(
       [
         { id: "primary", summary: "Primary", primary: true },
@@ -106,6 +106,7 @@ describe("services/GoogleCalendarCacheStore", () => {
 
     expect(filterVisibleCachedCalendars(merged)).toEqual([
       { id: "primary", summary: "Primary", primary: true },
+      { id: "holidays", summary: "Holidays in Canada", hidden: true },
       { id: "shared", summary: "Shared Calendar" },
     ]);
 
