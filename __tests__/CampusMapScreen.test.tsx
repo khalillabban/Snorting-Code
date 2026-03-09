@@ -750,10 +750,25 @@ describe("CampusMapScreen", () => {
   });
 
   describe("Next Class Directions Panel", () => {
+    it("keeps next class panel hidden when no next class is available", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      (loadCachedSchedule as jest.Mock).mockResolvedValue([]);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+
+      await renderScreen();
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+    });
+
     it("opens next class panel when next-class button is pressed", async () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -781,6 +796,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -808,6 +824,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -846,6 +863,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -873,6 +891,7 @@ describe("CampusMapScreen", () => {
     it("displays next class info when schedule is loaded", async () => {
       const mockNextClass = {
         id: "1",
+        kind: "class",
         courseName: "SOEN 390",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),

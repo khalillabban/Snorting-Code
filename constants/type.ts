@@ -86,6 +86,7 @@ export interface CalendarEvent {
 
 export interface ScheduleItem {
   id: string;
+  kind: "class" | "event";
   courseName: string;
   start: Date;
   end: Date;
