@@ -340,6 +340,42 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
+    it("excludes event items from the destination course picker", async () => {
+      const mixedItems: ScheduleItem[] = [
+        ...mockScheduleItems,
+        {
+          id: "event-1",
+          kind: "event",
+          courseName: "Career Fair",
+          start: new Date(Date.now() + 5_400_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW EV Atrium",
+          campus: "SGW",
+          building: "EV",
+          room: "Atrium",
+          level: "",
+        },
+      ];
+
+      const { getByLabelText, getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mixedItems[0]}
+          scheduleItems={mixedItems}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+
+      await waitFor(() => {
+        expect(getByTestId("nc-course-1")).toBeTruthy();
+        expect(getByTestId("nc-course-2")).toBeTruthy();
+        expect(queryByTestId("nc-course-event-1")).toBeNull();
+      });
+    });
+
     it("selects a course from destination list and updates dest", async () => {
       const { getByLabelText, getByTestId } = render(
         <NextClassDirectionsPanel
@@ -789,8 +825,43 @@ describe("NextClassDirectionsPanel", () => {
         // Only one course should appear (deduplicated)
         const courses = queryAllByTestId(/^nc-course-/);
         expect(courses.length).toBe(1);
+        });
       });
     });
-  });
+
+    it("ignores matching event items when filtering destination courses", async () => {
+      const mixedItems: ScheduleItem[] = [
+        ...mockScheduleItems,
+        {
+          id: "event-soen",
+          kind: "event",
+          courseName: "SOEN Mixer",
+          start: new Date(Date.now() + 5_400_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW EV Atrium",
+          campus: "SGW",
+          building: "EV",
+          room: "Atrium",
+          level: "",
+        },
+      ];
+
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mixedItems[0]}
+          scheduleItems={mixedItems}
+        />,
+      );
+
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+
+      await waitFor(() => {
+        expect(getByTestId("nc-course-2")).toBeTruthy();
+        expect(queryByTestId("nc-course-event-soen")).toBeNull();
+      });
+    });
 });
 
