@@ -834,6 +834,38 @@ describe("getNextClassFromItems", () => {
     expect(next!.id).toBe("class-later");
   });
 
+  it("falls back to title-based classification for legacy items without kind", () => {
+    const items = [
+      {
+        id: "event-soon",
+        courseName: "Family Day",
+        start: new Date(Date.now() + 60_000),
+        end: new Date(Date.now() + 120_000),
+        location: "Canada",
+        campus: "",
+        building: "",
+        room: "",
+        level: "",
+      },
+      {
+        id: "class-later",
+        courseName: "COMP 248 LEC",
+        start: new Date(Date.now() + 3_600_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW H 820",
+        campus: "SGW",
+        building: "H",
+        room: "820",
+        level: "8",
+      },
+    ] as ScheduleItem[];
+
+    const next = getNextClassFromItems(items);
+
+    expect(next).not.toBeNull();
+    expect(next!.id).toBe("class-later");
+  });
+
   it("wraps around to earliest class when all are in the past", () => {
     const old1 = new Date("2020-01-01T10:00:00Z");
     const old2 = new Date("2020-06-01T10:00:00Z");

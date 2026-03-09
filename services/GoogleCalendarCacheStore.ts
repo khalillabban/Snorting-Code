@@ -90,7 +90,7 @@ export function isGoogleCalendarEventsCacheStale(
 export function filterVisibleCachedCalendars(
   items: GoogleCalendarListItem[],
 ): GoogleCalendarListItem[] {
-  return items.filter((item) => !item.deleted && !item.hidden);
+  return items.filter((item) => !item.deleted);
 }
 
 export function mergeCachedCalendarListItems(

@@ -264,7 +264,7 @@ describe("ScheduleScreen caching flow", () => {
       (entry: any) => !entry || entry.lastSyncedAt === 0,
     );
     mockFilterVisibleCachedCalendars.mockImplementation((items: any[]) =>
-      items.filter((item) => !item.deleted && !item.hidden),
+      items.filter((item) => !item.deleted),
     );
     mockMergeCachedCalendarEvents.mockImplementation(
       (existing: any[], incoming: any[], calendarId: string) => {
@@ -336,6 +336,35 @@ describe("ScheduleScreen caching flow", () => {
 
     expect(mockSyncCalendarEvents).not.toHaveBeenCalled();
     expect(screen.getByText("Disconnect")).toBeTruthy();
+  });
+
+  it("keeps hidden holiday calendars available in the selector", async () => {
+    cachedCalendarList = {
+      items: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "holidays", summary: "Holidays in Canada", hidden: true },
+      ],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
+      makeEvent("class-1", "COMP 346 LEC"),
+    ]);
+    cachedEventsByCalendar.holidays = makeCalendarCache("holidays", [
+      makeEvent("holiday-1", "Family Day"),
+    ]);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Holidays in Canada")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Holidays in Canada"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("calendar-items-count").props.children).toBe(2);
+    });
   });
 
   it("switches between already-cached calendars without refetching", async () => {

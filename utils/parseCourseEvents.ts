@@ -76,6 +76,12 @@ export function classifyScheduleItemKind(courseName: string): ScheduleItem["kind
   return CLASS_KEYWORD_REGEX.test(courseName) ? "class" : "event";
 }
 
+function getScheduleItemKind(
+  item: Pick<ScheduleItem, "courseName" | "kind">,
+): ScheduleItem["kind"] {
+  return item.kind ?? classifyScheduleItemKind(item.courseName);
+}
+
 export function parseCourseEvents(
   events: GoogleCalendarEvent[],
 ): ScheduleItem[] {
@@ -137,7 +143,7 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
 
 function getSortedClassItems(items: ScheduleItem[]): ScheduleItem[] {
   return items
-    .filter((item) => item.kind === "class")
+    .filter((item) => getScheduleItemKind(item) === "class")
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
