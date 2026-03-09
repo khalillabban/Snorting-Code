@@ -1,4 +1,4 @@
-# Welcome to your Expo app 👋
+# Welcome to your Expo app 
 ## Team 
 The team is composed of 11 full-stack developers: <br>
 Khalil Al Labban - 40282892 <br>
@@ -11,7 +11,6 @@ Yousef Bisharah - 40151411 <br>
 Nicholas Gallacher - 40248681 <br>
 Chris Egener - 40196182 <br>
 Nicolas Landry- 40263725 <br>
-Frew Weldemariam - 40036623 <br>
 
 ## Project
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
