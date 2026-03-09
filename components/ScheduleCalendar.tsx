@@ -54,7 +54,7 @@ function groupByDay(items: ScheduleItem[]): GroupedItems[] {
   return Array.from(grouped.entries())
     .map(([title, data]) => ({
       title,
-      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
+      data: [...data].sort((a, b) => a.start.getTime() - b.start.getTime()),
     }))
     .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
@@ -247,7 +247,7 @@ export default function ScheduleCalendar({
   const [upcomingEventsExpanded, setUpcomingEventsExpanded] = useState(true);
   const [pastEventsExpanded, setPastEventsExpanded] = useState(false);
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
 
   const {
     upcomingClassGroups,
@@ -282,51 +282,55 @@ export default function ScheduleCalendar({
   }, [items]);
 
   const sections = useMemo(() => {
-    const nextSections: SectionConfig[] = [];
+    const classSections =
+      visibleFilter !== "event"
+        ? [
+            {
+              testID: "accordion-upcoming-classes",
+              title: "Upcoming Classes",
+              expanded: upcomingClassesExpanded,
+              onToggle: () => setUpcomingClassesExpanded((value) => !value),
+              groups: upcomingClassGroups,
+              emptyMessage: "No upcoming classes.",
+              tone: "upcoming",
+            },
+            {
+              testID: "accordion-past-classes",
+              title: "Past Classes",
+              expanded: pastClassesExpanded,
+              onToggle: () => setPastClassesExpanded((value) => !value),
+              groups: pastClassGroups,
+              emptyMessage: "No past classes.",
+              tone: "past",
+            },
+          ]
+        : [];
 
-    if (visibleFilter !== "event") {
-      nextSections.push({
-        testID: "accordion-upcoming-classes",
-        title: "Upcoming Classes",
-        expanded: upcomingClassesExpanded,
-        onToggle: () => setUpcomingClassesExpanded((value) => !value),
-        groups: upcomingClassGroups,
-        emptyMessage: "No upcoming classes.",
-        tone: "upcoming",
-      });
-      nextSections.push({
-        testID: "accordion-past-classes",
-        title: "Past Classes",
-        expanded: pastClassesExpanded,
-        onToggle: () => setPastClassesExpanded((value) => !value),
-        groups: pastClassGroups,
-        emptyMessage: "No past classes.",
-        tone: "past",
-      });
-    }
+    const eventSections =
+      visibleFilter !== "class"
+        ? [
+            {
+              testID: "accordion-upcoming-events",
+              title: "Upcoming Events",
+              expanded: upcomingEventsExpanded,
+              onToggle: () => setUpcomingEventsExpanded((value) => !value),
+              groups: upcomingEventGroups,
+              emptyMessage: "No upcoming events.",
+              tone: "upcoming",
+            },
+            {
+              testID: "accordion-past-events",
+              title: "Past Events",
+              expanded: pastEventsExpanded,
+              onToggle: () => setPastEventsExpanded((value) => !value),
+              groups: pastEventGroups,
+              emptyMessage: "No past events.",
+              tone: "past",
+            },
+          ]
+        : [];
 
-    if (visibleFilter !== "class") {
-      nextSections.push({
-        testID: "accordion-upcoming-events",
-        title: "Upcoming Events",
-        expanded: upcomingEventsExpanded,
-        onToggle: () => setUpcomingEventsExpanded((value) => !value),
-        groups: upcomingEventGroups,
-        emptyMessage: "No upcoming events.",
-        tone: "upcoming",
-      });
-      nextSections.push({
-        testID: "accordion-past-events",
-        title: "Past Events",
-        expanded: pastEventsExpanded,
-        onToggle: () => setPastEventsExpanded((value) => !value),
-        groups: pastEventGroups,
-        emptyMessage: "No past events.",
-        tone: "past",
-      });
-    }
-
-    return nextSections;
+    return [...classSections, ...eventSections];
   }, [
     pastClassGroups,
     pastClassesExpanded,
@@ -364,7 +368,10 @@ export default function ScheduleCalendar({
     [sections],
   );
 
-  const stickyHeaderIndices = sections.map((_, index) => index * 2);
+  const stickyHeaderIndices = useMemo(
+    () => sections.map((_, index) => index * 2),
+    [sections],
+  );
 
   if (items.length === 0) {
     return (
