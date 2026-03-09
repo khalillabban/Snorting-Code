@@ -135,14 +135,19 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
   }
 }
 
+function getSortedClassItems(items: ScheduleItem[]): ScheduleItem[] {
+  return items
+    .filter((item) => item.kind === "class")
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
 export async function getNextClass(): Promise<ScheduleItem | null> {
   const items = await loadCachedSchedule();
   if (!items || items.length === 0) return null;
 
   const now = new Date();
-  const sorted = [...items].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
+  const sorted = getSortedClassItems(items);
+  if (sorted.length === 0) return null;
 
   // Find the next class whose start time is after current time
   // Handle overlapping classes – the soonest upcoming start wins
@@ -163,9 +168,8 @@ export function getNextClassFromItems(
   if (items.length === 0) return null;
 
   const now = new Date();
-  const sorted = [...items].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
+  const sorted = getSortedClassItems(items);
+  if (sorted.length === 0) return null;
 
   const upcoming = sorted.find((item) => item.start > now);
   if (upcoming) return upcoming;

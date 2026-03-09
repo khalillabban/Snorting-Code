@@ -750,6 +750,20 @@ describe("CampusMapScreen", () => {
   });
 
   describe("Next Class Directions Panel", () => {
+    it("keeps next class panel hidden when no next class is available", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      (loadCachedSchedule as jest.Mock).mockResolvedValue([]);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+
+      await renderScreen();
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      expect(screen.getByTestId("next-class-visible").props.children).toBe("hidden");
+    });
+
     it("opens next class panel when next-class button is pressed", async () => {
       const mockSchedule = [
         {
