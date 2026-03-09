@@ -1,6 +1,8 @@
 import {
   fetchCalendarEventsInRange,
   fetchCalendarList,
+  syncCalendarEvents,
+  syncCalendarList,
 } from "../services/GoogleCalendarService";
 
 type MockResponse = {
@@ -383,6 +385,88 @@ describe("services/GoogleCalendarService", () => {
       const params = new URLSearchParams(url.search);
 
       expect(params.get("pageToken")).toBe("token-page-2");
+    });
+  });
+
+  describe("syncCalendarList", () => {
+    it("passes syncToken and returns nextSyncToken", async () => {
+      const res = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "primary", summary: "Primary" }],
+          nextSyncToken: "next-sync-token",
+        })),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      const result = await syncCalendarList({
+        accessToken: "TOKEN",
+        syncToken: "existing-sync-token",
+      });
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [calledUrl] = (global.fetch as jest.Mock).mock.calls[0];
+
+      expect(calledUrl).toContain(
+        "https://www.googleapis.com/calendar/v3/users/me/calendarList?",
+      );
+      expect(calledUrl).toContain("showDeleted=true");
+      expect(calledUrl).toContain("showHidden=true");
+      expect(calledUrl).toContain("syncToken=existing-sync-token");
+      expect(result).toEqual({
+        items: [{ id: "primary", summary: "Primary" }],
+        nextSyncToken: "next-sync-token",
+      });
+    });
+  });
+
+  describe("syncCalendarEvents", () => {
+    it("passes syncToken, returns nextSyncToken, and keeps deleted events enabled", async () => {
+      const res = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-1", summary: "COMP 346 LEC" }],
+          nextSyncToken: "events-next-sync",
+        })),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      const result = await syncCalendarEvents({
+        accessToken: "TOKEN",
+        calendarId: "primary",
+        syncToken: "events-existing-sync",
+      });
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [calledUrl] = (global.fetch as jest.Mock).mock.calls[0];
+
+      expect(calledUrl).toContain("calendars/primary/events?");
+      expect(calledUrl).toContain("singleEvents=true");
+      expect(calledUrl).toContain("showDeleted=true");
+      expect(calledUrl).toContain("syncToken=events-existing-sync");
+      expect(result).toEqual({
+        items: [{ id: "event-1", summary: "COMP 346 LEC" }],
+        nextSyncToken: "events-next-sync",
+      });
+    });
+
+    it("throws with status + error text when sync response is not ok", async () => {
+      const res = makeRes({
+        ok: false,
+        status: 410,
+        statusText: "Gone",
+        text: jest.fn(async () => "invalid sync token"),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await expect(
+        syncCalendarEvents({
+          accessToken: "TOKEN",
+          calendarId: "primary",
+          syncToken: "bad-sync-token",
+        }),
+      ).rejects.toThrow("Events sync failed (410): invalid sync token");
     });
   });
 });
