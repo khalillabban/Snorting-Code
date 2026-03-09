@@ -1,4 +1,3 @@
-// components/ScheduleCalendar.tsx
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, spacing, typography } from "../constants/theme";
@@ -32,9 +31,13 @@ function groupByDay(items: ScheduleItem[]): { title: string; data: ScheduleItem[
   return Array.from(map.entries())
     .map(([title, data]) => ({
       title,
-      data: data.toSorted((a, b) => a.start.getTime() - b.start.getTime()),
+      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
     }))
-    .toSorted((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
+    .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
+}
+
+function isClassItem(item: ScheduleItem) {
+  return /\b(LEC|TUT|LAB)\b/i.test(item.courseName);
 }
 
 function ClassCard({ item }: Readonly<{ item: ScheduleItem }>) {
@@ -106,22 +109,38 @@ function AccordionHeader({ title, expanded, onToggle, testID }: Readonly<Accordi
 }
 
 export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleItem[] }>) {
-  const [pastExpanded, setPastExpanded] = useState(false);
-  const [upcomingExpanded, setUpcomingExpanded] = useState(true);
+  const [upcomingClassesExpanded, setUpcomingClassesExpanded] = useState(true);
+  const [pastClassesExpanded, setPastClassesExpanded] = useState(false);
+  const [upcomingEventsExpanded, setUpcomingEventsExpanded] = useState(true);
+  const [pastEventsExpanded, setPastEventsExpanded] = useState(false);
 
   const now = new Date();
 
-  const { pastGroups, upcomingGroups } = useMemo(() => {
+  const {
+    upcomingClassGroups,
+    pastClassGroups,
+    upcomingEventGroups,
+    pastEventGroups,
+  } = useMemo(() => {
     const normalized = items.map((it) => ({
       ...it,
       start: it.start instanceof Date ? it.start : new Date(it.start),
       end: it.end instanceof Date ? it.end : new Date(it.end),
     }));
-    const past = normalized.filter((it) => it.end < now);
+
     const upcoming = normalized.filter((it) => it.end >= now);
+    const past = normalized.filter((it) => it.end < now);
+
+    const upcomingClasses = upcoming.filter(isClassItem);
+    const pastClasses = past.filter(isClassItem);
+    const upcomingEvents = upcoming.filter((it) => !isClassItem(it));
+    const pastEvents = past.filter((it) => !isClassItem(it));
+
     return {
-      pastGroups: groupByDay(past),
-      upcomingGroups: groupByDay(upcoming),
+      upcomingClassGroups: groupByDay(upcomingClasses),
+      pastClassGroups: groupByDay(pastClasses),
+      upcomingEventGroups: groupByDay(upcomingEvents),
+      pastEventGroups: groupByDay(pastEvents),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
@@ -134,29 +153,33 @@ export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleIt
     );
   }
 
-  // stickyHeaderIndices: child index 0 = upcoming header, child index 2 = past header
+  // stickyHeaderIndices:
+  // 0 = upcoming classes header
+  // 2 = past classes header
+  // 4 = upcoming events header
+  // 6 = past events header
   return (
     <ScrollView
       contentContainerStyle={{ paddingBottom: spacing.lg }}
-      stickyHeaderIndices={[0, 2]}
+      stickyHeaderIndices={[0, 2, 4, 6]}
     >
-      {/* index 0 — sticky upcoming header */}
+      {/* index 0 — sticky upcoming classes header */}
       <AccordionHeader
-        testID="accordion-upcoming"
+        testID="accordion-upcoming-classes"
         title="Upcoming Classes"
-        expanded={upcomingExpanded}
-        onToggle={() => setUpcomingExpanded((v) => !v)}
+        expanded={upcomingClassesExpanded}
+        onToggle={() => setUpcomingClassesExpanded((v) => !v)}
       />
 
       {/* index 1 — upcoming classes */}
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xs }}>
-        {upcomingExpanded && (
-          upcomingGroups.length === 0 ? (
+        {upcomingClassesExpanded && (
+          upcomingClassGroups.length === 0 ? (
             <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
               No upcoming classes.
             </Text>
           ) : (
-            upcomingGroups.map((group) => (
+            upcomingClassGroups.map((group) => (
               <View key={group.title}>
                 <View
                   style={{
@@ -180,23 +203,103 @@ export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleIt
         )}
       </View>
 
-      {/* index 2 — sticky past header */}
+      {/* index 2 — sticky past classes header */}
       <AccordionHeader
-        testID="accordion-past"
+        testID="accordion-past-classes"
         title="Past Classes"
-        expanded={pastExpanded}
-        onToggle={() => setPastExpanded((v) => !v)}
+        expanded={pastClassesExpanded}
+        onToggle={() => setPastClassesExpanded((v) => !v)}
       />
 
       {/* index 3 — past classes */}
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
-        {pastExpanded && (
-          pastGroups.length === 0 ? (
+        {pastClassesExpanded && (
+          pastClassGroups.length === 0 ? (
             <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
               No past classes.
             </Text>
           ) : (
-            pastGroups.map((group) => (
+            pastClassGroups.map((group) => (
+              <View key={group.title}>
+                <View
+                  style={{
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                    backgroundColor: colors.gray300,
+                    borderRadius: 8,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Text style={{ ...typography.caption, color: colors.gray700, fontWeight: "600" }}>
+                    {group.title}
+                  </Text>
+                </View>
+                {group.data.map((item) => (
+                  <ClassCard key={item.id} item={item} />
+                ))}
+              </View>
+            ))
+          )
+        )}
+      </View>
+
+      {/* index 4 — sticky upcoming events header */}
+      <AccordionHeader
+        testID="accordion-upcoming-events"
+        title="Upcoming Events"
+        expanded={upcomingEventsExpanded}
+        onToggle={() => setUpcomingEventsExpanded((v) => !v)}
+      />
+
+      {/* index 5 — upcoming events */}
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xs }}>
+        {upcomingEventsExpanded && (
+          upcomingEventGroups.length === 0 ? (
+            <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
+              No upcoming events.
+            </Text>
+          ) : (
+            upcomingEventGroups.map((group) => (
+              <View key={group.title}>
+                <View
+                  style={{
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                    backgroundColor: colors.primary,
+                    borderRadius: 8,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Text style={{ ...typography.caption, color: colors.white, fontWeight: "600" }}>
+                    {group.title}
+                  </Text>
+                </View>
+                {group.data.map((item) => (
+                  <ClassCard key={item.id} item={item} />
+                ))}
+              </View>
+            ))
+          )
+        )}
+      </View>
+
+      {/* index 6 — sticky past events header */}
+      <AccordionHeader
+        testID="accordion-past-events"
+        title="Past Events"
+        expanded={pastEventsExpanded}
+        onToggle={() => setPastEventsExpanded((v) => !v)}
+      />
+
+      {/* index 7 — past events */}
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
+        {pastEventsExpanded && (
+          pastEventGroups.length === 0 ? (
+            <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
+              No past events.
+            </Text>
+          ) : (
+            pastEventGroups.map((group) => (
               <View key={group.title}>
                 <View
                   style={{

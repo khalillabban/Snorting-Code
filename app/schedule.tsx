@@ -17,8 +17,15 @@ import {
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
   fetchCalendarEventsInRange,
+  fetchCalendarList,
   type GoogleCalendarEvent,
+  type GoogleCalendarListItem,
 } from "../services/GoogleCalendarService";
+import {
+  clearSelectedCalendarIds,
+  getSelectedCalendarIds,
+  saveSelectedCalendarIds,
+} from "../services/SelectedCalendarsStore";
 import {
   deleteGoogleAccessToken,
   getGoogleAccessToken,
@@ -44,6 +51,8 @@ export default function ScheduleScreen() {
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [ui, setUi] = useState<UiState>({ status: "idle" });
+  const [availableCalendars, setAvailableCalendars] = useState<GoogleCalendarListItem[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
 
   const { start, end } = useMemo(() => getSemesterRange(), []);
 
@@ -84,6 +93,11 @@ export default function ScheduleScreen() {
             return;
           }
           setAccessToken(saved.accessToken);
+        }
+
+        const savedCalendarIds = await getSelectedCalendarIds();
+        if (!cancelled) {
+          setSelectedCalendarIds(savedCalendarIds);
         }
       } catch (error) {
         if (cancelled) return;
@@ -138,30 +152,85 @@ export default function ScheduleScreen() {
     try {
       await deleteGoogleAccessToken();
       await AsyncStorage.removeItem(SCHEDULE_ITEMS);
+      await clearSelectedCalendarIds();
     } finally {
       setAccessToken(null);
+      setAvailableCalendars([]);
+      setSelectedCalendarIds([]);
       setUi({ status: "idle" });
     }
   }, []);
+
+  const loadCalendars = useCallback(
+    async (token: string) => {
+      try {
+        const calendars = await fetchCalendarList(token);
+        setAvailableCalendars(calendars);
+
+        if (calendars.length > 0 && selectedCalendarIds.length === 0) {
+          const defaultIds = calendars
+            .filter((calendar) => calendar.primary)
+            .map((calendar) => calendar.id);
+
+          const idsToUse = defaultIds.length > 0 ? defaultIds : [calendars[0].id];
+
+          setSelectedCalendarIds(idsToUse);
+          await saveSelectedCalendarIds(idsToUse);
+        }
+      } catch (e) {
+        if (__DEV__) console.error("Failed to load calendars:", e);
+      }
+    },
+    [selectedCalendarIds],
+  );
 
   const loadSchedule = useCallback(
     async (token: string) => {
       try {
         setUi({ status: "loading" });
 
-        const rawEvents: GoogleCalendarEvent[] =
-          await fetchCalendarEventsInRange({
-            accessToken: token,
-            timeMin: start,
-            timeMax: end,
-            calendarId: "primary",
-          });
+        if (selectedCalendarIds.length === 0) {
+          await saveSchedule([]);
+          setUi({ status: "empty" });
+          return;
+        }
 
-        // To only see the school stuff from your calendar
-        const academicRegex = /\b(LEC|TUT|LAB)\b/i; //Filtering
-        const filteredEvents = rawEvents.filter((event) =>
-          academicRegex.test(event.summary || ""),
+        const calendarIdsToUse = selectedCalendarIds;
+
+        const rawEventGroups = await Promise.all(
+          calendarIdsToUse.map((calendarId) =>
+            fetchCalendarEventsInRange({
+              accessToken: token,
+              timeMin: start,
+              timeMax: end,
+              calendarId,
+            }),
+          ),
         );
+
+        const rawEvents: GoogleCalendarEvent[] = rawEventGroups.flat();
+
+        const uniqueEvents = rawEvents.filter(
+          (event, index, self) =>
+            index ===
+            self.findIndex(
+              (candidate) =>
+                candidate.id === event.id &&
+                candidate.start?.dateTime === event.start?.dateTime,
+            ),
+        );
+
+        const academicRegex = /\b(LEC|TUT|LAB)\b/i;
+        const filteredEvents = uniqueEvents.filter((event) => {
+          const summary = event.summary || "";
+
+          if (academicRegex.test(summary)) return true;
+
+          if (event.organizer?.email) return true;
+
+          return false;
+        });
+
         const items = parseCourseEvents(filteredEvents);
         //The save in the storage
         await saveSchedule(items);
@@ -191,14 +260,32 @@ export default function ScheduleScreen() {
         });
       }
     },
-    [start, end],
+    [start, end, selectedCalendarIds],
   );
+
+  // Load calendars whenever we get a new token
+  useEffect(() => {
+    if (!accessToken) return;
+    loadCalendars(accessToken);
+  }, [accessToken, loadCalendars]);
 
   // Load schedule whenever we get a new token
   useEffect(() => {
     if (!accessToken) return;
     loadSchedule(accessToken);
   }, [accessToken, loadSchedule]);
+
+  const toggleCalendarSelection = useCallback(
+    async (calendarId: string) => {
+      const nextSelected = selectedCalendarIds.includes(calendarId)
+        ? selectedCalendarIds.filter((id) => id !== calendarId)
+        : [...selectedCalendarIds, calendarId];
+
+      setSelectedCalendarIds(nextSelected);
+      await saveSelectedCalendarIds(nextSelected);
+    },
+    [selectedCalendarIds],
+  );
 
   const header = (
     <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
@@ -234,6 +321,42 @@ export default function ScheduleScreen() {
         Showing events from {start.toLocaleDateString()} to{" "}
         {end.toLocaleDateString()}
       </Text>
+      {availableCalendars.length > 0 ? (
+        <View style={{ marginTop: spacing.md, gap: 8 }}>
+          <Text style={{ color: colors.primaryDark, fontWeight: "600" }}>
+            Selected Calendars
+          </Text>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {availableCalendars.map((calendar) => {
+              const selected = selectedCalendarIds.includes(calendar.id);
+
+              return (
+                <Pressable
+                  key={calendar.id}
+                  onPress={() => toggleCalendarSelection(calendar.id)}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.primaryDark : colors.gray300,
+                    backgroundColor: selected ? colors.primaryDark : colors.white,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? colors.white : colors.primaryDark,
+                    }}
+                  >
+                    {calendar.summary}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 
