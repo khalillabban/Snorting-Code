@@ -11,6 +11,7 @@ Yousef Bisharah - 40151411 <br>
 Nicholas Gallacher - 40248681 <br>
 Chris Egener - 40196182 <br>
 Nicolas Landry- 40263725 <br>
+Frew Weldemariam - 40036623 <br>
 
 ## Project
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
