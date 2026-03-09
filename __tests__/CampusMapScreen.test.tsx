@@ -754,6 +754,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -781,6 +782,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -808,6 +810,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -846,6 +849,7 @@ describe("CampusMapScreen", () => {
       const mockSchedule = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -873,6 +877,7 @@ describe("CampusMapScreen", () => {
     it("displays next class info when schedule is loaded", async () => {
       const mockNextClass = {
         id: "1",
+        kind: "class",
         courseName: "SOEN 390",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),

@@ -59,6 +59,7 @@ jest.mock("../constants/buildings", () => ({
 const mockScheduleItems: ScheduleItem[] = [
   {
     id: "1",
+    kind: "class",
     courseName: "COMP 335",
     start: new Date(Date.now() + 3_600_000),
     end: new Date(Date.now() + 7_200_000),
@@ -70,6 +71,7 @@ const mockScheduleItems: ScheduleItem[] = [
   },
   {
     id: "2",
+    kind: "class",
     courseName: "SOEN 390",
     start: new Date(Date.now() + 10_800_000),
     end: new Date(Date.now() + 14_400_000),
@@ -240,6 +242,7 @@ describe("NextClassDirectionsPanel", () => {
     it("shows error when next class has no building code", async () => {
       const badClass: ScheduleItem = {
         id: "bad",
+        kind: "class",
         courseName: "ENGR 101",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),
@@ -268,6 +271,7 @@ describe("NextClassDirectionsPanel", () => {
     it("shows error when building code is unrecognized", async () => {
       const badClass: ScheduleItem = {
         id: "bad",
+        kind: "class",
         courseName: "ENGR 101",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),
@@ -659,6 +663,7 @@ describe("NextClassDirectionsPanel", () => {
       const badCourseItems: ScheduleItem[] = [
         {
           id: "bad",
+          kind: "class",
           courseName: "BAD 101",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -744,6 +749,7 @@ describe("NextClassDirectionsPanel", () => {
       const duplicateCourses: ScheduleItem[] = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -755,6 +761,7 @@ describe("NextClassDirectionsPanel", () => {
         },
         {
           id: "2",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 86_400_000),
           end: new Date(Date.now() + 90_000_000),

@@ -36,6 +36,7 @@ describe("parseCourseEvents", () => {
     expect(res).toHaveLength(1);
     expect(res[0]).toEqual({
       id: "1",
+      kind: "class",
       courseName: "COMP 123 LEC",
       location: "SGW - H 860",
       campus: "SGW",
@@ -45,6 +46,24 @@ describe("parseCourseEvents", () => {
       start: new Date("2026-01-06T10:00:00Z"),
       end: new Date("2026-01-06T11:00:00Z"),
     });
+  });
+
+  it("classifies non-academic titles as events", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "career-fair",
+        summary: "Career Fair",
+        location: "SGW - H 110",
+        start: { dateTime: "2026-01-08T10:00:00Z" },
+        end: { dateTime: "2026-01-08T12:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res).toHaveLength(1);
+    expect(res[0].kind).toBe("event");
+    expect(res[0].courseName).toBe("Career Fair");
   });
 
   it("parses a multi-character building code correctly", () => {
@@ -354,6 +373,7 @@ describe("saveSchedule", () => {
     const items: ScheduleItem[] = [
       {
         id: "a",
+        kind: "class",
         courseName: "COMP 101 LEC",
         start: new Date("2026-03-10T10:00:00Z"),
         end: new Date("2026-03-10T11:00:00Z"),
@@ -372,6 +392,7 @@ describe("saveSchedule", () => {
     const parsed = JSON.parse(stored!);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].id).toBe("a");
+    expect(parsed[0].kind).toBe("class");
     expect(parsed[0].courseName).toBe("COMP 101 LEC");
   });
 
@@ -404,6 +425,7 @@ describe("loadCachedSchedule", () => {
     const raw = JSON.stringify([
       {
         id: "x",
+        kind: "class",
         courseName: "SOEN 341 LAB",
         start: "2026-04-01T09:00:00.000Z",
         end: "2026-04-01T10:00:00.000Z",
@@ -419,7 +441,41 @@ describe("loadCachedSchedule", () => {
     expect(items).not.toBeNull();
     expect(items![0].start).toBeInstanceOf(Date);
     expect(items![0].end).toBeInstanceOf(Date);
+    expect(items![0].kind).toBe("class");
     expect(items![0].start.toISOString()).toBe("2026-04-01T09:00:00.000Z");
+  });
+
+  it("backfills kind for legacy cached items", async () => {
+    const raw = JSON.stringify([
+      {
+        id: "legacy-class",
+        courseName: "COMP 346 LEC",
+        start: "2026-04-01T09:00:00.000Z",
+        end: "2026-04-01T10:00:00.000Z",
+        location: "SGW - H 920",
+        campus: "SGW",
+        building: "H",
+        room: "920",
+      },
+      {
+        id: "legacy-event",
+        courseName: "Career Fair",
+        start: "2026-04-02T09:00:00.000Z",
+        end: "2026-04-02T10:00:00.000Z",
+        location: "SGW - EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+      },
+    ]);
+
+    await AsyncStorage.setItem("scheduleItems", raw);
+
+    const items = await loadCachedSchedule();
+
+    expect(items).toHaveLength(2);
+    expect(items![0].kind).toBe("class");
+    expect(items![1].kind).toBe("event");
   });
 
   it("returns multiple items with correct shape", async () => {
@@ -641,6 +697,7 @@ describe("getNextClassFromItems", () => {
     const items: ScheduleItem[] = [
       {
         id: "later",
+        kind: "class",
         courseName: "COMP 999",
         start: later,
         end: later,
@@ -652,6 +709,7 @@ describe("getNextClassFromItems", () => {
       },
       {
         id: "soon",
+        kind: "class",
         courseName: "COMP 001",
         start: soon,
         end: soon,
@@ -675,6 +733,7 @@ describe("getNextClassFromItems", () => {
     const items: ScheduleItem[] = [
       {
         id: "old2",
+        kind: "class",
         courseName: "COMP 200",
         start: old2,
         end: old2,
@@ -686,6 +745,7 @@ describe("getNextClassFromItems", () => {
       },
       {
         id: "old1",
+        kind: "class",
         courseName: "COMP 100",
         start: old1,
         end: old1,
@@ -714,6 +774,7 @@ describe("getNextClassFromItems", () => {
     const items: ScheduleItem[] = [
       {
         id: "current",
+        kind: "class",
         courseName: "COMP 100",
         start: currentStart,
         end: currentEnd,
@@ -725,6 +786,7 @@ describe("getNextClassFromItems", () => {
       },
       {
         id: "next",
+        kind: "class",
         courseName: "COMP 200",
         start: nextStart,
         end: nextEnd,
