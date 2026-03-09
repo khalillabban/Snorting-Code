@@ -193,6 +193,7 @@ function LocationInputRow({
       <Pressable
         style={styles.pickButton}
         onPress={onPickPress}
+        testID={`${testID}-picker`} 
         accessibilityLabel={pickLabel}
         accessibilityRole="button"
       >
