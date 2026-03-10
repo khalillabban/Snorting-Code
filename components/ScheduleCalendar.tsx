@@ -247,7 +247,7 @@ export default function ScheduleCalendar({
   const [upcomingEventsExpanded, setUpcomingEventsExpanded] = useState(true);
   const [pastEventsExpanded, setPastEventsExpanded] = useState(false);
 
-  const now = useMemo(() => new Date(), []);
+  const now = new Date();
 
   const {
     upcomingClassGroups,
@@ -295,7 +295,7 @@ export default function ScheduleCalendar({
   );
 
   const sections = useMemo(() => {
-    const classSections: SectionConfig[] = visibleFilter !== "event" ? [
+    const classSections: SectionConfig[] = visibleFilter === "all" || visibleFilter === "class" ? [
       {
         testID: "accordion-upcoming-classes",
         title: "Upcoming Classes",
@@ -316,7 +316,7 @@ export default function ScheduleCalendar({
       },
     ] : [];
 
-    const eventSections: SectionConfig[] = visibleFilter !== "class" ? [
+    const eventSections: SectionConfig[] = visibleFilter === "all" || visibleFilter === "event" ? [
       {
         testID: "accordion-upcoming-events",
         title: "Upcoming Events",

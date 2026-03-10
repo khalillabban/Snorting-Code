@@ -418,75 +418,77 @@ export default function ScheduleScreen() {
     return () => subscription.remove();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const initializeSchedule = useCallback(async (cancelledRef: { current: boolean }) => {
+    let cachedSchedule: ScheduleItem[] | null = null;
 
-    (async () => {
-      let cachedSchedule: ScheduleItem[] | null = null;
-
-      try {
-        cachedSchedule = await loadCachedSchedule();
-        if (!cancelled && cachedSchedule) {
-          setUi(getUiStateForItems(cachedSchedule));
-        }
-
-        const saved = await getGoogleAccessToken();
-        if (cancelled) return;
-
-        if (saved.accessToken && isTokenLikelyExpired(saved.meta)) {
-          await deleteGoogleAccessToken();
-          setAccessToken(null);
-        } else {
-          setAccessToken(saved.accessToken);
-        }
-
-        const savedCalendarIds = await getSelectedCalendarIds();
-        if (cancelled) return;
-
-        shouldAutoSelectDefaultRef.current = savedCalendarIds.length === 0;
-        setSelectedCalendarIds(savedCalendarIds);
-
-        const cachedCalendarList = await loadCachedGoogleCalendarList();
-        if (cancelled) return;
-
-        const visibleCalendars = filterVisibleCachedCalendars(
-          cachedCalendarList?.items ?? [],
-        );
-        setAvailableCalendars(visibleCalendars);
-
-        if (
-          saved.accessToken &&
-          shouldAutoSelectDefaultRef.current &&
-          visibleCalendars.length > 0
-        ) {
-          const defaultIds = pickDefaultCalendarIds(visibleCalendars);
-          setSelectedCalendarIds(defaultIds);
-          await saveSelectedCalendarIds(defaultIds);
-          shouldAutoSelectDefaultRef.current = false;
-        }
-
-        if (!saved.accessToken && !cachedSchedule) {
-          setUi({ status: "idle" });
-        }
-      } catch (error) {
-        if (cancelled) return;
-        if (__DEV__) console.error("Schedule init failed:", error);
-        setUi({
-          status: "error",
-          message:
-            error instanceof Error ? error.message : "Failed to load schedule",
-        });
-      } finally {
-        if (!cancelled) {
-          setHasHydratedStorage(true);
-        }
+    try {
+      cachedSchedule = await loadCachedSchedule();
+      if (!cancelledRef.current && cachedSchedule) {
+        setUi(getUiStateForItems(cachedSchedule));
       }
-    })();
+
+      const saved = await getGoogleAccessToken();
+      if (cancelledRef.current) return;
+
+      const accessToken =
+        saved.accessToken && isTokenLikelyExpired(saved.meta)
+          ? (await deleteGoogleAccessToken(), null)
+          : saved.accessToken;
+
+      setAccessToken(accessToken);
+
+      const savedCalendarIds = await getSelectedCalendarIds();
+      if (cancelledRef.current) return;
+
+      shouldAutoSelectDefaultRef.current = savedCalendarIds.length === 0;
+      setSelectedCalendarIds(savedCalendarIds);
+
+      const cachedCalendarList = await loadCachedGoogleCalendarList();
+      if (cancelledRef.current) return;
+
+      const visibleCalendars = filterVisibleCachedCalendars(
+        cachedCalendarList?.items ?? [],
+      );
+      setAvailableCalendars(visibleCalendars);
+
+      if (
+        accessToken &&
+        shouldAutoSelectDefaultRef.current &&
+        visibleCalendars.length > 0
+      ) {
+        const defaultIds = pickDefaultCalendarIds(visibleCalendars);
+        setSelectedCalendarIds(defaultIds);
+        await saveSelectedCalendarIds(defaultIds);
+        shouldAutoSelectDefaultRef.current = false;
+      }
+
+      if (!accessToken && !cachedSchedule) {
+        setUi({ status: "idle" });
+      }
+    } catch (error) {
+      if (cancelledRef.current) return;
+      if (__DEV__) console.error("Schedule init failed:", error);
+      setUi({
+        status: "error",
+        message:
+          error instanceof Error ? error.message : "Failed to load schedule",
+      });
+    } finally {
+      if (!cancelledRef.current) {
+        setHasHydratedStorage(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const cancelledRef = { current: false };
+
+    initializeSchedule(cancelledRef);
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
-  }, []);
+  }, [initializeSchedule]);
 
   useEffect(() => {
     const res = getResultFromResponse();
