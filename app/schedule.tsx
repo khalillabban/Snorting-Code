@@ -255,9 +255,9 @@ export default function ScheduleScreen() {
       const calendarIdsToSync = force
         ? calendarIds
         : calendarIds.filter((calendarId) => {
-            const entry = cachedEntryMap.get(calendarId) ?? null;
-            return !entry || !entry.syncToken || isGoogleCalendarEventsCacheStale(entry);
-          });
+          const entry = cachedEntryMap.get(calendarId);
+          return !entry?.syncToken || isGoogleCalendarEventsCacheStale(entry);
+        });
 
       if (calendarIdsToSync.length === 0) {
         if (background && hasCachedEntries) {
@@ -316,8 +316,7 @@ export default function ScheduleScreen() {
 
       const shouldSync =
         force ||
-        !cachedList ||
-        !cachedList.syncToken ||
+        !cachedList?.syncToken ||
         isGoogleCalendarListCacheStale(cachedList);
 
       if (!shouldSync) {
@@ -496,7 +495,7 @@ export default function ScheduleScreen() {
     saveGoogleAccessToken(res.accessToken, {
       issuedAt: res.issuedAt,
       expiresIn: res.expiresIn,
-    }).catch(() => {});
+    }).catch(() => { });
   }, [response, getResultFromResponse, ui.status]);
 
   const connect = useCallback(async () => {
