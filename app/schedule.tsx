@@ -154,7 +154,7 @@ async function resolveAccessToken(
 async function loadCalendarsAndMaybeAutoSelect(
   cancelledRef: { current: boolean },
   accessToken: string | null,
-  shouldAutoSelectDefaultRef: React.MutableRefObject<boolean>,
+  shouldAutoSelectDefaultRef: { current: boolean },
   setSelectedCalendarIds: React.Dispatch<React.SetStateAction<string[]>>,
   setAvailableCalendars: React.Dispatch<React.SetStateAction<GoogleCalendarListItem[]>>,
 ) {
