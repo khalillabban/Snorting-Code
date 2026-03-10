@@ -134,6 +134,73 @@ function pickDefaultCalendarIds(calendars: GoogleCalendarListItem[]): string[] {
   return [calendars[0].id];
 }
 
+function applyCachedSchedule(
+  cancelledRef: { current: boolean },
+  cachedSchedule: ScheduleItem[] | null,
+  setUi: React.Dispatch<React.SetStateAction<UiState>>,
+) {
+  if (cancelledRef.current || !cachedSchedule) return;
+  setUi(getUiStateForItems(cachedSchedule));
+}
+
+async function resolveAccessToken(
+  saved: Awaited<ReturnType<typeof getGoogleAccessToken>>,
+): Promise<string | null> {
+  if (!saved.accessToken || !isTokenLikelyExpired(saved.meta)) return saved.accessToken;
+  await deleteGoogleAccessToken();
+  return null;
+}
+
+async function loadCalendarsAndMaybeAutoSelect(
+  cancelledRef: { current: boolean },
+  accessToken: string | null,
+  shouldAutoSelectDefaultRef: React.MutableRefObject<boolean>,
+  setSelectedCalendarIds: React.Dispatch<React.SetStateAction<string[]>>,
+  setAvailableCalendars: React.Dispatch<React.SetStateAction<GoogleCalendarListItem[]>>,
+) {
+  const savedCalendarIds = await getSelectedCalendarIds();
+  if (cancelledRef.current) return;
+  shouldAutoSelectDefaultRef.current = savedCalendarIds.length === 0;
+  setSelectedCalendarIds(savedCalendarIds);
+
+  const cachedCalendarList = await loadCachedGoogleCalendarList();
+  if (cancelledRef.current) return;
+  const visibleCalendars = filterVisibleCachedCalendars(
+    cachedCalendarList?.items ?? [],
+  );
+  setAvailableCalendars(visibleCalendars);
+
+  const shouldAutoSelect =
+    accessToken && shouldAutoSelectDefaultRef.current && visibleCalendars.length > 0;
+  if (!shouldAutoSelect) return;
+
+  const defaultIds = pickDefaultCalendarIds(visibleCalendars);
+  setSelectedCalendarIds(defaultIds);
+  await saveSelectedCalendarIds(defaultIds);
+  shouldAutoSelectDefaultRef.current = false;
+}
+
+function setIdleIfNoData(
+  accessToken: string | null,
+  cachedSchedule: ScheduleItem[] | null,
+  setUi: React.Dispatch<React.SetStateAction<UiState>>,
+) {
+  if (!accessToken && !cachedSchedule) setUi({ status: "idle" });
+}
+
+function handleScheduleInitError(
+  cancelledRef: { current: boolean },
+  error: unknown,
+  setUi: React.Dispatch<React.SetStateAction<UiState>>,
+) {
+  if (cancelledRef.current) return;
+  if (__DEV__) console.error("Schedule init failed:", error);
+  setUi({
+    status: "error",
+    message: error instanceof Error ? error.message : "Failed to load schedule",
+  });
+}
+
 export default function ScheduleScreen() {
   const { request, promptAsync, getResultFromResponse, response } =
     useGoogleCalendarAuth({ useProxy: false });
@@ -420,63 +487,31 @@ export default function ScheduleScreen() {
 
   const initializeSchedule = useCallback(async (cancelledRef: { current: boolean }) => {
     let cachedSchedule: ScheduleItem[] | null = null;
-
     try {
       cachedSchedule = await loadCachedSchedule();
-      if (!cancelledRef.current && cachedSchedule) {
-        setUi(getUiStateForItems(cachedSchedule));
-      }
+      applyCachedSchedule(cancelledRef, cachedSchedule, setUi);
 
+      if (cancelledRef.current) return;
       const saved = await getGoogleAccessToken();
       if (cancelledRef.current) return;
 
-      const accessToken =
-        saved.accessToken && isTokenLikelyExpired(saved.meta)
-          ? (await deleteGoogleAccessToken(), null)
-          : saved.accessToken;
-
+      const accessToken = await resolveAccessToken(saved);
       setAccessToken(accessToken);
 
-      const savedCalendarIds = await getSelectedCalendarIds();
-      if (cancelledRef.current) return;
-
-      shouldAutoSelectDefaultRef.current = savedCalendarIds.length === 0;
-      setSelectedCalendarIds(savedCalendarIds);
-
-      const cachedCalendarList = await loadCachedGoogleCalendarList();
-      if (cancelledRef.current) return;
-
-      const visibleCalendars = filterVisibleCachedCalendars(
-        cachedCalendarList?.items ?? [],
+      await loadCalendarsAndMaybeAutoSelect(
+        cancelledRef,
+        accessToken,
+        shouldAutoSelectDefaultRef,
+        setSelectedCalendarIds,
+        setAvailableCalendars,
       );
-      setAvailableCalendars(visibleCalendars);
 
-      if (
-        accessToken &&
-        shouldAutoSelectDefaultRef.current &&
-        visibleCalendars.length > 0
-      ) {
-        const defaultIds = pickDefaultCalendarIds(visibleCalendars);
-        setSelectedCalendarIds(defaultIds);
-        await saveSelectedCalendarIds(defaultIds);
-        shouldAutoSelectDefaultRef.current = false;
-      }
-
-      if (!accessToken && !cachedSchedule) {
-        setUi({ status: "idle" });
-      }
-    } catch (error) {
       if (cancelledRef.current) return;
-      if (__DEV__) console.error("Schedule init failed:", error);
-      setUi({
-        status: "error",
-        message:
-          error instanceof Error ? error.message : "Failed to load schedule",
-      });
+      setIdleIfNoData(accessToken, cachedSchedule, setUi);
+    } catch (error) {
+      handleScheduleInitError(cancelledRef, error, setUi);
     } finally {
-      if (!cancelledRef.current) {
-        setHasHydratedStorage(true);
-      }
+      if (!cancelledRef.current) setHasHydratedStorage(true);
     }
   }, []);
 

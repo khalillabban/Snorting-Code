@@ -36,8 +36,6 @@ module.exports = {
   moduleNameMapper: {
     "^utils/(.*)$": "<rootDir>/utils/$1",
     "^constants/(.*)$": "<rootDir>/constants/$1",
-    "^@react-native-async-storage/async-storage$": require.resolve(
-      "@react-native-async-storage/async-storage/jest/async-storage-mock",
-    ),
+    "^@react-native-async-storage/async-storage$": "<rootDir>/jest/async-storage-mock.js",
   },
 };

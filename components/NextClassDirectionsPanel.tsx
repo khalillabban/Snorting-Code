@@ -349,6 +349,7 @@ export default function NextClassDirectionsPanel({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateY is a stable ref
   }, [visible]);
 
   // Unified search handler for both start and destination inputs
