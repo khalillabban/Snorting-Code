@@ -17,9 +17,42 @@ export interface Buildings {
   boundingBox: Location[];
 }
 
+export interface FloorPlan {
+  buildingCode: string;
+  floor: number;
+  rooms: Room[];
+  navGraph?: NavGraph;
+}
+
+export interface Room {
+  roomNumber: string;
+  coordinates: Location[];
+};
+
 export interface Location {
   latitude: number;
   longitude: number;
+}
+
+export type NodeType = "room" | "doorway" | "elevator" | "stair" | "entrance";
+
+export interface NavNode {
+  id: string;
+  location: Location;
+  type: NodeType;
+  floor: number;
+  roomNumber?: string;
+}
+
+export interface NavEdge {
+  from: string;
+  to: string;
+  weight: number;
+}
+
+export interface NavGraph {
+  nodes: Record<string, NavNode>;
+  edges: NavEdge[];
 }
 
 export interface BusStop {

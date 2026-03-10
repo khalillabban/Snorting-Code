@@ -1,0 +1,141 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Room 1",
+        "type": "room"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              795,
+              194
+            ],
+            [
+              793,
+              292
+            ],
+            [
+              861,
+              292
+            ],
+            [
+              861,
+              196
+            ],
+            [
+              795,
+              194
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Room 2",
+        "type": "room"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              861,
+              292
+            ],
+            [
+              861,
+              196
+            ],
+            [
+              921,
+              196
+            ],
+            [
+              925,
+              296
+            ],
+            [
+              861,
+              292
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Room 3",
+        "type": "room"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              1040,
+              304
+            ],
+            [
+              1029,
+              407
+            ],
+            [
+              898,
+              407
+            ],
+            [
+              925,
+              296
+            ],
+            [
+              1040,
+              304
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Room 4",
+        "type": "room"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              1029,
+              407
+            ],
+            [
+              1154,
+              477
+            ],
+            [
+              1015,
+              521
+            ],
+            [
+              1154,
+              390
+            ],
+            [
+              1029,
+              407
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
