@@ -1,0 +1,115 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "My Schedule"
+    timeout: 15000
+- tapOn: "My Schedule"
+
+- extendedWaitUntil:
+    visible: "My Schedule"
+    timeout: 8000
+
+# ─── Filter tests ─────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "schedule-filter-all"
+- swipe:
+    direction: UP
+    duration: 500
+    startX: 50%
+    startY: 20%
+- tapOn:
+    id: "accordion-upcoming-classes"
+- assertVisible:
+    id: "accordion-upcoming-classes-title"
+- assertVisible:
+    id: "accordion-past-classes-title"
+- assertVisible:
+    id: "accordion-upcoming-events-title"
+- assertVisible:
+    id: "accordion-past-events-title"
+
+# Test filter — Classes only
+- tapOn:
+    id: "schedule-filter-classes"
+- assertVisible:
+    id: "accordion-upcoming-classes-title"
+- assertVisible:
+    id: "accordion-past-classes-title"
+- assertNotVisible:
+    id: "accordion-upcoming-events-title"
+- assertNotVisible:
+    id: "accordion-past-events-title"
+
+# Test filter — Events only
+- tapOn:
+    id: "schedule-filter-events"
+- assertVisible:
+    id: "accordion-upcoming-events-title"
+- assertVisible:
+    id: "accordion-past-events-title"
+- assertNotVisible:
+    id: "accordion-upcoming-classes-title"
+- assertNotVisible:
+    id: "accordion-past-classes-title"
+
+# Reset to all
+- tapOn:
+    id: "schedule-filter-all"
+
+# ─── Calendar toggle tests ────────────────────────────────────────────────────
+
+# Verify all calendars are visible
+- assertVisible: "Selected Calendars"
+- assertVisible: "Concordia Course"
+- assertVisible: "jingnan1412@gmail.com"
+- assertVisible: "Holidays in Canada"
+
+# Deselect Concordia Course
+- tapOn: "Concordia Course"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Select Holidays in Canada
+- tapOn: "Holidays in Canada"
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- swipe:
+    direction: UP
+    duration: 500
+    startX: 50%
+    startY: 20%
+
+- tapOn:
+    id: "accordion-upcoming-events"
+- tapOn: "Holidays in Canada"
+
+# Select gmail calendar
+- tapOn: "jingnan1412@gmail.com"
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: "accordion-upcoming-events"
+
+- tapOn: "Concordia Course"
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: "accordion-upcoming-classes"
+- tapOn:
+    id: "accordion-upcoming-events"
+
+- tapOn: "jingnan1412@gmail.com"
+- tapOn:
+    id: "accordion-upcoming-classes"
+# Disconnect
+- tapOn: "Disconnect"
+- extendedWaitUntil:
+    visible: "Connect Google Calendar"
+    timeout: 8000
+- assertVisible: "Connect Google Calendar"

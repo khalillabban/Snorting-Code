@@ -699,7 +699,7 @@ export default function ScheduleScreen() {
               return (
                 <Pressable
                   key={calendar.id}
-                  onPress={() => toggleCalendarSelection(calendar.id)}
+                  testID={`calendar-toggle-${calendar.summary?.replaceAll(/\s+/g, "-").toLowerCase()}`}                  onPress={() => toggleCalendarSelection(calendar.id)}
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 12,
