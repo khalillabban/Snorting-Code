@@ -54,7 +54,7 @@ function groupByDay(items: ScheduleItem[]): GroupedItems[] {
   return Array.from(grouped.entries())
     .map(([title, data]) => ({
       title,
-      data: [...data].sort((a, b) => a.start.getTime() - b.start.getTime()),
+      data: data.sort((a, b) => a.start.getTime() - b.start.getTime()),
     }))
     .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
@@ -285,49 +285,45 @@ export default function ScheduleCalendar({
     const nextSections: SectionConfig[] = [];
 
     if (visibleFilter !== "event") {
-      nextSections.push(
-        {
-          testID: "accordion-upcoming-classes",
-          title: "Upcoming Classes",
-          expanded: upcomingClassesExpanded,
-          onToggle: () => setUpcomingClassesExpanded((value) => !value),
-          groups: upcomingClassGroups,
-          emptyMessage: "No upcoming classes.",
-          tone: "upcoming" as const,
-        },
-        {
-          testID: "accordion-past-classes",
-          title: "Past Classes",
-          expanded: pastClassesExpanded,
-          onToggle: () => setPastClassesExpanded((value) => !value),
-          groups: pastClassGroups,
-          emptyMessage: "No past classes.",
-          tone: "past" as const,
-        },
-      );
+      nextSections.push({
+        testID: "accordion-upcoming-classes",
+        title: "Upcoming Classes",
+        expanded: upcomingClassesExpanded,
+        onToggle: () => setUpcomingClassesExpanded((value) => !value),
+        groups: upcomingClassGroups,
+        emptyMessage: "No upcoming classes.",
+        tone: "upcoming",
+      });
+      nextSections.push({
+        testID: "accordion-past-classes",
+        title: "Past Classes",
+        expanded: pastClassesExpanded,
+        onToggle: () => setPastClassesExpanded((value) => !value),
+        groups: pastClassGroups,
+        emptyMessage: "No past classes.",
+        tone: "past",
+      });
     }
 
     if (visibleFilter !== "class") {
-      nextSections.push(
-        {
-          testID: "accordion-upcoming-events",
-          title: "Upcoming Events",
-          expanded: upcomingEventsExpanded,
-          onToggle: () => setUpcomingEventsExpanded((value) => !value),
-          groups: upcomingEventGroups,
-          emptyMessage: "No upcoming events.",
-          tone: "upcoming" as const,
-        },
-        {
-          testID: "accordion-past-events",
-          title: "Past Events",
-          expanded: pastEventsExpanded,
-          onToggle: () => setPastEventsExpanded((value) => !value),
-          groups: pastEventGroups,
-          emptyMessage: "No past events.",
-          tone: "past" as const,
-        },
-      );
+      nextSections.push({
+        testID: "accordion-upcoming-events",
+        title: "Upcoming Events",
+        expanded: upcomingEventsExpanded,
+        onToggle: () => setUpcomingEventsExpanded((value) => !value),
+        groups: upcomingEventGroups,
+        emptyMessage: "No upcoming events.",
+        tone: "upcoming",
+      });
+      nextSections.push({
+        testID: "accordion-past-events",
+        title: "Past Events",
+        expanded: pastEventsExpanded,
+        onToggle: () => setPastEventsExpanded((value) => !value),
+        groups: pastEventGroups,
+        emptyMessage: "No past events.",
+        tone: "past",
+      });
     }
 
     return nextSections;
