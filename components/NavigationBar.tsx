@@ -107,8 +107,7 @@ export default function NavigationBar({
     };
   }, [startBuilding, destBuilding, selectedStrategy, filteredBuildings.length]);
 
-  // eslint-disable-line react-hooks/exhaustive-deps
-  // translateY is a stable ref value and doesn't need to be in dependencies
+  // translateY is a stable ref (useRef) and intentionally omitted from deps
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
@@ -125,6 +124,7 @@ export default function NavigationBar({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateY is a stable ref
   }, [visible]);
 
   useEffect(() => {
