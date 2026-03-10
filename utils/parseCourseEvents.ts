@@ -1,10 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
-type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end"> & {
+type SerializedScheduleItem = Omit<ScheduleItem, "start" | "end" | "kind"> & {
   start: string;
   end: string;
+  kind?: ScheduleItem["kind"];
 };
+
+const CLASS_KEYWORD_REGEX = /\b(LEC|TUT|LAB)\b/i;
+
 function parseGoogleDateTime(ev: GoogleCalendarEvent, which: "start" | "end") {
   const obj = which === "start" ? ev.start : ev.end;
   const raw = obj?.dateTime ?? obj?.date;
@@ -67,6 +71,17 @@ function splitRoom(room: string): { level: string; room: string } {
 
   return { level: "", room };
 }
+
+export function classifyScheduleItemKind(courseName: string): ScheduleItem["kind"] {
+  return CLASS_KEYWORD_REGEX.test(courseName) ? "class" : "event";
+}
+
+function getScheduleItemKind(
+  item: Pick<ScheduleItem, "courseName" | "kind">,
+): ScheduleItem["kind"] {
+  return item.kind ?? classifyScheduleItemKind(item.courseName);
+}
+
 export function parseCourseEvents(
   events: GoogleCalendarEvent[],
 ): ScheduleItem[] {
@@ -79,10 +94,12 @@ export function parseCourseEvents(
       const location = (ev.location ?? "").trim() || "Location not provided";
       const { campus, building, room: rawRoom } = parseLocation(location);
       const { level, room } = splitRoom(rawRoom);
+      const courseName = (ev.summary ?? "").trim() || "Untitled class";
 
       return {
         id: ev.id,
-        courseName: (ev.summary ?? "").trim() || "Untitled class",
+        kind: classifyScheduleItemKind(courseName),
+        courseName,
         start,
         end,
         location,
@@ -112,6 +129,7 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
 
     return JSON.parse(raw).map((item: SerializedScheduleItem) => ({
       ...item,
+      kind: item.kind ?? classifyScheduleItemKind(item.courseName),
       start: new Date(item.start),
       end: new Date(item.end),
     }));
@@ -123,14 +141,19 @@ export async function loadCachedSchedule(): Promise<ScheduleItem[] | null> {
   }
 }
 
+function getSortedClassItems(items: ScheduleItem[]): ScheduleItem[] {
+  return items
+    .filter((item) => getScheduleItemKind(item) === "class")
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
 export async function getNextClass(): Promise<ScheduleItem | null> {
   const items = await loadCachedSchedule();
   if (!items || items.length === 0) return null;
 
   const now = new Date();
-  const sorted = [...items].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
+  const sorted = getSortedClassItems(items);
+  if (sorted.length === 0) return null;
 
   // Find the next class whose start time is after current time
   // Handle overlapping classes – the soonest upcoming start wins
@@ -151,9 +174,8 @@ export function getNextClassFromItems(
   if (items.length === 0) return null;
 
   const now = new Date();
-  const sorted = [...items].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
+  const sorted = getSortedClassItems(items);
+  if (sorted.length === 0) return null;
 
   const upcoming = sorted.find((item) => item.start > now);
   if (upcoming) return upcoming;

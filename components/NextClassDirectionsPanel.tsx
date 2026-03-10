@@ -61,6 +61,10 @@ function deduplicateCourses(items: ScheduleItem[]): ScheduleItem[] {
   });
 }
 
+function getClassCourseItems(items: ScheduleItem[]): ScheduleItem[] {
+  return items.filter((item) => item.kind === "class");
+}
+
 // Build a display string like "MB-1.210" from building + room
 function fmtRoom(building: string, room: string): string {
   if (!building) return "";
@@ -345,6 +349,7 @@ export default function NextClassDirectionsPanel({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateY is a stable ref
   }, [visible]);
 
   // Unified search handler for both start and destination inputs
@@ -368,7 +373,7 @@ export default function NextClassDirectionsPanel({
       setFilteredCourses(
         text.length > 0
           ? deduplicateCourses(
-              scheduleItems.filter((item) =>
+              getClassCourseItems(scheduleItems).filter((item) =>
                 item.courseName.toLowerCase().includes(text.toLowerCase()),
               ),
             )
@@ -432,7 +437,7 @@ export default function NextClassDirectionsPanel({
 
   const showCoursePicker = () => {
     togglePicker("destination", filteredCourses, () => {
-      setFilteredCourses(deduplicateCourses(scheduleItems));
+      setFilteredCourses(deduplicateCourses(getClassCourseItems(scheduleItems)));
     });
   };
 

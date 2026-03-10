@@ -1,11 +1,27 @@
-// components/ScheduleCalendar.tsx
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, spacing, typography } from "../constants/theme";
 import type { ScheduleItem } from "../constants/type";
 
-function dayKey(d: Date) {
-  return d.toLocaleDateString(undefined, {
+type ScheduleFilter = "all" | "class" | "event";
+
+type GroupedItems = {
+  title: string;
+  data: ScheduleItem[];
+};
+
+type SectionConfig = {
+  testID: string;
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  groups: GroupedItems[];
+  emptyMessage: string;
+  tone: "upcoming" | "past";
+};
+
+function dayKey(date: Date) {
+  return date.toLocaleDateString(undefined, {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -13,31 +29,41 @@ function dayKey(d: Date) {
 }
 
 function timeRange(start: Date, end: Date) {
-  const s = start.toLocaleTimeString([], {
+  const startText = start.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const e = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return `${s} – ${e}`;
+  const endText = end.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${startText} - ${endText}`;
 }
 
-function groupByDay(items: ScheduleItem[]): { title: string; data: ScheduleItem[] }[] {
-  const map = new Map<string, ScheduleItem[]>();
-  for (const it of items) {
-    const k = dayKey(it.start);
-    const arr = map.get(k) ?? [];
-    arr.push(it);
-    map.set(k, arr);
+function groupByDay(items: ScheduleItem[]): GroupedItems[] {
+  const grouped = new Map<string, ScheduleItem[]>();
+
+  for (const item of items) {
+    const key = dayKey(item.start);
+    const existing = grouped.get(key) ?? [];
+    existing.push(item);
+    grouped.set(key, existing);
   }
-  return Array.from(map.entries())
+
+  return Array.from(grouped.entries())
     .map(([title, data]) => ({
       title,
-      data: data.toSorted((a, b) => a.start.getTime() - b.start.getTime()),
+      data: [...data].sort((a, b) => a.start.getTime() - b.start.getTime()),
     }))
-    .toSorted((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
+    .sort((a, b) => a.data[0].start.getTime() - b.data[0].start.getTime());
 }
 
-function ClassCard({ item }: Readonly<{ item: ScheduleItem }>) {
+function getItemKind(item: Pick<ScheduleItem, "courseName" | "kind">): ScheduleItem["kind"] {
+  return item.kind ?? (/\b(LEC|TUT|LAB)\b/i.test(item.courseName) ? "class" : "event");
+}
+
+function ScheduleCard({ item }: Readonly<{ item: ScheduleItem }>) {
   return (
     <View
       style={{
@@ -69,7 +95,12 @@ interface AccordionHeaderProps {
   testID?: string;
 }
 
-function AccordionHeader({ title, expanded, onToggle, testID }: Readonly<AccordionHeaderProps>) {
+function AccordionHeader({
+  title,
+  expanded,
+  onToggle,
+  testID,
+}: Readonly<AccordionHeaderProps>) {
   return (
     <View
       style={{
@@ -94,37 +125,264 @@ function AccordionHeader({ title, expanded, onToggle, testID }: Readonly<Accordi
         accessibilityRole="button"
         accessibilityState={{ expanded }}
       >
-        <Text style={{ ...typography.subtitle, color: colors.white, fontWeight: "600" }}>
+        <Text
+          style={{ ...typography.subtitle, color: colors.white, fontWeight: "600" }}
+        >
           {title}
         </Text>
         <Text style={{ color: colors.white, fontSize: 18 }}>
-          {expanded ? "▲" : "▼"}
+          {expanded ? "^" : "v"}
         </Text>
       </Pressable>
     </View>
   );
 }
 
-export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleItem[] }>) {
-  const [pastExpanded, setPastExpanded] = useState(false);
-  const [upcomingExpanded, setUpcomingExpanded] = useState(true);
+function FilterChip({
+  label,
+  selected,
+  onPress,
+  testID,
+}: Readonly<{
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  testID: string;
+}>) {
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={{
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: selected ? colors.primaryDark : colors.gray300,
+        backgroundColor: selected ? colors.primaryDark : colors.white,
+      }}
+    >
+      <Text
+        style={{
+          color: selected ? colors.white : colors.primaryDark,
+          fontWeight: "600",
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SectionBody({
+  expanded,
+  groups,
+  emptyMessage,
+  tone,
+}: Readonly<{
+  expanded: boolean;
+  groups: GroupedItems[];
+  emptyMessage: string;
+  tone: "upcoming" | "past";
+}>) {
+  const labelBackgroundColor =
+    tone === "upcoming" ? colors.primary : colors.gray300;
+  const labelTextColor = tone === "upcoming" ? colors.white : colors.gray700;
+  const containerPaddingTop = tone === "upcoming" ? spacing.xs : spacing.md;
+  const containerPaddingBottom = tone === "upcoming" ? spacing.xs : spacing.md;
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: spacing.lg,
+        paddingTop: containerPaddingTop,
+        paddingBottom: containerPaddingBottom,
+      }}
+    >
+      {expanded &&
+        (groups.length === 0 ? (
+          <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
+            {emptyMessage}
+          </Text>
+        ) : (
+          groups.map((group) => (
+            <View key={group.title}>
+              <View
+                style={{
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.sm,
+                  backgroundColor: labelBackgroundColor,
+                  borderRadius: 8,
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    ...typography.caption,
+                    color: labelTextColor,
+                    fontWeight: "600",
+                  }}
+                >
+                  {group.title}
+                </Text>
+              </View>
+              {group.data.map((item) => (
+                <ScheduleCard key={item.id} item={item} />
+              ))}
+            </View>
+          ))
+        ))}
+    </View>
+  );
+}
+
+export default function ScheduleCalendar({
+  items,
+}: Readonly<{ items: ScheduleItem[] }>) {
+  const [visibleFilter, setVisibleFilter] = useState<ScheduleFilter>("all");
+  const [upcomingClassesExpanded, setUpcomingClassesExpanded] = useState(true);
+  const [pastClassesExpanded, setPastClassesExpanded] = useState(false);
+  const [upcomingEventsExpanded, setUpcomingEventsExpanded] = useState(true);
+  const [pastEventsExpanded, setPastEventsExpanded] = useState(false);
 
   const now = new Date();
 
-  const { pastGroups, upcomingGroups } = useMemo(() => {
-    const normalized = items.map((it) => ({
-      ...it,
-      start: it.start instanceof Date ? it.start : new Date(it.start),
-      end: it.end instanceof Date ? it.end : new Date(it.end),
+  const {
+    upcomingClassGroups,
+    pastClassGroups,
+    upcomingEventGroups,
+    pastEventGroups,
+  } = useMemo(() => {
+    const normalized = items.map((item) => ({
+      ...item,
+      start: item.start instanceof Date ? item.start : new Date(item.start),
+      end: item.end instanceof Date ? item.end : new Date(item.end),
     }));
-    const past = normalized.filter((it) => it.end < now);
-    const upcoming = normalized.filter((it) => it.end >= now);
+
+    const upcoming = normalized.filter((item) => item.end >= now);
+    const past = normalized.filter((item) => item.end < now);
+
     return {
-      pastGroups: groupByDay(past),
-      upcomingGroups: groupByDay(upcoming),
+      upcomingClassGroups: groupByDay(
+        upcoming.filter((item) => getItemKind(item) === "class"),
+      ),
+      pastClassGroups: groupByDay(
+        past.filter((item) => getItemKind(item) === "class"),
+      ),
+      upcomingEventGroups: groupByDay(
+        upcoming.filter((item) => getItemKind(item) === "event"),
+      ),
+      pastEventGroups: groupByDay(
+        past.filter((item) => getItemKind(item) === "event"),
+      ),
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
+
+  const toggleUpcomingClasses = useCallback(
+    () => setUpcomingClassesExpanded((v) => !v), [],
+  );
+  const togglePastClasses = useCallback(
+    () => setPastClassesExpanded((v) => !v), [],
+  );
+  const toggleUpcomingEvents = useCallback(
+    () => setUpcomingEventsExpanded((v) => !v), [],
+  );
+  const togglePastEvents = useCallback(
+    () => setPastEventsExpanded((v) => !v), [],
+  );
+
+  const sections = useMemo(() => {
+    const classSections: SectionConfig[] = visibleFilter === "all" || visibleFilter === "class" ? [
+      {
+        testID: "accordion-upcoming-classes",
+        title: "Upcoming Classes",
+        expanded: upcomingClassesExpanded,
+        onToggle: toggleUpcomingClasses,
+        groups: upcomingClassGroups,
+        emptyMessage: "No upcoming classes.",
+        tone: "upcoming",
+      },
+      {
+        testID: "accordion-past-classes",
+        title: "Past Classes",
+        expanded: pastClassesExpanded,
+        onToggle: togglePastClasses,
+        groups: pastClassGroups,
+        emptyMessage: "No past classes.",
+        tone: "past",
+      },
+    ] : [];
+
+    const eventSections: SectionConfig[] = visibleFilter === "all" || visibleFilter === "event" ? [
+      {
+        testID: "accordion-upcoming-events",
+        title: "Upcoming Events",
+        expanded: upcomingEventsExpanded,
+        onToggle: toggleUpcomingEvents,
+        groups: upcomingEventGroups,
+        emptyMessage: "No upcoming events.",
+        tone: "upcoming",
+      },
+      {
+        testID: "accordion-past-events",
+        title: "Past Events",
+        expanded: pastEventsExpanded,
+        onToggle: togglePastEvents,
+        groups: pastEventGroups,
+        emptyMessage: "No past events.",
+        tone: "past",
+      },
+    ] : [];
+
+    return [...classSections, ...eventSections];
+  }, [
+    pastClassGroups,
+    pastClassesExpanded,
+    pastEventGroups,
+    pastEventsExpanded,
+    togglePastClasses,
+    togglePastEvents,
+    toggleUpcomingClasses,
+    toggleUpcomingEvents,
+    upcomingClassGroups,
+    upcomingClassesExpanded,
+    upcomingEventGroups,
+    upcomingEventsExpanded,
+    visibleFilter,
+  ]);
+
+  const scrollChildren = useMemo(
+    () =>
+      sections.flatMap((section) => [
+        (
+          <AccordionHeader
+            key={`${section.testID}-header`}
+            testID={section.testID}
+            title={section.title}
+            expanded={section.expanded}
+            onToggle={section.onToggle}
+          />
+        ),
+        (
+          <SectionBody
+            key={`${section.testID}-body`}
+            expanded={section.expanded}
+            groups={section.groups}
+            emptyMessage={section.emptyMessage}
+            tone={section.tone}
+          />
+        ),
+      ]),
+    [sections],
+  );
+
+  const stickyHeaderIndices = useMemo(
+    () => sections.map((_, index) => index * 2),
+    [sections],
+  );
 
   if (items.length === 0) {
     return (
@@ -134,91 +392,48 @@ export default function ScheduleCalendar({ items }: Readonly<{ items: ScheduleIt
     );
   }
 
-  // stickyHeaderIndices: child index 0 = upcoming header, child index 2 = past header
   return (
-    <ScrollView
-      contentContainerStyle={{ paddingBottom: spacing.lg }}
-      stickyHeaderIndices={[0, 2]}
-    >
-      {/* index 0 — sticky upcoming header */}
-      <AccordionHeader
-        testID="accordion-upcoming"
-        title="Upcoming Classes"
-        expanded={upcomingExpanded}
-        onToggle={() => setUpcomingExpanded((v) => !v)}
-      />
-
-      {/* index 1 — upcoming classes */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xs }}>
-        {upcomingExpanded && (
-          upcomingGroups.length === 0 ? (
-            <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
-              No upcoming classes.
-            </Text>
-          ) : (
-            upcomingGroups.map((group) => (
-              <View key={group.title}>
-                <View
-                  style={{
-                    paddingVertical: spacing.xs,
-                    paddingHorizontal: spacing.sm,
-                    backgroundColor: colors.primary,
-                    borderRadius: 8,
-                    marginBottom: spacing.sm,
-                  }}
-                >
-                  <Text style={{ ...typography.caption, color: colors.white, fontWeight: "600" }}>
-                    {group.title}
-                  </Text>
-                </View>
-                {group.data.map((item) => (
-                  <ClassCard key={item.id} item={item} />
-                ))}
-              </View>
-            ))
-          )
-        )}
+    <View style={{ flex: 1 }}>
+      <View
+        style={{
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.xs,
+          gap: spacing.sm,
+          backgroundColor: colors.white,
+        }}
+      >
+        <Text style={{ color: colors.primaryDark, fontWeight: "600" }}>
+          Show
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <FilterChip
+            testID="schedule-filter-all"
+            label="All"
+            selected={visibleFilter === "all"}
+            onPress={() => setVisibleFilter("all")}
+          />
+          <FilterChip
+            testID="schedule-filter-classes"
+            label="Classes"
+            selected={visibleFilter === "class"}
+            onPress={() => setVisibleFilter("class")}
+          />
+          <FilterChip
+            testID="schedule-filter-events"
+            label="Events"
+            selected={visibleFilter === "event"}
+            onPress={() => setVisibleFilter("event")}
+          />
+        </View>
       </View>
 
-      {/* index 2 — sticky past header */}
-      <AccordionHeader
-        testID="accordion-past"
-        title="Past Classes"
-        expanded={pastExpanded}
-        onToggle={() => setPastExpanded((v) => !v)}
-      />
-
-      {/* index 3 — past classes */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
-        {pastExpanded && (
-          pastGroups.length === 0 ? (
-            <Text style={{ color: colors.gray700, paddingHorizontal: spacing.sm }}>
-              No past classes.
-            </Text>
-          ) : (
-            pastGroups.map((group) => (
-              <View key={group.title}>
-                <View
-                  style={{
-                    paddingVertical: spacing.xs,
-                    paddingHorizontal: spacing.sm,
-                    backgroundColor: colors.gray300,
-                    borderRadius: 8,
-                    marginBottom: spacing.sm,
-                  }}
-                >
-                  <Text style={{ ...typography.caption, color: colors.gray700, fontWeight: "600" }}>
-                    {group.title}
-                  </Text>
-                </View>
-                {group.data.map((item) => (
-                  <ClassCard key={item.id} item={item} />
-                ))}
-              </View>
-            ))
-          )
-        )}
-      </View>
-    </ScrollView>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: spacing.lg }}
+        stickyHeaderIndices={stickyHeaderIndices}
+      >
+        {scrollChildren}
+      </ScrollView>
+    </View>
   );
 }

@@ -59,6 +59,7 @@ jest.mock("../constants/buildings", () => ({
 const mockScheduleItems: ScheduleItem[] = [
   {
     id: "1",
+    kind: "class",
     courseName: "COMP 335",
     start: new Date(Date.now() + 3_600_000),
     end: new Date(Date.now() + 7_200_000),
@@ -70,6 +71,7 @@ const mockScheduleItems: ScheduleItem[] = [
   },
   {
     id: "2",
+    kind: "class",
     courseName: "SOEN 390",
     start: new Date(Date.now() + 10_800_000),
     end: new Date(Date.now() + 14_400_000),
@@ -240,6 +242,7 @@ describe("NextClassDirectionsPanel", () => {
     it("shows error when next class has no building code", async () => {
       const badClass: ScheduleItem = {
         id: "bad",
+        kind: "class",
         courseName: "ENGR 101",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),
@@ -268,6 +271,7 @@ describe("NextClassDirectionsPanel", () => {
     it("shows error when building code is unrecognized", async () => {
       const badClass: ScheduleItem = {
         id: "bad",
+        kind: "class",
         courseName: "ENGR 101",
         start: new Date(Date.now() + 3_600_000),
         end: new Date(Date.now() + 7_200_000),
@@ -333,6 +337,42 @@ describe("NextClassDirectionsPanel", () => {
         // Check for course items by their testIDs
         expect(getByTestId("nc-course-1")).toBeTruthy();
         expect(getByTestId("nc-course-2")).toBeTruthy();
+      });
+    });
+
+    it("excludes event items from the destination course picker", async () => {
+      const mixedItems: ScheduleItem[] = [
+        ...mockScheduleItems,
+        {
+          id: "event-1",
+          kind: "event",
+          courseName: "Career Fair",
+          start: new Date(Date.now() + 5_400_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW EV Atrium",
+          campus: "SGW",
+          building: "EV",
+          room: "Atrium",
+          level: "",
+        },
+      ];
+
+      const { getByLabelText, getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mixedItems[0]}
+          scheduleItems={mixedItems}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Pick destination from course list"));
+
+      await waitFor(() => {
+        expect(getByTestId("nc-course-1")).toBeTruthy();
+        expect(getByTestId("nc-course-2")).toBeTruthy();
+        expect(queryByTestId("nc-course-event-1")).toBeNull();
       });
     });
 
@@ -659,6 +699,7 @@ describe("NextClassDirectionsPanel", () => {
       const badCourseItems: ScheduleItem[] = [
         {
           id: "bad",
+          kind: "class",
           courseName: "BAD 101",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -744,6 +785,7 @@ describe("NextClassDirectionsPanel", () => {
       const duplicateCourses: ScheduleItem[] = [
         {
           id: "1",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 3_600_000),
           end: new Date(Date.now() + 7_200_000),
@@ -755,6 +797,7 @@ describe("NextClassDirectionsPanel", () => {
         },
         {
           id: "2",
+          kind: "class",
           courseName: "COMP 335",
           start: new Date(Date.now() + 86_400_000),
           end: new Date(Date.now() + 90_000_000),
@@ -782,8 +825,43 @@ describe("NextClassDirectionsPanel", () => {
         // Only one course should appear (deduplicated)
         const courses = queryAllByTestId(/^nc-course-/);
         expect(courses.length).toBe(1);
+        });
       });
     });
-  });
+
+    it("ignores matching event items when filtering destination courses", async () => {
+      const mixedItems: ScheduleItem[] = [
+        ...mockScheduleItems,
+        {
+          id: "event-soen",
+          kind: "event",
+          courseName: "SOEN Mixer",
+          start: new Date(Date.now() + 5_400_000),
+          end: new Date(Date.now() + 7_200_000),
+          location: "SGW EV Atrium",
+          campus: "SGW",
+          building: "EV",
+          room: "Atrium",
+          level: "",
+        },
+      ];
+
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mixedItems[0]}
+          scheduleItems={mixedItems}
+        />,
+      );
+
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+
+      await waitFor(() => {
+        expect(getByTestId("nc-course-2")).toBeTruthy();
+        expect(queryByTestId("nc-course-event-soen")).toBeNull();
+      });
+    });
 });
 
