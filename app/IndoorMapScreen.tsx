@@ -7,7 +7,7 @@ import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
 
-const FLOOR_GEOJSON: Record<string, any> = {
+export const FLOOR_GEOJSON: Record<string, any> = {
   "MB-1": require("../assets/maps/MB-1.json"),
   "MB--2": require("../assets/maps/MB-S2.json"),
 };
