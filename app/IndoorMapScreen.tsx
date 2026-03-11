@@ -17,7 +17,6 @@ export default function IndoorMapScreen() {
   const availableFloors = floors ? JSON.parse(floors) : [];
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
-  const [containerLayout, setContainerLayout] = useState({ width: 0, height: 0 });
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = FLOOR_GEOJSON[mapKey];
@@ -108,13 +107,7 @@ export default function IndoorMapScreen() {
                   showsHorizontalScrollIndicator={false}
                   showsVerticalScrollIndicator={false}
                 >
-                  <View 
-                    style={{ width: '100%', height: '100%' }}
-                    onLayout={(e) => {
-                      const { width, height } = e.nativeEvent.layout;
-                      setContainerLayout({ width, height });
-                    }}
-                  >
+                  <View style={{ width: '100%', height: '100%' }}>
                     <Svg width="100%" height="100%" viewBox={floorComposite ? `${getBounds(floorComposite).minX} ${getBounds(floorComposite).minY} ${getBounds(floorComposite).width} ${getBounds(floorComposite).height}` : "0 0 2048 2048"}>
                       {floorComposite.getChildren().map((node, i) => {
                         const coords = node.getCoordinates();
@@ -125,7 +118,7 @@ export default function IndoorMapScreen() {
                         const centroid = node.getCentroid();
                         
                         return (
-                          <React.Fragment key={i}>
+                          <React.Fragment key={`${node.getName()}-${node.getCentroid().join(',')}`}>
                             <Polygon
                               points={polygonPoints}
                               fill={fillColor}

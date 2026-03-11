@@ -854,8 +854,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "CL Annex (CL)",
     address: "1665 Rue Sainte-Catherine O, Montréal, Quebec H3H 1L9",
     coordinates: {
-      latitude: 45.49422516183713,
-      longitude: -73.579296874067685
+      latitude: 45.49422516183,
+      longitude: -73.579296874067
     },
     icons: ["information", "printer", "wheelchair"],
     boundingBox: [
