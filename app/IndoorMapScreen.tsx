@@ -5,17 +5,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-g
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
-
-interface GeoJSONFeature {
-  type: string;
-  properties: { name: string; type: string; centroid?: number[] };
-  geometry: { type: string; coordinates: number[][][] };
-}
-
-interface GeoJSONData {
-  type: string;
-  features: GeoJSONFeature[];
-}
+import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
 
 const FLOOR_GEOJSON: Record<string, any> = {
   "MB-1": require("../assets/maps/MB-1.json"),
@@ -26,17 +16,26 @@ export default function IndoorMapScreen() {
   const { buildingName, floors } = useLocalSearchParams<{ buildingName: string; floors: string }>();
   const availableFloors = floors ? JSON.parse(floors) : [];
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [geoData, setGeoData] = useState<GeoJSONData | null>(null);
+  const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
   const [containerLayout, setContainerLayout] = useState({ width: 0, height: 0 });
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = FLOOR_GEOJSON[mapKey];
 
-  // Calculate dimensions from GeoJSON bounds
-  const getBounds = (data: GeoJSONData) => {
+  // Parse GeoJSON into Composite pattern structure
+  useEffect(() => {
+    if (geoAsset) {
+      const floor = parseGeoJSONToFloor(geoAsset, selectedFloor, buildingName || 'MB');
+      setFloorComposite(floor);
+    } else {
+      setFloorComposite(null);
+    }
+  }, [geoAsset, selectedFloor, buildingName]);
+  // Calculate dimensions from composite tree bounds
+  const getBounds = (floor: Floor) => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    data.features.forEach(f => {
-      f.geometry.coordinates[0].forEach(([x, y]) => {
+    floor.getChildren().forEach(child => {
+      child.getCoordinates().forEach(([x, y]) => {
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x);
@@ -51,14 +50,6 @@ export default function IndoorMapScreen() {
       height: maxY - minY + padding * 2 
     };
   };
-
-  useEffect(() => {
-    if (geoAsset) {
-      setGeoData(geoAsset);
-    } else {
-      setGeoData(null);
-    }
-  }, [geoAsset]);
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -106,7 +97,7 @@ export default function IndoorMapScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        {geoData ? (
+        {floorComposite ? (
           <GestureHandlerRootView style={{ flex: 1 }}>
             <GestureDetector gesture={pinchGesture}>
               <Animated.View style={[{ flex: 1 }, animatedStyle]}>
@@ -124,15 +115,14 @@ export default function IndoorMapScreen() {
                       setContainerLayout({ width, height });
                     }}
                   >
-                    <Svg width="100%" height="100%" viewBox={geoData ? `${getBounds(geoData).minX} ${getBounds(geoData).minY} ${getBounds(geoData).width} ${getBounds(geoData).height}` : "0 0 2048 2048"}>
-                      {geoData.features.map((feature, i) => {
-                        const coords = feature.geometry.coordinates[0];
+                    <Svg width="100%" height="100%" viewBox={floorComposite ? `${getBounds(floorComposite).minX} ${getBounds(floorComposite).minY} ${getBounds(floorComposite).width} ${getBounds(floorComposite).height}` : "0 0 2048 2048"}>
+                      {floorComposite.getChildren().map((node, i) => {
+                        const coords = node.getCoordinates();
                         const polygonPoints = coords.map(([x, y]) => `${x},${y}`).join(' ');
-                        const isHallway = feature.properties.type === 'hallway';
+                        const isHallway = node.getType() === 'hallway';
                         const fillColor = isHallway ? colors.gray100 : colors.white;
                         const strokeColor = isHallway ? colors.gray300 : colors.gray100;
-                        const centroid = feature.properties.centroid || 
-                          coords.reduce((acc, [x, y]) => [acc[0] + x / coords.length, acc[1] + y / coords.length], [0, 0]);
+                        const centroid = node.getCentroid();
                         
                         return (
                           <React.Fragment key={i}>
@@ -142,16 +132,18 @@ export default function IndoorMapScreen() {
                               stroke={strokeColor}
                               strokeWidth="2"
                             />
-                            <SvgText
-                              x={centroid[0]}
-                              y={centroid[1]}
-                              fill={colors.gray500}
-                              fontSize="24"
-                              fontWeight="bold"
-                              textAnchor="middle"
-                            >
-                              {feature.properties.name}
-                            </SvgText>
+                            {node.getName() !== 'Elevator Block' && node.getName() !== 'block' && (
+                              <SvgText
+                                x={centroid[0]}
+                                y={centroid[1]}
+                                fill={colors.gray500}
+                                fontSize="24"
+                                fontWeight="bold"
+                                textAnchor="middle"
+                              >
+                                {node.getName()}
+                              </SvgText>
+                            )}
                           </React.Fragment>
                         );
                       })}
