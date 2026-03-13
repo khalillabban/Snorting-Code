@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     overflow: "hidden",
-    width: 160,
+    maxWidth: 160,
     opacity: 0.93,
   },
   routeFromCampusButton: {

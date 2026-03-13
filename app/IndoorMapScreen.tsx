@@ -1,11 +1,12 @@
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
+import { parseFloors } from "../utils/routeParams";
 
 export const FLOOR_GEOJSON: Record<string, any> = {
   "MB-1": require("../assets/maps/MB-1.json"),
@@ -14,12 +15,18 @@ export const FLOOR_GEOJSON: Record<string, any> = {
 
 export default function IndoorMapScreen() {
   const { buildingName, floors } = useLocalSearchParams<{ buildingName: string; floors: string }>();
-  const availableFloors = floors ? JSON.parse(floors) : [];
+  const availableFloors = parseFloors(floors);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = FLOOR_GEOJSON[mapKey];
+
+  useEffect(() => {
+    if (!availableFloors.includes(selectedFloor)) {
+      setSelectedFloor(availableFloors[0] || 1);
+    }
+  }, [availableFloors]);
 
   // Parse GeoJSON into Composite pattern structure
   useEffect(() => {
@@ -30,10 +37,12 @@ export default function IndoorMapScreen() {
       setFloorComposite(null);
     }
   }, [geoAsset, selectedFloor, buildingName]);
+
   // Calculate dimensions from composite tree bounds
-  const getBounds = (floor: Floor) => {
+  const getBounds = useMemo(() => {
+    if (!floorComposite) return { minX: 0, minY: 0, width: 2048, height: 2048 };
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    floor.getChildren().forEach(child => {
+    floorComposite.getChildren().forEach(child => {
       child.getCoordinates().forEach(([x, y]) => {
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -48,14 +57,18 @@ export default function IndoorMapScreen() {
       width: maxX - minX + padding * 2, 
       height: maxY - minY + padding * 2 
     };
-  };
+  }, [floorComposite]);
+
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 5;
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
 
-  const pinchGesture = Gesture.Pinch()
+  const pinchGesture = Gesture.Pinch().withTestId('pinch-gesture')
     .onUpdate((e) => {
-      scale.value = savedScale.value * e.scale;
+      const newScale = savedScale.value * e.scale;
+      scale.value = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
     })
     .onEnd(() => {
       savedScale.value = scale.value;
@@ -108,8 +121,8 @@ export default function IndoorMapScreen() {
                   showsVerticalScrollIndicator={false}
                 >
                   <View style={{ width: '100%', height: '100%' }}>
-                    <Svg width="100%" height="100%" viewBox={floorComposite ? `${getBounds(floorComposite).minX} ${getBounds(floorComposite).minY} ${getBounds(floorComposite).width} ${getBounds(floorComposite).height}` : "0 0 2048 2048"}>
-                      {floorComposite.getChildren().map((node, i) => {
+                    <Svg width="100%" height="100%" viewBox={`${getBounds.minX} ${getBounds.minY} ${getBounds.width} ${getBounds.height}`}>
+                      {floorComposite.getChildren().map((node) => {
                         const coords = node.getCoordinates();
                         const polygonPoints = coords.map(([x, y]) => `${x},${y}`).join(' ');
                         const isHallway = node.getType() === 'hallway';
@@ -118,7 +131,7 @@ export default function IndoorMapScreen() {
                         const centroid = node.getCentroid();
                         
                         return (
-                          <React.Fragment key={`${node.getName()}-${node.getCentroid().join(',')}`}>
+                          <React.Fragment key={`${node.getName()}-${centroid.join(',')}`}>
                             <Polygon
                               points={polygonPoints}
                               fill={fillColor}
