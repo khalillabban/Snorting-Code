@@ -65,7 +65,7 @@ export default function IndoorMapScreen() {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
 
-  const pinchGesture = Gesture.Pinch().withTestId('pinch-gesture')
+  const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
       const newScale = savedScale.value * e.scale;
       scale.value = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
