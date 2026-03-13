@@ -1,14 +1,13 @@
 import "dotenv/config";
 
-const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "";
-const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
+const androidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "").trim();
+const iosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "").trim();
 
-const androidPrefix = androidClientId.replace(".apps.googleusercontent.com", "");
-const iosPrefix = iosClientId.replace(".apps.googleusercontent.com", "");
+const androidPrefix = androidClientId && androidClientId !== "empty" ? androidClientId.replace(".apps.googleusercontent.com", "").trim() : "";
+const iosPrefix = iosClientId && iosClientId !== "empty" ? iosClientId.replace(".apps.googleusercontent.com", "").trim() : "";
 
-if (!androidPrefix) {
-  throw new Error("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID is missing from .env!");
-}
+// Build scheme array; Android is optional (only needed for Android Google Sign-In)
+const scheme = ["snortingcode", ...(iosPrefix ? [`com.googleusercontent.apps.${iosPrefix}`] : []), ...(androidPrefix ? [`com.googleusercontent.apps.${androidPrefix}`] : [])];
 
 export default {
   expo: {
@@ -17,11 +16,7 @@ export default {
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: [
-      "snortingcode",
-      `com.googleusercontent.apps.${iosPrefix}`,
-      `com.googleusercontent.apps.${androidPrefix}`,
-    ],
+    scheme,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
@@ -30,19 +25,21 @@ export default {
     },
     android: {
       package: "com.concordia.snortingcode",
-      intentFilters: [
-        {
-          action: "VIEW",
-          autoVerify: true,
-          data: [
-            {
-              scheme: `com.googleusercontent.apps.${androidPrefix}`,
-              host: "schedule",
-            },
-          ],
-          category: ["BROWSABLE", "DEFAULT"],
-        },
-      ],
+      ...(androidPrefix && {
+        intentFilters: [
+          {
+            action: "VIEW",
+            autoVerify: true,
+            data: [
+              {
+                scheme: `com.googleusercontent.apps.${androidPrefix}`,
+                host: "schedule",
+              },
+            ],
+            category: ["BROWSABLE", "DEFAULT"],
+          },
+        ],
+      }),
       config: {
         googleMaps: {
           apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
