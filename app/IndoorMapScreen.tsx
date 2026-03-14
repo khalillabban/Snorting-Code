@@ -3,9 +3,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import Svg, { Polygon, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Polygon, Polyline, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
+import {
+  buildIndoorPathData,
+  findShortestIndoorPath,
+  getPathDistance,
+} from "../utils/indoorNavigation";
 import { parseFloors } from "../utils/routeParams";
 
 export const FLOOR_GEOJSON: Record<string, any> = {
@@ -18,6 +23,9 @@ export default function IndoorMapScreen() {
   const availableFloors = parseFloors(floors);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
+  const [startNodeId, setStartNodeId] = useState<string | null>(null);
+  const [destinationNodeId, setDestinationNodeId] = useState<string | null>(null);
+  const [selectingMode, setSelectingMode] = useState<"start" | "destination">("start");
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = FLOOR_GEOJSON[mapKey];
@@ -33,8 +41,14 @@ export default function IndoorMapScreen() {
     if (geoAsset) {
       const floor = parseGeoJSONToFloor(geoAsset, selectedFloor, buildingName || 'MB');
       setFloorComposite(floor);
+      setStartNodeId(null);
+      setDestinationNodeId(null);
+      setSelectingMode("start");
     } else {
       setFloorComposite(null);
+      setStartNodeId(null);
+      setDestinationNodeId(null);
+      setSelectingMode("start");
     }
   }, [geoAsset, selectedFloor, buildingName]);
 
@@ -59,6 +73,21 @@ export default function IndoorMapScreen() {
     };
   }, [floorComposite]);
 
+  const indoorPathData = useMemo(() => {
+    if (!floorComposite) return null;
+    return buildIndoorPathData(floorComposite, buildingName || "MB", selectedFloor);
+  }, [floorComposite, buildingName, selectedFloor]);
+
+  const shortestPath = useMemo(() => {
+    if (!indoorPathData || !startNodeId || !destinationNodeId) return [];
+    return findShortestIndoorPath(indoorPathData.graph, startNodeId, destinationNodeId);
+  }, [indoorPathData, startNodeId, destinationNodeId]);
+
+  const totalDistance = useMemo(() => {
+    if (!indoorPathData || shortestPath.length === 0) return 0;
+    return getPathDistance(indoorPathData.graph, shortestPath);
+  }, [indoorPathData, shortestPath]);
+
   const MIN_SCALE = 1;
   const MAX_SCALE = 5;
 
@@ -77,6 +106,16 @@ export default function IndoorMapScreen() {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const handleNodePress = (nodeId: string) => {
+    if (selectingMode === "start") {
+      setStartNodeId(nodeId);
+      setSelectingMode("destination");
+      return;
+    }
+
+    setDestinationNodeId(nodeId);
+  };
 
   return (
     <View style={styles.container}>
@@ -108,6 +147,43 @@ export default function IndoorMapScreen() {
         </ScrollView>
       </View>
 
+      <View style={styles.selectionBar}>
+        <Pressable
+          onPress={() => setSelectingMode("start")}
+          style={[
+            styles.selectionButton,
+            selectingMode === "start" && styles.selectionButtonActive,
+          ]}
+        >
+          <Text style={styles.selectionButtonText}>Select Start</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setSelectingMode("destination")}
+          style={[
+            styles.selectionButton,
+            selectingMode === "destination" && styles.selectionButtonActive,
+          ]}
+        >
+          <Text style={styles.selectionButtonText}>Select Destination</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            setStartNodeId(null);
+            setDestinationNodeId(null);
+            setSelectingMode("start");
+          }}
+          style={styles.selectionButton}
+        >
+          <Text style={styles.selectionButtonText}>Reset</Text>
+        </Pressable>
+      </View>
+
+      {totalDistance > 0 && (
+        <View style={styles.distanceBar}>
+          <Text style={styles.distanceText}>Distance: {Math.round(totalDistance)} px</Text>
+        </View>
+      )}
+
       <View style={styles.mapContainer}>
         {floorComposite ? (
           <GestureHandlerRootView style={{ flex: 1 }}>
@@ -129,6 +205,7 @@ export default function IndoorMapScreen() {
                         const fillColor = isHallway ? colors.gray100 : colors.white;
                         const strokeColor = isHallway ? colors.gray300 : colors.gray100;
                         const centroid = node.getCentroid();
+                        const selectableNode = indoorPathData?.selectableByName[node.getName()];
                         
                         return (
                           <React.Fragment key={`${node.getName()}-${centroid.join(',')}`}>
@@ -137,6 +214,12 @@ export default function IndoorMapScreen() {
                               fill={fillColor}
                               stroke={strokeColor}
                               strokeWidth="2"
+                              onPress={() => {
+                                if (node.getType() !== "room") return;
+                                if (selectableNode) {
+                                  handleNodePress(selectableNode.id);
+                                }
+                              }}
                             />
                             {node.getName() !== 'Elevator Block' && node.getName() !== 'block' && (
                               <SvgText
@@ -153,6 +236,40 @@ export default function IndoorMapScreen() {
                           </React.Fragment>
                         );
                       })}
+
+                      {indoorPathData && shortestPath.length > 1 && (
+                        <Polyline
+                          points={shortestPath
+                            .map((nodeId) => {
+                              const graphNode = indoorPathData.graph.nodes[nodeId];
+                              return `${graphNode.x},${graphNode.y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke={colors.primary}
+                          strokeWidth="12"
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                        />
+                      )}
+
+                      {indoorPathData && startNodeId && indoorPathData.graph.nodes[startNodeId] && (
+                        <Circle
+                          cx={indoorPathData.graph.nodes[startNodeId].x}
+                          cy={indoorPathData.graph.nodes[startNodeId].y}
+                          r={18}
+                          fill={colors.primaryDark}
+                        />
+                      )}
+
+                      {indoorPathData && destinationNodeId && indoorPathData.graph.nodes[destinationNodeId] && (
+                        <Circle
+                          cx={indoorPathData.graph.nodes[destinationNodeId].x}
+                          cy={indoorPathData.graph.nodes[destinationNodeId].y}
+                          r={18}
+                          fill={colors.secondaryDark}
+                        />
+                      )}
                     </Svg>
                   </View>
                 </ScrollView>
@@ -226,6 +343,40 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  selectionBar: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    backgroundColor: colors.offWhite,
+  },
+  selectionButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+  },
+  selectionButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDark,
+  },
+  selectionButtonText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.button.fontWeight,
+    color: colors.primary,
+  },
+  distanceBar: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.offWhite,
+  },
+  distanceText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    color: colors.secondaryDark,
   },
 
 });
