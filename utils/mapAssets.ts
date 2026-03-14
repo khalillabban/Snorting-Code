@@ -1,3 +1,4 @@
+import { getRegisteredFloors } from "../hooks/useFloorData";
 const AVAILABLE_MAPS: Record<string, number[]> = {
   CC: [1],
   H: [1, 2, 8, 9],
@@ -12,6 +13,6 @@ export function hasFloorMap(buildingCode: string, floor: number): boolean {
   return floors ? floors.includes(floor) : false;
 }
 
-export function getAvailableFloors(buildingCode: string): number[] {
-  return AVAILABLE_MAPS[buildingCode] ?? [];
+export function getAvailableFloors(buildingName: string): number[] {
+  return getRegisteredFloors(buildingName) ?? [];
 }

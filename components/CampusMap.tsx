@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+// ADD FOR THE INDOOR NAVIGATION
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Accuracy,
@@ -28,11 +29,14 @@ import type {
   RouteSegment,
   RouteStep,
 } from "../constants/type";
+import { useFloorData } from "../hooks/useFloorData";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
+import { FloorSwitcher } from "./Floorswitcher";
+import { IndoorOverlay } from "./IndoorOverlay";
 import { useShuttleBus } from "./ShuttleBusTracker";
 
 type CampusMapProps = Readonly<{
@@ -151,20 +155,34 @@ export default function CampusMap({
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
+  //INDOOR NAVIGATION
+  const [indoorVisible, setIndoorVisible] = useState(false);
+  const [activeFloor, setActiveFloor] = useState(1);
+  const { floorPlan } = useFloorData(
+    selectedBuilding?.name ?? null,
+    activeFloor,
+  );
   const [availableFloors, setAvailableFloors] = useState<number[]>([]);
 
+  // Replace your existing availableFloors useEffect with this:
   useEffect(() => {
-    if (selectedBuilding) {
-      setAvailableFloors(getAvailableFloors(selectedBuilding.name));
-    } else {
+    if (!selectedBuilding) {
       setAvailableFloors([]);
+      return;
     }
+    const floors = getAvailableFloors(selectedBuilding.name);
+    setAvailableFloors(floors ?? []);
   }, [selectedBuilding]);
 
   useEffect(() => {
-    onBuildingSelected?.(selectedBuilding, availableFloors.length > 0);
-    onIndoorFloorsAvailable?.(availableFloors);
-  }, [selectedBuilding, availableFloors, onBuildingSelected, onIndoorFloorsAvailable]);
+    onBuildingSelected?.(selectedBuilding, (availableFloors ?? []).length > 0);
+    onIndoorFloorsAvailable?.(availableFloors ?? []);
+  }, [
+    selectedBuilding,
+    availableFloors,
+    onBuildingSelected,
+    onIndoorFloorsAvailable,
+  ]);
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -215,7 +233,25 @@ export default function CampusMap({
       if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
       return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
     });
-  }, []);
+
+    if (next.latitudeDelta < 0.004) {
+      const center = { latitude: next.latitude, longitude: next.longitude };
+      const building = getBuildingContainingPoint(center, BUILDINGS);
+
+      if (building) {
+        // Only update if it's a different building — avoid re-renders
+        setSelectedBuilding((prev) =>
+          prev?.name === building.name ? prev : building,
+        );
+        setIndoorVisible(true);
+      }
+      // Don't hide if no building found at center — user may have panned slightly
+      // off-center while still zoomed in on a building
+    } else {
+      setIndoorVisible(false);
+      // Don't clear selectedBuilding here — let the user tap X or zoom out fully
+    }
+  }, []); // no selectedBuilding dependency needed — reads from map center directly
 
   useEffect(() => {
     Animated.timing(labelsOpacity, {
@@ -303,10 +339,7 @@ export default function CampusMap({
       }
 
       try {
-        const {
-          steps,
-          segments,
-        } = await getOutdoorRouteWithSteps(
+        const { steps, segments } = await getOutdoorRouteWithSteps(
           startPoint.coordinates,
           destinationPoint.coordinates,
           strategy,
@@ -412,7 +445,21 @@ export default function CampusMap({
       );
     }
   }, [selectedBuilding, mapReady]);
-
+  useEffect(() => {
+    console.log("[Indoor Debug]", {
+      selectedBuilding: selectedBuilding?.name ?? null,
+      indoorVisible,
+      floorPlanLoaded: !!floorPlan,
+      availableFloors,
+      activeFloor,
+    });
+  }, [
+    selectedBuilding,
+    indoorVisible,
+    floorPlan,
+    availableFloors,
+    activeFloor,
+  ]);
   const currentBuilding = useMemo(() => {
     if (demoCurrentBuilding) return demoCurrentBuilding;
     return userCoords
@@ -480,7 +527,7 @@ export default function CampusMap({
           </Marker>
         )}
 
-        {/* Building polygons */}
+        {/* ✅ Building polygons — loop is clean, nothing extra inside */}
         {buildingsOnCampus.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
@@ -509,6 +556,22 @@ export default function CampusMap({
           );
         })}
 
+        {/* ✅ IndoorOverlay — INSIDE <MapView>, AFTER the building polygons loop */}
+        {indoorVisible &&
+          floorPlan &&
+          selectedBuilding &&
+          (() => {
+            console.log("[Indoor Debug] IndoorOverlay rendering with", {
+              building: selectedBuilding.name,
+              featureCount: floorPlan.features.length,
+              hasBoundingBox: !!selectedBuilding.boundingBox?.length,
+              inGeoJsonBounds: ["MB"].includes(selectedBuilding.name), // update list as needed
+            });
+            return (
+              <IndoorOverlay geojson={floorPlan} building={selectedBuilding} />
+            );
+          })()}
+
         {/* Labels */}
         {buildingsOnCampus.map((building) => (
           <Marker
@@ -525,10 +588,7 @@ export default function CampusMap({
               pointerEvents="none"
               style={[
                 styles.codePill,
-                {
-                  transform: [{ scale: labelScale }],
-                  opacity: labelsOpacity,
-                },
+                { transform: [{ scale: labelScale }], opacity: labelsOpacity },
               ]}
             >
               <Text style={styles.codeText}>{building.name}</Text>
@@ -542,7 +602,6 @@ export default function CampusMap({
             const { strokeColor, lineDashPattern } = getPolylineStyleForMode(
               seg.mode,
             );
-
             const segmentKey = `${seg.mode}-${seg.coordinates
               .map((coord) => `${coord.latitude}-${coord.longitude}`)
               .join("|")}`;
@@ -573,7 +632,7 @@ export default function CampusMap({
             );
           })}
 
-        {/* Shuttle route (Google Directions) + live shuttle markers */}
+        {/* Shuttle route + live shuttle markers */}
         {showShuttle && (
           <>
             {shuttleRouteCoords.length > 0 && (
@@ -587,29 +646,26 @@ export default function CampusMap({
                 zIndex={1}
               />
             )}
-            {BUSSTOP.map((stop) => {
-              return (
-                <Marker
-                  key={stop.id}
-                  coordinate={stop.coordinates}
-                  title={stop.name}
-                  description={stop.address}
-                  anchor={{ x: 0.5, y: 1 }}
-                >
-                  <View style={styles.busPin}>
-                    <View style={styles.busPinHead}>
-                      <MaterialCommunityIcons
-                        name="bus-stop-covered"
-                        size={20}
-                        color="#fff"
-                      />
-                    </View>
-                    <View style={styles.busPinTail} />
+            {BUSSTOP.map((stop) => (
+              <Marker
+                key={stop.id}
+                coordinate={stop.coordinates}
+                title={stop.name}
+                description={stop.address}
+                anchor={{ x: 0.5, y: 1 }}
+              >
+                <View style={styles.busPin}>
+                  <View style={styles.busPinHead}>
+                    <MaterialCommunityIcons
+                      name="bus-stop-covered"
+                      size={20}
+                      color="#fff"
+                    />
                   </View>
-                </Marker>
-              );
-            })}
-
+                  <View style={styles.busPinTail} />
+                </View>
+              </Marker>
+            ))}
             {activeBuses.map((bus) => (
               <Marker
                 key={bus.ID}
@@ -635,6 +691,30 @@ export default function CampusMap({
           </>
         )}
       </MapView>
+      {/* ^^^ MapView closes here */}
+
+      {/* ✅ FloorSwitcher — OUTSIDE <MapView>, inside the root <View> */}
+      {indoorVisible && (availableFloors ?? []).length > 0 && (
+        <FloorSwitcher
+          floors={availableFloors}
+          activeFloor={activeFloor}
+          onFloorChange={setActiveFloor}
+          onExit={() => {
+            setIndoorVisible(false);
+            setSelectedBuilding(null);
+            // Zoom back out so handleRegionChangeComplete won't immediately re-trigger
+            mapRef.current?.animateToRegion(
+              {
+                latitude: region.latitude,
+                longitude: region.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              },
+              300,
+            );
+          }}
+        />
+      )}
 
       {locationError && (
         <View style={styles.errorBanner}>
