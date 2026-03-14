@@ -12,6 +12,8 @@ interface BuildingInfoPopupProps {
   onSetAsStart?: (building: Buildings) => void;
   onSetAsDestination?: (building: Buildings) => void;
   onSetAsMyLocation?: (building: Buildings) => void;
+  hasIndoorMap?: boolean;
+  onViewIndoorMap?: () => void;
 }
 
 export const BuildingInfoPopup = ({
@@ -20,6 +22,8 @@ export const BuildingInfoPopup = ({
   onSetAsStart,
   onSetAsDestination,
   onSetAsMyLocation,
+  hasIndoorMap,
+  onViewIndoorMap,
 }: BuildingInfoPopupProps) => {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 

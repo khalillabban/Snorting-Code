@@ -30,6 +30,7 @@ import type {
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
+import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 import { useShuttleBus } from "./ShuttleBusTracker";
@@ -48,6 +49,8 @@ type CampusMapProps = Readonly<{
   onSetAsStart?: (building: Buildings) => void;
   onSetAsDestination?: (building: Buildings) => void;
   onSetAsMyLocation?: (building: Buildings) => void;
+  onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
+  onIndoorFloorsAvailable?: (floors: number[]) => void;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -142,10 +145,26 @@ export default function CampusMap({
   onSetAsStart,
   onSetAsDestination,
   onSetAsMyLocation,
+  onBuildingSelected,
+  onIndoorFloorsAvailable,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
+  const [availableFloors, setAvailableFloors] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      setAvailableFloors(getAvailableFloors(selectedBuilding.name));
+    } else {
+      setAvailableFloors([]);
+    }
+  }, [selectedBuilding]);
+
+  useEffect(() => {
+    onBuildingSelected?.(selectedBuilding, availableFloors.length > 0);
+    onIndoorFloorsAvailable?.(availableFloors);
+  }, [selectedBuilding, availableFloors, onBuildingSelected, onIndoorFloorsAvailable]);
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -638,6 +657,7 @@ export default function CampusMap({
           onSetAsMyLocation?.(building);
           setSelectedBuilding(null);
         }}
+        hasIndoorMap={availableFloors.length > 0}
       />
     </View>
   );

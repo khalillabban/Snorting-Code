@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
@@ -49,6 +49,9 @@ export default function CampusMapScreen() {
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
   );
+
+  const [selectedBuildingWithMap, setSelectedBuildingWithMap] = useState<Buildings | null>(null);
+  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>([]);
 
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -189,51 +192,70 @@ export default function CampusMapScreen() {
         onSetAsMyLocation={(building) => {
           setDemoCurrentBuilding(building);
         }}
+        onBuildingSelected={(building, hasMap) => {
+          setSelectedBuildingWithMap(hasMap ? building : null);
+        }}
+        onIndoorFloorsAvailable={(floors) => setIndoorAvailableFloors(floors)}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
-        <View style={styles.campusToggleRow}>
-          <View style={styles.campusToggle}>
-            <Pressable
-              onPress={() => selectCampus("sgw")}
-              testID="campus-toggle-sgw"
+        <View style={styles.campusToggle}>
+          <Pressable
+            onPress={() => selectCampus("sgw")}
+            testID="campus-toggle-sgw"
+            style={[
+              styles.campusToggleOption,
+              styles.campusToggleOptionLeft,
+              currentCampus === "sgw" && styles.campusToggleOptionActive,
+            ]}
+          >
+            <Text
               style={[
-                styles.campusToggleOption,
-                styles.campusToggleOptionLeft,
-                currentCampus === "sgw" && styles.campusToggleOptionActive,
+                styles.campusToggleText,
+                currentCampus === "sgw" && styles.campusToggleTextActive,
               ]}
             >
-              <Text
-                style={[
-                  styles.campusToggleText,
-                  currentCampus === "sgw" && styles.campusToggleTextActive,
-                ]}
-              >
-                SGW
-              </Text>
-            </Pressable>
+              SGW
+            </Text>
+          </Pressable>
 
-            <Pressable
-              onPress={() => selectCampus("loyola")}
-              testID="campus-toggle-loyola"
+          <Pressable
+            onPress={() => selectCampus("loyola")}
+            testID="campus-toggle-loyola"
+            style={[
+              styles.campusToggleOption,
+              currentCampus === "loyola" && styles.campusToggleOptionActive,
+            ]}
+          >
+            <Text
               style={[
-                styles.campusToggleOption,
-                currentCampus === "loyola" && styles.campusToggleOptionActive,
+                styles.campusToggleText,
+                currentCampus === "loyola" && styles.campusToggleTextActive,
               ]}
             >
-              <Text
-                style={[
-                  styles.campusToggleText,
-                  currentCampus === "loyola" && styles.campusToggleTextActive,
-                ]}
-              >
-                Loyola
-              </Text>
-            </Pressable>
-          </View>
-
+              Loyola
+            </Text>
+          </Pressable>
         </View>
       </View>
+
+      {selectedBuildingWithMap && (
+        <Pressable
+          onPress={() => router.push({
+            pathname: "/IndoorMapScreen",
+            params: {
+              buildingName: selectedBuildingWithMap.name,
+              floors: JSON.stringify(indoorAvailableFloors)
+            }
+          })}
+          testID="indoor-view-toggle"
+          style={styles.indoorButton}
+        >
+          <Text style={styles.indoorButtonText}>
+            Indoor
+          </Text>
+        </Pressable>
+      )}
 
       {/* Left button stack: shuttle status + shuttle schedule */}
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
@@ -366,6 +388,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 10,
+    pointerEvents: "box-none",
   },
   campusToggleRow: {
     flexDirection: "row",
@@ -419,6 +442,24 @@ const styles = StyleSheet.create({
   },
   campusToggleTextActive: {
     color: colors.white,
+  },
+  indoorButton: {
+    position: "absolute",
+    top: 30,
+    right: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.offWhite,
+    borderColor: colors.primaryDarker,
+    borderWidth: 1,
+    opacity: 0.93,
+    zIndex: 10,
+  },
+  indoorButtonText: {
+    color: colors.primary,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   buttonStack: {
     position: "absolute",

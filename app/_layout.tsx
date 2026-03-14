@@ -16,6 +16,10 @@ export default function RootLayout() {
         options={{ title: "Campus Map", headerBackButtonDisplayMode: "minimal" }}
       />
       <Stack.Screen
+        name="IndoorMapScreen"
+        options={{ title: "Indoor Map" }}
+      />
+      <Stack.Screen
         name="schedule"
         options={{ title: "Schedule", headerBackButtonDisplayMode: "minimal" }}
       />
