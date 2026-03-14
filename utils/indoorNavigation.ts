@@ -16,6 +16,12 @@ type SelectableNode = {
   name: string;
 };
 
+type FloorPolygon = {
+  name: string;
+  type: string;
+  coordinates: number[][];
+};
+
 export type IndoorPathData = {
   graph: IndoorGraph;
   selectableByName: Record<string, SelectableNode>;
@@ -108,21 +114,58 @@ function getBaseGraphForFloor(buildingCode: string, floorNumber: number): Indoor
   return createEmptyGraph();
 }
 
-function getNearestBaseNodeId(graph: IndoorGraph, x: number, y: number) {
-  let closestId: string | null = null;
-  let closestDistance = Infinity;
+function pointInPolygon(x: number, y: number, polygon: number[][]) {
+  const total = polygon.length;
+  if (total < 3) return false;
 
-  Object.values(graph.nodes).forEach((node) => {
-    if (node.id.startsWith("room-")) return;
+  let isInside = false;
 
-    const dist = distanceBetweenPoints(x, y, node.x, node.y);
-    if (dist < closestDistance) {
-      closestDistance = dist;
-      closestId = node.id;
+  for (let i = 0, j = total - 1; i < total; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+
+    const intersects =
+      yi > y !== yj > y &&
+      x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+
+    if (intersects) {
+      isInside = !isInside;
     }
-  });
+  }
 
-  return closestId;
+  return isInside;
+}
+
+function isBlockedPolygonType(type: string) {
+  return type === "room" || type === "block" || type === "Eblock";
+}
+
+function segmentCrossesBlockedArea(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  blockedPolygons: FloorPolygon[],
+  allowedPolygonNames: Set<string>
+) {
+  const segmentLength = distanceBetweenPoints(fromX, fromY, toX, toY);
+  const sampleCount = Math.max(12, Math.ceil(segmentLength / 20));
+
+  for (let i = 1; i < sampleCount; i += 1) {
+    const t = i / sampleCount;
+    const sampleX = fromX + (toX - fromX) * t;
+    const sampleY = fromY + (toY - fromY) * t;
+
+    for (const polygon of blockedPolygons) {
+      if (allowedPolygonNames.has(polygon.name)) continue;
+
+      if (pointInPolygon(sampleX, sampleY, polygon.coordinates)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function getClosestPointOnPolygonToTarget(coordinates: number[][], targetX: number, targetY: number) {
@@ -140,6 +183,48 @@ function getClosestPointOnPolygonToTarget(coordinates: number[][], targetX: numb
   return closestPoint;
 }
 
+function getBestRoomConnector(
+  graph: IndoorGraph,
+  roomName: string,
+  roomCoordinates: number[][],
+  blockedPolygons: FloorPolygon[]
+) {
+  let best: { baseNodeId: string; doorwayPoint: number[]; distance: number } | null = null;
+
+  for (const node of Object.values(graph.nodes)) {
+    if (node.id.startsWith("room-")) continue;
+
+    const doorwayPoint = getClosestPointOnPolygonToTarget(roomCoordinates, node.x, node.y);
+    const crossesBlockedArea = segmentCrossesBlockedArea(
+      doorwayPoint[0],
+      doorwayPoint[1],
+      node.x,
+      node.y,
+      blockedPolygons,
+      new Set<string>([roomName])
+    );
+
+    if (crossesBlockedArea) continue;
+
+    const connectionDistance = distanceBetweenPoints(
+      doorwayPoint[0],
+      doorwayPoint[1],
+      node.x,
+      node.y
+    );
+
+    if (!best || connectionDistance < best.distance) {
+      best = {
+        baseNodeId: node.id,
+        doorwayPoint,
+        distance: connectionDistance,
+      };
+    }
+  }
+
+  return best;
+}
+
 export function buildIndoorPathData(
   floorComposite: Floor,
   buildingCode: string,
@@ -147,6 +232,13 @@ export function buildIndoorPathData(
 ): IndoorPathData {
   const graph = getBaseGraphForFloor(buildingCode, floorNumber);
   const selectableByName: Record<string, SelectableNode> = {};
+  const floorPolygons: FloorPolygon[] = floorComposite.getChildren().map((node) => ({
+    name: node.getName(),
+    type: node.getType(),
+    coordinates: node.getCoordinates(),
+  }));
+
+  const blockedPolygons = floorPolygons.filter((polygon) => isBlockedPolygonType(polygon.type));
 
   floorComposite.getChildren().forEach((node) => {
     const nodeType = node.getType();
@@ -157,21 +249,19 @@ export function buildIndoorPathData(
 
     if (nodeType !== "room") return;
 
-    const centroid = node.getCentroid();
     const roomNodeId = `room-${node.getName()}`;
-
-    const nearestBaseNodeId = getNearestBaseNodeId(graph, centroid[0], centroid[1]);
-    if (!nearestBaseNodeId) return;
-
-    const nearestBaseNode = graph.nodes[nearestBaseNodeId];
-    const doorwayPoint = getClosestPointOnPolygonToTarget(
-      node.getCoordinates(),
-      nearestBaseNode.x,
-      nearestBaseNode.y
+    const roomCoordinates = node.getCoordinates();
+    const roomConnector = getBestRoomConnector(
+      graph,
+      node.getName(),
+      roomCoordinates,
+      blockedPolygons
     );
 
-    addNode(graph, roomNodeId, doorwayPoint[0], doorwayPoint[1]);
-    addUndirectedEdge(graph, roomNodeId, nearestBaseNodeId);
+    if (!roomConnector) return;
+
+    addNode(graph, roomNodeId, roomConnector.doorwayPoint[0], roomConnector.doorwayPoint[1]);
+    addUndirectedEdge(graph, roomNodeId, roomConnector.baseNodeId);
 
     selectableByName[node.getName()] = {
       id: roomNodeId,

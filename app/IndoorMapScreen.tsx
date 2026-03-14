@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Circle, Polygon, Polyline, Text as SvgText } from "react-native-svg";
-import { colors, spacing, typography } from "../constants/theme";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
 import {
   buildIndoorPathData,
@@ -26,6 +26,8 @@ export default function IndoorMapScreen() {
   const [startNodeId, setStartNodeId] = useState<string | null>(null);
   const [destinationNodeId, setDestinationNodeId] = useState<string | null>(null);
   const [selectingMode, setSelectingMode] = useState<"start" | "destination">("start");
+  const [startSearchQuery, setStartSearchQuery] = useState("");
+  const [destinationSearchQuery, setDestinationSearchQuery] = useState("");
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = FLOOR_GEOJSON[mapKey];
@@ -43,11 +45,15 @@ export default function IndoorMapScreen() {
       setFloorComposite(floor);
       setStartNodeId(null);
       setDestinationNodeId(null);
+      setStartSearchQuery("");
+      setDestinationSearchQuery("");
       setSelectingMode("start");
     } else {
       setFloorComposite(null);
       setStartNodeId(null);
       setDestinationNodeId(null);
+      setStartSearchQuery("");
+      setDestinationSearchQuery("");
       setSelectingMode("start");
     }
   }, [geoAsset, selectedFloor, buildingName]);
@@ -81,6 +87,51 @@ export default function IndoorMapScreen() {
   const shortestPath = useMemo(() => {
     if (!indoorPathData || !startNodeId || !destinationNodeId) return [];
     return findShortestIndoorPath(indoorPathData.graph, startNodeId, destinationNodeId);
+  }, [indoorPathData, startNodeId, destinationNodeId]);
+
+  const selectableNodes = useMemo(() => {
+    if (!indoorPathData) return [];
+
+    return Object.values(indoorPathData.selectableByName).sort((first, second) =>
+      first.name.localeCompare(second.name)
+    );
+  }, [indoorPathData]);
+
+  const startSearchResults = useMemo(() => {
+    const normalizedQuery = startSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return [];
+
+    return selectableNodes
+      .filter((node) => node.name.toLowerCase().includes(normalizedQuery))
+      .slice(0, 6);
+  }, [startSearchQuery, selectableNodes]);
+
+  const destinationSearchResults = useMemo(() => {
+    const normalizedQuery = destinationSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return [];
+
+    return selectableNodes
+      .filter((node) => node.name.toLowerCase().includes(normalizedQuery))
+      .slice(0, 6);
+  }, [destinationSearchQuery, selectableNodes]);
+
+  const selectedNames = useMemo(() => {
+    if (!indoorPathData) {
+      return { start: null as string | null, destination: null as string | null };
+    }
+
+    const idToName = Object.values(indoorPathData.selectableByName).reduce<Record<string, string>>(
+      (acc, node) => {
+        acc[node.id] = node.name;
+        return acc;
+      },
+      {}
+    );
+
+    return {
+      start: startNodeId ? idToName[startNodeId] || null : null,
+      destination: destinationNodeId ? idToName[destinationNodeId] || null : null,
+    };
   }, [indoorPathData, startNodeId, destinationNodeId]);
 
   const totalDistance = useMemo(() => {
@@ -117,10 +168,67 @@ export default function IndoorMapScreen() {
     setDestinationNodeId(nodeId);
   };
 
+  const handleStartSearchSelection = (nodeId: string, nodeName: string) => {
+    setStartNodeId(nodeId);
+    setStartSearchQuery(nodeName);
+    setSelectingMode("destination");
+  };
+
+  const handleDestinationSearchSelection = (nodeId: string, nodeName: string) => {
+    setDestinationNodeId(nodeId);
+    setDestinationSearchQuery(nodeName);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}> 🏛️ Inside {buildingName} Building</Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchLabel}>Start</Text>
+        <TextInput
+          placeholder="Search start class/room"
+          placeholderTextColor={colors.gray500}
+          value={startSearchQuery}
+          onChangeText={setStartSearchQuery}
+          style={styles.searchInput}
+        />
+        {startSearchResults.length > 0 && (
+          <View style={styles.searchResults}>
+            {startSearchResults.map((node) => (
+              <Pressable
+                key={`start-${node.id}`}
+                onPress={() => handleStartSearchSelection(node.id, node.name)}
+                style={styles.searchResultButton}
+              >
+                <Text style={styles.searchResultText}>{node.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.searchLabel}>Destination</Text>
+        <TextInput
+          placeholder="Search destination class/room"
+          placeholderTextColor={colors.gray500}
+          value={destinationSearchQuery}
+          onChangeText={setDestinationSearchQuery}
+          style={styles.searchInput}
+        />
+        {destinationSearchResults.length > 0 && (
+          <View style={styles.searchResults}>
+            {destinationSearchResults.map((node) => (
+              <Pressable
+                key={`dest-${node.id}`}
+                onPress={() => handleDestinationSearchSelection(node.id, node.name)}
+                style={styles.searchResultButton}
+              >
+                <Text style={styles.searchResultText}>{node.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.floorSelectorWrapper}>
@@ -155,7 +263,14 @@ export default function IndoorMapScreen() {
             selectingMode === "start" && styles.selectionButtonActive,
           ]}
         >
-          <Text style={styles.selectionButtonText}>Select Start</Text>
+          <Text
+            style={[
+              styles.selectionButtonText,
+              selectingMode === "start" && styles.selectionButtonTextActive,
+            ]}
+          >
+            Select Start
+          </Text>
         </Pressable>
         <Pressable
           onPress={() => setSelectingMode("destination")}
@@ -164,18 +279,36 @@ export default function IndoorMapScreen() {
             selectingMode === "destination" && styles.selectionButtonActive,
           ]}
         >
-          <Text style={styles.selectionButtonText}>Select Destination</Text>
+          <Text
+            style={[
+              styles.selectionButtonText,
+              selectingMode === "destination" && styles.selectionButtonTextActive,
+            ]}
+          >
+            Select Destination
+          </Text>
         </Pressable>
         <Pressable
           onPress={() => {
             setStartNodeId(null);
             setDestinationNodeId(null);
+            setStartSearchQuery("");
+            setDestinationSearchQuery("");
             setSelectingMode("start");
           }}
           style={styles.selectionButton}
         >
           <Text style={styles.selectionButtonText}>Reset</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.selectionStateBar}>
+        <Text style={styles.selectionStateText}>
+          Start: {selectedNames.start || "Not selected"}
+        </Text>
+        <Text style={styles.selectionStateText}>
+          Destination: {selectedNames.destination || "Not selected"}
+        </Text>
       </View>
 
       {totalDistance > 0 && (
@@ -310,6 +443,48 @@ const styles = StyleSheet.create({
     color: colors.secondaryDark,
     marginLeft: spacing.sm,
   },
+  searchContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.offWhite,
+  },
+  searchLabel: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    fontSize: typography.caption.fontSize,
+    color: colors.gray700,
+    fontWeight: typography.button.fontWeight,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+  },
+  searchResults: {
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+    overflow: "hidden",
+  },
+  searchResultButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray100,
+  },
+  searchResultText: {
+    fontSize: typography.body.fontSize,
+    color: colors.secondaryDark,
+    fontWeight: typography.body.fontWeight,
+  },
   floorSelectorWrapper: {
     backgroundColor: colors.offWhite,
   },
@@ -320,7 +495,7 @@ const styles = StyleSheet.create({
   floorButton: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.gray300,
@@ -354,7 +529,7 @@ const styles = StyleSheet.create({
   selectionButton: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.gray300,
@@ -367,6 +542,19 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     fontWeight: typography.button.fontWeight,
     color: colors.primary,
+  },
+  selectionButtonTextActive: {
+    color: colors.white,
+  },
+  selectionStateBar: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.offWhite,
+  },
+  selectionStateText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.gray700,
+    marginBottom: spacing.xs,
   },
   distanceBar: {
     paddingHorizontal: spacing.md,
