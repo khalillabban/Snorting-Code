@@ -28,8 +28,8 @@ type FloorPlan = {
 // ─────────────────────────────────────────────────────────────
 const FLOOR_REGISTRY: Record<string, Record<number, FloorPlan>> = {
   MB: {
-    1: require("../assets/maps/mb_floors_combined.json"),
-    // 2: require('../assets/indoor/MB/floor_2.json'),
+    1: require("../assets/maps/MB-1.json"),
+    2: require("../assets/maps/MB-S2.json"),
   },
   // SP: {
   //   1: require('../assets/indoor/SP/floor_1.json'),

@@ -223,12 +223,15 @@ export default function CampusMap({
   };
 
   const handleBuildingPress = (building: Buildings) => {
+    // Don't interfere with indoor mode triggered by zoom
+    if (indoorVisible) return;
     setSelectedBuilding(building);
   };
 
   const handleRegionChangeComplete = useCallback((next: Region) => {
     setRegion(next);
-
+    // Temporary — add to CampusMap's handleRegionChangeComplete
+    console.log("[Region]", next.latitudeDelta.toFixed(5));
     setLabelsVisible((prev) => {
       if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
       return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
@@ -430,7 +433,11 @@ export default function CampusMap({
       );
     }
   }, [startPoint, mapReady, routeFocusTrigger]);
-
+  useEffect(() => {
+    const mb = BUILDINGS.find((b) => b.name === "MB");
+    console.log("MB boundingBox:", JSON.stringify(mb?.boundingBox));
+    console.log("MB coordinates:", JSON.stringify(mb?.coordinates));
+  }, []);
   // Focus selected building
   useEffect(() => {
     if (selectedBuilding && mapReady) {
@@ -723,7 +730,7 @@ export default function CampusMap({
       )}
 
       <BuildingInfoPopup
-        building={selectedBuilding}
+        building={!indoorVisible ? selectedBuilding : null} // ← hide when indoor
         onClose={() => setSelectedBuilding(null)}
         onSetAsStart={(building) => {
           onSetAsStart?.(building);
@@ -737,7 +744,7 @@ export default function CampusMap({
           onSetAsMyLocation?.(building);
           setSelectedBuilding(null);
         }}
-        hasIndoorMap={availableFloors.length > 0}
+        hasIndoorMap={(availableFloors ?? []).length > 0}
       />
     </View>
   );
