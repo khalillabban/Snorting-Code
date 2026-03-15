@@ -16,11 +16,11 @@
 
 import React from "react";
 import {
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { colors, spacing } from "../constants/theme";
 
@@ -64,16 +64,6 @@ export function FloorSwitcher({
           </TouchableOpacity>
         ))}
       </View>
-
-      {/* Exit indoor mode — top left, matches your existing errorBanner position */}
-      <TouchableOpacity
-        style={styles.exitBtn}
-        onPress={onExit}
-        accessibilityLabel="Return to campus view"
-        accessibilityRole="button"
-      >
-        <Text style={styles.exitText}>← Campus view</Text>
-      </TouchableOpacity>
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { GeoJSONData, parseGeoJSONToFloor } from "@/utils/IndoorMapComposite";
 import React, { useMemo } from "react";
 import { Polygon } from "react-native-maps";
 import type { Buildings } from "../constants/type";
@@ -9,7 +10,7 @@ type Feature = {
 };
 
 type Props = {
-  readonly geojson: { features: Feature[] };
+  readonly geojson: GeoJSONData;
   readonly building: Buildings;
   readonly highlightedRoom?: string | null;
 };
@@ -46,25 +47,33 @@ const HIGHLIGHTED_STYLE = {
 };
 
 export function IndoorOverlay({ geojson, building, highlightedRoom }: Props) {
-  const features = useMemo(() => {
-    return [...geojson.features].sort(
-      (a, b) =>
-        LAYER_ORDER.indexOf(a.properties.type) -
-        LAYER_ORDER.indexOf(b.properties.type),
-    );
-  }, [geojson]);
+  const floor = useMemo(
+    () => parseGeoJSONToFloor(geojson, 1, building.name),
+    [geojson, building.name],
+  );
 
+  const allNodes = useMemo(() => floor.getChildren(), [floor]);
+  // Temporarily at the top of IndoorOverlay component body
+  console.log(
+    "[IndoorOverlay] mapCorners:",
+    JSON.stringify(building.mapCorners),
+  );
+  console.log(
+    "[IndoorOverlay] first node coords:",
+    allNodes[0]?.getCoordinates().slice(0, 2),
+  );
   return (
     <>
-      {features.map((feature, index) => {
-        const { type, name } = feature.properties;
+      {allNodes.map((node, index) => {
+        const type = node.getType();
+        const name = node.getName();
         const isHighlighted = !!highlightedRoom && name === highlightedRoom;
         const baseStyle =
           ROOM_STYLE[type as keyof typeof ROOM_STYLE] ?? ROOM_STYLE.room;
 
-        const coordinates = feature.geometry.coordinates[0].map(([x, y]) =>
-          pixelToLatLng(x, y, building),
-        );
+        const coordinates = node
+          .getCoordinates()
+          .map(([x, y]) => pixelToLatLng(x, y, building));
 
         return (
           <Polygon

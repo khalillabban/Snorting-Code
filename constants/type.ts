@@ -15,6 +15,12 @@ export interface Buildings {
   departments?: string[];
   services?: string[];
   boundingBox: Location[];
+  mapCorners?: {
+    NW: Location;
+    NE: Location;
+    SW: Location;
+    SE: Location;
+  };
 }
 
 export interface FloorPlan {
@@ -27,7 +33,7 @@ export interface FloorPlan {
 export interface Room {
   roomNumber: string;
   coordinates: Location[];
-};
+}
 
 export interface Location {
   latitude: number;

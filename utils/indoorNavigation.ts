@@ -31,7 +31,11 @@ function distanceBetweenPoints(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(bx - ax, by - ay);
 }
 
-function distanceBetweenNodeIds(graph: IndoorGraph, fromId: string, toId: string) {
+function distanceBetweenNodeIds(
+  graph: IndoorGraph,
+  fromId: string,
+  toId: string,
+) {
   const fromNode = graph.nodes[fromId];
   const toNode = graph.nodes[toId];
 
@@ -55,14 +59,23 @@ function addUndirectedEdge(graph: IndoorGraph, fromId: string, toId: string) {
 
   if (!fromNode || !toNode || fromId === toId) return;
 
-  const weight = distanceBetweenPoints(fromNode.x, fromNode.y, toNode.x, toNode.y);
+  const weight = distanceBetweenPoints(
+    fromNode.x,
+    fromNode.y,
+    toNode.x,
+    toNode.y,
+  );
 
-  const fromAlreadyConnected = fromNode.neighbors.some((neighbor) => neighbor.id === toId);
+  const fromAlreadyConnected = fromNode.neighbors.some(
+    (neighbor) => neighbor.id === toId,
+  );
   if (!fromAlreadyConnected) {
     fromNode.neighbors.push({ id: toId, weight });
   }
 
-  const toAlreadyConnected = toNode.neighbors.some((neighbor) => neighbor.id === fromId);
+  const toAlreadyConnected = toNode.neighbors.some(
+    (neighbor) => neighbor.id === fromId,
+  );
   if (!toAlreadyConnected) {
     toNode.neighbors.push({ id: fromId, weight });
   }
@@ -106,7 +119,10 @@ function buildMB1BaseGraph(): IndoorGraph {
   return graph;
 }
 
-function getBaseGraphForFloor(buildingCode: string, floorNumber: number): IndoorGraph {
+function getBaseGraphForFloor(
+  buildingCode: string,
+  floorNumber: number,
+): IndoorGraph {
   if (buildingCode === "MB" && floorNumber === 1) {
     return buildMB1BaseGraph();
   }
@@ -126,7 +142,7 @@ function pointInPolygon(x: number, y: number, polygon: number[][]) {
 
     const intersects =
       yi > y !== yj > y &&
-      x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+      x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi;
 
     if (intersects) {
       isInside = !isInside;
@@ -146,7 +162,7 @@ function segmentCrossesBlockedArea(
   toX: number,
   toY: number,
   blockedPolygons: FloorPolygon[],
-  allowedPolygonNames: Set<string>
+  allowedPolygonNames: Set<string>,
 ) {
   const segmentLength = distanceBetweenPoints(fromX, fromY, toX, toY);
   const sampleCount = Math.max(12, Math.ceil(segmentLength / 20));
@@ -168,7 +184,11 @@ function segmentCrossesBlockedArea(
   return false;
 }
 
-function getClosestPointOnPolygonToTarget(coordinates: number[][], targetX: number, targetY: number) {
+function getClosestPointOnPolygonToTarget(
+  coordinates: number[][],
+  targetX: number,
+  targetY: number,
+) {
   let closestPoint = coordinates[0];
   let closestDistance = Infinity;
 
@@ -187,21 +207,29 @@ function getBestRoomConnector(
   graph: IndoorGraph,
   roomName: string,
   roomCoordinates: number[][],
-  blockedPolygons: FloorPolygon[]
+  blockedPolygons: FloorPolygon[],
 ) {
-  let best: { baseNodeId: string; doorwayPoint: number[]; distance: number } | null = null;
+  let best: {
+    baseNodeId: string;
+    doorwayPoint: number[];
+    distance: number;
+  } | null = null;
 
   for (const node of Object.values(graph.nodes)) {
     if (node.id.startsWith("room-")) continue;
 
-    const doorwayPoint = getClosestPointOnPolygonToTarget(roomCoordinates, node.x, node.y);
+    const doorwayPoint = getClosestPointOnPolygonToTarget(
+      roomCoordinates,
+      node.x,
+      node.y,
+    );
     const crossesBlockedArea = segmentCrossesBlockedArea(
       doorwayPoint[0],
       doorwayPoint[1],
       node.x,
       node.y,
       blockedPolygons,
-      new Set<string>([roomName])
+      new Set<string>([roomName]),
     );
 
     if (crossesBlockedArea) continue;
@@ -210,7 +238,7 @@ function getBestRoomConnector(
       doorwayPoint[0],
       doorwayPoint[1],
       node.x,
-      node.y
+      node.y,
     );
 
     if (!best || connectionDistance < best.distance) {
@@ -228,22 +256,30 @@ function getBestRoomConnector(
 export function buildIndoorPathData(
   floorComposite: Floor,
   buildingCode: string,
-  floorNumber: number
+  floorNumber: number,
 ): IndoorPathData {
   const graph = getBaseGraphForFloor(buildingCode, floorNumber);
   const selectableByName: Record<string, SelectableNode> = {};
-  const floorPolygons: FloorPolygon[] = floorComposite.getChildren().map((node) => ({
-    name: node.getName(),
-    type: node.getType(),
-    coordinates: node.getCoordinates(),
-  }));
+  const floorPolygons: FloorPolygon[] = floorComposite
+    .getChildren()
+    .map((node) => ({
+      name: node.getName(),
+      type: node.getType(),
+      coordinates: node.getCoordinates(),
+    }));
 
-  const blockedPolygons = floorPolygons.filter((polygon) => isBlockedPolygonType(polygon.type));
+  const blockedPolygons = floorPolygons.filter((polygon) =>
+    isBlockedPolygonType(polygon.type),
+  );
 
   floorComposite.getChildren().forEach((node) => {
     const nodeType = node.getType();
 
-    if (nodeType === "block" || nodeType === "Eblock" || nodeType === "hallway") {
+    if (
+      nodeType === "block" ||
+      nodeType === "Eblock" ||
+      nodeType === "hallway"
+    ) {
       return;
     }
 
@@ -255,12 +291,17 @@ export function buildIndoorPathData(
       graph,
       node.getName(),
       roomCoordinates,
-      blockedPolygons
+      blockedPolygons,
     );
 
     if (!roomConnector) return;
 
-    addNode(graph, roomNodeId, roomConnector.doorwayPoint[0], roomConnector.doorwayPoint[1]);
+    addNode(
+      graph,
+      roomNodeId,
+      roomConnector.doorwayPoint[0],
+      roomConnector.doorwayPoint[1],
+    );
     addUndirectedEdge(graph, roomNodeId, roomConnector.baseNodeId);
 
     selectableByName[node.getName()] = {
@@ -275,7 +316,11 @@ export function buildIndoorPathData(
   };
 }
 
-export function findShortestIndoorPath(graph: IndoorGraph, startId: string, endId: string): string[] {
+export function findShortestIndoorPath(
+  graph: IndoorGraph,
+  startId: string,
+  endId: string,
+): string[] {
   if (!graph.nodes[startId] || !graph.nodes[endId]) return [];
   if (startId === endId) return [startId];
 

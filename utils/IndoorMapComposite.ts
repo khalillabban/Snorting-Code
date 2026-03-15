@@ -14,17 +14,33 @@ export class Room implements IndoorMapNode {
     private name: string,
     private roomNumber: string,
     private coordinates: number[][],
-    private centroid: number[]
+    private centroid: number[],
   ) {}
 
-  getName(): string { return this.name; }
-  getType(): string { return 'room'; }
-  getFloors(): Floor[] { return []; }
-  getRooms(): Room[] { return [this]; }
-  getPOIs(): POI[] { return []; }
-  getCoordinates(): number[][] { return this.coordinates; }
-  getCentroid(): number[] { return this.centroid; }
-  getRoomNumber(): string { return this.roomNumber; }
+  getName(): string {
+    return this.name;
+  }
+  getType(): string {
+    return "room";
+  }
+  getFloors(): Floor[] {
+    return [];
+  }
+  getRooms(): Room[] {
+    return [this];
+  }
+  getPOIs(): POI[] {
+    return [];
+  }
+  getCoordinates(): number[][] {
+    return this.coordinates;
+  }
+  getCentroid(): number[] {
+    return this.centroid;
+  }
+  getRoomNumber(): string {
+    return this.roomNumber;
+  }
 }
 
 // Leaf: POI (Point of Interest)
@@ -33,17 +49,33 @@ export class POI implements IndoorMapNode {
     private name: string,
     private poiType: string,
     private coordinates: number[][],
-    private centroid: number[]
+    private centroid: number[],
   ) {}
 
-  getName(): string { return this.name; }
-  getType(): string { return this.poiType; }
-  getFloors(): Floor[] { return []; }
-  getRooms(): Room[] { return []; }
-  getPOIs(): POI[] { return [this]; }
-  getCoordinates(): number[][] { return this.coordinates; }
-  getCentroid(): number[] { return this.centroid; }
-  getPOIType(): string { return this.poiType; }
+  getName(): string {
+    return this.name;
+  }
+  getType(): string {
+    return this.poiType;
+  }
+  getFloors(): Floor[] {
+    return [];
+  }
+  getRooms(): Room[] {
+    return [];
+  }
+  getPOIs(): POI[] {
+    return [this];
+  }
+  getCoordinates(): number[][] {
+    return this.coordinates;
+  }
+  getCentroid(): number[] {
+    return this.centroid;
+  }
+  getPOIType(): string {
+    return this.poiType;
+  }
 }
 
 // Leaf: Hallway
@@ -51,16 +83,30 @@ export class Hallway implements IndoorMapNode {
   constructor(
     private name: string,
     private coordinates: number[][],
-    private centroid: number[]
+    private centroid: number[],
   ) {}
 
-  getName(): string { return this.name; }
-  getType(): string { return 'hallway'; }
-  getFloors(): Floor[] { return []; }
-  getRooms(): Room[] { return []; }
-  getPOIs(): POI[] { return []; }
-  getCoordinates(): number[][] { return this.coordinates; }
-  getCentroid(): number[] { return this.centroid; }
+  getName(): string {
+    return this.name;
+  }
+  getType(): string {
+    return "hallway";
+  }
+  getFloors(): Floor[] {
+    return [];
+  }
+  getRooms(): Room[] {
+    return [];
+  }
+  getPOIs(): POI[] {
+    return [];
+  }
+  getCoordinates(): number[][] {
+    return this.coordinates;
+  }
+  getCentroid(): number[] {
+    return this.centroid;
+  }
 }
 
 // Composite: Floor
@@ -69,29 +115,43 @@ export class Floor implements IndoorMapNode {
 
   constructor(
     private floorNumber: number,
-    private buildingCode: string
+    private buildingCode: string,
   ) {}
 
   addChild(node: IndoorMapNode): void {
     this.children.push(node);
   }
 
-  getName(): string { return `Floor ${this.floorNumber}`; }
-  getType(): string { return 'floor'; }
-  getFloors(): Floor[] { return [this]; }
-  
+  getName(): string {
+    return `Floor ${this.floorNumber}`;
+  }
+  getType(): string {
+    return "floor";
+  }
+  getFloors(): Floor[] {
+    return [this];
+  }
+
   getRooms(): Room[] {
-    return this.children.flatMap(child => child.getRooms());
+    return this.children.flatMap((child) => child.getRooms());
   }
-  
+
   getPOIs(): POI[] {
-    return this.children.flatMap(child => child.getPOIs());
+    return this.children.flatMap((child) => child.getPOIs());
   }
-  
-  getCoordinates(): number[][] { return []; }
-  getCentroid(): number[] { return [0, 0]; }
-  getFloorNumber(): number { return this.floorNumber; }
-  getChildren(): IndoorMapNode[] { return this.children; }
+
+  getCoordinates(): number[][] {
+    return [];
+  }
+  getCentroid(): number[] {
+    return [0, 0];
+  }
+  getFloorNumber(): number {
+    return this.floorNumber;
+  }
+  getChildren(): IndoorMapNode[] {
+    return this.children;
+  }
 }
 
 // Composite: Building
@@ -104,32 +164,44 @@ export class Building implements IndoorMapNode {
     this.floors.push(floor);
   }
 
-  getName(): string { return this.buildingCode; }
-  getType(): string { return 'building'; }
-  getFloors(): Floor[] { return this.floors; }
-  
+  getName(): string {
+    return this.buildingCode;
+  }
+  getType(): string {
+    return "building";
+  }
+  getFloors(): Floor[] {
+    return this.floors;
+  }
+
   getRooms(): Room[] {
-    return this.floors.flatMap(floor => floor.getRooms());
+    return this.floors.flatMap((floor) => floor.getRooms());
   }
-  
+
   getPOIs(): POI[] {
-    return this.floors.flatMap(floor => floor.getPOIs());
+    return this.floors.flatMap((floor) => floor.getPOIs());
   }
-  
-  getCoordinates(): number[][] { return []; }
-  getCentroid(): number[] { return [0, 0]; }
-  getBuildingCode(): string { return this.buildingCode; }
+
+  getCoordinates(): number[][] {
+    return [];
+  }
+  getCentroid(): number[] {
+    return [0, 0];
+  }
+  getBuildingCode(): string {
+    return this.buildingCode;
+  }
 }
 
 // GeoJSON interfaces
 interface GeoJSONFeature {
-  type: string;
+  type?: string;
   properties: { name: string; type: string; centroid?: number[] };
   geometry: { type: string; coordinates: number[][][] };
 }
 
-interface GeoJSONData {
-  type: string;
+export interface GeoJSONData {
+  type?: string;
   features: GeoJSONFeature[];
 }
 
@@ -137,21 +209,28 @@ interface GeoJSONData {
 export function parseGeoJSONToFloor(
   geoJSON: GeoJSONData,
   floorNumber: number,
-  buildingCode: string
+  buildingCode: string,
 ): Floor {
   const floor = new Floor(floorNumber, buildingCode);
 
-  geoJSON.features.forEach(feature => {
+  geoJSON.features.forEach((feature) => {
     const coords = feature.geometry.coordinates[0];
-    const centroid = feature.properties.centroid || 
-      coords.reduce((acc, [x, y]) => [acc[0] + x / coords.length, acc[1] + y / coords.length], [0, 0]);
+    const centroid =
+      feature.properties.centroid ||
+      coords.reduce(
+        (acc, [x, y]) => [
+          acc[0] + x / coords.length,
+          acc[1] + y / coords.length,
+        ],
+        [0, 0],
+      );
 
     const type = feature.properties.type;
     const name = feature.properties.name;
 
-    if (type === 'hallway') {
+    if (type === "hallway") {
       floor.addChild(new Hallway(name, coords, centroid));
-    } else if (type === 'POI') {
+    } else if (type === "POI") {
       floor.addChild(new POI(name, type, coords, centroid));
     } else {
       floor.addChild(new Room(name, name, coords, centroid));
@@ -163,12 +242,12 @@ export function parseGeoJSONToFloor(
 
 export function parseGeoJSONToBuilding(
   buildingCode: string,
-  floorData: Record<string, GeoJSONData>
+  floorData: Record<string, GeoJSONData>,
 ): Building {
   const building = new Building(buildingCode);
 
   Object.entries(floorData).forEach(([key, geoJSON]) => {
-    const floorNumber = parseInt(key.split('-')[1]);
+    const floorNumber = parseInt(key.split("-")[1]);
     const floor = parseGeoJSONToFloor(geoJSON, floorNumber, buildingCode);
     building.addFloor(floor);
   });

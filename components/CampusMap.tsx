@@ -60,12 +60,12 @@ type CampusMapProps = Readonly<{
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
-
+const INDOOR_TRIGGER_DELTA = 0.002; // zoom to show indoor. Eyeball the thing
 /**
  * Labels show/hide thresholds based on zoom level (latitudeDelta).
  */
-const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
-const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
+const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough.
+const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out.
 
 function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isCurrent) {
@@ -218,43 +218,50 @@ export default function CampusMap({
   const [labelsVisible, setLabelsVisible] = useState(false);
   const labelsOpacity = useRef(new Animated.Value(0)).current;
 
-  const handleMapPress = () => {
+  /*const handleMapPress = () => {
     if (selectedBuilding) setSelectedBuilding(null);
+  };*/
+  const handleMapPress = () => {
+    // Ignore map press if it's from the same tap as a building press
+    if (Date.now() - lastBuildingPressTime.current < 300) return;
+    if (!indoorVisible) setSelectedBuilding(null);
   };
 
+  // Replace handleBuildingPress
   const handleBuildingPress = (building: Buildings) => {
-    // Don't interfere with indoor mode triggered by zoom
     if (indoorVisible) return;
+    lastBuildingPressTime.current = Date.now();
     setSelectedBuilding(building);
   };
+  const lastBuildingPressTime = useRef<number>(0);
 
+  // Replace handleRegionChangeComplete
   const handleRegionChangeComplete = useCallback((next: Region) => {
     setRegion(next);
-    // Temporary — add to CampusMap's handleRegionChangeComplete
-    console.log("[Region]", next.latitudeDelta.toFixed(5));
+
     setLabelsVisible((prev) => {
       if (prev) return next.latitudeDelta < LABELS_HIDE_AT_DELTA;
       return next.latitudeDelta <= LABELS_SHOW_AT_DELTA;
     });
 
-    if (next.latitudeDelta < 0.004) {
+    // Don't let the auto-zoom from a building tap interfere —
+    // if a building was just tapped, ignore region changes for 600ms
+    if (Date.now() - lastBuildingPressTime.current < 600) return;
+
+    if (next.latitudeDelta < INDOOR_TRIGGER_DELTA) {
       const center = { latitude: next.latitude, longitude: next.longitude };
       const building = getBuildingContainingPoint(center, BUILDINGS);
-
       if (building) {
-        // Only update if it's a different building — avoid re-renders
         setSelectedBuilding((prev) =>
           prev?.name === building.name ? prev : building,
         );
         setIndoorVisible(true);
       }
-      // Don't hide if no building found at center — user may have panned slightly
-      // off-center while still zoomed in on a building
     } else {
       setIndoorVisible(false);
-      // Don't clear selectedBuilding here — let the user tap X or zoom out fully
+      setSelectedBuilding(null);
     }
-  }, []); // no selectedBuilding dependency needed — reads from map center directly
+  }, []);
 
   useEffect(() => {
     Animated.timing(labelsOpacity, {
@@ -440,18 +447,20 @@ export default function CampusMap({
   }, []);
   // Focus selected building
   useEffect(() => {
-    if (selectedBuilding && mapReady) {
+    if (selectedBuilding && mapReady && !indoorVisible) {
+      // Zoom in enough to see the building clearly, but NOT past INDOOR_TRIGGER_DELTA
+      // so we don't accidentally trigger indoor mode from a tap
       mapRef.current?.animateToRegion(
         {
           latitude: selectedBuilding.coordinates.latitude - 0.0011,
           longitude: selectedBuilding.coordinates.longitude,
-          latitudeDelta: 0.004,
-          longitudeDelta: 0.004,
+          latitudeDelta: 0.005, // stays above INDOOR_TRIGGER_DELTA (0.002)
+          longitudeDelta: 0.005,
         },
         300,
       );
     }
-  }, [selectedBuilding, mapReady]);
+  }, [selectedBuilding, mapReady, indoorVisible]);
   useEffect(() => {
     console.log("[Indoor Debug]", {
       selectedBuilding: selectedBuilding?.name ?? null,
@@ -473,6 +482,11 @@ export default function CampusMap({
       ? getBuildingContainingPoint(userCoords, BUILDINGS)
       : null;
   }, [userCoords, demoCurrentBuilding]);
+
+  useEffect(() => {
+    const mb = BUILDINGS.find((b) => b.name === "MB");
+    console.log("MB boundingBox:", JSON.stringify(mb?.boundingBox));
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -578,7 +592,41 @@ export default function CampusMap({
               <IndoorOverlay geojson={floorPlan} building={selectedBuilding} />
             );
           })()}
-
+        {/* TEMP DEBUG — remove after calibration */}
+        {indoorVisible &&
+          selectedBuilding &&
+          selectedBuilding.boundingBox.map((point, index) => {
+            const colors = ["red", "blue", "green", "orange", "purple", "pink"];
+            const labels = ["0", "1", "2", "3", "4", "5"];
+            return (
+              <Marker
+                key={`debug-corner-${index}`}
+                coordinate={point}
+                anchor={{ x: 0.5, y: 0.5 }}
+                title={`Point ${index}`}
+                description={`lat: ${point.latitude.toFixed(6)}, lng: ${point.longitude.toFixed(6)}`}
+              >
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: colors[index],
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 2,
+                    borderColor: "white",
+                  }}
+                >
+                  <Text
+                    style={{ color: "white", fontSize: 10, fontWeight: "bold" }}
+                  >
+                    {labels[index]}
+                  </Text>
+                </View>
+              </Marker>
+            );
+          })}
         {/* Labels */}
         {buildingsOnCampus.map((building) => (
           <Marker
@@ -730,7 +778,7 @@ export default function CampusMap({
       )}
 
       <BuildingInfoPopup
-        building={!indoorVisible ? selectedBuilding : null} // ← hide when indoor
+        building={!indoorVisible ? selectedBuilding : null}
         onClose={() => setSelectedBuilding(null)}
         onSetAsStart={(building) => {
           onSetAsStart?.(building);
