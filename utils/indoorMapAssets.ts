@@ -54,12 +54,18 @@ export function getFloorGeoJSON(
 }
 
 export function getRegisteredIndoorFloors(buildingName: string): number[] {
-  const imageFloors = Object.keys(FLOOR_IMAGE_REGISTRY[buildingName] ?? {}).map(Number);
-  const geoJsonFloors = Object.keys(FLOOR_GEOJSON_REGISTRY[buildingName] ?? {}).map(Number);
+  const imageFloors = Object.keys(FLOOR_IMAGE_REGISTRY[buildingName] ?? {}).map(
+    Number,
+  );
+  const geoJsonFloors = Object.keys(
+    FLOOR_GEOJSON_REGISTRY[buildingName] ?? {},
+  ).map(Number);
 
-  return Array.from(new Set([...imageFloors, ...geoJsonFloors])).sort((a, b) => {
-    if (a < 0 && b >= 0) return 1;
-    if (a >= 0 && b < 0) return -1;
-    return a - b;
-  });
+  return Array.from(new Set([...imageFloors, ...geoJsonFloors])).sort(
+    (a, b) => {
+      if (a < 0 && b >= 0) return 1;
+      if (a >= 0 && b < 0) return -1;
+      return a - b;
+    },
+  );
 }

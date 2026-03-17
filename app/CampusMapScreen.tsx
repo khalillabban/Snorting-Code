@@ -2,7 +2,7 @@ import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
@@ -12,10 +12,12 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
-import { colors, spacing, typography } from "../constants/theme";
+import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
+import { styles } from "../styles/CampusMapScreen.styles";
+
 import {
   getNextClassFromItems,
   loadCachedSchedule,
@@ -403,121 +405,3 @@ export default function CampusMapScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  campusToggleContainer: {
-    position: "absolute",
-    top: 30,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 10,
-    pointerEvents: "box-none",
-  },
-  campusToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  campusToggle: {
-    flexDirection: "row",
-    backgroundColor: colors.offWhite,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    borderRadius: 8,
-    overflow: "hidden",
-    maxWidth: 160,
-    opacity: 0.93,
-  },
-  routeFromCampusButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primaryDarker,
-    opacity: 0.93,
-  },
-  routeFromCampusButtonText: {
-    ...typography.button,
-    color: colors.white,
-    fontSize: 14,
-  },
-  campusToggleOption: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    alignItems: "center",
-  },
-  campusToggleOptionLeft: {
-    borderRightWidth: 1,
-    borderRightColor: colors.primaryDarker,
-  },
-  campusToggleOptionActive: {
-    backgroundColor: colors.primaryBarelyTransparent,
-  },
-  campusToggleText: {
-    color: colors.primary,
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.button.fontWeight,
-  },
-  campusToggleTextActive: {
-    color: colors.white,
-  },
-  indoorButton: {
-    position: "absolute",
-    top: 30,
-    right: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.offWhite,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    opacity: 0.93,
-    zIndex: 10,
-  },
-  indoorButtonText: {
-    color: colors.primary,
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.button.fontWeight,
-  },
-  buttonStack: {
-    position: "absolute",
-    bottom: 50,
-    right: spacing.md,
-    gap: 12,
-  },
-  actionButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.primary,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5,
-  },
-  myLocationButtonActive: {
-    backgroundColor: colors.primary,
-  },
-
-  shuttleDisabled: {
-    backgroundColor: "#666",
-    opacity: 0.8,
-  },
-
-  nextClassButton: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondaryDark,
-  },
-  nextClassButtonDisabled: {
-    backgroundColor: colors.gray500,
-    borderColor: colors.gray500,
-    opacity: 0.5,
-  },
-});
