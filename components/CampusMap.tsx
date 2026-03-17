@@ -29,14 +29,16 @@ import type {
   RouteSegment,
   RouteStep,
 } from "../constants/type";
-import { useFloorData } from "../hooks/useFloorData";
+import { useFloorData, type FloorPlan } from "../hooks/useFloorData";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
+import type { GeoJSONData } from "../utils/IndoorMapComposite";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 import { FloorSwitcher } from "./Floorswitcher";
 import { IndoorOverlay } from "./IndoorOverlay";
+import { IndoorSVGOverlay } from "./IndoorSVGOverlay";
 import { useShuttleBus } from "./ShuttleBusTracker";
 
 type CampusMapProps = Readonly<{
@@ -133,6 +135,17 @@ function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function isGeoJSONFloorPlan(
+  floorPlan: FloorPlan | null,
+): floorPlan is GeoJSONData {
+  return !!(
+    floorPlan &&
+    typeof floorPlan === "object" &&
+    "features" in floorPlan &&
+    Array.isArray((floorPlan as GeoJSONData).features)
+  );
 }
 
 export default function CampusMap({
@@ -578,20 +591,22 @@ export default function CampusMap({
         })}
 
         {/* ✅ IndoorOverlay — INSIDE <MapView>, AFTER the building polygons loop */}
-        {indoorVisible &&
-          floorPlan &&
-          selectedBuilding &&
-          (() => {
-            console.log("[Indoor Debug] IndoorOverlay rendering with", {
-              building: selectedBuilding.name,
-              featureCount: floorPlan.features.length,
-              hasBoundingBox: !!selectedBuilding.boundingBox?.length,
-              inGeoJsonBounds: ["MB"].includes(selectedBuilding.name), // update list as needed
-            });
-            return (
-              <IndoorOverlay geojson={floorPlan} building={selectedBuilding} />
-            );
-          })()}
+        {indoorVisible && floorPlan && selectedBuilding &&
+          (isGeoJSONFloorPlan(floorPlan) ? (
+            (() => {
+              console.log("[Indoor Debug] IndoorOverlay rendering with", {
+                building: selectedBuilding.name,
+                featureCount: floorPlan.features.length,
+                hasBoundingBox: !!selectedBuilding.boundingBox?.length,
+                inGeoJsonBounds: ["MB"].includes(selectedBuilding.name),
+              });
+              return (
+                <IndoorOverlay geojson={floorPlan} building={selectedBuilding} />
+              );
+            })()
+          ) : (
+            <IndoorSVGOverlay source={floorPlan} building={selectedBuilding} />
+          ))}
         {/* TEMP DEBUG — remove after calibration */}
         {indoorVisible &&
           selectedBuilding &&

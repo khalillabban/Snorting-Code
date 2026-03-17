@@ -6,17 +6,13 @@ import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanima
 import Svg, { Circle, Polygon, Polyline, Text as SvgText } from "react-native-svg";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
+import { getFloorGeoJSON } from "../utils/indoorMapAssets";
 import {
   buildIndoorPathData,
   findShortestIndoorPath,
   getPathDistance,
 } from "../utils/indoorNavigation";
 import { parseFloors } from "../utils/routeParams";
-
-export const FLOOR_GEOJSON: Record<string, any> = {
-  "MB-1": require("../assets/maps/MB-1.json"),
-  "MB--2": require("../assets/maps/MB-S2.json"),
-};
 
 export default function IndoorMapScreen() {
   const { buildingName, floors } = useLocalSearchParams<{ buildingName: string; floors: string }>();
@@ -28,9 +24,7 @@ export default function IndoorMapScreen() {
   const [selectingMode, setSelectingMode] = useState<"start" | "destination">("start");
   const [startSearchQuery, setStartSearchQuery] = useState("");
   const [destinationSearchQuery, setDestinationSearchQuery] = useState("");
-
-  const mapKey = `${buildingName}-${selectedFloor}`;
-  const geoAsset = FLOOR_GEOJSON[mapKey];
+  const geoAsset = getFloorGeoJSON(buildingName, selectedFloor);
 
   useEffect(() => {
     if (!availableFloors.includes(selectedFloor)) {
@@ -41,7 +35,11 @@ export default function IndoorMapScreen() {
   // Parse GeoJSON into Composite pattern structure
   useEffect(() => {
     if (geoAsset) {
-      const floor = parseGeoJSONToFloor(geoAsset, selectedFloor, buildingName || 'MB');
+      const floor = parseGeoJSONToFloor(
+        geoAsset,
+        selectedFloor,
+        buildingName || "MB",
+      );
       setFloorComposite(floor);
       setStartNodeId(null);
       setDestinationNodeId(null);
@@ -411,7 +409,7 @@ export default function IndoorMapScreen() {
           </GestureHandlerRootView>
         ) : (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <Text>No map available for {mapKey}</Text>
+            <Text>No map available for {`${buildingName}-${selectedFloor}`}</Text>
           </View>
         )}
       </View>

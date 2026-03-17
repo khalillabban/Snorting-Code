@@ -28,6 +28,10 @@ export type FloorGraphData = {
 
 const GRAPH_REGISTRY: Record<string, FloorGraphData> = {
   MB: require("../assets/maps/mb_floors_combined.json"),
+  H: require("../assets/maps/hall.json"),
+  VL: require("../assets/maps/vl_floors_combined.json"),
+  VE: require("../assets/maps/ve.json"),
+  CC: require("../assets/maps/cc1.json"),
 };
 
 export function getFloorGraphData(buildingId: string): FloorGraphData | null {
