@@ -1,7 +1,7 @@
 //THIS IS AN OTHER WAY TO DO THE NAVIGATION
 export type GraphNode = {
   id: string;
-  type: string; // "room" | "doorway" | "hallway_waypoint" | "elevator_door" | "stair_landing"
+  type: string;
   buildingId: string;
   floor: number;
   x: number;
@@ -13,7 +13,7 @@ export type GraphNode = {
 export type GraphEdge = {
   source: string;
   target: string;
-  type: string; // "hallway" | "door_to_hallway" | "elevator" | "stair"
+  type: string;
   weight: number;
   accessible: boolean;
 };

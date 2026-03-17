@@ -75,6 +75,11 @@ export function IndoorOverlay({ geojson, building, highlightedRoom }: Props) {
           .getCoordinates()
           .map(([x, y]) => pixelToLatLng(x, y, building));
 
+        const hasInvalidCoord = coordinates.some(
+          (c) => !isFinite(c.latitude) || !isFinite(c.longitude),
+        );
+        if (hasInvalidCoord) return null;
+
         return (
           <Polygon
             key={`indoor-${index}-${name}`}

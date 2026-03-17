@@ -15,25 +15,24 @@ export function IndoorSVGOverlay({ source, building }: Props) {
       maxLat = -Infinity;
     let minLng = Infinity,
       maxLng = -Infinity;
+
     for (const { latitude, longitude } of building.boundingBox) {
       minLat = Math.min(minLat, latitude);
       maxLat = Math.max(maxLat, latitude);
       minLng = Math.min(minLng, longitude);
       maxLng = Math.max(maxLng, longitude);
     }
-    return {
-      topLeft: { latitude: maxLat, longitude: minLng },
-      topRight: { latitude: maxLat, longitude: maxLng },
-      bottomLeft: { latitude: minLat, longitude: minLng },
-      bottomRight: { latitude: minLat, longitude: maxLng },
-    };
+
+    if (!isFinite(minLat)) return null;
+    return { minLat, maxLat, minLng, maxLng };
   }, [building.boundingBox]);
 
   if (!geoBounds) return null;
 
+  // southWest first, northEast second — Google Maps requirement
   const overlayBounds: [[number, number], [number, number]] = [
-    [geoBounds.topLeft.latitude, geoBounds.topLeft.longitude],
-    [geoBounds.bottomRight.latitude, geoBounds.bottomRight.longitude],
+    [geoBounds.minLat, geoBounds.minLng], // SW
+    [geoBounds.maxLat, geoBounds.maxLng], // NE
   ];
 
   return <Overlay bounds={overlayBounds} image={source} />;

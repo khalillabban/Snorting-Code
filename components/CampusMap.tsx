@@ -590,8 +590,10 @@ export default function CampusMap({
           );
         })}
 
-        {/* ✅ IndoorOverlay — INSIDE <MapView>, AFTER the building polygons loop */}
-        {indoorVisible && floorPlan && selectedBuilding &&
+        {/*  IndoorOverlay — INSIDE <MapView>, AFTER the building polygons loop */}
+        {indoorVisible &&
+          floorPlan &&
+          selectedBuilding &&
           (isGeoJSONFloorPlan(floorPlan) ? (
             (() => {
               console.log("[Indoor Debug] IndoorOverlay rendering with", {
@@ -601,7 +603,10 @@ export default function CampusMap({
                 inGeoJsonBounds: ["MB"].includes(selectedBuilding.name),
               });
               return (
-                <IndoorOverlay geojson={floorPlan} building={selectedBuilding} />
+                <IndoorOverlay
+                  geojson={floorPlan}
+                  building={selectedBuilding}
+                />
               );
             })()
           ) : (
