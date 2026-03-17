@@ -193,7 +193,7 @@ function LocationInputRow({
       <Pressable
         style={styles.pickButton}
         onPress={onPickPress}
-        testID={`${testID}-picker`} 
+        testID={`${testID}-picker`}
         accessibilityLabel={pickLabel}
         accessibilityRole="button"
       >
@@ -342,7 +342,10 @@ export default function NextClassDirectionsPanel({
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
-      Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
+      Animated.spring(translateY, {
+        toValue: SHEET_TOP,
+        ...SPRING_CONFIG,
+      }).start();
     } else {
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
@@ -406,7 +409,6 @@ export default function NextClassDirectionsPanel({
     finalizeSelection();
   };
 
-  // Generic toggle picker: if already open, close; else open with provided items
   const togglePicker = (
     inputType: "start" | "destination",
     currentList: unknown[],
@@ -438,7 +440,9 @@ export default function NextClassDirectionsPanel({
 
   const showCoursePicker = () => {
     togglePicker("destination", filteredCourses, () => {
-      setFilteredCourses(deduplicateCourses(getClassCourseItems(scheduleItems)));
+      setFilteredCourses(
+        deduplicateCourses(getClassCourseItems(scheduleItems)),
+      );
     });
   };
 
@@ -479,13 +483,15 @@ export default function NextClassDirectionsPanel({
         if (g.dy > 120 || g.vy > 0.5) {
           onClose();
         } else {
-          Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
+          Animated.spring(translateY, {
+            toValue: SHEET_TOP,
+            ...SPRING_CONFIG,
+          }).start();
         }
       },
     }),
   ).current;
 
-  // Render
   if (!shouldRender) return null;
 
   const showingList =
@@ -519,14 +525,12 @@ export default function NextClassDirectionsPanel({
                 <Text style={styles.classInfoLabel}>Next Class</Text>
                 {/* Row 1: course name (left), room (right) */}
                 <View style={styles.classInfoHeader}>
-                  <Text
-                    style={styles.classInfoTitle}
-                    testID="next-class-name"
-                  >
+                  <Text style={styles.classInfoTitle} testID="next-class-name">
                     {nextClass.courseName}
                   </Text>
                   <Text style={styles.classInfoLocation}>
-                    {fmtRoom(nextClass.building, nextClass.room) || nextClass.location}
+                    {fmtRoom(nextClass.building, nextClass.room) ||
+                      nextClass.location}
                   </Text>
                 </View>
                 {/* Row 2: date (left), time (right) */}
@@ -544,11 +548,15 @@ export default function NextClassDirectionsPanel({
             {/* Error banner */}
             {error && (
               <View style={styles.errorBanner} testID="next-class-error">
-                <MaterialIcons name="error-outline" size={18} color={colors.error} />
+                <MaterialIcons
+                  name="error-outline"
+                  size={18}
+                  color={colors.error}
+                />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            
+
             {/* Origin / Destination */}
             <View style={styles.originDestinationCard}>
               <LocationInputRow
@@ -598,7 +606,11 @@ export default function NextClassDirectionsPanel({
                 onChangeText={(t) => handleSearch("destination", t)}
                 groupStyle={[styles.inputGroup, styles.inputGroupLast]}
                 iconSlot={
-                  <MaterialIcons name="place" size={20} color={colors.primary} />
+                  <MaterialIcons
+                    name="place"
+                    size={20}
+                    color={colors.primary}
+                  />
                 }
                 onPickPress={showCoursePicker}
                 pickLabel="Pick destination from course list"
@@ -611,7 +623,9 @@ export default function NextClassDirectionsPanel({
                 <View style={styles.modeContainer}>
                   {ALL_STRATEGIES.map((strategy) => {
                     const isActive = selectedStrategy.mode === strategy.mode;
-                    const strategyColor = isActive ? colors.white : colors.primary;
+                    const strategyColor = isActive
+                      ? colors.white
+                      : colors.primary;
                     return (
                       <Pressable
                         key={strategy.mode}

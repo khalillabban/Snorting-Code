@@ -8,18 +8,13 @@ type Props = {
   readonly building: Buildings;
 };
 
-// Tightest possible axis-aligned bounds per building.
-// Since react-native-maps Overlay does NOT support rotation,
-// we use the min/max lat/lng of the actual building corners.
-// This is the best we can do with a PNG overlay — it will appear
-// slightly larger than the building on rotated buildings.
 const OVERLAY_BOUNDS: Record<
   string,
   { sw: [number, number]; ne: [number, number] }
 > = {
   H: {
-    sw: [45.49682818364492, -73.57954223351966], // min lat, min lng
-    ne: [45.497708183281496, -73.57833870872308], // max lat, max lng
+    sw: [45.49682818364492, -73.57954223351966],
+    ne: [45.497708183281496, -73.57833870872308],
   },
   MB: {
     sw: [45.495026633071944, -73.57962398739532],

@@ -6,15 +6,10 @@ import type { IndoorPathResult } from "../hooks/useIndoorPath";
 
 type Props = {
   pathResult: IndoorPathResult;
-  /** Color of the line — defaults to a vivid indoor blue */
   color?: string;
   showEndpoints?: boolean;
 };
 
-/**
- * Renders an indoor navigation path as a Polyline on top of the MapView.
- * Must be placed INSIDE a <MapView> component.
- */
 export function IndoorRouteOverlay({
   pathResult,
   color = "#1E90FF",

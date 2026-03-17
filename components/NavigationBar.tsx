@@ -23,7 +23,6 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   TouchableWithoutFeedback,
@@ -426,13 +425,13 @@ export default function NavigationBar({
 
               {/* Room badge for start */}
               {startRoom && (
-                <View style={localStyles.roomBadge}>
+                <View style={styles.roomBadge}>
                   <MaterialCommunityIcons
                     name="door"
                     size={14}
                     color={colors.primary}
                   />
-                  <Text style={localStyles.roomBadgeText}>
+                  <Text style={styles.roomBadgeText}>
                     Room {startRoom.label}
                   </Text>
                   <Pressable
@@ -497,15 +496,13 @@ export default function NavigationBar({
 
               {/* Room badge for destination */}
               {endRoom && (
-                <View style={localStyles.roomBadge}>
+                <View style={styles.roomBadge}>
                   <MaterialCommunityIcons
                     name="door"
                     size={14}
                     color={colors.primary}
                   />
-                  <Text style={localStyles.roomBadgeText}>
-                    Room {endRoom.label}
-                  </Text>
+                  <Text style={styles.roomBadgeText}>Room {endRoom.label}</Text>
                   <Pressable
                     onPress={() => {
                       setEndRoom(null);
@@ -607,8 +604,8 @@ export default function NavigationBar({
                       </Text>
                     </View>
                     {item.kind === "room" && (
-                      <View style={localStyles.roomTag}>
-                        <Text style={localStyles.roomTagText}>Room</Text>
+                      <View style={styles.roomTag}>
+                        <Text style={styles.roomTagText}>Room</Text>
                       </View>
                     )}
                   </Pressable>
@@ -625,35 +622,3 @@ export default function NavigationBar({
     </>
   );
 }
-
-const localStyles = StyleSheet.create({
-  roomBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginLeft: 36,
-    marginTop: 2,
-    marginBottom: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: colors.primaryLight ?? "#e8f0fe",
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  roomBadgeText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  roomTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: colors.primaryLight ?? "#e8f0fe",
-    borderRadius: 4,
-  },
-  roomTagText: {
-    fontSize: 10,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-});
