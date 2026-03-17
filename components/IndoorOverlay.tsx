@@ -1,7 +1,9 @@
+//IndoorOveray.ts
 import { GeoJSONData, parseGeoJSONToFloor } from "@/utils/IndoorMapComposite";
 import React, { useMemo } from "react";
 import { Polygon } from "react-native-maps";
 import type { Buildings } from "../constants/type";
+import type { LatLng } from "../hooks/useIndoorPath";
 import { pixelToLatLng } from "../utils/pixelToLatLng";
 
 type Feature = {
@@ -73,7 +75,8 @@ export function IndoorOverlay({ geojson, building, highlightedRoom }: Props) {
 
         const coordinates = node
           .getCoordinates()
-          .map(([x, y]) => pixelToLatLng(x, y, building));
+          .map(([x, y]) => pixelToLatLng(x, y, building))
+          .filter((c): c is LatLng => c !== null); // ← add this
 
         const hasInvalidCoord = coordinates.some(
           (c) => !isFinite(c.latitude) || !isFinite(c.longitude),

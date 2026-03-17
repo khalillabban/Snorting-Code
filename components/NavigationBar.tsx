@@ -1,3 +1,8 @@
+import {
+  getFloorGraphData,
+  getRoomsForFloor,
+  type GraphNode,
+} from "@/utils/IndoorNavigationGraph";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { BUILDINGS } from "../constants/buildings";
@@ -7,6 +12,7 @@ import { Buildings } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
+import { getAvailableFloors } from "../utils/mapAssets";
 
 import {
   Animated,
@@ -17,6 +23,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   TextInput,
   TouchableWithoutFeedback,
@@ -29,6 +36,81 @@ const SHEET_HEIGHT =
   Platform.OS === "android" ? SCREEN_HEIGHT * 0.75 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type SearchResult =
+  | { kind: "building"; building: Buildings }
+  | { kind: "room"; room: GraphNode; building: Buildings };
+
+function getSearchResultLabel(result: SearchResult): string {
+  if (result.kind === "building") return result.building.displayName;
+  return `${result.room.label} — ${result.building.displayName}`;
+}
+
+function getSearchResultBuilding(result: SearchResult): Buildings {
+  return result.kind === "building" ? result.building : result.building;
+}
+
+function getSearchResultRoom(result: SearchResult): GraphNode | null {
+  return result.kind === "room" ? result.room : null;
+}
+
+// ─── Build unified search index (buildings + all rooms) ──────────────────────
+
+type SearchIndex = SearchResult[];
+
+let _cachedIndex: SearchIndex | null = null;
+
+function getSearchIndex(): SearchIndex {
+  if (_cachedIndex) return _cachedIndex;
+
+  const index: SearchIndex = [];
+
+  for (const building of BUILDINGS) {
+    index.push({ kind: "building", building });
+
+    // Add rooms if the building has an indoor graph
+    const graphKey = building.name.startsWith("MB") ? "MB" : building.name;
+    const graphData = getFloorGraphData(graphKey);
+    if (!graphData) continue;
+
+    const floors = getAvailableFloors(building.name) ?? [];
+    for (const floor of floors) {
+      const rooms = getRoomsForFloor(graphData, floor);
+      for (const room of rooms) {
+        // Only add rooms that belong to this building
+        if (
+          room.buildingId === building.name ||
+          room.buildingId?.startsWith(building.name)
+        ) {
+          index.push({ kind: "room", room, building });
+        }
+      }
+    }
+  }
+
+  _cachedIndex = index;
+  return index;
+}
+
+function searchIndex(query: string, campusNorm?: string): SearchResult[] {
+  const q = query.toLowerCase().trim();
+  const index = getSearchIndex();
+
+  return index
+    .filter((item) => {
+      const label = getSearchResultLabel(item).toLowerCase();
+      const buildingName = item.building.name.toLowerCase();
+      const campusMatch = campusNorm
+        ? (item.building.campusName || "").toLowerCase() === campusNorm
+        : true;
+      return (label.includes(q) || buildingName.includes(q)) && campusMatch;
+    })
+    .slice(0, 20);
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 interface NavigationBarProps {
   visible: boolean;
   onClose: () => void;
@@ -36,6 +118,8 @@ interface NavigationBarProps {
     start: Buildings | null,
     destination: Buildings | null,
     strategy: RouteStrategy,
+    startRoom?: GraphNode | null,
+    endRoom?: GraphNode | null,
   ) => void;
   autoStartBuilding?: Buildings | null;
   initialStart?: Buildings | null;
@@ -45,6 +129,8 @@ interface NavigationBarProps {
   currentCampus?: CampusKey;
   onUseMyLocation?: () => Buildings | null;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function NavigationBar({
   visible,
@@ -65,8 +151,10 @@ export default function NavigationBar({
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
+  const [startRoom, setStartRoom] = useState<GraphNode | null>(null);
+  const [endRoom, setEndRoom] = useState<GraphNode | null>(null);
   const [startManuallyEdited, setStartManuallyEdited] = useState(false);
-  const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
+  const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
   >(null);
@@ -79,7 +167,7 @@ export default function NavigationBar({
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
 
   useEffect(() => {
-    if (!startBuilding || !destBuilding || filteredBuildings.length > 0) {
+    if (!startBuilding || !destBuilding || filteredResults.length > 0) {
       setRouteSummary(null);
       return;
     }
@@ -105,9 +193,8 @@ export default function NavigationBar({
     return () => {
       cancelled = true;
     };
-  }, [startBuilding, destBuilding, selectedStrategy, filteredBuildings.length]);
+  }, [startBuilding, destBuilding, selectedStrategy, filteredResults.length]);
 
-  // translateY is a stable ref (useRef) and intentionally omitted from deps
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
@@ -124,13 +211,14 @@ export default function NavigationBar({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateY is a stable ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   useEffect(() => {
     if (autoStartBuilding && !startManuallyEdited) {
       setStartLoc(autoStartBuilding.displayName);
       setStartBuilding(autoStartBuilding);
+      setStartRoom(null);
     }
   }, [autoStartBuilding, startManuallyEdited]);
 
@@ -138,6 +226,7 @@ export default function NavigationBar({
     if (visible && initialStart) {
       setStartLoc(initialStart.displayName);
       setStartBuilding(initialStart);
+      setStartRoom(null);
       onInitialStartApplied?.();
     }
   }, [visible, initialStart, onInitialStartApplied]);
@@ -146,6 +235,7 @@ export default function NavigationBar({
     if (visible && initialDestination) {
       setDestLoc(initialDestination.displayName);
       setDestBuilding(initialDestination);
+      setEndRoom(null);
       onInitialDestinationApplied?.();
     }
   }, [visible, initialDestination, onInitialDestinationApplied]);
@@ -155,47 +245,51 @@ export default function NavigationBar({
     if (type === "start") {
       setStartManuallyEdited(true);
       setStartLoc(text);
-    } else setDestLoc(text);
+      setStartRoom(null);
+    } else {
+      setDestLoc(text);
+      setEndRoom(null);
+    }
 
     if (text.length > 0) {
-      const filtered = BUILDINGS.filter(
-        (b) =>
-          b.displayName.toLowerCase().includes(text.toLowerCase()) ||
-          b.name.toLowerCase().includes(text.toLowerCase()),
-      );
-      setFilteredBuildings(filtered);
+      setFilteredResults(searchIndex(text));
     } else {
-      setFilteredBuildings([]);
+      setFilteredResults([]);
     }
   };
 
-  const selectBuilding = (building: Buildings) => {
+  const selectResult = (result: SearchResult) => {
+    const building = getSearchResultBuilding(result);
+    const room = getSearchResultRoom(result);
+
     if (activeInput === "start") {
-      setStartLoc(building.displayName);
+      setStartLoc(getSearchResultLabel(result));
       setStartBuilding(building);
+      setStartRoom(room);
     } else {
-      setDestLoc(building.displayName);
+      setDestLoc(getSearchResultLabel(result));
       setDestBuilding(building);
+      setEndRoom(room);
     }
-    setFilteredBuildings([]);
+    setFilteredResults([]);
     Keyboard.dismiss();
   };
 
   const showBuildingPicker = (type: "start" | "destination") => {
-    if (activeInput === type && filteredBuildings.length > 0) {
-      setFilteredBuildings([]);
+    if (activeInput === type && filteredResults.length > 0) {
+      setFilteredResults([]);
       setActiveInput(null);
       return;
     }
     setActiveInput(type);
     const campusNorm = currentCampus.toLowerCase();
-    const list = BUILDINGS.filter(
+    const results: SearchResult[] = BUILDINGS.filter(
       (b) =>
         b.boundingBox &&
         b.boundingBox.length >= 3 &&
         (b.campusName || "").toLowerCase() === campusNorm,
-    );
-    setFilteredBuildings(list);
+    ).map((b) => ({ kind: "building", building: b }));
+    setFilteredResults(results);
   };
 
   const handleUseMyLocation = () => {
@@ -204,13 +298,15 @@ export default function NavigationBar({
     if (building) {
       setStartLoc(building.displayName);
       setStartBuilding(building);
+      setStartRoom(null);
       setStartManuallyEdited(true);
     } else {
       setStartLoc("My Location");
       setStartBuilding(null);
+      setStartRoom(null);
       setStartManuallyEdited(true);
     }
-    setFilteredBuildings([]);
+    setFilteredResults([]);
     setActiveInput(null);
   };
 
@@ -219,11 +315,19 @@ export default function NavigationBar({
     setDestLoc(startLoc);
     setStartBuilding(destBuilding);
     setDestBuilding(startBuilding);
+    setStartRoom(endRoom);
+    setEndRoom(startRoom);
     setRouteSummary(null);
   };
 
   const handleConfirm = () => {
-    onConfirm(startBuilding, destBuilding, selectedStrategy);
+    onConfirm(
+      startBuilding,
+      destBuilding,
+      selectedStrategy,
+      startRoom,
+      endRoom,
+    );
     onClose();
   };
 
@@ -277,6 +381,7 @@ export default function NavigationBar({
 
           <View style={styles.content}>
             <View style={styles.originDestinationCard}>
+              {/* ── FROM ── */}
               <View style={[styles.inputGroup, styles.inputGroupFirst]}>
                 <View style={styles.inputIconWrap}>
                   <View style={styles.originDot} />
@@ -284,10 +389,16 @@ export default function NavigationBar({
                 <TextInput
                   testID="start-location-input"
                   style={styles.input}
-                  placeholder="From"
+                  placeholder="From — building or room (e.g. MB-1.210)"
                   placeholderTextColor={colors.gray500}
                   value={startLoc}
                   onChangeText={(text) => handleSearch(text, "start")}
+                  onFocus={() => {
+                    setActiveInput("start");
+                    if (startLoc.length > 0) {
+                      setFilteredResults(searchIndex(startLoc));
+                    }
+                  }}
                 />
                 {onUseMyLocation && (
                   <Pressable
@@ -312,6 +423,32 @@ export default function NavigationBar({
                   <MaterialIcons name="list" size={22} color={colors.primary} />
                 </Pressable>
               </View>
+
+              {/* Room badge for start */}
+              {startRoom && (
+                <View style={localStyles.roomBadge}>
+                  <MaterialCommunityIcons
+                    name="door"
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text style={localStyles.roomBadgeText}>
+                    Room {startRoom.label}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setStartRoom(null);
+                    }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={14}
+                      color={colors.gray500}
+                    />
+                  </Pressable>
+                </View>
+              )}
+
               <Pressable
                 style={styles.swapButton}
                 onPress={swapOriginDestination}
@@ -324,6 +461,8 @@ export default function NavigationBar({
                   color={colors.gray500}
                 />
               </Pressable>
+
+              {/* ── TO ── */}
               <View style={[styles.inputGroup, styles.inputGroupLast]}>
                 <View style={styles.inputIconWrap}>
                   <MaterialIcons
@@ -335,10 +474,16 @@ export default function NavigationBar({
                 <TextInput
                   testID="dest-location-input"
                   style={styles.input}
-                  placeholder="To"
+                  placeholder="To — building or room (e.g. H-520)"
                   placeholderTextColor={colors.gray500}
                   value={destLoc}
                   onChangeText={(text) => handleSearch(text, "destination")}
+                  onFocus={() => {
+                    setActiveInput("destination");
+                    if (destLoc.length > 0) {
+                      setFilteredResults(searchIndex(destLoc));
+                    }
+                  }}
                 />
                 <Pressable
                   style={styles.pickButton}
@@ -349,9 +494,34 @@ export default function NavigationBar({
                   <MaterialIcons name="list" size={22} color={colors.primary} />
                 </Pressable>
               </View>
+
+              {/* Room badge for destination */}
+              {endRoom && (
+                <View style={localStyles.roomBadge}>
+                  <MaterialCommunityIcons
+                    name="door"
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text style={localStyles.roomBadgeText}>
+                    Room {endRoom.label}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setEndRoom(null);
+                    }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={14}
+                      color={colors.gray500}
+                    />
+                  </Pressable>
+                </View>
+              )}
             </View>
 
-            {filteredBuildings.length === 0 && (
+            {filteredResults.length === 0 && (
               <View style={styles.modeSection}>
                 <View style={styles.modeContainer}>
                   {ALL_STRATEGIES.map((strategy) => (
@@ -402,31 +572,45 @@ export default function NavigationBar({
               </View>
             )}
 
-            {filteredBuildings.length > 0 ? (
+            {filteredResults.length > 0 ? (
               <FlatList
-                data={filteredBuildings}
-                keyExtractor={(item) => item.name}
+                data={filteredResults}
+                keyExtractor={(item, index) =>
+                  item.kind === "building"
+                    ? `b-${item.building.name}`
+                    : `r-${item.room.id}-${index}`
+                }
                 keyboardShouldPersistTaps="handled"
                 style={styles.suggestionList}
                 renderItem={({ item }) => (
                   <Pressable
-                    testID={`suggestion-${item.name}`} 
                     style={styles.suggestionItem}
-                    onPress={() => selectBuilding(item)}
+                    onPress={() => selectResult(item)}
                   >
                     <MaterialIcons
-                      name="business"
+                      name={item.kind === "room" ? "meeting-room" : "business"}
                       size={20}
-                      color={colors.primary}
+                      color={
+                        item.kind === "room" ? colors.secondary : colors.primary
+                      }
                     />
-                    <View style={{ marginLeft: 10 }}>
+                    <View style={{ marginLeft: 10, flex: 1 }}>
                       <Text style={styles.suggestionText}>
-                        {item.displayName}
+                        {item.kind === "room"
+                          ? item.room.label
+                          : item.building.displayName}
                       </Text>
                       <Text style={styles.suggestionSubtext}>
-                        {item.campusName}
+                        {item.kind === "room"
+                          ? `${item.building.displayName} · Floor ${item.room.floor}`
+                          : item.building.campusName}
                       </Text>
                     </View>
+                    {item.kind === "room" && (
+                      <View style={localStyles.roomTag}>
+                        <Text style={localStyles.roomTagText}>Room</Text>
+                      </View>
+                    )}
                   </Pressable>
                 )}
               />
@@ -441,3 +625,35 @@ export default function NavigationBar({
     </>
   );
 }
+
+const localStyles = StyleSheet.create({
+  roomBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: 36,
+    marginTop: 2,
+    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: colors.primaryLight ?? "#e8f0fe",
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  roomBadgeText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  roomTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: colors.primaryLight ?? "#e8f0fe",
+    borderRadius: 4,
+  },
+  roomTagText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+});

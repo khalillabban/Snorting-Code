@@ -1,3 +1,4 @@
+import type { GraphNode } from "@/utils/IndoorNavigationGraph";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
@@ -141,13 +142,19 @@ export default function CampusMapScreen() {
     setUserFocusCounter((c) => c + 1);
   };
 
+  const [startRoom, setStartRoom] = useState<GraphNode | null>(null);
+  const [endRoom, setEndRoom] = useState<GraphNode | null>(null);
   const handleConfirmRoute = (
     start: Buildings | null,
     dest: Buildings | null,
     strategy: RouteStrategy,
+    startRoomNode?: GraphNode | null,
+    endRoomNode?: GraphNode | null,
   ) => {
     setSelectedRoute({ start, dest });
     setSelectedStrategy(strategy);
+    setStartRoom(startRoomNode ?? null);
+    setEndRoom(endRoomNode ?? null);
     setIsNavVisible(false);
     if (start) {
       setRouteFocusTrigger((c) => c + 1);

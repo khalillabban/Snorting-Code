@@ -30,6 +30,7 @@ import type {
   RouteStep,
 } from "../constants/type";
 import { useFloorData, type FloorPlan } from "../hooks/useFloorData";
+import { useBothIndoorPaths } from "../hooks/useIndoorPath";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
 import type { GeoJSONData } from "../utils/IndoorMapComposite";
@@ -38,6 +39,7 @@ import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
 import { FloorSwitcher } from "./Floorswitcher";
 import { IndoorOverlay } from "./IndoorOverlay";
+import { IndoorRouteOverlay } from "./IndoorRouteOverlay";
 import { IndoorSVGOverlay } from "./IndoorSVGOverlay";
 import { useShuttleBus } from "./ShuttleBusTracker";
 
@@ -57,6 +59,10 @@ type CampusMapProps = Readonly<{
   onSetAsMyLocation?: (building: Buildings) => void;
   onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
   onIndoorFloorsAvailable?: (floors: number[]) => void;
+  startRoomId?: string | null;
+  endRoomId?: string | null;
+  startBuildingName?: string | null;
+  endBuildingName?: string | null;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -164,6 +170,10 @@ export default function CampusMap({
   onSetAsMyLocation,
   onBuildingSelected,
   onIndoorFloorsAvailable,
+  startRoomId,
+  endRoomId,
+  startBuildingName,
+  endBuildingName,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -196,6 +206,34 @@ export default function CampusMap({
     onBuildingSelected,
     onIndoorFloorsAvailable,
   ]);
+  const { startPath, endPath } = useBothIndoorPaths(
+    startBuildingName ?? null,
+    startRoomId ?? null,
+    endBuildingName ?? null,
+    endRoomId ?? null,
+    false, // accessibleOnly — could wire to a toggle later
+  );
+  // Which indoor path to show based on which building is currently zoomed in
+  /*const activeIndoorPath = useMemo(() => {
+    if (!indoorVisible || !selectedBuilding) return null;
+    const buildingBase = selectedBuilding.name.split("-")[0];
+    if (startPath && startPath.buildingName.startsWith(buildingBase)) {
+      return startPath;
+    }
+    if (endPath && endPath.buildingName.startsWith(buildingBase)) {
+      return endPath;
+    }
+    return null;
+  }, [indoorVisible, selectedBuilding, startPath, endPath]);*/
+  {
+    /* Indoor paths — always visible when rooms are selected */
+  }
+  {
+    startPath && <IndoorRouteOverlay pathResult={startPath} color="#1E90FF" />;
+  }
+  {
+    endPath && <IndoorRouteOverlay pathResult={endPath} color="#1E90FF" />;
+  }
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -454,9 +492,9 @@ export default function CampusMap({
     }
   }, [startPoint, mapReady, routeFocusTrigger]);
   useEffect(() => {
-    const mb = BUILDINGS.find((b) => b.name === "MB");
-    console.log("MB boundingBox:", JSON.stringify(mb?.boundingBox));
-    console.log("MB coordinates:", JSON.stringify(mb?.coordinates));
+    const h = BUILDINGS.find((b) => b.name === "H");
+    console.log("H boundingBox:", JSON.stringify(h?.boundingBox));
+    console.log("H coordinates:", JSON.stringify(h?.coordinates));
   }, []);
   // Focus selected building
   useEffect(() => {
@@ -612,6 +650,20 @@ export default function CampusMap({
           ) : (
             <IndoorSVGOverlay source={floorPlan} building={selectedBuilding} />
           ))}
+        {startPath && (
+          <IndoorRouteOverlay
+            pathResult={startPath}
+            color="#1E90FF"
+            showEndpoints={true}
+          />
+        )}
+        {endPath && (
+          <IndoorRouteOverlay
+            pathResult={endPath}
+            color="#1E90FF"
+            showEndpoints={true}
+          />
+        )}
         {/* TEMP DEBUG — remove after calibration */}
         {indoorVisible &&
           selectedBuilding &&
