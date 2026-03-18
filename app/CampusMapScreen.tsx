@@ -215,6 +215,15 @@ export default function CampusMapScreen() {
         onIndoorFloorsAvailable={(floors) =>
           setIndoorAvailableFloors(floors ?? [])
         }
+        onUserEnterBuilding={(building, availableFloors) => {
+          router.push({
+            pathname: "/IndoorMapScreen",
+            params: {
+              buildingName: building.name,
+              floors: JSON.stringify(availableFloors),
+            },
+          });
+        }}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">

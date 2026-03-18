@@ -6,6 +6,7 @@ import {
   getForegroundPermissionsAsync,
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
+  watchPositionAsync,
 } from "expo-location";
 import React, {
   useCallback,
@@ -37,10 +38,6 @@ import type { GeoJSONData } from "../utils/IndoorMapComposite";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
-import { FloorSwitcher } from "./Floorswitcher";
-import { IndoorOverlay } from "./IndoorOverlay";
-import { IndoorRouteOverlay } from "./IndoorRouteOverlay";
-import { IndoorSVGOverlay } from "./IndoorSVGOverlay";
 import { useShuttleBus } from "./ShuttleBusTracker";
 
 type CampusMapProps = Readonly<{
@@ -59,6 +56,7 @@ type CampusMapProps = Readonly<{
   onSetAsMyLocation?: (building: Buildings) => void;
   onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
   onIndoorFloorsAvailable?: (floors: number[]) => void;
+  onUserEnterBuilding?: (building: Buildings, availableFloors: number[]) => void;
   startRoomId?: string | null;
   endRoomId?: string | null;
   startBuildingName?: string | null;
@@ -168,6 +166,7 @@ export default function CampusMap({
   onSetAsMyLocation,
   onBuildingSelected,
   onIndoorFloorsAvailable,
+  onUserEnterBuilding,
   startRoomId,
   endRoomId,
   startBuildingName,
@@ -223,15 +222,7 @@ export default function CampusMap({
     }
     return null;
   }, [indoorVisible, selectedBuilding, startPath, endPath]);*/
-  {
-    /* Indoor paths — always visible when rooms are selected */
-  }
-  {
-    startPath && <IndoorRouteOverlay pathResult={startPath} color="#1E90FF" />;
-  }
-  {
-    endPath && <IndoorRouteOverlay pathResult={endPath} color="#1E90FF" />;
-  }
+
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -331,6 +322,7 @@ export default function CampusMap({
   // Load current GPS location
   useEffect(() => {
     let cancelled = false;
+    let locationSubscription: { remove: () => void } | null = null;
 
     async function loadCurrentLocation() {
       try {
@@ -371,6 +363,22 @@ export default function CampusMap({
         });
 
         setLocationError(null);
+
+        locationSubscription = await watchPositionAsync(
+          {
+            accuracy: Accuracy.Balanced,
+            distanceInterval: 3,
+            timeInterval: 1000,
+          },
+          (position) => {
+            if (cancelled) return;
+            setUserCoords({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            setLocationError(null);
+          },
+        );
       } catch {
         if (!cancelled) {
           setLocationError("Unable to get your current location.");
@@ -383,8 +391,30 @@ export default function CampusMap({
 
     return () => {
       cancelled = true;
+      locationSubscription?.remove();
     };
   }, []);
+
+  // Detect when user enters a building with available floors
+  const lastBuildingEntryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!userCoords) return;
+
+    const building = getBuildingContainingPoint(userCoords, BUILDINGS);
+    if (!building) {
+      lastBuildingEntryRef.current = null;
+      return;
+    }
+
+    // Only trigger once per building entry
+    if (lastBuildingEntryRef.current === building.name) return;
+
+    const floors = getAvailableFloors(building.name);
+    if (floors && floors.length > 0) {
+      lastBuildingEntryRef.current = building.name;
+      onUserEnterBuilding?.(building, floors);
+    }
+  }, [userCoords, onUserEnterBuilding]);
 
   // Fetch route (and steps) when start/destination/strategy changes
   useEffect(() => {
@@ -626,77 +656,7 @@ export default function CampusMap({
           );
         })}
 
-        {/*  IndoorOverlay — INSIDE <MapView>, AFTER the building polygons loop */}
-        {indoorVisible &&
-          floorPlan &&
-          selectedBuilding &&
-          (isGeoJSONFloorPlan(floorPlan) ? (
-            (() => {
-              console.log("[Indoor Debug] IndoorOverlay rendering with", {
-                building: selectedBuilding.name,
-                featureCount: floorPlan.features.length,
-                hasBoundingBox: !!selectedBuilding.boundingBox?.length,
-                inGeoJsonBounds: ["MB"].includes(selectedBuilding.name),
-              });
-              return (
-                <IndoorOverlay
-                  geojson={floorPlan}
-                  building={selectedBuilding}
-                />
-              );
-            })()
-          ) : (
-            <IndoorSVGOverlay source={floorPlan} building={selectedBuilding} />
-          ))}
-        {startPath && (
-          <IndoorRouteOverlay
-            pathResult={startPath}
-            color="#1E90FF"
-            showEndpoints={true}
-          />
-        )}
-        {endPath && (
-          <IndoorRouteOverlay
-            pathResult={endPath}
-            color="#1E90FF"
-            showEndpoints={true}
-          />
-        )}
-        {/* TEMP DEBUG — remove after calibration */}
-        {indoorVisible &&
-          selectedBuilding &&
-          selectedBuilding.boundingBox.map((point, index) => {
-            const colors = ["red", "blue", "green", "orange", "purple", "pink"];
-            const labels = ["0", "1", "2", "3", "4", "5"];
-            return (
-              <Marker
-                key={`debug-corner-${index}`}
-                coordinate={point}
-                anchor={{ x: 0.5, y: 0.5 }}
-                title={`Point ${index}`}
-                description={`lat: ${point.latitude.toFixed(6)}, lng: ${point.longitude.toFixed(6)}`}
-              >
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: colors[index],
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 2,
-                    borderColor: "white",
-                  }}
-                >
-                  <Text
-                    style={{ color: "white", fontSize: 10, fontWeight: "bold" }}
-                  >
-                    {labels[index]}
-                  </Text>
-                </View>
-              </Marker>
-            );
-          })}
+
         {/* Labels */}
         {buildingsOnCampus.map((building) => (
           <Marker
@@ -819,27 +779,7 @@ export default function CampusMap({
       {/* ^^^ MapView closes here */}
 
       {/*sFloorSwitcher — OUTSIDE <MapView>, inside the root <View> */}
-      {indoorVisible && (availableFloors ?? []).length > 0 && (
-        <FloorSwitcher
-          floors={availableFloors}
-          activeFloor={activeFloor}
-          onFloorChange={setActiveFloor}
-          onExit={() => {
-            setIndoorVisible(false);
-            setSelectedBuilding(null);
-            // Zoom back out so handleRegionChangeComplete won't immediately re-trigger
-            mapRef.current?.animateToRegion(
-              {
-                latitude: region.latitude,
-                longitude: region.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              },
-              300,
-            );
-          }}
-        />
-      )}
+      {/* Floor switcher removed — app now uses full-screen IndoorMapScreen modal */}
 
       {locationError && (
         <View style={styles.errorBanner}>
