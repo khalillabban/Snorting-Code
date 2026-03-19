@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -68,6 +68,8 @@ export default function IndoorMapScreen() {
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
   );
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const [mapViewport, setMapViewport] = useState({ width: 0, height: 0 });
   const initialRoomQuery =
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
@@ -99,9 +101,37 @@ export default function IndoorMapScreen() {
     () => getFloorImageDimensions(floorImageAsset, currentFloorRooms),
     [currentFloorRooms, floorImageAsset],
   );
+  const showFloorImageMap = floorImageAsset != null;
+  const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor =
     selectedRoom?.floor === selectedFloor ? selectedRoom : null;
+
+  const currentFloorFocusPoint = useMemo(() => {
+    if (selectedRoomOnCurrentFloor) {
+      return {
+        x: selectedRoomOnCurrentFloor.x,
+        y: selectedRoomOnCurrentFloor.y,
+      };
+    }
+
+    if (currentFloorRooms.length > 0) {
+      const minX = Math.min(...currentFloorRooms.map((room) => room.x));
+      const maxX = Math.max(...currentFloorRooms.map((room) => room.x));
+      const minY = Math.min(...currentFloorRooms.map((room) => room.y));
+      const maxY = Math.max(...currentFloorRooms.map((room) => room.y));
+
+      return {
+        x: (minX + maxX) / 2,
+        y: (minY + maxY) / 2,
+      };
+    }
+
+    return {
+      x: floorImageDimensions.width / 2,
+      y: floorImageDimensions.height / 2,
+    };
+  }, [currentFloorRooms, floorImageDimensions, selectedRoomOnCurrentFloor]);
 
   const MIN_SCALE = 1;
   const MAX_SCALE = 5;
@@ -172,8 +202,46 @@ export default function IndoorMapScreen() {
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
   }, [availableFloors, initialRoomQuery, performRoomSearch]);
 
-  const showFloorImageMap = floorImageAsset != null;
-  const showNoMapMessage = !showFloorImageMap;
+  useEffect(() => {
+    if (
+      !showFloorImageMap ||
+      mapViewport.width <= 0 ||
+      mapViewport.height <= 0 ||
+      typeof scrollViewRef.current?.scrollTo !== "function"
+    ) {
+      return;
+    }
+
+    const maxOffsetX = Math.max(
+      floorImageDimensions.width - mapViewport.width,
+      0,
+    );
+    const maxOffsetY = Math.max(
+      floorImageDimensions.height - mapViewport.height,
+      0,
+    );
+    const offsetX = Math.min(
+      Math.max(currentFloorFocusPoint.x - mapViewport.width / 2, 0),
+      maxOffsetX,
+    );
+    const offsetY = Math.min(
+      Math.max(currentFloorFocusPoint.y - mapViewport.height / 2, 0),
+      maxOffsetY,
+    );
+
+    scrollViewRef.current.scrollTo({
+      x: offsetX,
+      y: offsetY,
+      animated: selectedRoomOnCurrentFloor != null,
+    });
+  }, [
+    currentFloorFocusPoint,
+    floorImageDimensions,
+    mapViewport,
+    selectedFloor,
+    selectedRoomOnCurrentFloor,
+    showFloorImageMap,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -248,12 +316,20 @@ export default function IndoorMapScreen() {
         </ScrollView>
       </View>
 
-      <View style={styles.mapContainer}>
+      <View
+        style={styles.mapContainer}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setMapViewport({ width, height });
+        }}
+      >
         {showFloorImageMap ? (
           <GestureHandlerRootView style={{ flex: 1 }}>
             <GestureDetector gesture={pinchGesture}>
               <Animated.View style={[{ flex: 1 }, animatedStyle]}>
                 <ScrollView
+                  ref={scrollViewRef}
+                  centerContent
                   contentContainerStyle={styles.scrollContent}
                   maximumZoomScale={5}
                   minimumZoomScale={1}
