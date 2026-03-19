@@ -280,18 +280,6 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {selectedBuilding && selectedBuildingIndoorAccess.hasIndoorMap && (
-        <Pressable
-          onPress={() => openIndoorMap(selectedBuilding.name)}
-          testID="indoor-view-toggle"
-          style={styles.indoorButton}
-        >
-          <Text style={styles.indoorButtonText}>
-            Indoor Map
-          </Text>
-        </Pressable>
-      )}
-
       {/* Left button stack: shuttle status + shuttle schedule */}
       <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
         <Pressable
@@ -479,24 +467,6 @@ const styles = StyleSheet.create({
   },
   campusToggleTextActive: {
     color: colors.white,
-  },
-  indoorButton: {
-    position: "absolute",
-    top: 30,
-    right: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.offWhite,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    opacity: 0.93,
-    zIndex: 10,
-  },
-  indoorButtonText: {
-    color: colors.primary,
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.button.fontWeight,
   },
   buttonStack: {
     position: "absolute",
