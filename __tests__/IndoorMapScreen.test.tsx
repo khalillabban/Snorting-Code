@@ -76,10 +76,29 @@ jest.mock("../utils/IndoorMapComposite", () => ({
   parseGeoJSONToFloor: jest.fn(),
 }));
 
+jest.mock("../utils/mapAssets", () => ({
+  getLegacyFloorGeoJsonAsset: jest.fn(),
+  getFloorImageAsset: jest.fn(),
+}));
+
+jest.mock("../utils/indoorBuildingPlan", () => ({
+  compactIndoorSearchKey: (value: string) =>
+    value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
+  getNormalizedBuildingPlan: jest.fn(),
+}));
+
+jest.mock("../utils/indoorRoomSearch", () => ({
+  findIndoorRoomMatch: jest.fn(),
+}));
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
+import { colors } from "../constants/theme";
 import { parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
+import { getFloorImageAsset, getLegacyFloorGeoJsonAsset } from "../utils/mapAssets";
+import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 
 const mockFloor = {
   getChildren: () => [
@@ -130,12 +149,85 @@ const mockFloor = {
   ],
 };
 
+const mockHallRoom = {
+  id: "Hall_F8_room_291",
+  buildingCode: "H",
+  floor: 8,
+  label: "H-867",
+  roomNumber: "867",
+  x: 138,
+  y: 210,
+  accessible: true,
+  searchTerms: ["H-867", "867"],
+  searchKeys: ["H867", "867"],
+};
+
+const mockMBRoom = {
+  id: "MB_F1_room_1.210",
+  buildingCode: "MB",
+  floor: 1,
+  label: "MB-1.210",
+  roomNumber: "1.210",
+  x: 652,
+  y: 340,
+  accessible: true,
+  searchTerms: ["MB-1.210", "1.210"],
+  searchKeys: ["MB1210", "1210"],
+};
+
+const mockHallPlan = {
+  buildingCode: "H",
+  floors: [1, 2, 8, 9],
+  rooms: [mockHallRoom],
+  roomsByFloor: {
+    1: [],
+    2: [],
+    8: [mockHallRoom],
+    9: [],
+  },
+};
+
+const mockMBPlan = {
+  buildingCode: "MB",
+  floors: [-2, 1],
+  rooms: [mockMBRoom],
+  roomsByFloor: {
+    [-2]: [],
+    1: [mockMBRoom],
+  },
+};
+
 describe("IndoorMapScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     pinchUpdateHandler = undefined;
     pinchEndHandler = undefined;
     (parseGeoJSONToFloor as jest.Mock).mockReturnValue(mockFloor);
+    (getLegacyFloorGeoJsonAsset as jest.Mock).mockImplementation(
+      (buildingCode: string, floor: number) => {
+        const normalized = (buildingCode ?? "").trim().toUpperCase();
+        return normalized === "MB" && [1, -2].includes(floor)
+          ? { type: "FeatureCollection", features: [] }
+          : undefined;
+      },
+    );
+    (getFloorImageAsset as jest.Mock).mockImplementation((buildingCode: string) => {
+      const normalized = (buildingCode ?? "").trim().toUpperCase();
+      return normalized === "H" ? 1 : undefined;
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockImplementation(
+      (buildingCode: string) => {
+        const normalized = (buildingCode ?? "").trim().toUpperCase();
+        if (normalized === "H") return mockHallPlan;
+        if (normalized === "MB") return mockMBPlan;
+        return null;
+      },
+    );
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+    (require("react-native").Image.resolveAssetSource as any) = jest.fn(() => ({
+      width: 1000,
+      height: 800,
+    }));
   });
 
   it("renders with building name and floor selector", async () => {
@@ -147,7 +239,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText("🏛️ Inside MB Building")).toBeTruthy();
+      expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
       expect(screen.getByText("1")).toBeTruthy();
       expect(screen.getByText("-2")).toBeTruthy();
     });
@@ -346,7 +438,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText("🏛️ Inside MB Building")).toBeTruthy();
+      expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
     });
   });
 
@@ -428,6 +520,93 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("No map available for MB-1")).toBeTruthy();
+    });
+  });
+  it("renders room search controls", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("room-search-input")).toBeTruthy();
+      expect(screen.getByTestId("room-search-button")).toBeTruthy();
+    });
+  });
+  it("finds a room on another floor and shows a marker on the destination floor", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockHallRoom,
+      floor: 8,
+      matchType: "exact_label",
+      score: 900,
+    });
+
+    render(<IndoorMapScreen />);
+
+    fireEvent.changeText(screen.getByTestId("room-search-input"), "H-867");
+    fireEvent.press(screen.getByTestId("room-search-button"));
+
+    await waitFor(() => {
+      expect(findIndoorRoomMatch).toHaveBeenCalledWith(mockHallPlan, "H-867", {
+        currentFloor: 1,
+      });
+      expect(screen.getByTestId("selected-room-banner")).toBeTruthy();
+      expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
+      expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
+      expect(screen.getByTestId("floor-button-8").props.accessibilityState).toEqual({
+        selected: true,
+      });
+    });
+  });
+  it("shows a not-found message when room lookup fails", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+
+    render(<IndoorMapScreen />);
+
+    fireEvent.changeText(screen.getByTestId("room-search-input"), "H-999");
+    fireEvent.press(screen.getByTestId("room-search-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("room-search-error")).toBeTruthy();
+      expect(screen.getByText('Room "H-999" was not found in H.')).toBeTruthy();
+    });
+  });
+  it("highlights the selected MB room polygon after a successful search", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockMBRoom,
+      floor: 1,
+      matchType: "exact_room",
+      score: 850,
+    });
+
+    render(<IndoorMapScreen />);
+
+    fireEvent.changeText(screen.getByTestId("room-search-input"), "1.210");
+    fireEvent.press(screen.getByTestId("room-search-button"));
+
+    await waitFor(() => {
+      const fills = screen
+        .getAllByTestId("polygon-fill")
+        .map((node) => node.props.children);
+      expect(fills).toContain(colors.secondary);
+      expect(screen.getByText("Showing MB-1.210 on floor 1")).toBeTruthy();
     });
   });
   it("handles pinch gesture update and end", async () => {
