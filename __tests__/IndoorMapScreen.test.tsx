@@ -13,7 +13,9 @@ jest.mock("react-native-gesture-handler", () => {
   const { View } = require("react-native");
 
   return {
-    GestureHandlerRootView: ({ children, ...props }: any) => <View {...props}>{children}</View>,
+    GestureHandlerRootView: ({ children, ...props }: any) => (
+      <View {...props}>{children}</View>
+    ),
     GestureDetector: ({ children }: any) => <View>{children}</View>,
     Gesture: {
       Pinch: () => ({
@@ -32,58 +34,15 @@ jest.mock("react-native-gesture-handler", () => {
 
 jest.mock("react-native-reanimated", () => {
   const Reanimated = require("react-native-reanimated/mock");
-
-  Reanimated.default.call = () => { };
-
+  Reanimated.default.call = () => {};
   return Reanimated;
 });
 
-jest.mock("react-native-svg", () => {
-  const React = require("react");
-  const { View, Text: RNText } = require("react-native");
-  return {
-    __esModule: true,
-    default: ({ children, viewBox, ...props }: any) => (
-      <View testID="svg-container" {...props}>
-        <RNText testID="svg-viewbox">{viewBox}</RNText>
-        {children}
-      </View>
-    ),
-    Svg: ({ children, viewBox, ...props }: any) => (
-      <View testID="svg-container" {...props}>
-        <RNText testID="svg-viewbox">{viewBox}</RNText>
-        {children}
-      </View>
-    ),
-    Polygon: ({ points, fill, stroke, ...props }: any) => (
-      <View testID="svg-polygon" {...props}>
-        <RNText testID="polygon-points">{points}</RNText>
-        <RNText testID="polygon-fill">{fill}</RNText>
-        <RNText testID="polygon-stroke">{stroke}</RNText>
-      </View>
-    ),
-    Text: ({ children, x, y, ...props }: any) => (
-      <View testID="svg-text" {...props}>
-        <RNText testID="text-x">{x}</RNText>
-        <RNText testID="text-y">{y}</RNText>
-        <RNText testID="text-content">{children}</RNText>
-      </View>
-    ),
-  };
-}, { virtual: true });
-
-jest.mock("../utils/IndoorMapComposite", () => ({
-  parseGeoJSONToFloor: jest.fn(),
-}));
-
 jest.mock("../utils/mapAssets", () => ({
-  getLegacyFloorGeoJsonAsset: jest.fn(),
   getFloorImageAsset: jest.fn(),
 }));
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
-  compactIndoorSearchKey: (value: string) =>
-    value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
   getNormalizedBuildingPlan: jest.fn(),
 }));
 
@@ -94,60 +53,9 @@ jest.mock("../utils/indoorRoomSearch", () => ({
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
-import { colors } from "../constants/theme";
-import { parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
-import { getFloorImageAsset, getLegacyFloorGeoJsonAsset } from "../utils/mapAssets";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { getFloorImageAsset } from "../utils/mapAssets";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-
-const mockFloor = {
-  getChildren: () => [
-    {
-      getCoordinates: () => [
-        [100, 100],
-        [200, 100],
-        [200, 200],
-        [100, 200],
-      ],
-      getType: () => "room",
-      getCentroid: () => [1336.4054409066177, 740.9680186177128],
-      getName: () => "1.210",
-    },
-    {
-      getCoordinates: () => [
-        [300, 100],
-        [400, 100],
-        [400, 200],
-        [300, 200],
-      ],
-      getType: () => "hallway",
-      getCentroid: () => [350, 150],
-      getName: () => "Hallway",
-    },
-    {
-      getCoordinates: () => [
-        [500, 100],
-        [600, 100],
-        [600, 200],
-        [500, 200],
-      ],
-      getType: () => "room",
-      getCentroid: () => [550, 150],
-      getName: () => "Elevator Block",
-    },
-    {
-      getCoordinates: () => [
-        [700, 100],
-        [800, 100],
-        [800, 200],
-        [700, 200],
-      ],
-      getType: () => "room",
-      getCentroid: () => [750, 150],
-      getName: () => "block",
-    },
-  ],
-};
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",
@@ -206,19 +114,16 @@ describe("IndoorMapScreen", () => {
     jest.clearAllMocks();
     pinchUpdateHandler = undefined;
     pinchEndHandler = undefined;
-    (parseGeoJSONToFloor as jest.Mock).mockReturnValue(mockFloor);
-    (getLegacyFloorGeoJsonAsset as jest.Mock).mockImplementation(
+
+    (getFloorImageAsset as jest.Mock).mockImplementation(
       (buildingCode: string, floor: number) => {
         const normalized = (buildingCode ?? "").trim().toUpperCase();
-        return normalized === "MB" && [1, -2].includes(floor)
-          ? { type: "FeatureCollection", features: [] }
-          : undefined;
+        if (normalized === "H" && [1, 2, 8, 9].includes(floor)) return 1;
+        if (normalized === "MB" && [1, -2].includes(floor)) return 2;
+        return undefined;
       },
     );
-    (getFloorImageAsset as jest.Mock).mockImplementation((buildingCode: string) => {
-      const normalized = (buildingCode ?? "").trim().toUpperCase();
-      return normalized === "H" ? 1 : undefined;
-    });
+
     (getNormalizedBuildingPlan as jest.Mock).mockImplementation(
       (buildingCode: string) => {
         const normalized = (buildingCode ?? "").trim().toUpperCase();
@@ -227,6 +132,7 @@ describe("IndoorMapScreen", () => {
         return null;
       },
     );
+
     (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
     (require("react-native").Image.resolveAssetSource as any) = jest.fn(() => ({
       width: 1000,
@@ -246,6 +152,7 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
       expect(screen.getByText("1")).toBeTruthy();
       expect(screen.getByText("-2")).toBeTruthy();
+      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
     });
   });
 
@@ -258,11 +165,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(parseGeoJSONToFloor).toHaveBeenCalledWith(
-        expect.anything(),
-        1,
-        "MB"
-      );
+      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", 1);
     });
   });
 
@@ -278,130 +181,10 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText("-2")).toBeTruthy();
     });
 
-    const floor2Button = screen.getByText("-2");
-    fireEvent.press(floor2Button);
+    fireEvent.press(screen.getByText("-2"));
 
     await waitFor(() => {
-      expect(parseGeoJSONToFloor).toHaveBeenCalledWith(
-        expect.anything(),
-        -2,
-        "MB"
-      );
-    });
-  });
-
-  it("parses GeoJSON into composite pattern structure", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      expect(parseGeoJSONToFloor).toHaveBeenCalled();
-      const polygons = screen.getAllByTestId("svg-polygon");
-      expect(polygons.length).toBeGreaterThan(0);
-    });
-  });
-
-  it("renders SVG polygons from composite floor children", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const polygons = screen.getAllByTestId("svg-polygon");
-      expect(polygons.length).toBeGreaterThan(0);
-    });
-  });
-
-  it("renders room labels from composite nodes", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const textElements = screen.getAllByTestId("svg-text");
-      const textContents = textElements.map(el =>
-        el.findByProps({ testID: "text-content" })?.props.children
-      );
-      expect(textContents).toContain("1.210");
-      expect(textContents).toContain("Hallway");
-    });
-  });
-
-  it("does not render labels for Elevator Block or block rooms", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const textElements = screen.getAllByTestId("svg-text");
-      const textContents = textElements.map(el =>
-        el.findByProps({ testID: "text-content" })?.props.children
-      );
-      expect(textContents).not.toContain("Elevator Block");
-      expect(textContents).not.toContain("block");
-    });
-  });
-
-  it("uses centroid values from the composite node", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const textElements = screen.getAllByTestId("svg-text");
-      const roomText = textElements.find(el =>
-        el.findByProps({ testID: "text-content" })?.props.children === "1.210"
-      );
-      expect(roomText?.findByProps({ testID: "text-x" })?.props.children).toBe(1336.4054409066177);
-      expect(roomText?.findByProps({ testID: "text-y" })?.props.children).toBe(740.9680186177128);
-    });
-  });
-
-  it("applies different colors for hallways vs rooms", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const polygons = screen.getAllByTestId("svg-polygon");
-      expect(polygons.length).toBeGreaterThan(0);
-
-      const fills = polygons.map(p => p.findByProps({ testID: "polygon-fill" })?.props.children);
-      const uniqueFills = [...new Set(fills)];
-      expect(uniqueFills.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  it("calculates viewBox bounds with padding from composite floor", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const viewBox = screen.getByTestId("svg-viewbox").props.children;
-      expect(viewBox).toMatch(/^-?\d+\s+-?\d+\s+\d+\s+\d+$/);
+      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", -2);
     });
   });
 
@@ -418,21 +201,6 @@ describe("IndoorMapScreen", () => {
     });
   });
 
-  it("uses composite pattern methods to get children", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    // If polygons render, getChildren() was called on the Floor composite
-    await waitFor(() => {
-      const polygons = screen.getAllByTestId("svg-polygon");
-      expect(polygons.length).toBeGreaterThan(0);
-    });
-  });
-
   it("handles empty floors array gracefully", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
@@ -443,59 +211,6 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
-    });
-  });
-
-  it("renders ScrollView for pan and zoom support", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    const { UNSAFE_getAllByType } = render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const scrollViews = UNSAFE_getAllByType(require("react-native").ScrollView);
-      expect(scrollViews.length).toBe(2);
-    });
-  });
-  it("resets selectedFloor when the available floors change and current floor is no longer valid", async () => {
-    let params = {
-      buildingName: "MB",
-      floors: JSON.stringify([1, -2]),
-    };
-
-    (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
-
-    const { rerender } = render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByText("-2")).toBeTruthy();
-    });
-
-    fireEvent.press(screen.getByText("-2"));
-
-    await waitFor(() => {
-      expect(parseGeoJSONToFloor).toHaveBeenCalledWith(
-        expect.anything(),
-        -2,
-        "MB"
-      );
-    });
-
-    params = {
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    };
-
-    rerender(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      expect(parseGeoJSONToFloor).toHaveBeenCalledWith(
-        expect.anything(),
-        1,
-        "MB"
-      );
     });
   });
 
@@ -512,20 +227,6 @@ describe("IndoorMapScreen", () => {
     });
   });
 
-  it("uses the null floorComposite path when parser returns null", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    (parseGeoJSONToFloor as jest.Mock).mockReturnValue(null);
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByText("No map available for MB-1")).toBeTruthy();
-    });
-  });
   it("renders room search controls", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -539,6 +240,7 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByTestId("room-search-button")).toBeTruthy();
     });
   });
+
   it("finds a room on another floor and shows a marker on the destination floor", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -569,6 +271,7 @@ describe("IndoorMapScreen", () => {
       });
     });
   });
+
   it("shows a not-found message when room lookup fails", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -587,7 +290,8 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText('Room "H-999" was not found in H.')).toBeTruthy();
     });
   });
-  it("highlights the selected MB room polygon after a successful search", async () => {
+
+  it("highlights the selected MB room with the marker overlay after a successful search", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
       floors: JSON.stringify([1, -2]),
@@ -606,13 +310,11 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByTestId("room-search-button"));
 
     await waitFor(() => {
-      const fills = screen
-        .getAllByTestId("polygon-fill")
-        .map((node) => node.props.children);
-      expect(fills).toContain(colors.secondary);
+      expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
       expect(screen.getByText("Showing MB-1.210 on floor 1")).toBeTruthy();
     });
   });
+
   it("auto-searches the roomQuery param on load", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -638,6 +340,53 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
     });
   });
+
+  it("resets selectedFloor when the available floors change and current floor is no longer valid", async () => {
+    let params = {
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+    };
+
+    (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
+
+    const { rerender } = render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("-2")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("-2"));
+
+    await waitFor(() => {
+      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", -2);
+    });
+
+    params = {
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+    };
+
+    rerender(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", 1);
+    });
+  });
+
+  it("renders ScrollView for pan and zoom support", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+    });
+
+    const { UNSAFE_getAllByType } = render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      const scrollViews = UNSAFE_getAllByType(require("react-native").ScrollView);
+      expect(scrollViews.length).toBe(2);
+    });
+  });
+
   it("handles pinch gesture update and end", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
@@ -647,7 +396,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("svg-polygon").length).toBeGreaterThan(0);
+      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
     });
 
     expect(pinchUpdateHandler).toBeTruthy();
@@ -655,8 +404,8 @@ describe("IndoorMapScreen", () => {
 
     pinchUpdateHandler!({ scale: 2 });
     pinchEndHandler!();
-
   });
+
   it("clamps pinch scale between min and max", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
@@ -666,7 +415,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("svg-polygon").length).toBeGreaterThan(0);
+      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
     });
 
     pinchUpdateHandler!({ scale: 0.1 });

@@ -18,19 +18,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
-import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
 import {
-  compactIndoorSearchKey,
   getNormalizedBuildingPlan,
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
-import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import {
-  getFloorImageAsset,
-  getLegacyFloorGeoJsonAsset,
-} from "../utils/mapAssets";
+import { getFloorImageAsset } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
 
 function getFloorImageDimensions(
@@ -69,7 +63,6 @@ export default function IndoorMapScreen() {
   }>();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
@@ -79,7 +72,6 @@ export default function IndoorMapScreen() {
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
   const mapKey = `${buildingName}-${selectedFloor}`;
-  const geoAsset = getLegacyFloorGeoJsonAsset(buildingName || "", selectedFloor);
   const floorImageAsset = getFloorImageAsset(buildingName || "", selectedFloor);
   const normalizedBuildingPlan = useMemo(
     () => (buildingName ? getNormalizedBuildingPlan(buildingName) : null),
@@ -97,48 +89,6 @@ export default function IndoorMapScreen() {
       setSelectedFloor(availableFloors[0] || 1);
     }
   }, [availableFloors, selectedFloor]);
-
-  useEffect(() => {
-    if (geoAsset) {
-      const floor = parseGeoJSONToFloor(
-        geoAsset,
-        selectedFloor,
-        buildingName || "MB",
-      );
-      setFloorComposite(floor);
-    } else {
-      setFloorComposite(null);
-    }
-  }, [geoAsset, selectedFloor, buildingName]);
-
-  const geoBounds = useMemo(() => {
-    if (!floorComposite) {
-      return { minX: 0, minY: 0, width: 2048, height: 2048 };
-    }
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    floorComposite.getChildren().forEach((child) => {
-      child.getCoordinates().forEach(([x, y]) => {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      });
-    });
-
-    const padding = 50;
-
-    return {
-      minX: minX - padding,
-      minY: minY - padding,
-      width: maxX - minX + padding * 2,
-      height: maxY - minY + padding * 2,
-    };
-  }, [floorComposite]);
 
   const currentFloorRooms = useMemo(
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
@@ -194,7 +144,7 @@ export default function IndoorMapScreen() {
 
       if (!match) {
         setSelectedRoom(null);
-        setSearchError(`Room "${trimmedQuery}" was not found in ${buildingName}.`);
+        setSearchError(`Room \"${trimmedQuery}\" was not found in ${buildingName}.`);
         return;
       }
 
@@ -222,22 +172,13 @@ export default function IndoorMapScreen() {
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
   }, [availableFloors, initialRoomQuery, performRoomSearch]);
 
-  const isSelectedRoomNode = (nodeName: string) => {
-    if (!selectedRoomOnCurrentFloor) return false;
-
-    return selectedRoomOnCurrentFloor.searchKeys.includes(
-      compactIndoorSearchKey(nodeName),
-    );
-  };
-
-  const showLegacyVectorMap = floorComposite != null;
-  const showFloorImageMap = !showLegacyVectorMap && floorImageAsset != null;
-  const showNoMapMessage = !showLegacyVectorMap && !showFloorImageMap;
+  const showFloorImageMap = floorImageAsset != null;
+  const showNoMapMessage = !showFloorImageMap;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}> ðŸ›ï¸ Inside {buildingName} Building</Text>
+        <Text style={styles.title}>Inside {buildingName} Building</Text>
       </View>
 
       <View style={styles.searchPanel}>
@@ -308,86 +249,7 @@ export default function IndoorMapScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        {showLegacyVectorMap ? (
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <GestureDetector gesture={pinchGesture}>
-              <Animated.View style={[{ flex: 1 }, animatedStyle]}>
-                <ScrollView
-                  contentContainerStyle={styles.scrollContent}
-                  maximumZoomScale={5}
-                  minimumZoomScale={1}
-                  showsHorizontalScrollIndicator={false}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View
-                    style={{
-                      width: geoBounds.width,
-                      height: geoBounds.height,
-                    }}
-                  >
-                    <Svg
-                      width={geoBounds.width}
-                      height={geoBounds.height}
-                      viewBox={`${geoBounds.minX} ${geoBounds.minY} ${geoBounds.width} ${geoBounds.height}`}
-                    >
-                      {floorComposite.getChildren().map((node) => {
-                        const coords = node.getCoordinates();
-                        const polygonPoints = coords
-                          .map(([x, y]) => `${x},${y}`)
-                          .join(" ");
-                        const isHallway = node.getType() === "hallway";
-                        const isSelectedRoom =
-                          node.getType() === "room" &&
-                          isSelectedRoomNode(node.getName());
-                        const fillColor = isSelectedRoom
-                          ? colors.secondary
-                          : isHallway
-                            ? colors.gray100
-                            : colors.white;
-                        const strokeColor = isSelectedRoom
-                          ? colors.primaryDark
-                          : isHallway
-                            ? colors.gray300
-                            : colors.gray100;
-                        const centroid = node.getCentroid();
-
-                        return (
-                          <React.Fragment
-                            key={`${node.getName()}-${centroid.join(",")}`}
-                          >
-                            <Polygon
-                              points={polygonPoints}
-                              fill={fillColor}
-                              stroke={strokeColor}
-                              strokeWidth="2"
-                            />
-                            {node.getName() !== "Elevator Block" &&
-                              node.getName() !== "block" && (
-                                <SvgText
-                                  x={centroid[0]}
-                                  y={centroid[1]}
-                                  fill={
-                                    isSelectedRoom
-                                      ? colors.primaryDark
-                                      : colors.gray500
-                                  }
-                                  fontSize="24"
-                                  fontWeight="bold"
-                                  textAnchor="middle"
-                                >
-                                  {node.getName()}
-                                </SvgText>
-                              )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </Svg>
-                  </View>
-                </ScrollView>
-              </Animated.View>
-            </GestureDetector>
-          </GestureHandlerRootView>
-        ) : showFloorImageMap ? (
+        {showFloorImageMap ? (
           <GestureHandlerRootView style={{ flex: 1 }}>
             <GestureDetector gesture={pinchGesture}>
               <Animated.View style={[{ flex: 1 }, animatedStyle]}>
@@ -457,10 +319,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
     backgroundColor: colors.secondaryLight,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.xs,
   },
   title: {
     flex: 1,

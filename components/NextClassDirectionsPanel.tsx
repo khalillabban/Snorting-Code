@@ -144,7 +144,7 @@ function SuggestionList({
             testID={`nc-course-${item.id}`}
             iconName="school"
             primaryText={item.courseName}
-            secondaryText={`${fmtRoom(item.building, item.room)} · ${item.campus}`}
+            secondaryText={`${fmtRoom(item.building, item.room)} - ${item.campus}`}
             onPress={() => onSelectCourse(item)}
           />
         )}
@@ -517,7 +517,7 @@ export default function NextClassDirectionsPanel({
           </View>
 
           <View style={styles.content}>
-            {/* Next‑class info card */}
+            {/* Next-class info card */}
             {nextClass && (
               <View style={styles.classInfoCard}>
                 <Text style={styles.classInfoLabel}>Next Class</Text>
@@ -539,7 +539,7 @@ export default function NextClassDirectionsPanel({
                     {fmtDate(nextClass.start)}
                   </Text>
                   <Text style={styles.classInfoTime}>
-                    {fmtTime(nextClass.start)} – {fmtTime(nextClass.end)}
+                    {fmtTime(nextClass.start)} - {fmtTime(nextClass.end)}
                   </Text>
                 </View>
               </View>
@@ -655,10 +655,10 @@ export default function NextClassDirectionsPanel({
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
                     {routeSummaryLoading
-                      ? "Loading…"
+                      ? "Loading..."
                       : [routeSummary?.duration, routeSummary?.distance]
                           .filter(Boolean)
-                          .join(" · ") || "—"}
+                          .join(" - ") || "-"}
                   </Text>
                 )}
               </View>
