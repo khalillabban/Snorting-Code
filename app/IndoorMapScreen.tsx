@@ -343,6 +343,7 @@ export default function IndoorMapScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchPanel}>
+        <Text style={styles.buildingTitle}>{buildingName} Building</Text>
         <View style={styles.searchRow}>
           <TextInput
             testID="room-search-input"
@@ -509,10 +510,16 @@ const styles = StyleSheet.create({
   },
   searchPanel: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     backgroundColor: colors.white,
     gap: spacing.xs,
+  },
+  buildingTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.primaryDark,
+    marginBottom: spacing.xs,
   },
   searchRow: {
     flexDirection: "row",
