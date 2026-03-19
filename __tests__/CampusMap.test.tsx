@@ -16,6 +16,7 @@ import { BUILDINGS } from "../constants/buildings";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
+import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 jest.mock("../components/ShuttleBusTracker", () => ({
@@ -36,6 +37,10 @@ jest.mock("expo-location", () => ({
 
 jest.mock("../services/GoogleDirectionsService", () => ({
   getOutdoorRouteWithSteps: jest.fn(),
+}));
+
+jest.mock("../utils/mapAssets", () => ({
+  getAvailableFloors: jest.fn(),
 }));
 
 jest.mock("react-native-maps", () => {
@@ -168,6 +173,8 @@ jest.mock("../components/BuildingInfoPopup", () => {
       onSetAsStart,
       onSetAsDestination,
       onSetAsMyLocation, // Add this to the mock props
+      hasIndoorMap,
+      onViewIndoorMap,
     }: any) => {
       if (!building) return null;
       return (
@@ -185,6 +192,14 @@ jest.mock("../components/BuildingInfoPopup", () => {
           <Pressable testID="building-info-set-my-loc" onPress={() => onSetAsMyLocation?.(building)}>
             <Text>Set as my location</Text>
           </Pressable>
+          {hasIndoorMap && onViewIndoorMap ? (
+            <Pressable
+              testID="building-info-view-indoor"
+              onPress={() => onViewIndoorMap()}
+            >
+              <Text>Open indoor map</Text>
+            </Pressable>
+          ) : null}
           <Text testID="building-info-close" onPress={onClose}>
             close
           </Text>
@@ -219,6 +234,9 @@ describe("CampusMap", () => {
       coords: { latitude: 50.0, longitude: -70.0 },
     });
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(null);
+    (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) =>
+      buildingCode === "A" ? [1, 2] : [],
+    );
   });
 
   afterEach(() => {
@@ -461,6 +479,28 @@ describe("CampusMap", () => {
     fireEvent.press(setMyLocBtn);
 
     expect(onSetAsMyLocation).toHaveBeenCalled();
+  });
+
+  it("surfaces the indoor action from the building popup when the building has indoor floors", async () => {
+    const onViewIndoorMap = jest.fn();
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onViewIndoorMap={onViewIndoorMap}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
+
+    fireEvent.press(screen.getAllByTestId("polygon")[0]);
+    fireEvent.press(screen.getByTestId("building-info-view-indoor"));
+
+    expect(onViewIndoorMap).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "A" }),
+    );
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
   });
 
   it("does not crash when no route is available", async () => {

@@ -93,7 +93,7 @@ describe("BuildingInfoPopup", () => {
 
   it("calls onClose when close button is pressed", () => {
     render(<BuildingInfoPopup building={fullBuilding} onClose={onClose} />);
-    fireEvent.press(screen.getByText("\u2715"));
+    fireEvent.press(screen.getByText("X"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -327,5 +327,36 @@ describe("BuildingInfoPopup", () => {
     expect(screen.getByText("Set as start")).toBeTruthy();
     expect(screen.getByText("Set as destination")).toBeTruthy();
     expect(screen.getByText("Set as my location (demo)")).toBeTruthy();
+  });
+
+  it("shows the indoor button when indoor access is available", () => {
+    const onViewIndoorMap = jest.fn();
+
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        hasIndoorMap={true}
+        onViewIndoorMap={onViewIndoorMap}
+      />,
+    );
+
+    expect(screen.getByTestId("popup-view-indoor")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("popup-view-indoor"));
+    expect(onViewIndoorMap).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the indoor button when the building has no indoor map", () => {
+    render(
+      <BuildingInfoPopup
+        building={fullBuilding}
+        onClose={onClose}
+        hasIndoorMap={false}
+        onViewIndoorMap={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("popup-view-indoor")).toBeNull();
   });
 });

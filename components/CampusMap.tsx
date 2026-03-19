@@ -51,6 +51,7 @@ type CampusMapProps = Readonly<{
   onSetAsMyLocation?: (building: Buildings) => void;
   onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
   onIndoorFloorsAvailable?: (floors: number[]) => void;
+  onViewIndoorMap?: (building: Buildings) => void;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -147,6 +148,7 @@ export default function CampusMap({
   onSetAsMyLocation,
   onBuildingSelected,
   onIndoorFloorsAvailable,
+  onViewIndoorMap,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -658,6 +660,14 @@ export default function CampusMap({
           setSelectedBuilding(null);
         }}
         hasIndoorMap={availableFloors.length > 0}
+        onViewIndoorMap={
+          availableFloors.length > 0 && selectedBuilding
+            ? () => {
+                onViewIndoorMap?.(selectedBuilding);
+                setSelectedBuilding(null);
+              }
+            : undefined
+        }
       />
     </View>
   );

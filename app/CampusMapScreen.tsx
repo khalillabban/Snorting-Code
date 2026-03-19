@@ -16,7 +16,10 @@ import { colors, spacing, typography } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
-import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
+import {
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
+} from "../utils/indoorAccess";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
@@ -51,8 +54,9 @@ export default function CampusMapScreen() {
     campus === "loyola" ? "loyola" : "sgw",
   );
 
-  const [selectedBuildingWithMap, setSelectedBuildingWithMap] = useState<Buildings | null>(null);
-  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
+    null,
+  );
 
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -168,28 +172,24 @@ export default function CampusMapScreen() {
   const hasActiveRoute =
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
-  const nextClassIndoorFloors =
-    nextClass?.building ? getAvailableFloors(nextClass.building) : [];
+  const selectedBuildingIndoorAccess = useMemo(
+    () => getIndoorAccessState(selectedBuilding?.name),
+    [selectedBuilding],
+  );
+  const nextClassIndoorAccess = useMemo(
+    () => getIndoorAccessState(nextClass?.building),
+    [nextClass?.building],
+  );
   const canOpenNextClassIndoorMap = Boolean(
-    nextClass?.building &&
-    nextClass.room.trim() &&
-    nextClassIndoorFloors.length > 0 &&
-    hasBuildingPlanAsset(nextClass.building),
+    nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
 
   const openIndoorMap = useCallback(
-    (buildingCode: string, floors: number[], roomQuery?: string) => {
-      const params: {
-        buildingName: string;
-        floors: string;
-        roomQuery?: string;
-      } = {
-        buildingName: buildingCode,
-        floors: JSON.stringify(floors),
-      };
+    (buildingCode?: string | null, roomQuery?: string) => {
+      const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
 
-      if (roomQuery?.trim()) {
-        params.roomQuery = roomQuery.trim();
+      if (!params) {
+        return;
       }
 
       router.push({
@@ -201,21 +201,12 @@ export default function CampusMapScreen() {
   );
 
   const handleOpenNextClassIndoorMap = useCallback(() => {
-    if (
-      !nextClass?.building ||
-      !nextClass.room.trim() ||
-      !hasBuildingPlanAsset(nextClass.building)
-    ) {
-      return;
-    }
-
-    const floors = getAvailableFloors(nextClass.building);
-    if (floors.length === 0) {
+    if (!nextClass?.room.trim()) {
       return;
     }
 
     setIsNextClassVisible(false);
-    openIndoorMap(nextClass.building, floors, nextClass.room);
+    openIndoorMap(nextClass?.building, nextClass.room);
   }, [nextClass, openIndoorMap]);
 
   return (
@@ -242,10 +233,10 @@ export default function CampusMapScreen() {
         onSetAsMyLocation={(building) => {
           setDemoCurrentBuilding(building);
         }}
-        onBuildingSelected={(building, hasMap) => {
-          setSelectedBuildingWithMap(hasMap ? building : null);
+        onBuildingSelected={(building) => {
+          setSelectedBuilding(building);
         }}
-        onIndoorFloorsAvailable={(floors) => setIndoorAvailableFloors(floors)}
+        onViewIndoorMap={(building) => openIndoorMap(building.name)}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -289,16 +280,14 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {selectedBuildingWithMap && (
+      {selectedBuilding && selectedBuildingIndoorAccess.hasIndoorMap && (
         <Pressable
-          onPress={() =>
-            openIndoorMap(selectedBuildingWithMap.name, indoorAvailableFloors)
-          }
+          onPress={() => openIndoorMap(selectedBuilding.name)}
           testID="indoor-view-toggle"
           style={styles.indoorButton}
         >
           <Text style={styles.indoorButtonText}>
-            Indoor
+            Indoor Map
           </Text>
         </Pressable>
       )}

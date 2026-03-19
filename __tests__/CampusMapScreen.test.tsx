@@ -104,7 +104,7 @@ jest.mock("../components/CampusMap", () => {
         title="Select Building Without Map"
         onPress={() =>
           props.onBuildingSelected?.(
-            { name: "H", displayName: "Hall" },
+            { name: "EV", displayName: "EV Building" },
             false,
           )
         }
@@ -114,6 +114,13 @@ jest.mock("../components/CampusMap", () => {
         testID="trigger-indoor-floors"
         title="Set Indoor Floors"
         onPress={() => props.onIndoorFloorsAvailable?.([1, 2, 8])}
+      />
+      <Button
+        testID="trigger-popup-open-indoor"
+        title="Open Indoor From Popup"
+        onPress={() =>
+          props.onViewIndoorMap?.({ name: "H", displayName: "Hall" })
+        }
       />
     </View>
   );
@@ -135,6 +142,9 @@ jest.mock("../constants/campuses", () => ({
 jest.mock("../utils/mapAssets", () => ({
   getAvailableFloors: jest.fn(),
   hasBuildingPlanAsset: jest.fn(),
+  normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
+    (buildingCode ?? "").trim().toUpperCase(),
+  ),
 }));
 
 jest.mock("../components/ShuttleBusTracker", () => ({
@@ -1052,7 +1062,6 @@ describe("CampusMapScreen", () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
 
       const indoorButton = screen.getByTestId("indoor-view-toggle");
@@ -1186,7 +1195,6 @@ describe("CampusMapScreen", () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
       expect(screen.getByTestId("indoor-view-toggle")).toBeTruthy();
 
@@ -1198,9 +1206,23 @@ describe("CampusMapScreen", () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
       fireEvent.press(screen.getByTestId("indoor-view-toggle"));
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/IndoorMapScreen",
+        params: {
+          buildingName: "H",
+          floors: JSON.stringify([1, 2, 8]),
+        },
+      });
+    });
+
+    it("uses the same normalized indoor route when opening from the building popup flow", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
 
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",

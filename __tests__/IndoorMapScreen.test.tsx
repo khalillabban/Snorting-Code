@@ -5,41 +5,12 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
 }));
 
-let pinchUpdateHandler: any;
-let pinchEndHandler: any;
-
-jest.mock("react-native-gesture-handler", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-
-  return {
-    GestureHandlerRootView: ({ children, ...props }: any) => (
-      <View {...props}>{children}</View>
-    ),
-    GestureDetector: ({ children }: any) => <View>{children}</View>,
-    Gesture: {
-      Pinch: () => ({
-        onUpdate: jest.fn(function (cb) {
-          pinchUpdateHandler = cb;
-          return this;
-        }),
-        onEnd: jest.fn(function (cb) {
-          pinchEndHandler = cb;
-          return this;
-        }),
-      }),
-    },
-  };
-});
-
-jest.mock("react-native-reanimated", () => {
-  const Reanimated = require("react-native-reanimated/mock");
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
-
 jest.mock("../utils/mapAssets", () => ({
   getFloorImageAsset: jest.fn(),
+  getLegacyFloorGeoJsonAsset: jest.fn(),
+  normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
+    (buildingCode ?? "").trim().toUpperCase(),
+  ),
 }));
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
@@ -112,8 +83,6 @@ const mockMBPlan = {
 describe("IndoorMapScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    pinchUpdateHandler = undefined;
-    pinchEndHandler = undefined;
 
     (getFloorImageAsset as jest.Mock).mockImplementation(
       (buildingCode: string, floor: number) => {
@@ -152,6 +121,7 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
       expect(screen.getByText("1")).toBeTruthy();
       expect(screen.getByText("-2")).toBeTruthy();
+      expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
       expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
     });
   });
@@ -265,6 +235,9 @@ describe("IndoorMapScreen", () => {
       });
       expect(screen.getByTestId("selected-room-banner")).toBeTruthy();
       expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
+      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
+        "H-867",
+      );
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
       expect(screen.getByTestId("floor-button-8").props.accessibilityState).toEqual({
         selected: true,
@@ -337,6 +310,9 @@ describe("IndoorMapScreen", () => {
       });
       expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
       expect(screen.getByTestId("room-search-input").props.value).toBe("H-867");
+      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
+        "H-867",
+      );
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
     });
   });
@@ -373,21 +349,7 @@ describe("IndoorMapScreen", () => {
     });
   });
 
-  it("renders ScrollView for pan and zoom support", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    const { UNSAFE_getAllByType } = render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      const scrollViews = UNSAFE_getAllByType(require("react-native").ScrollView);
-      expect(scrollViews.length).toBe(2);
-    });
-  });
-
-  it("handles pinch gesture update and end", async () => {
+  it("renders the floor inside the fitted stage container", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
       floors: JSON.stringify([1]),
@@ -396,32 +358,10 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
+      expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
+      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
+        "Search a room to pin it on the floor plan.",
+      );
     });
-
-    expect(pinchUpdateHandler).toBeTruthy();
-    expect(pinchEndHandler).toBeTruthy();
-
-    pinchUpdateHandler!({ scale: 2 });
-    pinchEndHandler!();
-  });
-
-  it("clamps pinch scale between min and max", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      buildingName: "MB",
-      floors: JSON.stringify([1]),
-    });
-
-    render(<IndoorMapScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
-    });
-
-    pinchUpdateHandler!({ scale: 0.1 });
-    pinchEndHandler!();
-
-    pinchUpdateHandler!({ scale: 100 });
-    pinchEndHandler!();
   });
 });

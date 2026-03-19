@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -8,24 +8,60 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
 import { colors, spacing, typography } from "../constants/theme";
 import {
   getNormalizedBuildingPlan,
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getFloorImageAsset } from "../utils/mapAssets";
+import {
+  getFloorImageAsset,
+  getLegacyFloorGeoJsonAsset,
+  normalizeIndoorBuildingCode,
+  type LegacyFloorGeoJsonAsset,
+} from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
+
+const FLOOR_FRAME_PADDING = spacing.md;
+const FLOOR_CONTENT_PADDING = 120;
+const MIN_CONTENT_SPAN = 260;
+const MARKER_SIZE = 28;
+const DEFAULT_VIEWPORT_HEIGHT = 420;
+
+type FloorViewport = {
+  width: number;
+  height: number;
+};
+
+type FloorBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+type FloorStageLayout = {
+  frameLeft: number;
+  frameTop: number;
+  frameWidth: number;
+  frameHeight: number;
+  imageLeft: number;
+  imageTop: number;
+  imageWidth: number;
+  imageHeight: number;
+  scale: number;
+};
+
+type FloorPoint = {
+  x: number;
+  y: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
 
 function getFloorImageDimensions(
   floorImageAsset: number | undefined,
@@ -55,12 +91,225 @@ function getFloorImageDimensions(
   };
 }
 
+function getFloorContentBounds(
+  floorImageDimensions: { width: number; height: number },
+  currentFloorRooms: IndoorRoomRecord[],
+  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
+): FloorBounds {
+  const legacyBounds = getLegacyFloorBounds(legacyFloorGeoJson);
+  if (legacyBounds) {
+    return legacyBounds;
+  }
+
+  if (currentFloorRooms.length === 0) {
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: floorImageDimensions.width,
+      maxY: floorImageDimensions.height,
+    };
+  }
+
+  const rawMinX = clamp(
+    Math.min(...currentFloorRooms.map((room) => room.x)) - FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.width,
+  );
+  const rawMaxX = clamp(
+    Math.max(...currentFloorRooms.map((room) => room.x)) + FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.width,
+  );
+  const rawMinY = clamp(
+    Math.min(...currentFloorRooms.map((room) => room.y)) - FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.height,
+  );
+  const rawMaxY = clamp(
+    Math.max(...currentFloorRooms.map((room) => room.y)) + FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.height,
+  );
+
+  const centerX = (rawMinX + rawMaxX) / 2;
+  const centerY = (rawMinY + rawMaxY) / 2;
+  const targetWidth = Math.min(
+    floorImageDimensions.width,
+    Math.max(rawMaxX - rawMinX, MIN_CONTENT_SPAN),
+  );
+  const targetHeight = Math.min(
+    floorImageDimensions.height,
+    Math.max(rawMaxY - rawMinY, MIN_CONTENT_SPAN),
+  );
+  const minX = clamp(
+    centerX - targetWidth / 2,
+    0,
+    Math.max(floorImageDimensions.width - targetWidth, 0),
+  );
+  const minY = clamp(
+    centerY - targetHeight / 2,
+    0,
+    Math.max(floorImageDimensions.height - targetHeight, 0),
+  );
+
+  return {
+    minX,
+    minY,
+    maxX: minX + targetWidth,
+    maxY: minY + targetHeight,
+  };
+}
+
+function getPolygonCentroid(points: number[][]): FloorPoint | null {
+  if (!points || points.length === 0) {
+    return null;
+  }
+
+  let areaAccumulator = 0;
+  let centroidXAccumulator = 0;
+  let centroidYAccumulator = 0;
+
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    const cross = x1 * y2 - x2 * y1;
+
+    areaAccumulator += cross;
+    centroidXAccumulator += (x1 + x2) * cross;
+    centroidYAccumulator += (y1 + y2) * cross;
+  }
+
+  if (areaAccumulator === 0) {
+    const total = points.reduce(
+      (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+      { x: 0, y: 0 },
+    );
+    return {
+      x: total.x / points.length,
+      y: total.y / points.length,
+    };
+  }
+
+  const area = areaAccumulator / 2;
+  return {
+    x: centroidXAccumulator / (6 * area),
+    y: centroidYAccumulator / (6 * area),
+  };
+}
+
+function getLegacyFeaturePoint(
+  feature: LegacyFloorGeoJsonAsset["features"][number],
+): FloorPoint | null {
+  if (feature.properties.centroid?.length === 2) {
+    return {
+      x: feature.properties.centroid[0],
+      y: feature.properties.centroid[1],
+    };
+  }
+
+  return getPolygonCentroid(feature.geometry.coordinates?.[0] ?? []);
+}
+
+function getLegacyFloorBounds(
+  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
+): FloorBounds | null {
+  if (!legacyFloorGeoJson) {
+    return null;
+  }
+
+  const points = legacyFloorGeoJson.features
+    .map((feature) => getLegacyFeaturePoint(feature))
+    .filter((point): point is FloorPoint => point != null);
+
+  if (points.length === 0) {
+    return null;
+  }
+
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  };
+}
+
+function getLegacyRoomPointMap(
+  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
+): Record<string, FloorPoint> {
+  if (!legacyFloorGeoJson) {
+    return {};
+  }
+
+  return legacyFloorGeoJson.features.reduce<Record<string, FloorPoint>>(
+    (acc, feature) => {
+      const name = feature.properties.name?.trim().toUpperCase();
+      const point = getLegacyFeaturePoint(feature);
+
+      if (!name || !point) {
+        return acc;
+      }
+
+      acc[name] = point;
+      return acc;
+    },
+    {},
+  );
+}
+
+function getRoomDisplayPoint(
+  room: IndoorRoomRecord | null,
+  buildingCode: string,
+  legacyRoomPointMap: Record<string, FloorPoint>,
+): FloorPoint | null {
+  if (!room) {
+    return null;
+  }
+
+  if (buildingCode === "MB") {
+    const mbRoomKey = room.roomNumber.trim().toUpperCase();
+    if (legacyRoomPointMap[mbRoomKey]) {
+      return legacyRoomPointMap[mbRoomKey];
+    }
+  }
+
+  return { x: room.x, y: room.y };
+}
+
+function getFloorStageLayout(
+  viewport: FloorViewport,
+  floorImageDimensions: { width: number; height: number },
+  floorBounds: FloorBounds,
+): FloorStageLayout {
+  const availableWidth = Math.max(viewport.width - FLOOR_FRAME_PADDING * 2, 1);
+  const availableHeight = Math.max(viewport.height - FLOOR_FRAME_PADDING * 2, 1);
+  const contentWidth = Math.max(floorBounds.maxX - floorBounds.minX, 1);
+  const contentHeight = Math.max(floorBounds.maxY - floorBounds.minY, 1);
+  const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+  const frameWidth = contentWidth * scale;
+  const frameHeight = contentHeight * scale;
+  const frameLeft = (viewport.width - frameWidth) / 2;
+  const frameTop = (viewport.height - frameHeight) / 2;
+
+  return {
+    frameLeft,
+    frameTop,
+    frameWidth,
+    frameHeight,
+    imageLeft: -floorBounds.minX * scale,
+    imageTop: -floorBounds.minY * scale,
+    imageWidth: floorImageDimensions.width * scale,
+    imageHeight: floorImageDimensions.height * scale,
+    scale,
+  };
+}
+
 export default function IndoorMapScreen() {
   const { buildingName, floors, roomQuery } = useLocalSearchParams<{
     buildingName: string;
     floors: string;
     roomQuery?: string;
   }>();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,13 +317,20 @@ export default function IndoorMapScreen() {
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
   );
-  const scrollViewRef = useRef<ScrollView | null>(null);
-  const [mapViewport, setMapViewport] = useState({ width: 0, height: 0 });
+  const [mapViewport, setMapViewport] = useState<FloorViewport>({
+    width: 0,
+    height: 0,
+  });
   const initialRoomQuery =
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
   const mapKey = `${buildingName}-${selectedFloor}`;
+  const normalizedBuildingCode = normalizeIndoorBuildingCode(buildingName || "");
   const floorImageAsset = getFloorImageAsset(buildingName || "", selectedFloor);
+  const legacyFloorGeoJson = getLegacyFloorGeoJsonAsset(
+    buildingName || "",
+    selectedFloor,
+  );
   const normalizedBuildingPlan = useMemo(
     () => (buildingName ? getNormalizedBuildingPlan(buildingName) : null),
     [buildingName],
@@ -101,56 +357,71 @@ export default function IndoorMapScreen() {
     () => getFloorImageDimensions(floorImageAsset, currentFloorRooms),
     [currentFloorRooms, floorImageAsset],
   );
+  const legacyRoomPointMap = useMemo(
+    () => getLegacyRoomPointMap(legacyFloorGeoJson),
+    [legacyFloorGeoJson],
+  );
+  const floorBounds = useMemo(
+    () =>
+      getFloorContentBounds(
+        floorImageDimensions,
+        currentFloorRooms,
+        normalizedBuildingCode === "MB" ? legacyFloorGeoJson : undefined,
+      ),
+    [
+      currentFloorRooms,
+      floorImageDimensions,
+      legacyFloorGeoJson,
+      normalizedBuildingCode,
+    ],
+  );
+
+  const effectiveViewport = useMemo<FloorViewport>(
+    () => ({
+      width:
+        mapViewport.width > 0 ? mapViewport.width : Math.max(windowWidth, 320),
+      height:
+        mapViewport.height > 0
+          ? mapViewport.height
+          : Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
+    }),
+    [mapViewport, windowHeight, windowWidth],
+  );
+  const floorStageLayout = useMemo(
+    () => getFloorStageLayout(effectiveViewport, floorImageDimensions, floorBounds),
+    [effectiveViewport, floorBounds, floorImageDimensions],
+  );
+
   const showFloorImageMap = floorImageAsset != null;
   const showNoMapMessage = !showFloorImageMap;
-
   const selectedRoomOnCurrentFloor =
     selectedRoom?.floor === selectedFloor ? selectedRoom : null;
+  const selectedRoomDisplayPoint = useMemo(
+    () =>
+      getRoomDisplayPoint(
+        selectedRoomOnCurrentFloor,
+        normalizedBuildingCode,
+        legacyRoomPointMap,
+      ),
+    [legacyRoomPointMap, normalizedBuildingCode, selectedRoomOnCurrentFloor],
+  );
 
-  const currentFloorFocusPoint = useMemo(() => {
-    if (selectedRoomOnCurrentFloor) {
-      return {
-        x: selectedRoomOnCurrentFloor.x,
-        y: selectedRoomOnCurrentFloor.y,
-      };
-    }
-
-    if (currentFloorRooms.length > 0) {
-      const minX = Math.min(...currentFloorRooms.map((room) => room.x));
-      const maxX = Math.max(...currentFloorRooms.map((room) => room.x));
-      const minY = Math.min(...currentFloorRooms.map((room) => room.y));
-      const maxY = Math.max(...currentFloorRooms.map((room) => room.y));
-
-      return {
-        x: (minX + maxX) / 2,
-        y: (minY + maxY) / 2,
-      };
+  const selectedRoomMarkerPosition = useMemo(() => {
+    if (!selectedRoomDisplayPoint) {
+      return null;
     }
 
     return {
-      x: floorImageDimensions.width / 2,
-      y: floorImageDimensions.height / 2,
+      left:
+        floorStageLayout.frameLeft +
+        (selectedRoomDisplayPoint.x - floorBounds.minX) * floorStageLayout.scale -
+        MARKER_SIZE / 2,
+      top:
+        floorStageLayout.frameTop +
+        (selectedRoomDisplayPoint.y - floorBounds.minY) * floorStageLayout.scale -
+        MARKER_SIZE / 2,
     };
-  }, [currentFloorRooms, floorImageDimensions, selectedRoomOnCurrentFloor]);
-
-  const MIN_SCALE = 1;
-  const MAX_SCALE = 5;
-
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate((e) => {
-      const newScale = savedScale.value * e.scale;
-      scale.value = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  }, [floorBounds.minX, floorBounds.minY, floorStageLayout, selectedRoomDisplayPoint]);
 
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
@@ -202,46 +473,15 @@ export default function IndoorMapScreen() {
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
   }, [availableFloors, initialRoomQuery, performRoomSearch]);
 
-  useEffect(() => {
-    if (
-      !showFloorImageMap ||
-      mapViewport.width <= 0 ||
-      mapViewport.height <= 0 ||
-      typeof scrollViewRef.current?.scrollTo !== "function"
-    ) {
-      return;
-    }
-
-    const maxOffsetX = Math.max(
-      floorImageDimensions.width - mapViewport.width,
-      0,
-    );
-    const maxOffsetY = Math.max(
-      floorImageDimensions.height - mapViewport.height,
-      0,
-    );
-    const offsetX = Math.min(
-      Math.max(currentFloorFocusPoint.x - mapViewport.width / 2, 0),
-      maxOffsetX,
-    );
-    const offsetY = Math.min(
-      Math.max(currentFloorFocusPoint.y - mapViewport.height / 2, 0),
-      maxOffsetY,
-    );
-
-    scrollViewRef.current.scrollTo({
-      x: offsetX,
-      y: offsetY,
-      animated: selectedRoomOnCurrentFloor != null,
-    });
-  }, [
-    currentFloorFocusPoint,
-    floorImageDimensions,
-    mapViewport,
-    selectedFloor,
-    selectedRoomOnCurrentFloor,
-    showFloorImageMap,
-  ]);
+  const floorSummaryText = selectedRoomOnCurrentFloor
+    ? `${selectedRoomOnCurrentFloor.label}${
+        selectedRoomOnCurrentFloor.roomName
+          ? ` - ${selectedRoomOnCurrentFloor.roomName}`
+          : ""
+      }`
+    : normalizedBuildingPlan
+      ? "Search a room to pin it on the floor plan."
+      : "Floor overview";
 
   return (
     <View style={styles.container}>
@@ -324,53 +564,59 @@ export default function IndoorMapScreen() {
         }}
       >
         {showFloorImageMap ? (
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <GestureDetector gesture={pinchGesture}>
-              <Animated.View style={[{ flex: 1 }, animatedStyle]}>
-                <ScrollView
-                  ref={scrollViewRef}
-                  centerContent
-                  contentContainerStyle={styles.scrollContent}
-                  maximumZoomScale={5}
-                  minimumZoomScale={1}
-                  showsHorizontalScrollIndicator={false}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View
-                    style={{
-                      width: floorImageDimensions.width,
-                      height: floorImageDimensions.height,
-                    }}
-                  >
-                    <Image
-                      testID="indoor-floor-image"
-                      source={floorImageAsset}
-                      style={{
-                        width: floorImageDimensions.width,
-                        height: floorImageDimensions.height,
-                      }}
-                      resizeMode="contain"
-                    />
+          <View style={styles.mapViewport} testID="indoor-floor-stage">
+            <View
+              style={[
+                styles.floorFrame,
+                {
+                  left: floorStageLayout.frameLeft,
+                  top: floorStageLayout.frameTop,
+                  width: floorStageLayout.frameWidth,
+                  height: floorStageLayout.frameHeight,
+                },
+              ]}
+            >
+              <Image
+                testID="indoor-floor-image"
+                source={floorImageAsset}
+                style={{
+                  position: "absolute",
+                  left: floorStageLayout.imageLeft,
+                  top: floorStageLayout.imageTop,
+                  width: floorStageLayout.imageWidth,
+                  height: floorStageLayout.imageHeight,
+                }}
+                resizeMode="stretch"
+              />
+            </View>
 
-                    {selectedRoomOnCurrentFloor && (
-                      <View
-                        testID="selected-room-marker"
-                        style={[
-                          styles.roomMarker,
-                          {
-                            left: selectedRoomOnCurrentFloor.x - 14,
-                            top: selectedRoomOnCurrentFloor.y - 14,
-                          },
-                        ]}
-                      >
-                        <View style={styles.roomMarkerInner} />
-                      </View>
-                    )}
-                  </View>
-                </ScrollView>
-              </Animated.View>
-            </GestureDetector>
-          </GestureHandlerRootView>
+            <View style={styles.floorMetaCard}>
+              <Text style={styles.floorMetaLabel}>Floor {selectedFloor}</Text>
+              <Text
+                style={styles.floorMetaText}
+                numberOfLines={2}
+                testID="selected-room-callout"
+              >
+                {floorSummaryText}
+              </Text>
+            </View>
+
+            {selectedRoomMarkerPosition && (
+              <View
+                testID="selected-room-marker"
+                style={[
+                  styles.roomMarker,
+                  {
+                    left: selectedRoomMarkerPosition.left,
+                    top: selectedRoomMarkerPosition.top,
+                  },
+                ]}
+              >
+                <View style={styles.roomMarkerPulse} />
+                <View style={styles.roomMarkerInner} />
+              </View>
+            )}
+          </View>
         ) : (
           showNoMapMessage && (
             <View style={styles.emptyState}>
@@ -492,19 +738,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.gray100,
   },
-  scrollContent: {
-    flexGrow: 1,
+  mapViewport: {
+    flex: 1,
+    position: "relative",
+    backgroundColor: colors.gray700,
+    overflow: "hidden",
+  },
+  floorFrame: {
+    position: "absolute",
+    overflow: "hidden",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+  },
+  floorMetaCard: {
+    position: "absolute",
+    left: spacing.md,
+    top: spacing.md,
+    right: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: colors.gray300,
+  },
+  floorMetaLabel: {
+    color: colors.primaryDark,
+    fontWeight: typography.button.fontWeight,
+    fontSize: typography.body.fontSize,
+    marginBottom: spacing.xs,
+  },
+  floorMetaText: {
+    color: colors.gray700,
+    fontSize: typography.body.fontSize,
   },
   roomMarker: {
     position: "absolute",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 3,
-    borderColor: colors.primaryDark,
-    backgroundColor: colors.secondaryTransparent,
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
     alignItems: "center",
     justifyContent: "center",
+  },
+  roomMarkerPulse: {
+    position: "absolute",
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
+    borderRadius: MARKER_SIZE / 2,
+    backgroundColor: colors.secondaryTransparent,
+    borderWidth: 3,
+    borderColor: colors.secondaryDark,
   },
   roomMarkerInner: {
     width: 10,
@@ -518,3 +802,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
