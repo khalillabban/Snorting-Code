@@ -1,6 +1,6 @@
 export interface LegacyFloorGeoJsonAsset {
   type: string;
-  features: Array<{
+  features: {
     type: string;
     properties: {
       name: string;
@@ -11,7 +11,7 @@ export interface LegacyFloorGeoJsonAsset {
       type: string;
       coordinates: number[][][];
     };
-  }>;
+  }[];
 }
 
 export interface BuildingPlanNode {
@@ -82,8 +82,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
   MB: {
     floors: [1, -2],
     floorImages: {
-      1: require("../assets/maps/MB-1.png"),
-      [-2]: require("../assets/maps/MB-S2.png"),
+      1: require("../assets/maps/FloorPlans/mb_1.png"),
+      [-2]: require("../assets/maps/FloorPlans/mb_s2.png"),
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/mb_floors_combined.json") as BuildingPlanAsset,
     legacyFloorGeoJson: {
@@ -102,8 +102,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
   VL: {
     floors: [1, 2],
     floorImages: {
-      1: require("../assets/maps/VL-1.png"),
-      2: require("../assets/maps/VL-2.png"),
+      1: require("../assets/maps/FloorPlans/vl_1.png"),
+      2: require("../assets/maps/FloorPlans/vl_2.png"),
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/vl_floors_combined.json") as BuildingPlanAsset,
   },

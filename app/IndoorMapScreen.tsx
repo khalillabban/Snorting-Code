@@ -18,9 +18,6 @@ import {
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
   getFloorImageAsset,
-  getLegacyFloorGeoJsonAsset,
-  normalizeIndoorBuildingCode,
-  type LegacyFloorGeoJsonAsset,
 } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
 
@@ -52,11 +49,6 @@ type FloorStageLayout = {
   imageWidth: number;
   imageHeight: number;
   scale: number;
-};
-
-type FloorPoint = {
-  x: number;
-  y: number;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -94,13 +86,7 @@ function getFloorImageDimensions(
 function getFloorContentBounds(
   floorImageDimensions: { width: number; height: number },
   currentFloorRooms: IndoorRoomRecord[],
-  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
 ): FloorBounds {
-  const legacyBounds = getLegacyFloorBounds(legacyFloorGeoJson);
-  if (legacyBounds) {
-    return legacyBounds;
-  }
-
   if (currentFloorRooms.length === 0) {
     return {
       minX: 0,
@@ -160,121 +146,6 @@ function getFloorContentBounds(
   };
 }
 
-function getPolygonCentroid(points: number[][]): FloorPoint | null {
-  if (!points || points.length === 0) {
-    return null;
-  }
-
-  let areaAccumulator = 0;
-  let centroidXAccumulator = 0;
-  let centroidYAccumulator = 0;
-
-  for (let i = 0; i < points.length; i += 1) {
-    const [x1, y1] = points[i];
-    const [x2, y2] = points[(i + 1) % points.length];
-    const cross = x1 * y2 - x2 * y1;
-
-    areaAccumulator += cross;
-    centroidXAccumulator += (x1 + x2) * cross;
-    centroidYAccumulator += (y1 + y2) * cross;
-  }
-
-  if (areaAccumulator === 0) {
-    const total = points.reduce(
-      (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
-      { x: 0, y: 0 },
-    );
-    return {
-      x: total.x / points.length,
-      y: total.y / points.length,
-    };
-  }
-
-  const area = areaAccumulator / 2;
-  return {
-    x: centroidXAccumulator / (6 * area),
-    y: centroidYAccumulator / (6 * area),
-  };
-}
-
-function getLegacyFeaturePoint(
-  feature: LegacyFloorGeoJsonAsset["features"][number],
-): FloorPoint | null {
-  if (feature.properties.centroid?.length === 2) {
-    return {
-      x: feature.properties.centroid[0],
-      y: feature.properties.centroid[1],
-    };
-  }
-
-  return getPolygonCentroid(feature.geometry.coordinates?.[0] ?? []);
-}
-
-function getLegacyFloorBounds(
-  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
-): FloorBounds | null {
-  if (!legacyFloorGeoJson) {
-    return null;
-  }
-
-  const points = legacyFloorGeoJson.features
-    .map((feature) => getLegacyFeaturePoint(feature))
-    .filter((point): point is FloorPoint => point != null);
-
-  if (points.length === 0) {
-    return null;
-  }
-
-  return {
-    minX: Math.min(...points.map((point) => point.x)),
-    minY: Math.min(...points.map((point) => point.y)),
-    maxX: Math.max(...points.map((point) => point.x)),
-    maxY: Math.max(...points.map((point) => point.y)),
-  };
-}
-
-function getLegacyRoomPointMap(
-  legacyFloorGeoJson?: LegacyFloorGeoJsonAsset,
-): Record<string, FloorPoint> {
-  if (!legacyFloorGeoJson) {
-    return {};
-  }
-
-  return legacyFloorGeoJson.features.reduce<Record<string, FloorPoint>>(
-    (acc, feature) => {
-      const name = feature.properties.name?.trim().toUpperCase();
-      const point = getLegacyFeaturePoint(feature);
-
-      if (!name || !point) {
-        return acc;
-      }
-
-      acc[name] = point;
-      return acc;
-    },
-    {},
-  );
-}
-
-function getRoomDisplayPoint(
-  room: IndoorRoomRecord | null,
-  buildingCode: string,
-  legacyRoomPointMap: Record<string, FloorPoint>,
-): FloorPoint | null {
-  if (!room) {
-    return null;
-  }
-
-  if (buildingCode === "MB") {
-    const mbRoomKey = room.roomNumber.trim().toUpperCase();
-    if (legacyRoomPointMap[mbRoomKey]) {
-      return legacyRoomPointMap[mbRoomKey];
-    }
-  }
-
-  return { x: room.x, y: room.y };
-}
-
 function getFloorStageLayout(
   viewport: FloorViewport,
   floorImageDimensions: { width: number; height: number },
@@ -325,12 +196,7 @@ export default function IndoorMapScreen() {
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
   const mapKey = `${buildingName}-${selectedFloor}`;
-  const normalizedBuildingCode = normalizeIndoorBuildingCode(buildingName || "");
   const floorImageAsset = getFloorImageAsset(buildingName || "", selectedFloor);
-  const legacyFloorGeoJson = getLegacyFloorGeoJsonAsset(
-    buildingName || "",
-    selectedFloor,
-  );
   const normalizedBuildingPlan = useMemo(
     () => (buildingName ? getNormalizedBuildingPlan(buildingName) : null),
     [buildingName],
@@ -357,23 +223,9 @@ export default function IndoorMapScreen() {
     () => getFloorImageDimensions(floorImageAsset, currentFloorRooms),
     [currentFloorRooms, floorImageAsset],
   );
-  const legacyRoomPointMap = useMemo(
-    () => getLegacyRoomPointMap(legacyFloorGeoJson),
-    [legacyFloorGeoJson],
-  );
   const floorBounds = useMemo(
-    () =>
-      getFloorContentBounds(
-        floorImageDimensions,
-        currentFloorRooms,
-        normalizedBuildingCode === "MB" ? legacyFloorGeoJson : undefined,
-      ),
-    [
-      currentFloorRooms,
-      floorImageDimensions,
-      legacyFloorGeoJson,
-      normalizedBuildingCode,
-    ],
+    () => getFloorContentBounds(floorImageDimensions, currentFloorRooms),
+    [currentFloorRooms, floorImageDimensions],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
@@ -396,32 +248,23 @@ export default function IndoorMapScreen() {
   const showNoMapMessage = !showFloorImageMap;
   const selectedRoomOnCurrentFloor =
     selectedRoom?.floor === selectedFloor ? selectedRoom : null;
-  const selectedRoomDisplayPoint = useMemo(
-    () =>
-      getRoomDisplayPoint(
-        selectedRoomOnCurrentFloor,
-        normalizedBuildingCode,
-        legacyRoomPointMap,
-      ),
-    [legacyRoomPointMap, normalizedBuildingCode, selectedRoomOnCurrentFloor],
-  );
 
   const selectedRoomMarkerPosition = useMemo(() => {
-    if (!selectedRoomDisplayPoint) {
+    if (!selectedRoomOnCurrentFloor) {
       return null;
     }
 
     return {
       left:
         floorStageLayout.frameLeft +
-        (selectedRoomDisplayPoint.x - floorBounds.minX) * floorStageLayout.scale -
+        (selectedRoomOnCurrentFloor.x - floorBounds.minX) * floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
-        (selectedRoomDisplayPoint.y - floorBounds.minY) * floorStageLayout.scale -
+        (selectedRoomOnCurrentFloor.y - floorBounds.minY) * floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
-  }, [floorBounds.minX, floorBounds.minY, floorStageLayout, selectedRoomDisplayPoint]);
+  }, [floorBounds.minX, floorBounds.minY, floorStageLayout, selectedRoomOnCurrentFloor]);
 
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
