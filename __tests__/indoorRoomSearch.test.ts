@@ -13,21 +13,28 @@ function makeRoom(
   label: string,
   roomNumber: string,
   floor: number,
+  roomName?: string,
+  aliases: string[] = [],
 ): IndoorRoomRecord {
+  const searchTerms = [label, roomNumber, roomName, ...aliases].filter(
+    (value): value is string => Boolean(value),
+  );
+
   return {
     id: `${label}-${floor}`,
     buildingCode: "T",
     floor,
     label,
     roomNumber,
+    roomName,
+    aliases,
     x: 0,
     y: 0,
     accessible: true,
-    searchTerms: [label, roomNumber],
-    searchKeys: [
-      label.replace(/[^A-Z0-9]/gi, "").toUpperCase(),
-      roomNumber.replace(/[^A-Z0-9]/gi, "").toUpperCase(),
-    ],
+    searchTerms,
+    searchKeys: searchTerms.map((value) =>
+      value.replace(/[^A-Z0-9]/gi, "").toUpperCase(),
+    ),
   };
 }
 
@@ -114,6 +121,20 @@ describe("utils/indoorRoomSearch", () => {
       "T-851-2",
       "T-1851",
     ]);
+  });
+
+  it("matches human-friendly room names and aliases when metadata exists", () => {
+    const namedRoom = makeRoom(
+      "T-1.210",
+      "1.210",
+      1,
+      "COMPUTER LAB",
+      ["SOEN LAB"],
+    );
+    const plan = makePlan([namedRoom]);
+
+    expect(findIndoorRoomMatch(plan, "computer lab")?.room.label).toBe("T-1.210");
+    expect(findIndoorRoomMatch(plan, "soen lab")?.room.label).toBe("T-1.210");
   });
 
   it("resolves the destination floor for a matched room", () => {

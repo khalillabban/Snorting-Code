@@ -66,6 +66,49 @@ describe("utils/indoorBuildingPlan", () => {
     expect(plan?.roomsByFloor[1].length).toBe(plan?.rooms.length);
   });
 
+  it("indexes optional room names, aliases, and explicit room numbers", () => {
+    const plan = normalizeBuildingPlanAsset({
+      meta: { buildingId: "CC" },
+      nodes: [
+        {
+          id: "CC_F1_room_named",
+          type: "room",
+          buildingId: "CC",
+          floor: 1,
+          x: 10,
+          y: 20,
+          label: "CC-124",
+          roomNumber: "124A",
+          name: "Computer Lab",
+          aliases: ["Comp Lab", "Lab 124A"],
+          accessible: true,
+        },
+      ],
+    });
+
+    expect(plan.rooms).toHaveLength(1);
+    expect(plan.rooms[0]).toMatchObject({
+      label: "CC-124",
+      roomNumber: "124A",
+      roomName: "COMPUTER LAB",
+      aliases: ["COMP LAB", "LAB 124A"],
+    });
+    expect(plan.rooms[0].searchTerms).toEqual([
+      "CC-124",
+      "124A",
+      "COMPUTER LAB",
+      "COMP LAB",
+      "LAB 124A",
+    ]);
+    expect(plan.rooms[0].searchKeys).toEqual([
+      "CC124",
+      "124A",
+      "COMPUTERLAB",
+      "COMPLAB",
+      "LAB124A",
+    ]);
+  });
+
   it("can normalize a plan directly from an asset", () => {
     const asset = getBuildingPlanAsset("VL");
     expect(asset).toBeDefined();

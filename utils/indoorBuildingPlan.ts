@@ -11,6 +11,8 @@ export interface IndoorRoomRecord {
   floor: number;
   label: string;
   roomNumber: string;
+  roomName?: string;
+  aliases: string[];
   x: number;
   y: number;
   accessible: boolean;
@@ -33,7 +35,20 @@ function uniqueNonEmpty(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
-function extractRoomNumber(label: string, buildingCode: string): string {
+function normalizeSearchValue(value?: string): string {
+  return value?.trim().toUpperCase() ?? "";
+}
+
+function extractRoomNumber(
+  node: BuildingPlanNode,
+  label: string,
+  buildingCode: string,
+): string {
+  const explicitRoomNumber = normalizeSearchValue(node.roomNumber);
+  if (explicitRoomNumber) {
+    return explicitRoomNumber;
+  }
+
   const normalizedLabel = label.trim().toUpperCase();
   const prefix = `${buildingCode}-`;
   if (normalizedLabel.startsWith(prefix)) {
@@ -64,10 +79,19 @@ function buildRoomRecord(
     return null;
   }
 
-  const normalizedLabel = node.label.trim().toUpperCase();
-  const roomNumber = extractRoomNumber(normalizedLabel, buildingCode);
+  const normalizedLabel = normalizeSearchValue(node.label);
+  const roomNumber = extractRoomNumber(node, normalizedLabel, buildingCode);
+  const roomName = normalizeSearchValue(node.displayName ?? node.name);
+  const aliases = uniqueNonEmpty(
+    (node.aliases ?? []).map((alias) => normalizeSearchValue(alias)),
+  );
   const floor = resolveFloorFromLabel(buildingCode, normalizedLabel, node.floor);
-  const searchTerms = uniqueNonEmpty([normalizedLabel, roomNumber]);
+  const searchTerms = uniqueNonEmpty([
+    normalizedLabel,
+    roomNumber,
+    roomName,
+    ...aliases,
+  ]);
   const searchKeys = uniqueNonEmpty(
     searchTerms.map((value) => compactIndoorSearchKey(value)),
   );
@@ -78,6 +102,8 @@ function buildRoomRecord(
     floor,
     label: normalizedLabel,
     roomNumber,
+    roomName: roomName || undefined,
+    aliases,
     x: node.x,
     y: node.y,
     accessible: node.accessible,

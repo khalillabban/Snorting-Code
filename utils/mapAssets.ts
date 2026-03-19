@@ -23,6 +23,10 @@ export interface BuildingPlanNode {
   y: number;
   label: string;
   accessible: boolean;
+  roomNumber?: string;
+  name?: string;
+  displayName?: string;
+  aliases?: string[];
 }
 
 export interface BuildingPlanEdge {
