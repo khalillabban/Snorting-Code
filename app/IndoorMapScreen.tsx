@@ -342,10 +342,6 @@ export default function IndoorMapScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Inside {buildingName} Building</Text>
-      </View>
-
       <View style={styles.searchPanel}>
         <View style={styles.searchRow}>
           <TextInput
@@ -492,26 +488,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 10,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.secondaryLight,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.primary,
+  },
+  titleLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.65)",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    marginBottom: 2,
   },
   title: {
-    flex: 1,
-    fontSize: typography.heading.fontSize,
-    fontWeight: typography.heading.fontWeight,
-    color: colors.secondaryDark,
-    marginLeft: spacing.sm,
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.white,
+    letterSpacing: 0.2,
   },
   searchPanel: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
     backgroundColor: colors.white,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   searchRow: {
     flexDirection: "row",
@@ -565,19 +566,25 @@ const styles = StyleSheet.create({
     fontWeight: typography.body.fontWeight,
   },
   floorSelectorWrapper: {
-    backgroundColor: colors.offWhite,
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.gray300,
   },
   floorSelector: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
   floorButton: {
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.white,
+    borderRadius: 20,
+    backgroundColor: colors.offWhite,
     borderWidth: 1,
     borderColor: colors.gray300,
+    minWidth: 40,
+    alignItems: "center",
   },
   floorButtonActive: {
     backgroundColor: colors.primary,
@@ -593,18 +600,22 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    backgroundColor: colors.gray100,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   mapViewport: {
     flex: 1,
     position: "relative",
-    backgroundColor: colors.gray700,
+    backgroundColor: "#1e1e1e",
     overflow: "hidden",
+    borderRadius: 14,
   },
   floorFrame: {
     position: "absolute",
     overflow: "hidden",
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.gray300,
     backgroundColor: colors.white,
