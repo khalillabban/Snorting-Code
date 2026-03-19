@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
+import { Image as ExpoImage } from "expo-image";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +17,7 @@ import {
 } from "../utils/indoorBuildingPlan";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-  getFloorImageAsset,
+  getFloorImageMetadata,
 } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
 
@@ -56,29 +56,20 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function getFloorImageDimensions(
-  floorImageAsset: number | undefined,
+  floorImageMetadata:
+    | {
+        width: number;
+        height: number;
+      }
+    | undefined,
   currentFloorRooms: IndoorRoomRecord[],
 ) {
-  let resolvedWidth: number | undefined;
-  let resolvedHeight: number | undefined;
-
-  if (floorImageAsset) {
-    try {
-      const resolvedAsset = Image.resolveAssetSource(floorImageAsset);
-      resolvedWidth = resolvedAsset?.width;
-      resolvedHeight = resolvedAsset?.height;
-    } catch {
-      resolvedWidth = undefined;
-      resolvedHeight = undefined;
-    }
-  }
-
   return {
     width:
-      resolvedWidth ??
+      floorImageMetadata?.width ??
       Math.max(1200, ...currentFloorRooms.map((room) => room.x + 80)),
     height:
-      resolvedHeight ??
+      floorImageMetadata?.height ??
       Math.max(900, ...currentFloorRooms.map((room) => room.y + 80)),
   };
 }
@@ -196,7 +187,11 @@ export default function IndoorMapScreen() {
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
   const mapKey = `${buildingName}-${selectedFloor}`;
-  const floorImageAsset = getFloorImageAsset(buildingName || "", selectedFloor);
+  const floorImageMetadata = getFloorImageMetadata(
+    buildingName || "",
+    selectedFloor,
+  );
+  const floorImageAsset = floorImageMetadata?.source;
   const normalizedBuildingPlan = useMemo(
     () => (buildingName ? getNormalizedBuildingPlan(buildingName) : null),
     [buildingName],
@@ -218,14 +213,24 @@ export default function IndoorMapScreen() {
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
     [normalizedBuildingPlan, selectedFloor],
   );
+  const coordinateScale = floorImageMetadata?.coordinateScale ?? 1;
+  const scaledCurrentFloorRooms = useMemo(
+    () =>
+      currentFloorRooms.map((room) => ({
+        ...room,
+        x: room.x * coordinateScale,
+        y: room.y * coordinateScale,
+      })),
+    [coordinateScale, currentFloorRooms],
+  );
 
   const floorImageDimensions = useMemo(
-    () => getFloorImageDimensions(floorImageAsset, currentFloorRooms),
-    [currentFloorRooms, floorImageAsset],
+    () => getFloorImageDimensions(floorImageMetadata, scaledCurrentFloorRooms),
+    [floorImageMetadata, scaledCurrentFloorRooms],
   );
   const floorBounds = useMemo(
-    () => getFloorContentBounds(floorImageDimensions, currentFloorRooms),
-    [currentFloorRooms, floorImageDimensions],
+    () => getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
+    [floorImageDimensions, scaledCurrentFloorRooms],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
@@ -246,8 +251,17 @@ export default function IndoorMapScreen() {
 
   const showFloorImageMap = floorImageAsset != null;
   const showNoMapMessage = !showFloorImageMap;
-  const selectedRoomOnCurrentFloor =
-    selectedRoom?.floor === selectedFloor ? selectedRoom : null;
+  const selectedRoomOnCurrentFloor = useMemo(() => {
+    if (!selectedRoom || selectedRoom.floor !== selectedFloor) {
+      return null;
+    }
+
+    return {
+      ...selectedRoom,
+      x: selectedRoom.x * coordinateScale,
+      y: selectedRoom.y * coordinateScale,
+    };
+  }, [coordinateScale, selectedFloor, selectedRoom]);
 
   const selectedRoomMarkerPosition = useMemo(() => {
     if (!selectedRoomOnCurrentFloor) {
@@ -419,7 +433,7 @@ export default function IndoorMapScreen() {
                 },
               ]}
             >
-              <Image
+              <ExpoImage
                 testID="indoor-floor-image"
                 source={floorImageAsset}
                 style={{
@@ -429,7 +443,7 @@ export default function IndoorMapScreen() {
                   width: floorStageLayout.imageWidth,
                   height: floorStageLayout.imageHeight,
                 }}
-                resizeMode="stretch"
+                contentFit="fill"
               />
             </View>
 

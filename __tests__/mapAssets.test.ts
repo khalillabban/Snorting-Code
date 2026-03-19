@@ -11,7 +11,7 @@ describe("utils/mapAssets", () => {
   it("returns the expected available floors for each registered building", () => {
     expect(getAvailableFloors("CC")).toEqual([1]);
     expect(getAvailableFloors("H")).toEqual([1, 2, 8, 9]);
-    expect(getAvailableFloors("LB")).toEqual([2, 3, 4, 5]);
+    expect(getAvailableFloors("LB")).toEqual([]);
     expect(getAvailableFloors("MB")).toEqual([1, -2]);
     expect(getAvailableFloors("VE")).toEqual([1, 2]);
     expect(getAvailableFloors("VL")).toEqual([1, 2]);
@@ -24,12 +24,12 @@ describe("utils/mapAssets", () => {
   it("reports whether a registered floor image exists", () => {
     expect(hasFloorMap("CC", 1)).toBe(true);
     expect(hasFloorMap("H", 8)).toBe(true);
-    expect(hasFloorMap("LB", 4)).toBe(true);
     expect(hasFloorMap("MB", -2)).toBe(true);
     expect(hasFloorMap("VE", 2)).toBe(true);
     expect(hasFloorMap("VL", 1)).toBe(true);
 
     expect(hasFloorMap("CC", 2)).toBe(false);
+    expect(hasFloorMap("LB", 4)).toBe(false);
     expect(hasFloorMap("H", 7)).toBe(false);
     expect(hasFloorMap("UNKNOWN", 1)).toBe(false);
   });
@@ -40,10 +40,6 @@ describe("utils/mapAssets", () => {
     expect(getFloorImageAsset("H", 2)).toBeDefined();
     expect(getFloorImageAsset("H", 8)).toBeDefined();
     expect(getFloorImageAsset("H", 9)).toBeDefined();
-    expect(getFloorImageAsset("LB", 2)).toBeDefined();
-    expect(getFloorImageAsset("LB", 3)).toBeDefined();
-    expect(getFloorImageAsset("LB", 4)).toBeDefined();
-    expect(getFloorImageAsset("LB", 5)).toBeDefined();
     expect(getFloorImageAsset("MB", 1)).toBeDefined();
     expect(getFloorImageAsset("MB", -2)).toBeDefined();
     expect(getFloorImageAsset("VE", 1)).toBeDefined();
@@ -51,7 +47,7 @@ describe("utils/mapAssets", () => {
     expect(getFloorImageAsset("VL", 1)).toBeDefined();
     expect(getFloorImageAsset("VL", 2)).toBeDefined();
 
-    expect(getFloorImageAsset("LB", 1)).toBeUndefined();
+    expect(getFloorImageAsset("LB", 2)).toBeUndefined();
     expect(getFloorImageAsset("UNKNOWN", 1)).toBeUndefined();
   });
 

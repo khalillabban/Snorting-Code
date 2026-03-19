@@ -5,8 +5,16 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
 }));
 
+jest.mock("expo-image", () => {
+  const React = require("react");
+  const { Image } = require("react-native");
+  return {
+    Image: ({ contentFit, ...props }: any) => <Image {...props} />,
+  };
+});
+
 jest.mock("../utils/mapAssets", () => ({
-  getFloorImageAsset: jest.fn(),
+  getFloorImageMetadata: jest.fn(),
   getLegacyFloorGeoJsonAsset: jest.fn(),
   normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
     (buildingCode ?? "").trim().toUpperCase(),
@@ -25,7 +33,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { getFloorImageAsset } from "../utils/mapAssets";
+import { getFloorImageMetadata } from "../utils/mapAssets";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 
 const mockHallRoom = {
@@ -84,11 +92,25 @@ describe("IndoorMapScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (getFloorImageAsset as jest.Mock).mockImplementation(
+    (getFloorImageMetadata as jest.Mock).mockImplementation(
       (buildingCode: string, floor: number) => {
         const normalized = (buildingCode ?? "").trim().toUpperCase();
-        if (normalized === "H" && [1, 2, 8, 9].includes(floor)) return 1;
-        if (normalized === "MB" && [1, -2].includes(floor)) return 2;
+        if (normalized === "H" && [1, 2, 8, 9].includes(floor)) {
+          return {
+            source: 1,
+            width: 1024,
+            height: 1024,
+            coordinateScale: 0.5,
+          };
+        }
+        if (normalized === "MB" && [1, -2].includes(floor)) {
+          return {
+            source: 2,
+            width: 1024,
+            height: 1024,
+            coordinateScale: 1,
+          };
+        }
         return undefined;
       },
     );
@@ -103,10 +125,6 @@ describe("IndoorMapScreen", () => {
     );
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
-    (require("react-native").Image.resolveAssetSource as any) = jest.fn(() => ({
-      width: 1000,
-      height: 800,
-    }));
   });
 
   it("renders with building name and floor selector", async () => {
@@ -135,7 +153,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", 1);
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
     });
   });
 
@@ -154,7 +172,7 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByText("-2"));
 
     await waitFor(() => {
-      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", -2);
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", -2);
     });
   });
 
@@ -334,7 +352,7 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByText("-2"));
 
     await waitFor(() => {
-      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", -2);
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", -2);
     });
 
     params = {
@@ -345,7 +363,7 @@ describe("IndoorMapScreen", () => {
     rerender(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(getFloorImageAsset).toHaveBeenCalledWith("MB", 1);
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
     });
   });
 
