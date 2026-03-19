@@ -89,6 +89,7 @@ describe("utils/mapAssets", () => {
   it("normalizes building codes when looking up assets", () => {
     expect(getAvailableFloors(" mb ")).toEqual([1, -2]);
     expect(hasBuildingPlanAsset(" ve ")).toBe(true);
+    expect(getAvailableFloors("Hall")).toEqual([1, 2, 8, 9]);
     expect(getLegacyFloorGeoJsonAsset(" mb ", -2)).toBeDefined();
   });
 });

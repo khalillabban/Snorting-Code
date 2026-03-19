@@ -105,12 +105,14 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
   },
 };
 
-function normalizeBuildingCode(buildingCode: string): string {
-  return buildingCode.trim().toUpperCase();
+export function normalizeIndoorBuildingCode(buildingCode: string): string {
+  const normalized = buildingCode.trim().toUpperCase();
+  if (normalized === "HALL") return "H";
+  return normalized;
 }
 
 function getIndoorAssets(buildingCode: string): IndoorBuildingAssets | undefined {
-  const normalizedBuildingCode = normalizeBuildingCode(buildingCode);
+  const normalizedBuildingCode = normalizeIndoorBuildingCode(buildingCode);
   return INDOOR_ASSET_REGISTRY[normalizedBuildingCode];
 }
 
