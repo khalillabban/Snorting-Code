@@ -16,6 +16,7 @@ import { colors, spacing, typography } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
+import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
@@ -167,6 +168,55 @@ export default function CampusMapScreen() {
   const hasActiveRoute =
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
+  const nextClassIndoorFloors =
+    nextClass?.building ? getAvailableFloors(nextClass.building) : [];
+  const canOpenNextClassIndoorMap = Boolean(
+    nextClass?.building &&
+    nextClass.room.trim() &&
+    nextClassIndoorFloors.length > 0 &&
+    hasBuildingPlanAsset(nextClass.building),
+  );
+
+  const openIndoorMap = useCallback(
+    (buildingCode: string, floors: number[], roomQuery?: string) => {
+      const params: {
+        buildingName: string;
+        floors: string;
+        roomQuery?: string;
+      } = {
+        buildingName: buildingCode,
+        floors: JSON.stringify(floors),
+      };
+
+      if (roomQuery?.trim()) {
+        params.roomQuery = roomQuery.trim();
+      }
+
+      router.push({
+        pathname: "/IndoorMapScreen",
+        params,
+      });
+    },
+    [],
+  );
+
+  const handleOpenNextClassIndoorMap = useCallback(() => {
+    if (
+      !nextClass?.building ||
+      !nextClass.room.trim() ||
+      !hasBuildingPlanAsset(nextClass.building)
+    ) {
+      return;
+    }
+
+    const floors = getAvailableFloors(nextClass.building);
+    if (floors.length === 0) {
+      return;
+    }
+
+    setIsNextClassVisible(false);
+    openIndoorMap(nextClass.building, floors, nextClass.room);
+  }, [nextClass, openIndoorMap]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -241,13 +291,9 @@ export default function CampusMapScreen() {
 
       {selectedBuildingWithMap && (
         <Pressable
-          onPress={() => router.push({
-            pathname: "/IndoorMapScreen",
-            params: {
-              buildingName: selectedBuildingWithMap.name,
-              floors: JSON.stringify(indoorAvailableFloors)
-            }
-          })}
+          onPress={() =>
+            openIndoorMap(selectedBuildingWithMap.name, indoorAvailableFloors)
+          }
           testID="indoor-view-toggle"
           style={styles.indoorButton}
         >
@@ -375,6 +421,8 @@ export default function CampusMapScreen() {
         autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
         currentCampus={currentCampus}
         onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        canOpenIndoorMap={canOpenNextClassIndoorMap}
+        onOpenIndoorMap={handleOpenNextClassIndoorMap}
       />
     </View>
   );

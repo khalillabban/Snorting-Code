@@ -86,10 +86,12 @@ const mockScheduleItems: ScheduleItem[] = [
 describe("NextClassDirectionsPanel", () => {
   let mockOnClose: jest.Mock;
   let mockOnConfirm: jest.Mock;
+  let mockOnOpenIndoorMap: jest.Mock;
 
   beforeEach(() => {
     mockOnClose = jest.fn();
     mockOnConfirm = jest.fn();
+    mockOnOpenIndoorMap = jest.fn();
 
     const mockAnimatedValue = {
       setValue: jest.fn(),
@@ -318,6 +320,44 @@ describe("NextClassDirectionsPanel", () => {
       fireEvent.press(getByTestId("next-class-get-directions"));
       expect(mockOnConfirm).toHaveBeenCalledTimes(1);
       expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders and handles the indoor map shortcut when enabled", async () => {
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          canOpenIndoorMap={true}
+          onOpenIndoorMap={mockOnOpenIndoorMap}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-open-indoor")).toBeTruthy();
+        expect(getByText("Open Indoor Map")).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId("next-class-open-indoor"));
+      expect(mockOnOpenIndoorMap).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the indoor map shortcut when disabled", async () => {
+      const { queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("next-class-open-indoor")).toBeNull();
+      });
     });
 
     it("shows course list when destination picker is pressed", async () => {

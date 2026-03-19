@@ -10,6 +10,7 @@ import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import { getNextClassFromItems, loadCachedSchedule } from "../utils/parseCourseEvents";
 
 
@@ -129,6 +130,11 @@ jest.mock("../constants/campuses", () => ({
     sgw: { coordinates: { latitude: 1, longitude: 2 } },
     loyola: { coordinates: { latitude: 3, longitude: 4 } },
   },
+}));
+
+jest.mock("../utils/mapAssets", () => ({
+  getAvailableFloors: jest.fn(),
+  hasBuildingPlanAsset: jest.fn(),
 }));
 
 jest.mock("../components/ShuttleBusTracker", () => ({
@@ -314,6 +320,15 @@ jest.mock("../components/NextClassDirectionsPanel", () => {
           {result ? JSON.stringify(result) : "null"}
         </Text>
 
+        {props.canOpenIndoorMap && props.onOpenIndoorMap ? (
+          <Pressable
+            testID="next-class-open-indoor"
+            onPress={props.onOpenIndoorMap}
+          >
+            <Text>Open Indoor</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           testID="next-class-confirm"
           onPress={() => {
@@ -382,6 +397,16 @@ describe("CampusMapScreen", () => {
       });
 
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) => {
+      const normalized = (buildingCode ?? "").trim().toUpperCase();
+      if (normalized === "H") return [1, 2, 8];
+      if (normalized === "MB") return [1, -2];
+      return [];
+    });
+    (hasBuildingPlanAsset as jest.Mock).mockImplementation((buildingCode: string) => {
+      const normalized = (buildingCode ?? "").trim().toUpperCase();
+      return normalized === "H" || normalized === "MB";
+    });
 
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -982,6 +1007,44 @@ describe("CampusMapScreen", () => {
       await waitFor(() => {
         const nextClassInfo = screen.getByTestId("next-class-info").props.children;
         expect(nextClassInfo).toContain("SOEN 390");
+      });
+    });
+
+    it("opens indoor map for the next class and prefills the room query", async () => {
+      const mockNextClass = {
+        id: "1",
+        kind: "class",
+        courseName: "COMP 335",
+        start: new Date(Date.now() + 3_600_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW MB 1.210",
+        campus: "SGW",
+        building: "MB",
+        room: "1.210",
+        level: "1",
+      };
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue([mockNextClass]);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockNextClass);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-open-indoor")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId("next-class-open-indoor"));
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/IndoorMapScreen",
+        params: {
+          buildingName: "MB",
+          floors: JSON.stringify([1, -2]),
+          roomQuery: "1.210",
+        },
       });
     });
 

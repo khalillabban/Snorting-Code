@@ -216,6 +216,8 @@ interface NextClassDirectionsPanelProps {
   autoStartBuilding?: Buildings | null;
   currentCampus?: CampusKey;
   onUseMyLocation?: () => Buildings | null;
+  canOpenIndoorMap?: boolean;
+  onOpenIndoorMap?: () => void;
 }
 
 export default function NextClassDirectionsPanel({
@@ -227,6 +229,8 @@ export default function NextClassDirectionsPanel({
   autoStartBuilding,
   currentCampus = "sgw",
   onUseMyLocation,
+  canOpenIndoorMap = false,
+  onOpenIndoorMap,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -539,6 +543,18 @@ export default function NextClassDirectionsPanel({
                   </Text>
                 </View>
               </View>
+            )}
+
+            {nextClass && canOpenIndoorMap && onOpenIndoorMap && (
+              <Pressable
+                style={styles.secondaryActionButton}
+                onPress={onOpenIndoorMap}
+                testID="next-class-open-indoor"
+              >
+                <Text style={styles.secondaryActionButtonText}>
+                  Open Indoor Map
+                </Text>
+              </Pressable>
             )}
 
             {/* Error banner */}

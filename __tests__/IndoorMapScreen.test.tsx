@@ -609,6 +609,31 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText("Showing MB-1.210 on floor 1")).toBeTruthy();
     });
   });
+  it("auto-searches the roomQuery param on load", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      roomQuery: "867",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockHallRoom,
+      floor: 8,
+      matchType: "exact_room",
+      score: 850,
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(findIndoorRoomMatch).toHaveBeenCalledWith(mockHallPlan, "867", {
+        currentFloor: 1,
+      });
+      expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
+      expect(screen.getByTestId("room-search-input").props.value).toBe("H-867");
+      expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
+    });
+  });
   it("handles pinch gesture update and end", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",

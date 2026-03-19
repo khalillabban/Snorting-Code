@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -62,11 +62,12 @@ function getFloorImageDimensions(
 }
 
 export default function IndoorMapScreen() {
-  const { buildingName, floors } = useLocalSearchParams<{
+  const { buildingName, floors, roomQuery } = useLocalSearchParams<{
     buildingName: string;
     floors: string;
+    roomQuery?: string;
   }>();
-  const availableFloors = parseFloors(floors);
+  const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,6 +75,8 @@ export default function IndoorMapScreen() {
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
   );
+  const initialRoomQuery =
+    typeof roomQuery === "string" ? roomQuery.trim() : "";
 
   const mapKey = `${buildingName}-${selectedFloor}`;
   const geoAsset = getLegacyFloorGeoJsonAsset(buildingName || "", selectedFloor);
@@ -169,39 +172,55 @@ export default function IndoorMapScreen() {
     transform: [{ scale: scale.value }],
   }));
 
+  const performRoomSearch = useCallback(
+    (rawQuery: string, currentFloor: number) => {
+      const trimmedQuery = rawQuery.trim();
+
+      if (!trimmedQuery) {
+        setSelectedRoom(null);
+        setSearchError("Enter a room number or room name.");
+        return;
+      }
+
+      if (!normalizedBuildingPlan) {
+        setSelectedRoom(null);
+        setSearchError(`Room search is not available for ${buildingName}.`);
+        return;
+      }
+
+      const match = findIndoorRoomMatch(normalizedBuildingPlan, trimmedQuery, {
+        currentFloor,
+      });
+
+      if (!match) {
+        setSelectedRoom(null);
+        setSearchError(`Room "${trimmedQuery}" was not found in ${buildingName}.`);
+        return;
+      }
+
+      setSelectedRoom(match.room);
+      setSearchQuery(match.room.label);
+      setSearchError(null);
+
+      if (match.floor !== currentFloor) {
+        setSelectedFloor(match.floor);
+      }
+    },
+    [buildingName, normalizedBuildingPlan],
+  );
+
   const handleRoomSearch = () => {
-    const trimmedQuery = searchQuery.trim();
-
-    if (!trimmedQuery) {
-      setSelectedRoom(null);
-      setSearchError("Enter a room number or room name.");
-      return;
-    }
-
-    if (!normalizedBuildingPlan) {
-      setSelectedRoom(null);
-      setSearchError(`Room search is not available for ${buildingName}.`);
-      return;
-    }
-
-    const match = findIndoorRoomMatch(normalizedBuildingPlan, trimmedQuery, {
-      currentFloor: selectedFloor,
-    });
-
-    if (!match) {
-      setSelectedRoom(null);
-      setSearchError(`Room "${trimmedQuery}" was not found in ${buildingName}.`);
-      return;
-    }
-
-    setSelectedRoom(match.room);
-    setSearchQuery(match.room.label);
-    setSearchError(null);
-
-    if (match.floor !== selectedFloor) {
-      setSelectedFloor(match.floor);
-    }
+    performRoomSearch(searchQuery, selectedFloor);
   };
+
+  useEffect(() => {
+    if (!initialRoomQuery) {
+      return;
+    }
+
+    setSearchQuery(initialRoomQuery);
+    performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
 
   const isSelectedRoomNode = (nodeName: string) => {
     if (!selectedRoomOnCurrentFloor) return false;
