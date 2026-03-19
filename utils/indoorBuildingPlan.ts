@@ -25,7 +25,7 @@ export interface NormalizedIndoorBuildingPlan {
   roomsByFloor: Record<number, IndoorRoomRecord[]>;
 }
 
-function compactSearchKey(value: string): string {
+export function compactIndoorSearchKey(value: string): string {
   return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
@@ -69,7 +69,7 @@ function buildRoomRecord(
   const floor = resolveFloorFromLabel(buildingCode, normalizedLabel, node.floor);
   const searchTerms = uniqueNonEmpty([normalizedLabel, roomNumber]);
   const searchKeys = uniqueNonEmpty(
-    searchTerms.map((value) => compactSearchKey(value)),
+    searchTerms.map((value) => compactIndoorSearchKey(value)),
   );
 
   return {
