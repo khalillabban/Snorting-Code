@@ -70,7 +70,7 @@ jest.mock("react-native-svg", () => {
       </View>
     ),
   };
-});
+}, { virtual: true });
 
 jest.mock("../utils/IndoorMapComposite", () => ({
   parseGeoJSONToFloor: jest.fn(),

@@ -6,12 +6,8 @@ import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanima
 import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 import { colors, spacing, typography } from "../constants/theme";
 import { Floor, parseGeoJSONToFloor } from "../utils/IndoorMapComposite";
+import { getLegacyFloorGeoJsonAsset } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
-
-export const FLOOR_GEOJSON: Record<string, any> = {
-  "MB-1": require("../assets/maps/MB-1.json"),
-  "MB--2": require("../assets/maps/MB-S2.json"),
-};
 
 export default function IndoorMapScreen() {
   const { buildingName, floors } = useLocalSearchParams<{ buildingName: string; floors: string }>();
@@ -20,7 +16,7 @@ export default function IndoorMapScreen() {
   const [floorComposite, setFloorComposite] = useState<Floor | null>(null);
 
   const mapKey = `${buildingName}-${selectedFloor}`;
-  const geoAsset = FLOOR_GEOJSON[mapKey];
+  const geoAsset = getLegacyFloorGeoJsonAsset(buildingName || "", selectedFloor);
 
   useEffect(() => {
     if (!availableFloors.includes(selectedFloor)) {
