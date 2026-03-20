@@ -154,24 +154,15 @@ function NavPanel({
 
     // Snap to nearest connector IN THE SAME BUILDING
     const getSnapNode = (room: GraphNode): GraphNode => {
-      const isMB = room.id.startsWith("MB_F1_");
       const connectors = graphData.nodes.filter(
-        (n) =>
-          n.floor === room.floor &&
-          n.type !== "room" &&
-          (isMB ? n.id.startsWith("MB_F1_") : !n.id.startsWith("MB_F1_")),
+        (n) => n.floor === room.floor && n.type !== "room"
       );
-
-      let nearest = room;
-      let minDist = Infinity;
-      for (const c of connectors) {
-        const d = Math.hypot(c.x - room.x, c.y - room.y);
-        if (d < minDist) {
-          minDist = d;
-          nearest = c;
-        }
-      }
-      return nearest;
+      if (connectors.length === 0) return room;
+      return connectors.reduce((best, n) => {
+        const d = Math.hypot(n.x - room.x, n.y - room.y);
+        const bd = Math.hypot(best.x - room.x, best.y - room.y);
+        return d < bd ? n : best;
+      }, connectors[0]);
     };
 
     const startNode = getSnapNode(startRoom);
@@ -398,21 +389,24 @@ function PathOverlay({
       )}
 
       {/* End dot (red) */}
-      {nodes[nodes.length - 1] && (
-        <View
-          style={{
-            position: "absolute",
-            left: (nodes[0].x / FLOOR_PLAN_WIDTH) * imageWidth - 8,
-            top: (nodes[0].y / FLOOR_PLAN_HEIGHT) * imageHeight - 8,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: "#ef4444",
-            borderWidth: 2,
-            borderColor: "white",
-          }}
-        />
-      )}
+      {nodes[nodes.length - 1] && (() => {
+        const last = nodes[nodes.length - 1];
+        return (
+          <View
+            style={{
+              position: "absolute",
+              left: (last.x / FLOOR_PLAN_WIDTH) * imageWidth - 8,
+              top: (last.y / FLOOR_PLAN_HEIGHT) * imageHeight - 8,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: "#ef4444",
+              borderWidth: 2,
+              borderColor: "white",
+            }}
+          />
+        );
+      })()}
     </View>
   );
 }
