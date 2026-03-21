@@ -12,6 +12,7 @@ export interface IndoorAccessState {
 }
 
 export interface IndoorMapRouteParams {
+  [key: string]: string | undefined;
   buildingName: string;
   floors: string;
   roomQuery?: string;

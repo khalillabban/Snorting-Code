@@ -28,7 +28,10 @@ export interface NormalizedIndoorBuildingPlan {
 }
 
 export function compactIndoorSearchKey(value: string): string {
-  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 function uniqueNonEmpty(values: string[]): string[] {
@@ -64,8 +67,14 @@ function resolveFloorFromLabel(
 ): number {
   const normalizedLabel = label.trim().toUpperCase();
 
-  if (buildingCode === "MB" && normalizedLabel.startsWith("MB-S2")) {
-    return -2;
+  if (buildingCode === "MB") {
+    if (
+      normalizedLabel.startsWith("MB-S2") ||
+      normalizedLabel.startsWith("S2.")
+    ) {
+      return -2;
+    }
+    return 1;
   }
 
   return fallbackFloor;
@@ -85,7 +94,11 @@ function buildRoomRecord(
   const aliases = uniqueNonEmpty(
     (node.aliases ?? []).map((alias) => normalizeSearchValue(alias)),
   );
-  const floor = resolveFloorFromLabel(buildingCode, normalizedLabel, node.floor);
+  const floor = resolveFloorFromLabel(
+    buildingCode,
+    normalizedLabel,
+    node.floor,
+  );
   const searchTerms = uniqueNonEmpty([
     normalizedLabel,
     roomNumber,
@@ -124,7 +137,9 @@ export function normalizeBuildingPlanAsset(
     .map((node) => buildRoomRecord(buildingCode, node))
     .filter((room): room is IndoorRoomRecord => room != null);
 
-  const floors = [...new Set(rooms.map((room) => room.floor))].sort((a, b) => a - b);
+  const floors = [...new Set(rooms.map((room) => room.floor))].sort(
+    (a, b) => a - b,
+  );
   const roomsByFloor = floors.reduce<Record<number, IndoorRoomRecord[]>>(
     (acc, floor) => {
       acc[floor] = rooms.filter((room) => room.floor === floor);

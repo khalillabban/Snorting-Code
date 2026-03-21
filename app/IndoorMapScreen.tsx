@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
+import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -7,26 +7,34 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
   useWindowDimensions,
+  View,
 } from "react-native";
+import {
+  IndoorDirectionsPanel,
+  IndoorRouteOverlay,
+} from "../components/IndoorRouteOverlay";
 import { colors, spacing, typography } from "../constants/theme";
 import {
   getNormalizedBuildingPlan,
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-  getFloorImageMetadata,
-} from "../utils/mapAssets";
+  getIndoorNavigationRoute,
+  NavigationRoute,
+} from "../utils/indoorNavigation";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import { getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
-
+const [navOriginQuery, setNavOriginQuery] = useState("");
+const [navDestQuery, setNavDestQuery] = useState("");
+const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
+const [navError, setNavError] = useState<string | null>(null);
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
 const DEFAULT_VIEWPORT_HEIGHT = 420;
-
 type FloorViewport = {
   width: number;
   height: number;
@@ -88,22 +96,26 @@ function getFloorContentBounds(
   }
 
   const rawMinX = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.x)) - FLOOR_CONTENT_PADDING,
+    Math.min(...currentFloorRooms.map((room) => room.x)) -
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.x)) + FLOOR_CONTENT_PADDING,
+    Math.max(...currentFloorRooms.map((room) => room.x)) +
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.y)) - FLOOR_CONTENT_PADDING,
+    Math.min(...currentFloorRooms.map((room) => room.y)) -
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.y)) + FLOOR_CONTENT_PADDING,
+    Math.max(...currentFloorRooms.map((room) => room.y)) +
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -143,10 +155,16 @@ function getFloorStageLayout(
   floorBounds: FloorBounds,
 ): FloorStageLayout {
   const availableWidth = Math.max(viewport.width - FLOOR_FRAME_PADDING * 2, 1);
-  const availableHeight = Math.max(viewport.height - FLOOR_FRAME_PADDING * 2, 1);
+  const availableHeight = Math.max(
+    viewport.height - FLOOR_FRAME_PADDING * 2,
+    1,
+  );
   const contentWidth = Math.max(floorBounds.maxX - floorBounds.minX, 1);
   const contentHeight = Math.max(floorBounds.maxY - floorBounds.minY, 1);
-  const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+  const scale = Math.min(
+    availableWidth / contentWidth,
+    availableHeight / contentHeight,
+  );
   const frameWidth = contentWidth * scale;
   const frameHeight = contentHeight * scale;
   const frameLeft = (viewport.width - frameWidth) / 2;
@@ -166,11 +184,14 @@ function getFloorStageLayout(
 }
 
 export default function IndoorMapScreen() {
-  const { buildingName, floors, roomQuery } = useLocalSearchParams<{
-    buildingName: string;
-    floors: string;
-    roomQuery?: string;
-  }>();
+  const { buildingName, floors, roomQuery, navOrigin, navDest } =
+    useLocalSearchParams<{
+      buildingName: string;
+      floors: string;
+      roomQuery?: string;
+      navOrigin?: string;
+      navDest?: string;
+    }>();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
@@ -183,6 +204,17 @@ export default function IndoorMapScreen() {
     width: 0,
     height: 0,
   });
+
+  // Pre-fill nav inputs from route params (set by NavigationBar indoor flow)
+  const [navOriginQuery, setNavOriginQuery] = useState(
+    typeof navOrigin === "string" ? navOrigin.trim() : "",
+  );
+  const [navDestQuery, setNavDestQuery] = useState(
+    typeof navDest === "string" ? navDest.trim() : "",
+  );
+  const [navError, setNavError] = useState<string | null>(null);
+  const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
+
   const initialRoomQuery =
     typeof roomQuery === "string" ? roomQuery.trim() : "";
 
@@ -245,17 +277,16 @@ export default function IndoorMapScreen() {
     [mapViewport, windowHeight, windowWidth],
   );
   const floorStageLayout = useMemo(
-    () => getFloorStageLayout(effectiveViewport, floorImageDimensions, floorBounds),
+    () =>
+      getFloorStageLayout(effectiveViewport, floorImageDimensions, floorBounds),
     [effectiveViewport, floorBounds, floorImageDimensions],
   );
 
   const showFloorImageMap = floorImageAsset != null;
   const showNoMapMessage = !showFloorImageMap;
-  const selectedRoomOnCurrentFloor = useMemo(() => {
-    if (!selectedRoom || selectedRoom.floor !== selectedFloor) {
-      return null;
-    }
 
+  const selectedRoomOnCurrentFloor = useMemo(() => {
+    if (!selectedRoom || selectedRoom.floor !== selectedFloor) return null;
     return {
       ...selectedRoom,
       x: selectedRoom.x * coordinateScale,
@@ -264,21 +295,25 @@ export default function IndoorMapScreen() {
   }, [coordinateScale, selectedFloor, selectedRoom]);
 
   const selectedRoomMarkerPosition = useMemo(() => {
-    if (!selectedRoomOnCurrentFloor) {
-      return null;
-    }
-
+    if (!selectedRoomOnCurrentFloor) return null;
     return {
       left:
         floorStageLayout.frameLeft +
-        (selectedRoomOnCurrentFloor.x - floorBounds.minX) * floorStageLayout.scale -
+        (selectedRoomOnCurrentFloor.x - floorBounds.minX) *
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
-        (selectedRoomOnCurrentFloor.y - floorBounds.minY) * floorStageLayout.scale -
+        (selectedRoomOnCurrentFloor.y - floorBounds.minY) *
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
-  }, [floorBounds.minX, floorBounds.minY, floorStageLayout, selectedRoomOnCurrentFloor]);
+  }, [
+    floorBounds.minX,
+    floorBounds.minY,
+    floorStageLayout,
+    selectedRoomOnCurrentFloor,
+  ]);
 
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
@@ -302,7 +337,9 @@ export default function IndoorMapScreen() {
 
       if (!match) {
         setSelectedRoom(null);
-        setSearchError(`Room \"${trimmedQuery}\" was not found in ${buildingName}.`);
+        setSearchError(
+          `Room \"${trimmedQuery}\" was not found in ${buildingName}.`,
+        );
         return;
       }
 
@@ -321,24 +358,61 @@ export default function IndoorMapScreen() {
     performRoomSearch(searchQuery, selectedFloor);
   };
 
+  // Auto-pin room when opened via "Open Indoor Map" with a single roomQuery
   useEffect(() => {
-    if (!initialRoomQuery) {
-      return;
-    }
-
+    if (!initialRoomQuery) return;
     setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
   }, [availableFloors, initialRoomQuery, performRoomSearch]);
 
-  const floorSummaryText = selectedRoomOnCurrentFloor
-    ? `${selectedRoomOnCurrentFloor.label}${
-        selectedRoomOnCurrentFloor.roomName
-          ? ` - ${selectedRoomOnCurrentFloor.roomName}`
-          : ""
-      }`
-    : normalizedBuildingPlan
-      ? "Search a room to pin it on the floor plan."
-      : "Floor overview";
+  const handleNavigate = useCallback(() => {
+    if (!buildingName) return;
+    setNavError(null);
+
+    const result = getIndoorNavigationRoute(
+      buildingName,
+      navOriginQuery,
+      navDestQuery,
+      {
+        accessibleOnly: false,
+      },
+    );
+
+    if (result.success) {
+      setActiveRoute(result.route);
+      setSelectedFloor(result.route.origin.floor);
+    } else {
+      setNavError(result.message);
+      setActiveRoute(null);
+    }
+  }, [buildingName, navOriginQuery, navDestQuery]);
+
+  // Auto-trigger route when opened from NavigationBar with both rooms pre-filled
+  useEffect(() => {
+    if (
+      buildingName &&
+      typeof navOrigin === "string" &&
+      navOrigin.trim() &&
+      typeof navDest === "string" &&
+      navDest.trim()
+    ) {
+      handleNavigate();
+    }
+    // Intentionally runs only on mount — params are stable route values
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const floorSummaryText = activeRoute
+    ? `${activeRoute.origin.label} → ${activeRoute.destination.label}`
+    : selectedRoomOnCurrentFloor
+      ? `${selectedRoomOnCurrentFloor.label}${
+          selectedRoomOnCurrentFloor.roomName
+            ? ` - ${selectedRoomOnCurrentFloor.roomName}`
+            : ""
+        }`
+      : normalizedBuildingPlan
+        ? "Search a room to pin it on the floor plan."
+        : "Floor overview";
 
   return (
     <View style={styles.container}>
@@ -346,25 +420,32 @@ export default function IndoorMapScreen() {
         <Text style={styles.buildingTitle}>{buildingName} Building</Text>
         <View style={styles.searchRow}>
           <TextInput
-            testID="room-search-input"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleRoomSearch}
-            placeholder="Search room number or name"
-            placeholderTextColor={colors.gray500}
             style={styles.searchInput}
-            returnKeyType="search"
+            placeholder="From room…"
+            value={navOriginQuery}
+            onChangeText={setNavOriginQuery}
+            returnKeyType="next"
           />
-          <Pressable
-            testID="room-search-button"
-            style={styles.searchButton}
-            onPress={handleRoomSearch}
-          >
-            <Text style={styles.searchButtonText}>Find</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="To room…"
+            value={navDestQuery}
+            onChangeText={setNavDestQuery}
+            returnKeyType="go"
+            onSubmitEditing={handleNavigate}
+          />
+          <Pressable style={styles.searchButton} onPress={handleNavigate}>
+            <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
 
-        {selectedRoom && (
+        {navError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{navError}</Text>
+          </View>
+        )}
+
+        {selectedRoom && !activeRoute && (
           <View style={styles.selectedRoomBanner} testID="selected-room-banner">
             <Text style={styles.selectedRoomText}>
               Showing {selectedRoom.label} on floor {selectedRoom.floor}
@@ -444,18 +525,18 @@ export default function IndoorMapScreen() {
               />
             </View>
 
-            <View style={styles.floorMetaCard}>
-              <Text style={styles.floorMetaLabel}>Floor {selectedFloor}</Text>
-              <Text
-                style={styles.floorMetaText}
-                numberOfLines={2}
-                testID="selected-room-callout"
-              >
-                {floorSummaryText}
-              </Text>
-            </View>
+            {activeRoute && (
+              <IndoorRouteOverlay
+                route={activeRoute}
+                floor={selectedFloor}
+                coordinateScale={coordinateScale}
+                stageLayout={floorStageLayout}
+                floorBounds={floorBounds}
+              />
+            )}
 
-            {selectedRoomMarkerPosition && (
+            {/* Hide single-room pin when a full route is active */}
+            {selectedRoomMarkerPosition && !activeRoute && (
               <View
                 testID="selected-room-marker"
                 style={[
@@ -479,6 +560,13 @@ export default function IndoorMapScreen() {
           )
         )}
       </View>
+
+      {activeRoute && (
+        <IndoorDirectionsPanel
+          route={activeRoute}
+          onClose={() => setActiveRoute(null)}
+        />
+      )}
     </View>
   );
 }
@@ -677,4 +765,3 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
-

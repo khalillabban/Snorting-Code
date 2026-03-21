@@ -20,6 +20,7 @@ import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
 } from "../utils/indoorAccess";
+import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
@@ -28,59 +29,59 @@ import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
 type FocusTarget = CampusKey | "user";
 
+function normalizeRoomQuery(buildingCode: string, room: string): string {
+  const trimmed = room.trim();
+  if (!trimmed) return "";
+  const prefix = `${buildingCode.toUpperCase()}-`;
+  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
+  return `${prefix}${trimmed}`;
+}
+
 export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
     let nearest = BUILDINGS[0];
     let minDist = Infinity;
-
     const userPoint = { latitude: lat, longitude: lon };
-
     for (const b of BUILDINGS) {
       if (!b.boundingBox || b.boundingBox.length < 3) continue;
-
       const d = getDistanceToPolygon(userPoint, b.boundingBox);
-
       if (d < minDist) {
         minDist = d;
         nearest = b;
       }
     }
-
     return nearest;
   }, []);
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
   );
-
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
-
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
   );
-
   const [userFocusCounter, setUserFocusCounter] = useState(0);
   const [routeFocusTrigger, setRouteFocusTrigger] = useState(0);
-
-  const [autoStartBuilding, setAutoStartBuilding] =
-    useState<Buildings | null>(null);
-
+  const [autoStartBuilding, setAutoStartBuilding] = useState<Buildings | null>(
+    null,
+  );
   const [isNavVisible, setIsNavVisible] = useState(false);
   const [initialStart, setInitialStart] = useState<Buildings | null>(null);
-  const [initialDestination, setInitialDestination] = useState<Buildings | null>(null);
-  const [demoCurrentBuilding, setDemoCurrentBuilding] = useState<Buildings | null>(null);
+  const [initialDestination, setInitialDestination] =
+    useState<Buildings | null>(null);
+  const [demoCurrentBuilding, setDemoCurrentBuilding] =
+    useState<Buildings | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<{
     start: Buildings | null;
     dest: Buildings | null;
   }>({ start: null, dest: null });
-
-  const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
+  const [selectedStrategy, setSelectedStrategy] =
+    useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
-
-  // Next class state
   const [isNextClassVisible, setIsNextClassVisible] = useState(false);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
 
@@ -89,7 +90,6 @@ export default function CampusMapScreen() {
     [scheduleItems],
   );
 
-  // Load schedule from cache
   useEffect(() => {
     loadCachedSchedule()
       .then((items) => {
@@ -103,27 +103,17 @@ export default function CampusMapScreen() {
   useEffect(() => {
     const campusValue = campus === "loyola" ? "loyola" : "sgw";
     setCurrentCampus(campusValue);
-    setFocusTarget((prev) => {
-      if (prev === "user") {
-        return prev;
-      }
-      return campusValue;
-    });
+    setFocusTarget((prev) => (prev === "user" ? prev : campusValue));
   }, [campus]);
 
   useEffect(() => {
     const getUserBuilding = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-
       if (status !== "granted") return;
-
       const loc = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = loc.coords;
-
-      const building = findNearestBuilding(latitude, longitude);
-      setAutoStartBuilding(building);
+      setAutoStartBuilding(findNearestBuilding(latitude, longitude));
     };
-
     getUserBuilding();
   }, [findNearestBuilding]);
 
@@ -137,24 +127,87 @@ export default function CampusMapScreen() {
     setUserFocusCounter((c) => c + 1);
   };
 
-  const handleConfirmRoute = (
-    start: Buildings | null,
-    dest: Buildings | null,
-    strategy: RouteStrategy
-  ) => {
-    setSelectedRoute({ start, dest });
-    setSelectedStrategy(strategy);
-    setIsNavVisible(false);
-    if (start) {
-      setRouteFocusTrigger((c) => c + 1);
-    }
-  };
+  // ── Indoor map ─────────────────────────────────────────────────────────────
+
+  const openIndoorMap = useCallback(
+    (
+      buildingCode?: string | null,
+      roomQuery?: string,
+      navOrigin?: string,
+      navDest?: string,
+    ) => {
+      const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
+      if (!params) return;
+      router.push({
+        pathname: "/IndoorMapScreen",
+        params: {
+          ...params,
+          ...(navOrigin ? { navOrigin } : {}),
+          ...(navDest ? { navDest } : {}),
+        },
+      });
+    },
+    [],
+  );
+
+  // ── Confirm route ──────────────────────────────────────────────────────────
+  // When both endpoints are rooms in the same building → open IndoorMapScreen
+  // with the route pre-computed. Otherwise fall through to outdoor directions.
+
+  const handleConfirmRoute = useCallback(
+    (
+      start: Buildings | null,
+      dest: Buildings | null,
+      strategy: RouteStrategy,
+      startRoom?: IndoorRoomRecord | null,
+      endRoom?: IndoorRoomRecord | null,
+    ) => {
+      // Case 1: two rooms, same building → indoor route
+      if (start && dest && start.name === dest.name && startRoom && endRoom) {
+        setIsNavVisible(false);
+        openIndoorMap(start.name, undefined, startRoom.label, endRoom.label);
+        return;
+      }
+
+      // Case 2: only destination room selected and same building → pin room
+      if (start && dest && start.name === dest.name && endRoom) {
+        setIsNavVisible(false);
+        openIndoorMap(dest.name, endRoom.label);
+        return;
+      }
+
+      // Case 3: outdoor directions
+      setSelectedRoute({ start, dest });
+      setSelectedStrategy(strategy);
+      setIsNavVisible(false);
+      if (start) setRouteFocusTrigger((c) => c + 1);
+    },
+    [openIndoorMap],
+  );
+
+  const handleOpenNextClassIndoorMap = useCallback(() => {
+    if (!nextClass?.room.trim()) return;
+    setIsNextClassVisible(false);
+    const roomQuery = normalizeRoomQuery(nextClass.building, nextClass.room);
+    openIndoorMap(nextClass.building, roomQuery);
+  }, [nextClass, openIndoorMap]);
+
+  const handleViewBuildingIndoorMap = useCallback(
+    (building: Buildings) => {
+      setSelectedBuilding(null);
+      openIndoorMap(building.name);
+    },
+    [openIndoorMap],
+  );
+
+  // ── Shuttle ────────────────────────────────────────────────────────────────
+
   const [showShuttle, setShowShuttle] = useState(false);
-  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
+    useState(false);
   const shuttleStatus = useShuttleAvailability(currentCampus);
 
   let accessibilityLabel: string;
-
   if (!shuttleStatus.available) {
     accessibilityLabel = "Shuttle not available";
   } else if (showShuttle) {
@@ -164,18 +217,13 @@ export default function CampusMapScreen() {
   }
 
   useEffect(() => {
-    if (!shuttleStatus.available && showShuttle) {
-      setShowShuttle(false);
-    }
+    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
   }, [shuttleStatus.available, showShuttle]);
 
   const hasActiveRoute =
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
-  const selectedBuildingIndoorAccess = useMemo(
-    () => getIndoorAccessState(selectedBuilding?.name),
-    [selectedBuilding],
-  );
+
   const nextClassIndoorAccess = useMemo(
     () => getIndoorAccessState(nextClass?.building),
     [nextClass?.building],
@@ -184,30 +232,7 @@ export default function CampusMapScreen() {
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
 
-  const openIndoorMap = useCallback(
-    (buildingCode?: string | null, roomQuery?: string) => {
-      const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
-
-      if (!params) {
-        return;
-      }
-
-      router.push({
-        pathname: "/IndoorMapScreen",
-        params,
-      });
-    },
-    [],
-  );
-
-  const handleOpenNextClassIndoorMap = useCallback(() => {
-    if (!nextClass?.room.trim()) {
-      return;
-    }
-
-    setIsNextClassVisible(false);
-    openIndoorMap(nextClass?.building, nextClass.room);
-  }, [nextClass, openIndoorMap]);
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1 }}>
@@ -230,13 +255,9 @@ export default function CampusMapScreen() {
           setInitialDestination(building);
           setIsNavVisible(true);
         }}
-        onSetAsMyLocation={(building) => {
-          setDemoCurrentBuilding(building);
-        }}
-        onBuildingSelected={(building) => {
-          setSelectedBuilding(building);
-        }}
-        onViewIndoorMap={(building) => openIndoorMap(building.name)}
+        onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
+        onBuildingSelected={(building) => setSelectedBuilding(building)}
+        onViewIndoorMap={handleViewBuildingIndoorMap}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -259,7 +280,6 @@ export default function CampusMapScreen() {
               SGW
             </Text>
           </Pressable>
-
           <Pressable
             onPress={() => selectCampus("loyola")}
             testID="campus-toggle-loyola"
@@ -280,18 +300,19 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {/* Left button stack: shuttle status + shuttle schedule */}
-      <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
+      {/* Left button stack */}
+      <View
+        style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
+      >
         <Pressable
           testID="show-shuttle-button"
           onPress={() => {
-            if (shuttleStatus.available) {
-              setShowShuttle(!showShuttle);
-            }
+            if (shuttleStatus.available) setShowShuttle(!showShuttle);
           }}
           style={[
             styles.actionButton,
-            (!showShuttle || !shuttleStatus.available) && styles.shuttleDisabled,
+            (!showShuttle || !shuttleStatus.available) &&
+              styles.shuttleDisabled,
           ]}
           accessibilityState={{ disabled: !shuttleStatus.available }}
           accessibilityLabel={accessibilityLabel}
@@ -302,18 +323,21 @@ export default function CampusMapScreen() {
             color={colors.white}
           />
         </Pressable>
-
         <Pressable
           testID="shuttle-schedule-button"
           accessibilityLabel="shuttle-schedule-button"
           onPress={() => setShowShuttleSchedulePanel(true)}
           style={[styles.actionButton]}
         >
-          <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
+          <MaterialCommunityIcons
+            name="calendar-clock"
+            size={24}
+            color={colors.white}
+          />
         </Pressable>
       </View>
-      
-      {/* Right button stack: next-class + directions + my-location */}
+
+      {/* Right button stack */}
       <View style={styles.buttonStack}>
         <Pressable
           testID="next-class-button"
@@ -328,16 +352,19 @@ export default function CampusMapScreen() {
         >
           <MaterialIcons name="school" size={24} color={colors.white} />
         </Pressable>
-
         <Pressable
           testID="directions-button"
           accessibilityLabel="directions-button"
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
-          <MaterialIcons name="directions" size={24} color={colors.white} importantForAccessibility="no-hide-descendants" />
+          <MaterialIcons
+            name="directions"
+            size={24}
+            color={colors.white}
+            importantForAccessibility="no-hide-descendants"
+          />
         </Pressable>
-
         <Pressable
           testID="my-location-button"
           accessibilityLabel="my-location-button"
@@ -352,7 +379,9 @@ export default function CampusMapScreen() {
       </View>
 
       {showShuttleSchedulePanel && (
-        <ShuttleSchedulePanel onClose={() => setShowShuttleSchedulePanel(false)} />
+        <ShuttleSchedulePanel
+          onClose={() => setShowShuttleSchedulePanel(false)}
+        />
       )}
 
       {showStepsPanel && (
@@ -415,11 +444,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
     pointerEvents: "box-none",
   },
-  campusToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
   campusToggle: {
     flexDirection: "row",
     backgroundColor: colors.offWhite,
@@ -429,23 +453,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     maxWidth: 160,
     opacity: 0.93,
-  },
-  routeFromCampusButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primaryDarker,
-    opacity: 0.93,
-  },
-  routeFromCampusButtonText: {
-    ...typography.button,
-    color: colors.white,
-    fontSize: 14,
   },
   campusToggleOption: {
     flex: 1,
@@ -488,12 +495,10 @@ const styles = StyleSheet.create({
   myLocationButtonActive: {
     backgroundColor: colors.primary,
   },
-
   shuttleDisabled: {
     backgroundColor: "#666",
     opacity: 0.8,
   },
-
   nextClassButton: {
     backgroundColor: colors.secondary,
     borderColor: colors.secondaryDark,
