@@ -1,4 +1,13 @@
-import { getAvailableFloors, hasFloorMap } from "../utils/mapAssets";
+import {
+    getAvailableFloors,
+    getBuildingPlanAsset,
+    getFloorImageAsset,
+    getFloorImageMetadata,
+    getLegacyFloorGeoJsonAsset,
+    hasBuildingPlanAsset,
+    hasFloorMap,
+    normalizeIndoorBuildingCode,
+} from "../utils/mapAssets";
 
 jest.mock("../hooks/useFloorData", () => ({
   getRegisteredFloors: jest.fn((buildingName) => {
@@ -13,6 +22,13 @@ jest.mock("../hooks/useFloorData", () => ({
 }));
 
 describe("mapAssets", () => {
+  describe("building code normalization", () => {
+    it("normalizes HALL alias and trims whitespace", () => {
+      expect(normalizeIndoorBuildingCode(" hall ")).toBe("H");
+      expect(normalizeIndoorBuildingCode(" mb ")).toBe("MB");
+    });
+  });
+
   describe("hasFloorMap", () => {
     it("returns true for MB floor 1", () => {
       expect(hasFloorMap("MB", 1)).toBe(true);
@@ -78,6 +94,27 @@ describe("mapAssets", () => {
       const mbFloors = getAvailableFloors("MB");
       expect(mbFloors).toContain(1);
       expect(mbFloors).toContain(-2);
+    });
+  });
+
+  describe("asset getters", () => {
+    it("returns floor image source and metadata", () => {
+      expect(getFloorImageAsset("CC", 1)).toBeDefined();
+      expect(getFloorImageMetadata("CC", 1)).toEqual(
+        expect.objectContaining({ width: 4096, height: 1024 }),
+      );
+      expect(getFloorImageAsset("UNKNOWN", 1)).toBeUndefined();
+      expect(getFloorImageMetadata("UNKNOWN", 1)).toBeUndefined();
+    });
+
+    it("reports building plan and legacy geojson availability", () => {
+      expect(hasBuildingPlanAsset("MB")).toBe(true);
+      expect(hasBuildingPlanAsset("UNKNOWN")).toBe(false);
+      expect(getBuildingPlanAsset("HALL")).toBeDefined();
+
+      expect(getLegacyFloorGeoJsonAsset("MB", 1)).toBeDefined();
+      expect(getLegacyFloorGeoJsonAsset("MB", 99)).toBeUndefined();
+      expect(getLegacyFloorGeoJsonAsset("UNKNOWN", 1)).toBeUndefined();
     });
   });
 });

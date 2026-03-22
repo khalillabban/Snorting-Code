@@ -1,12 +1,12 @@
 import {
-  IndoorRoomRecord,
-  NormalizedIndoorBuildingPlan,
-  getNormalizedBuildingPlan,
+    IndoorRoomRecord,
+    NormalizedIndoorBuildingPlan,
+    getNormalizedBuildingPlan,
 } from "../utils/indoorBuildingPlan";
 import {
-  findIndoorRoomFloor,
-  findIndoorRoomMatch,
-  findIndoorRoomMatches,
+    findIndoorRoomFloor,
+    findIndoorRoomMatch,
+    findIndoorRoomMatches,
 } from "../utils/indoorRoomSearch";
 
 function makeRoom(
@@ -153,5 +153,19 @@ describe("utils/indoorRoomSearch", () => {
     expect(findIndoorRoomMatch(plan!, "   ")).toBeNull();
     expect(findIndoorRoomMatches(plan!, "")).toEqual([]);
     expect(findIndoorRoomFloor(plan!, "DOES-NOT-EXIST")).toBeNull();
+  });
+
+  it("limits results with maxResults and resolves ties by floor then label", () => {
+    const floor2 = makeRoom("T-B", "777", 2);
+    const floor1A = makeRoom("T-A", "777", 1);
+    const floor1B = makeRoom("T-C", "777", 1);
+    const plan = makePlan([floor2, floor1B, floor1A]);
+
+    const matches = findIndoorRoomMatches(plan, "777", { maxResults: 2 });
+    expect(matches).toHaveLength(2);
+    expect(matches.map((match) => `${match.floor}-${match.room.label}`)).toEqual([
+      "1-T-A",
+      "1-T-C",
+    ]);
   });
 });
