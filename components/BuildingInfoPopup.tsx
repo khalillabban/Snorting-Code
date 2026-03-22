@@ -52,7 +52,7 @@ export const BuildingInfoPopup = ({
   }
 
   return (
-    <View style={styles.overlayWrapper} pointerEvents="box-none">
+    <View style={styles.overlayWrapper} pointerEvents="box-none" testID="building-info-popup">
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
@@ -66,6 +66,7 @@ export const BuildingInfoPopup = ({
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Close building info"
+            testID="building-info-close"
           >
             <Text style={styles.closeText}>X</Text>
           </TouchableOpacity>

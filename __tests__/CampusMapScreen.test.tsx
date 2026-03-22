@@ -1053,7 +1053,7 @@ describe("CampusMapScreen", () => {
         params: {
           buildingName: "MB",
           floors: JSON.stringify([1, -2]),
-          roomQuery: "1.210",
+          roomQuery: "MB-1.210",
         },
       });
     });
@@ -1063,11 +1063,7 @@ describe("CampusMapScreen", () => {
       await renderScreen();
 
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-
-      const indoorButton = screen.getByTestId("indoor-view-toggle");
-      expect(indoorButton).toBeTruthy();
-
-      fireEvent.press(indoorButton);
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
 
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",
@@ -1084,7 +1080,7 @@ describe("CampusMapScreen", () => {
 
       fireEvent.press(screen.getByTestId("trigger-building-without-map"));
 
-      expect(screen.queryByTestId("indoor-view-toggle")).toBeNull();
+      expect(screen.queryByTestId("popup-view-indoor")).toBeNull();
     });
 
     it("falls back to empty schedule when cached schedule loading fails", async () => {
@@ -1196,10 +1192,8 @@ describe("CampusMapScreen", () => {
       await renderScreen();
 
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-      expect(screen.getByTestId("indoor-view-toggle")).toBeTruthy();
-
       fireEvent.press(screen.getByTestId("trigger-building-without-map"));
-      expect(screen.queryByTestId("indoor-view-toggle")).toBeNull();
+      expect(screen.queryByTestId("popup-view-indoor")).toBeNull();
     });
 
     it("uses the latest indoor floors when navigating to Indoor", async () => {
@@ -1207,7 +1201,8 @@ describe("CampusMapScreen", () => {
       await renderScreen();
 
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-      fireEvent.press(screen.getByTestId("indoor-view-toggle"));
+      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
 
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",

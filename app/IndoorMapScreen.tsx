@@ -26,10 +26,6 @@ import {
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
-const [navOriginQuery, setNavOriginQuery] = useState("");
-const [navDestQuery, setNavDestQuery] = useState("");
-const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
-const [navError, setNavError] = useState<string | null>(null);
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;

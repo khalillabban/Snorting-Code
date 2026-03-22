@@ -33,8 +33,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { getFloorImageMetadata } from "../utils/mapAssets";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import { getFloorImageMetadata } from "../utils/mapAssets";
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",
@@ -136,7 +136,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
+      expect(screen.getByText(/MB Building/)).toBeTruthy();
       expect(screen.getByText("1")).toBeTruthy();
       expect(screen.getByText("-2")).toBeTruthy();
       expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
@@ -198,7 +198,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Inside MB Building/)).toBeTruthy();
+      expect(screen.getByText(/MB Building/)).toBeTruthy();
     });
   });
 
@@ -224,8 +224,9 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("room-search-input")).toBeTruthy();
-      expect(screen.getByTestId("room-search-button")).toBeTruthy();
+      expect(screen.getByPlaceholderText("From room…")).toBeTruthy();
+      expect(screen.getByPlaceholderText("To room…")).toBeTruthy();
+      expect(screen.getByText("Go")).toBeTruthy();
     });
   });
 
@@ -233,6 +234,7 @@ describe("IndoorMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
       floors: JSON.stringify([1, 2, 8, 9]),
+      roomQuery: "H-867",
     });
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue({
@@ -244,18 +246,12 @@ describe("IndoorMapScreen", () => {
 
     render(<IndoorMapScreen />);
 
-    fireEvent.changeText(screen.getByTestId("room-search-input"), "H-867");
-    fireEvent.press(screen.getByTestId("room-search-button"));
-
     await waitFor(() => {
       expect(findIndoorRoomMatch).toHaveBeenCalledWith(mockHallPlan, "H-867", {
         currentFloor: 1,
       });
       expect(screen.getByTestId("selected-room-banner")).toBeTruthy();
       expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
-      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
-        "H-867",
-      );
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
       expect(screen.getByTestId("floor-button-8").props.accessibilityState).toEqual({
         selected: true,
@@ -267,14 +263,12 @@ describe("IndoorMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
       floors: JSON.stringify([1, 2, 8, 9]),
+      roomQuery: "H-999",
     });
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
 
     render(<IndoorMapScreen />);
-
-    fireEvent.changeText(screen.getByTestId("room-search-input"), "H-999");
-    fireEvent.press(screen.getByTestId("room-search-button"));
 
     await waitFor(() => {
       expect(screen.getByTestId("room-search-error")).toBeTruthy();
@@ -286,6 +280,7 @@ describe("IndoorMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
       floors: JSON.stringify([1, -2]),
+      roomQuery: "1.210",
     });
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue({
@@ -296,9 +291,6 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
-
-    fireEvent.changeText(screen.getByTestId("room-search-input"), "1.210");
-    fireEvent.press(screen.getByTestId("room-search-button"));
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
@@ -327,10 +319,6 @@ describe("IndoorMapScreen", () => {
         currentFloor: 1,
       });
       expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
-      expect(screen.getByTestId("room-search-input").props.value).toBe("H-867");
-      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
-        "H-867",
-      );
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
     });
   });
@@ -377,9 +365,7 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
-      expect(screen.getByTestId("selected-room-callout").props.children).toBe(
-        "Search a room to pin it on the floor plan.",
-      );
+      expect(screen.queryByTestId("selected-room-banner")).toBeNull();
     });
   });
 });
