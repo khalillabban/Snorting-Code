@@ -21,7 +21,7 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY } from "../constants/strategies";
-import { colors, spacing } from "../constants/theme";
+import { colors } from "../constants/theme";
 import type {
   Buildings,
   Location,
@@ -30,6 +30,7 @@ import type {
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
+import { styles } from "../styles/CampusMap.styles";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 import { BuildingInfoPopup } from "./BuildingInfoPopup";
@@ -166,7 +167,12 @@ export default function CampusMap({
   useEffect(() => {
     onBuildingSelected?.(selectedBuilding, availableFloors.length > 0);
     onIndoorFloorsAvailable?.(availableFloors);
-  }, [selectedBuilding, availableFloors, onBuildingSelected, onIndoorFloorsAvailable]);
+  }, [
+    selectedBuilding,
+    availableFloors,
+    onBuildingSelected,
+    onIndoorFloorsAvailable,
+  ]);
   const [shuttleRouteCoords, setShuttleRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
@@ -305,10 +311,7 @@ export default function CampusMap({
       }
 
       try {
-        const {
-          steps,
-          segments,
-        } = await getOutdoorRouteWithSteps(
+        const { steps, segments } = await getOutdoorRouteWithSteps(
           startPoint.coordinates,
           destinationPoint.coordinates,
           strategy,
@@ -672,125 +675,3 @@ export default function CampusMap({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  errorBanner: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 60 : 40,
-    left: spacing.md,
-    right: spacing.md,
-    backgroundColor: colors.error,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-  },
-  errorText: { color: colors.white, textAlign: "center" },
-  currentLocationDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 14,
-    backgroundColor: "#007AFF",
-    borderWidth: 2.5,
-    borderColor: "white",
-  },
-
-  busStopMarker: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  busStopIcon: {
-    fontSize: 22,
-  },
-  shuttleStopMarker: {
-    alignItems: "center",
-  },
-  shuttleStopPin: {
-    backgroundColor: colors.routeTransit,
-    borderRadius: 20,
-    padding: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: colors.white,
-  },
-  shuttleStopLabel: {
-    marginTop: 4,
-    backgroundColor: colors.white,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    alignItems: "center",
-    minWidth: 72,
-  },
-  shuttleStopCampus: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.primaryDark,
-  },
-  shuttleStopStartEnd: {
-    fontSize: 11,
-    color: colors.gray500,
-    marginTop: 1,
-  },
-  busPin: {
-    alignItems: "center",
-  },
-  busPinHead: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    padding: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  busPinTail: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 10,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderTopColor: colors.primary,
-  },
-
-  startDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 14,
-    backgroundColor: "white",
-    borderWidth: 1.5,
-    borderColor: "black",
-  },
-  destinationPinWrapper: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  destinationPinShadow: {
-    position: "absolute",
-  },
-  destinationPinFront: {
-    position: "absolute",
-  },
-
-  codePill: {
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  codeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.white,
-  },
-});

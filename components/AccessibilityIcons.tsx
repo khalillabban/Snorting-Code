@@ -5,7 +5,6 @@ import { styles } from "../styles/AccessibilityIcons.styles";
 
 const ICON_SIZE = 24;
 
-// ensures consistent order of icons, same as concordia website
 const ICON_ORDER: BuildingIcon[] = [
   "information",
   "printer",
@@ -27,10 +26,13 @@ interface AccessibilityIconsProps {
   size?: number;
 }
 
-export const BuildingIcons = ({ icons, size = ICON_SIZE }: AccessibilityIconsProps) => {
+export const BuildingIcons = ({
+  icons,
+  size = ICON_SIZE,
+}: AccessibilityIconsProps) => {
   const ordered = useMemo(
     () => ICON_ORDER.filter((s) => icons.includes(s)),
-    [icons]
+    [icons],
   );
 
   if (ordered.length === 0) return null;
@@ -51,4 +53,3 @@ export const BuildingIcons = ({ icons, size = ICON_SIZE }: AccessibilityIconsPro
     </View>
   );
 };
-

@@ -36,8 +36,6 @@ const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
 const MAX_SUGGESTIONS = 20;
 
-// ─── Search result types ──────────────────────────────────────────────────────
-
 export type SearchResult =
   | { kind: "building"; building: Buildings }
   | { kind: "room"; room: IndoorRoomRecord; building: Buildings };
@@ -52,8 +50,6 @@ function resultSubtitle(result: SearchResult): string {
   return `${result.building.displayName} · Floor ${result.room.floor}`;
 }
 
-// ─── Global search index (built once, cached) ─────────────────────────────────
-
 type SearchIndex = SearchResult[];
 let _cachedIndex: SearchIndex | null = null;
 
@@ -63,7 +59,6 @@ function buildSearchIndex(): SearchIndex {
   for (const building of BUILDINGS) {
     index.push({ kind: "building", building });
 
-    // Only include buildings that have a searchable indoor plan
     const access = getIndoorAccessState(building.name);
     if (!access.hasSearchableRooms) continue;
 
@@ -91,15 +86,12 @@ function queryIndex(query: string): SearchResult[] {
     .filter((item) => {
       const label = resultLabel(item).toLowerCase();
       const code = item.building.name.toLowerCase();
-      // Also match partial room numbers without the building prefix
       const roomNumber =
         item.kind === "room" ? item.room.roomNumber.toLowerCase() : "";
       return label.includes(q) || code.includes(q) || roomNumber.includes(q);
     })
     .slice(0, MAX_SUGGESTIONS);
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface NavigationBarProps {
   visible: boolean;
@@ -120,8 +112,6 @@ interface NavigationBarProps {
   onUseMyLocation?: () => Buildings | null;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function NavigationBar({
   visible,
   onClose,
@@ -137,7 +127,6 @@ export default function NavigationBar({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  // Selected values
   const [startLoc, setStartLoc] = useState("");
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
@@ -146,11 +135,9 @@ export default function NavigationBar({
   const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
   const [startManuallyEdited, setStartManuallyEdited] = useState(false);
 
-  // Search state
   const [activeInput, setActiveInput] = useState<"start" | "dest" | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
 
-  // Route summary
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSummary, setRouteSummary] = useState<{
@@ -158,8 +145,6 @@ export default function NavigationBar({
     distance?: string;
   } | null>(null);
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
-
-  // ── Search ──────────────────────────────────────────────────────────────────
 
   const search = useCallback((text: string) => {
     if (!text.trim()) {
@@ -211,7 +196,6 @@ export default function NavigationBar({
     setActiveInput(null);
   };
 
-  // Show full campus building list when tapping the list icon
   const showBuildingPicker = (type: "start" | "dest") => {
     if (activeInput === type && suggestions.length > 0) {
       dismissSuggestions();
@@ -267,8 +251,6 @@ export default function NavigationBar({
     onClose();
   };
 
-  // ── Route summary ───────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (!startBuilding || !destBuilding || suggestions.length > 0) {
       setRouteSummary(null);
@@ -313,7 +295,6 @@ export default function NavigationBar({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // ── Auto-fill ───────────────────────────────────────────────────────────────
@@ -344,8 +325,6 @@ export default function NavigationBar({
     }
   }, [visible, initialDestination, onInitialDestinationApplied]);
 
-  // ── Pan responder ───────────────────────────────────────────────────────────
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -369,8 +348,6 @@ export default function NavigationBar({
   if (!shouldRender) return null;
 
   const showingList = suggestions.length > 0;
-
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -525,7 +502,6 @@ export default function NavigationBar({
               )}
             </View>
 
-            {/* ── Transport mode + summary ── */}
             {!showingList && (
               <View style={styles.modeSection}>
                 <View style={styles.modeContainer}>
@@ -570,7 +546,6 @@ export default function NavigationBar({
               </View>
             )}
 
-            {/* ── Suggestions list ── */}
             {showingList ? (
               <FlatList
                 data={suggestions}
