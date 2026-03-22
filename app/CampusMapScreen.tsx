@@ -2,7 +2,7 @@ import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
@@ -83,6 +83,13 @@ export default function CampusMapScreen() {
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
+  // Usability Testing: Track how long it takes users to use the nav bar
+  const navStartTime = useRef<number | null>(null);
+  const openNavigationBar = () => {
+    navStartTime.current = Date.now();
+    setIsNavVisible(true);
+  };
+
   // Next class state
   const [isNextClassVisible, setIsNextClassVisible] = useState(false);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -153,6 +160,13 @@ export default function CampusMapScreen() {
   const focusUserLocation = () => {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
+    try {
+      logEvent(getAnalytics(), "current_location_pressed", {
+        screen: "CampusMapScreen",
+      });
+    } catch (error) {
+      console.error("Firebase Analytics Error: ", error);
+    }
   };
 
   const handleConfirmRoute = (
@@ -165,6 +179,20 @@ export default function CampusMapScreen() {
     setIsNavVisible(false);
     if (start) {
       setRouteFocusTrigger((c) => c + 1);
+    }
+    try {
+      const timeSpent = navStartTime.current
+        ? Date.now() - navStartTime.current
+        : 0;
+      logEvent(getAnalytics(), "route_generated", {
+        start_location: start?.name ?? "My Location",
+        dest_location: dest?.name ?? "Unknown",
+        travel_mode: strategy.mode,
+        time_spent_ms: timeSpent,
+      });
+      navStartTime.current = null;
+    } catch (error) {
+      console.error("Firebase Analytics Error: ", error);
     }
   };
   const [showShuttle, setShowShuttle] = useState(false);
@@ -207,17 +235,26 @@ export default function CampusMapScreen() {
         onRouteSteps={setRouteSteps}
         onSetAsStart={(building) => {
           setInitialStart(building);
-          setIsNavVisible(true);
+          openNavigationBar();
         }}
         onSetAsDestination={(building) => {
           setInitialDestination(building);
-          setIsNavVisible(true);
+          openNavigationBar();
         }}
         onSetAsMyLocation={(building) => {
           setDemoCurrentBuilding(building);
         }}
         onBuildingSelected={(building, hasMap) => {
           setSelectedBuildingWithMap(hasMap ? building : null);
+          if (building) {
+            try {
+              logEvent(getAnalytics(), "building_info_viewed", {
+                building_name: building.name,
+                campus: building.campusName,
+                has_indoor_map: hasMap,
+              });
+            } catch (e) {}
+          }
         }}
         onIndoorFloorsAvailable={(floors) => setIndoorAvailableFloors(floors)}
       />
@@ -289,7 +326,13 @@ export default function CampusMapScreen() {
           testID="show-shuttle-button"
           onPress={() => {
             if (shuttleStatus.available) {
-              setShowShuttle(!showShuttle);
+              const newState = !showShuttle;
+              setShowShuttle(newState);
+              try {
+                logEvent(getAnalytics(), "shuttle_stops_toggled", {
+                  state: newState ? "visible" : "hidden",
+                });
+              } catch (e) {}
             }
           }}
           style={[
@@ -369,7 +412,7 @@ export default function CampusMapScreen() {
         <Pressable
           testID="directions-button"
           accessibilityLabel="directions-button"
-          onPress={() => setIsNavVisible(true)}
+          onPress={openNavigationBar}
           style={styles.actionButton}
         >
           <MaterialIcons
@@ -406,7 +449,7 @@ export default function CampusMapScreen() {
           onChangeRoute={() => {
             setInitialStart(selectedRoute.start);
             setInitialDestination(selectedRoute.dest);
-            setIsNavVisible(true);
+            openNavigationBar();
           }}
           onDismiss={() => {
             setSelectedRoute({ start: null, dest: null });
@@ -422,6 +465,14 @@ export default function CampusMapScreen() {
           setIsNavVisible(false);
           setInitialStart(null);
           setInitialDestination(null);
+          if (navStartTime.current) {
+            try {
+              logEvent(getAnalytics(), "route_generation_abandoned", {
+                time_spent_ms: Date.now() - navStartTime.current,
+              });
+            } catch (e) {}
+            navStartTime.current = null;
+          }
         }}
         onConfirm={handleConfirmRoute}
         autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
