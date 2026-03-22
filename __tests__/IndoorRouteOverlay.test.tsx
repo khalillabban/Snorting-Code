@@ -200,4 +200,50 @@ describe("IndoorDirectionsPanel", () => {
     expect(screen.getByText("🪜")).toBeTruthy();
     expect(screen.getByText("Take stairs up")).toBeTruthy();
   });
+
+  it("formats exact-minute durations and hides close button when no onClose is provided", () => {
+    const route = makeRoute({
+      estimatedSeconds: 120,
+      fullyAccessible: true,
+      segments: [],
+      origin: { label: "H-100" } as any,
+      destination: { label: "H-200" } as any,
+    });
+
+    render(<IndoorDirectionsPanel route={route} />);
+
+    expect(screen.getByText("2m walk · fully accessible")).toBeTruthy();
+    expect(screen.queryByText("✕")).toBeNull();
+  });
+
+  it("uses fallback icon and omits walk meta when distance is zero", () => {
+    const route = makeRoute({
+      estimatedSeconds: 61,
+      fullyAccessible: true,
+      segments: [
+        {
+          kind: "walk",
+          description: "Short walk",
+          nodeIds: ["a"],
+          floor: 1,
+          distance: 0,
+        },
+        {
+          kind: "mystery" as any,
+          description: "Unknown segment",
+          nodeIds: ["x"],
+          floor: 1,
+          distance: 0,
+        },
+      ],
+      origin: { label: "H-100" } as any,
+      destination: { label: "H-200" } as any,
+    });
+
+    render(<IndoorDirectionsPanel route={route} />);
+
+    expect(screen.queryByText("Floor 1 · ~0m")).toBeNull();
+    expect(screen.getByText("·")).toBeTruthy();
+    expect(screen.getByText("Unknown segment")).toBeTruthy();
+  });
 });

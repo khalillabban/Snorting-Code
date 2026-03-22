@@ -29,10 +29,16 @@ jest.mock("../utils/indoorRoomSearch", () => ({
   findIndoorRoomMatch: jest.fn(),
 }));
 
+jest.mock("../utils/indoorNavigation", () => ({
+  getIndoorNavigationRoute: jest.fn(),
+  getRouteWaypointsForFloor: jest.fn(() => []),
+}));
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { getIndoorNavigationRoute } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
 
@@ -125,6 +131,11 @@ describe("IndoorMapScreen", () => {
     );
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: false,
+      error: "NO_PATH_FOUND",
+      message: "No indoor route found.",
+    });
   });
 
   it("renders with building name and floor selector", async () => {
@@ -366,6 +377,93 @@ describe("IndoorMapScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
       expect(screen.queryByTestId("selected-room-banner")).toBeNull();
+    });
+  });
+
+  it("shows unavailable-search error when building plan is missing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "UNKNOWN",
+      floors: JSON.stringify([1]),
+      roomQuery: "A-100",
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("room-search-error")).toBeTruthy();
+      expect(
+        screen.getByText("Room search is not available for UNKNOWN."),
+      ).toBeTruthy();
+    });
+  });
+
+  it("runs indoor navigation from navOrigin/navDest params and can close directions", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 9, label: "H-920" },
+        path: { steps: [] },
+        segments: [
+          {
+            kind: "walk",
+            description: "Walk forward",
+            nodeIds: ["a", "b"],
+            floor: 2,
+            distance: 50,
+          },
+        ],
+        floors: [2, 9],
+        totalDistance: 50,
+        fullyAccessible: true,
+        estimatedSeconds: 35,
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
+        "H",
+        "H-110",
+        "H-920",
+        { accessibleOnly: false },
+      );
+      expect(screen.getByText("H-110 → H-920")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("✕"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("H-110 → H-920")).toBeNull();
+    });
+  });
+
+  it("shows navigation error when indoor route lookup fails", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: false,
+      error: "NO_PATH_FOUND",
+      message: "Unable to find indoor route",
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to find indoor route")).toBeTruthy();
     });
   });
 });

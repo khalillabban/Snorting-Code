@@ -158,6 +158,19 @@ jest.mock("../components/NavigationBar", () => {
   const React = require("react");
   const { View, Text, Pressable } = require("react-native");
 
+  const mockBuilding = {
+    name: "H",
+    campusName: "sgw",
+    displayName: "Hall",
+    address: "1455 De Maisonneuve",
+    coordinates: { latitude: 45.497, longitude: -73.579 },
+    boundingBox: [
+      { latitude: 45.496, longitude: -73.58 },
+      { latitude: 45.497, longitude: -73.579 },
+      { latitude: 45.498, longitude: -73.578 },
+    ],
+  };
+
   const MockNavigationBar = (props: any) => {
     const [result, setResult] = React.useState(undefined);
 
@@ -202,6 +215,44 @@ jest.mock("../components/NavigationBar", () => {
           }
         >
           <Text>Confirm Null Start</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-confirm-same-building-rooms"
+          onPress={() =>
+            props.onConfirm(
+              mockBuilding,
+              mockBuilding,
+              {
+                mode: "walking",
+                label: "Walk",
+                icon: "walk",
+              },
+              { label: "H-110" },
+              { label: "H-920" },
+            )
+          }
+        >
+          <Text>Confirm Same Building Rooms</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-confirm-same-building-dest-room"
+          onPress={() =>
+            props.onConfirm(
+              mockBuilding,
+              mockBuilding,
+              {
+                mode: "walking",
+                label: "Walk",
+                icon: "walk",
+              },
+              null,
+              { label: "H-920" },
+            )
+          }
+        >
+          <Text>Confirm Same Building Dest Room</Text>
         </Pressable>
 
         <Pressable testID="nav-start-applied" onPress={props.onInitialStartApplied}>
@@ -851,6 +902,41 @@ describe("CampusMapScreen", () => {
     fireEvent.press(screen.getByTestId("nav-confirm-nullstart"));
 
     expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(trigger0);
+  });
+
+  it("opens indoor map with navOrigin/navDest when same-building rooms are confirmed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm-same-building-rooms"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/IndoorMapScreen",
+      params: {
+        buildingName: "H",
+        floors: JSON.stringify([1, 2, 8]),
+        navOrigin: "H-110",
+        navDest: "H-920",
+      },
+    });
+    expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+  });
+
+  it("opens indoor map with roomQuery when same-building destination room is confirmed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm-same-building-dest-room"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/IndoorMapScreen",
+      params: {
+        buildingName: "H",
+        floors: JSON.stringify([1, 2, 8]),
+        roomQuery: "H-920",
+      },
+    });
+    expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
   });
 
   describe("Next Class Directions Panel", () => {
