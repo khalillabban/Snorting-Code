@@ -136,7 +136,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      expect(queryByPlaceholderText("From")).toBeNull();
+      expect(queryByPlaceholderText(/From/)).toBeNull();
     });
 
     it("should render when visible is true", async () => {
@@ -149,8 +149,8 @@ describe("NavigationBar", () => {
       );
 
       await waitFor(() => {
-        expect(getByPlaceholderText("From")).toBeTruthy();
-        expect(getByPlaceholderText("To")).toBeTruthy();
+        expect(getByPlaceholderText(/From/)).toBeTruthy();
+        expect(getByPlaceholderText(/To/)).toBeTruthy();
       });
     });
 
@@ -172,9 +172,9 @@ describe("NavigationBar", () => {
         <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
       );
 
-      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.changeText(getByPlaceholderText(/From/), "Science");
       fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
-      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.changeText(getByPlaceholderText(/To/), "Library");
       fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
       await waitFor(() => {
@@ -199,7 +199,7 @@ describe("NavigationBar", () => {
         />
       );
 
-      expect(getByPlaceholderText("To").props.value).toBe("Henry F. Hall Building (H)");
+      expect(getByPlaceholderText(/To/).props.value).toBe("Henry F. Hall Building (H)");
       expect(mockOnApplied).toHaveBeenCalled();
     });
     it("updates the selected strategy when a mode button is pressed", () => {
@@ -214,7 +214,9 @@ describe("NavigationBar", () => {
       expect(mockOnConfirm).toHaveBeenCalledWith(
         null, // start
         null, // dest
-        expect.objectContaining({ mode: "driving", label: "Car" })
+        expect.objectContaining({ mode: "driving", label: "Car" }),
+        null, // startRoom
+        null  // endRoom
       );
     });
   });
@@ -271,7 +273,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
@@ -286,7 +288,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const destInput = getByPlaceholderText("To");
+      const destInput = getByPlaceholderText(/To/);
       fireEvent.changeText(destInput, "Library");
 
       expect(getByText("Concordia Vanier Library (VL)")).toBeTruthy();
@@ -301,7 +303,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
@@ -316,7 +318,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
 
       fireEvent.changeText(startInput, "Science");
 
@@ -337,7 +339,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -357,7 +359,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const destInput = getByPlaceholderText("To");
+      const destInput = getByPlaceholderText(/To/);
       fireEvent.changeText(destInput, "Library");
 
       const suggestion = getByText("Concordia Vanier Library (VL)");
@@ -375,7 +377,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -396,7 +398,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
 
       const suggestion = getByText("Richard J Renaud Science Complex (SP)");
@@ -416,11 +418,11 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
       fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
 
-      const destInput = getByPlaceholderText("To");
+      const destInput = getByPlaceholderText(/To/);
       fireEvent.changeText(destInput, "Library");
       fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
@@ -437,6 +439,8 @@ describe("NavigationBar", () => {
           displayName: "Concordia Vanier Library (VL)",
         }),
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        null,
+        null
       );
     });
 
@@ -471,6 +475,8 @@ describe("NavigationBar", () => {
         null,
         null,
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        null,
+        null
       );
     });
   });
@@ -893,7 +899,7 @@ describe("NavigationBar", () => {
           <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={null} />
         );
 
-        const input = getByPlaceholderText("From");
+        const input = getByPlaceholderText(/From/);
 
         fireEvent.changeText(input, "User Typed Location");
 
@@ -917,7 +923,7 @@ describe("NavigationBar", () => {
           />
         );
 
-        expect(getByPlaceholderText("From").props.value).toBe("Hall Building");
+        expect(getByPlaceholderText(/From/).props.value).toBe("Hall Building");
         expect(mockOnApplied).toHaveBeenCalled();
       });
       it("shows 'Loading…' while the route is being fetched", async () => {
@@ -927,9 +933,9 @@ describe("NavigationBar", () => {
           <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
         );
 
-        fireEvent.changeText(getByPlaceholderText("From"), "Science");
+        fireEvent.changeText(getByPlaceholderText(/From/), "Science");
         fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
-        fireEvent.changeText(getByPlaceholderText("To"), "Library");
+        fireEvent.changeText(getByPlaceholderText(/To/), "Library");
         fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
         expect(getByText("Loading…")).toBeTruthy();
@@ -999,7 +1005,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Test");
 
       expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
@@ -1014,7 +1020,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       const longQuery = "a".repeat(1000);
 
       expect(() => {
@@ -1031,7 +1037,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
 
       fireEvent.changeText(startInput, "E");
       fireEvent.changeText(startInput, "En");
@@ -1050,7 +1056,7 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
 
       expect(() => {
         fireEvent.changeText(startInput, "@#$%^&*()");
@@ -1068,8 +1074,8 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
-      const destInput = getByPlaceholderText("To");
+      const startInput = getByPlaceholderText(/From/);
+      const destInput = getByPlaceholderText(/To/);
 
       fireEvent.changeText(startInput, "Science");
       fireEvent.changeText(destInput, "Library");
@@ -1087,12 +1093,12 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const startInput = getByPlaceholderText("From");
+      const startInput = getByPlaceholderText(/From/);
       fireEvent.changeText(startInput, "Science");
 
       expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
 
-      const destInput = getByPlaceholderText("To");
+      const destInput = getByPlaceholderText(/To/);
       fireEvent.changeText(destInput, "Library");
 
       expect(queryByText("Concordia Vanier Library (VL)")).toBeTruthy();
@@ -1125,7 +1131,7 @@ describe("NavigationBar", () => {
 
       await waitFor(() => {
         expect(
-          getByPlaceholderText("From").props.value
+          getByPlaceholderText(/From/).props.value
         ).toBe(mockAutoBuilding.displayName);
       });
     });
@@ -1150,6 +1156,8 @@ describe("NavigationBar", () => {
         }),
         null,
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        null,
+        null
       );
     });
 
@@ -1163,7 +1171,7 @@ describe("NavigationBar", () => {
         />
       );
 
-      expect(getByPlaceholderText("From").props.value).toBe("");
+      expect(getByPlaceholderText(/From/).props.value).toBe("");
     });
   });
 
@@ -1177,8 +1185,8 @@ describe("NavigationBar", () => {
         />,
       );
 
-      const fromInput = getByPlaceholderText("From");
-      const toInput = getByPlaceholderText("To");
+      const fromInput = getByPlaceholderText(/From/);
+      const toInput = getByPlaceholderText(/To/);
 
       fireEvent.changeText(fromInput, "Science");
       fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
@@ -1210,9 +1218,9 @@ describe("NavigationBar", () => {
         />,
       );
 
-      fireEvent.changeText(getByPlaceholderText("From"), "Science");
+      fireEvent.changeText(getByPlaceholderText(/From/), "Science");
       fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
-      fireEvent.changeText(getByPlaceholderText("To"), "Library");
+      fireEvent.changeText(getByPlaceholderText(/To/), "Library");
       fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
       await waitFor(() => {
@@ -1311,7 +1319,7 @@ describe("NavigationBar", () => {
       fireEvent.press(getByLabelText("Use my current location as start"));
 
       expect(mockUseMyLocation).toHaveBeenCalled();
-      expect(getByPlaceholderText("From").props.value).toBe(
+      expect(getByPlaceholderText(/From/).props.value).toBe(
         "Richard J Renaud Science Complex (SP)"
       );
     });
@@ -1331,7 +1339,7 @@ describe("NavigationBar", () => {
       fireEvent.press(getByLabelText("Use my current location as start"));
 
       expect(mockUseMyLocation).toHaveBeenCalled();
-      expect(getByPlaceholderText("From").props.value).toBe("My Location");
+      expect(getByPlaceholderText(/From/).props.value).toBe("My Location");
     });
   });
 });
