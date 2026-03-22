@@ -138,4 +138,97 @@ describe("NavigationBar coverage branches", () => {
     );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("re-queries suggestions on focus when start/dest already have values", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+      />,
+    );
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("From — building or room (e.g. H-110)"),
+      "H-110",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-room-room-110"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
+      "H-220",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-room-room-220"));
+
+    fireEvent(screen.getByTestId("start-location-input"), "focus");
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+    });
+
+    fireEvent(screen.getByTestId("dest-location-input"), "focus");
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+    });
+  });
+
+  it("clears start/end room badges and renders campus subtitle for building suggestions", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+      />,
+    );
+
+    fireEvent.press(screen.getAllByLabelText("Pick from list")[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+      expect(screen.getByText("sgw")).toBeTruthy();
+    });
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("From — building or room (e.g. H-110)"),
+      "H-110",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-room-room-110"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
+      "H-220",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-room-room-220"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Room H-110")).toBeTruthy();
+      expect(screen.getByText("Room H-220")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("clear-start-room"));
+    fireEvent.press(screen.getByTestId("clear-end-room"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Room H-110")).toBeNull();
+      expect(screen.queryByText("Room H-220")).toBeNull();
+    });
+  });
 });

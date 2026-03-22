@@ -425,7 +425,7 @@ export default function NavigationBar({
                   <Text style={styles.roomBadgeText}>
                     Room {startRoom.label}
                   </Text>
-                  <Pressable onPress={() => setStartRoom(null)}>
+                  <Pressable testID="clear-start-room" onPress={() => setStartRoom(null)}>
                     <MaterialIcons
                       name="close"
                       size={14}
@@ -491,7 +491,7 @@ export default function NavigationBar({
                     color={colors.primary}
                   />
                   <Text style={styles.roomBadgeText}>Room {endRoom.label}</Text>
-                  <Pressable onPress={() => setEndRoom(null)}>
+                  <Pressable testID="clear-end-room" onPress={() => setEndRoom(null)}>
                     <MaterialIcons
                       name="close"
                       size={14}
