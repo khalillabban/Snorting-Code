@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -50,8 +51,11 @@ export default function CampusMapScreen() {
     campus === "loyola" ? "loyola" : "sgw",
   );
 
-  const [selectedBuildingWithMap, setSelectedBuildingWithMap] = useState<Buildings | null>(null);
-  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>([]);
+  const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
+    useState<Buildings | null>(null);
+  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
+    [],
+  );
 
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -60,19 +64,23 @@ export default function CampusMapScreen() {
   const [userFocusCounter, setUserFocusCounter] = useState(0);
   const [routeFocusTrigger, setRouteFocusTrigger] = useState(0);
 
-  const [autoStartBuilding, setAutoStartBuilding] =
-    useState<Buildings | null>(null);
+  const [autoStartBuilding, setAutoStartBuilding] = useState<Buildings | null>(
+    null,
+  );
 
   const [isNavVisible, setIsNavVisible] = useState(false);
   const [initialStart, setInitialStart] = useState<Buildings | null>(null);
-  const [initialDestination, setInitialDestination] = useState<Buildings | null>(null);
-  const [demoCurrentBuilding, setDemoCurrentBuilding] = useState<Buildings | null>(null);
+  const [initialDestination, setInitialDestination] =
+    useState<Buildings | null>(null);
+  const [demoCurrentBuilding, setDemoCurrentBuilding] =
+    useState<Buildings | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<{
     start: Buildings | null;
     dest: Buildings | null;
   }>({ start: null, dest: null });
 
-  const [selectedStrategy, setSelectedStrategy] = useState<RouteStrategy>(WALKING_STRATEGY);
+  const [selectedStrategy, setSelectedStrategy] =
+    useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
   // Next class state
@@ -122,9 +130,25 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  const selectCampus = (campusKey: CampusKey) => {
+  const selectCampus = async (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
+
+    try {
+      // 1. Get the analytics instance
+      const analyticsInstance = getAnalytics();
+
+      // 2. Call the modular logEvent function
+      await logEvent(analyticsInstance, "campus_switch", {
+        campus_name: campusKey,
+        screen: "CampusMapScreen",
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log(`Firebase: Logged switch to ${campusKey} (Modular API)`);
+    } catch (error) {
+      console.error("Firebase Analytics Error: ", error);
+    }
   };
 
   const focusUserLocation = () => {
@@ -135,7 +159,7 @@ export default function CampusMapScreen() {
   const handleConfirmRoute = (
     start: Buildings | null,
     dest: Buildings | null,
-    strategy: RouteStrategy
+    strategy: RouteStrategy,
   ) => {
     setSelectedRoute({ start, dest });
     setSelectedStrategy(strategy);
@@ -145,7 +169,8 @@ export default function CampusMapScreen() {
     }
   };
   const [showShuttle, setShowShuttle] = useState(false);
-  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
+    useState(false);
   const shuttleStatus = useShuttleAvailability(currentCampus);
 
   let accessibilityLabel: string;
@@ -241,24 +266,26 @@ export default function CampusMapScreen() {
 
       {selectedBuildingWithMap && (
         <Pressable
-          onPress={() => router.push({
-            pathname: "/IndoorMapScreen",
-            params: {
-              buildingName: selectedBuildingWithMap.name,
-              floors: JSON.stringify(indoorAvailableFloors)
-            }
-          })}
+          onPress={() =>
+            router.push({
+              pathname: "/IndoorMapScreen",
+              params: {
+                buildingName: selectedBuildingWithMap.name,
+                floors: JSON.stringify(indoorAvailableFloors),
+              },
+            })
+          }
           testID="indoor-view-toggle"
           style={styles.indoorButton}
         >
-          <Text style={styles.indoorButtonText}>
-            Indoor
-          </Text>
+          <Text style={styles.indoorButtonText}>Indoor</Text>
         </Pressable>
       )}
 
       {/* Left button stack: shuttle status + shuttle schedule */}
-      <View style={[styles.buttonStack, { left: spacing.md, right: undefined }]}>
+      <View
+        style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
+      >
         <Pressable
           testID="show-shuttle-button"
           onPress={() => {
@@ -268,7 +295,8 @@ export default function CampusMapScreen() {
           }}
           style={[
             styles.actionButton,
-            (!showShuttle || !shuttleStatus.available) && styles.shuttleDisabled,
+            (!showShuttle || !shuttleStatus.available) &&
+              styles.shuttleDisabled,
           ]}
           accessibilityState={{ disabled: !shuttleStatus.available }}
           accessibilityLabel={accessibilityLabel}
@@ -286,10 +314,14 @@ export default function CampusMapScreen() {
           onPress={() => setShowShuttleSchedulePanel(true)}
           style={[styles.actionButton]}
         >
-          <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.white} />
+          <MaterialCommunityIcons
+            name="calendar-clock"
+            size={24}
+            color={colors.white}
+          />
         </Pressable>
       </View>
-      
+
       {/* Right button stack: next-class + directions + my-location */}
       <View style={styles.buttonStack}>
         <Pressable
@@ -312,7 +344,12 @@ export default function CampusMapScreen() {
           onPress={() => setIsNavVisible(true)}
           style={styles.actionButton}
         >
-          <MaterialIcons name="directions" size={24} color={colors.white} importantForAccessibility="no-hide-descendants" />
+          <MaterialIcons
+            name="directions"
+            size={24}
+            color={colors.white}
+            importantForAccessibility="no-hide-descendants"
+          />
         </Pressable>
 
         <Pressable
@@ -329,7 +366,9 @@ export default function CampusMapScreen() {
       </View>
 
       {showShuttleSchedulePanel && (
-        <ShuttleSchedulePanel onClose={() => setShowShuttleSchedulePanel(false)} />
+        <ShuttleSchedulePanel
+          onClose={() => setShowShuttleSchedulePanel(false)}
+        />
       )}
 
       {showStepsPanel && (
