@@ -27,14 +27,14 @@ export const BuildingInfoPopup = ({
 }: BuildingInfoPopupProps) => {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
-  // reset active tab when building changes
   useEffect(() => {
     setActiveTab(null);
   }, [building]);
 
   if (!building) return null;
 
-  const hasDepartments = !!building.departments && building.departments.length > 0;
+  const hasDepartments =
+    !!building.departments && building.departments.length > 0;
   const hasServices = !!building.services && building.services.length > 0;
   const hasTabs = hasDepartments || hasServices;
 
@@ -52,7 +52,7 @@ export const BuildingInfoPopup = ({
   }
 
   return (
-    <View style={styles.overlayWrapper} pointerEvents="box-none">
+    <View style={styles.overlayWrapper} pointerEvents="box-none" testID="building-info-popup">
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
@@ -66,10 +66,10 @@ export const BuildingInfoPopup = ({
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Close building info"
+            testID="building-info-close"
           >
-            <Text style={styles.closeText}>✕</Text>
+            <Text style={styles.closeText}>X</Text>
           </TouchableOpacity>
-
         </View>
 
         <View style={styles.divider} />
@@ -168,6 +168,20 @@ export const BuildingInfoPopup = ({
             <Text style={styles.actionButtonText}>Set as destination</Text>
           </TouchableOpacity>
         </View>
+
+        {hasIndoorMap && onViewIndoorMap && (
+          <TouchableOpacity
+            testID="popup-view-indoor"
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.indoorButton]}
+            onPress={onViewIndoorMap}
+            accessibilityRole="button"
+            accessibilityLabel={`Open indoor map for ${building.displayName}`}
+          >
+            <Text style={styles.indoorButtonText}>Open indoor map</Text>
+          </TouchableOpacity>
+        )}
+
         {onSetAsMyLocation && (
           <TouchableOpacity
             activeOpacity={0.8}
@@ -183,3 +197,4 @@ export const BuildingInfoPopup = ({
     </View>
   );
 };
+

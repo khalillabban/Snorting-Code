@@ -104,6 +104,15 @@ export const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 14,
   },
+  indoorButton: {
+    backgroundColor: colors.secondary,
+    marginBottom: spacing.sm,
+  },
+  indoorButtonText: {
+    ...typography.button,
+    color: colors.primaryDarker,
+    fontSize: 14,
+  },
   demoButton: {
     backgroundColor: colors.offWhite,
     borderWidth: 1,

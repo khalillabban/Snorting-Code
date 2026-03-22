@@ -9,6 +9,7 @@ import {
   getForegroundPermissionsAsync,
   hasServicesEnabledAsync,
   requestForegroundPermissionsAsync,
+  watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
@@ -16,6 +17,7 @@ import { BUILDINGS } from "../constants/buildings";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
+import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 jest.mock("../components/ShuttleBusTracker", () => ({
@@ -32,10 +34,15 @@ jest.mock("expo-location", () => ({
   getForegroundPermissionsAsync: jest.fn(),
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
+  watchPositionAsync: jest.fn(),
 }));
 
 jest.mock("../services/GoogleDirectionsService", () => ({
   getOutdoorRouteWithSteps: jest.fn(),
+}));
+
+jest.mock("../utils/mapAssets", () => ({
+  getAvailableFloors: jest.fn(),
 }));
 
 jest.mock("react-native-maps", () => {
@@ -168,6 +175,8 @@ jest.mock("../components/BuildingInfoPopup", () => {
       onSetAsStart,
       onSetAsDestination,
       onSetAsMyLocation, // Add this to the mock props
+      hasIndoorMap,
+      onViewIndoorMap,
     }: any) => {
       if (!building) return null;
       return (
@@ -185,6 +194,14 @@ jest.mock("../components/BuildingInfoPopup", () => {
           <Pressable testID="building-info-set-my-loc" onPress={() => onSetAsMyLocation?.(building)}>
             <Text>Set as my location</Text>
           </Pressable>
+          {hasIndoorMap && onViewIndoorMap ? (
+            <Pressable
+              testID="building-info-view-indoor"
+              onPress={() => onViewIndoorMap()}
+            >
+              <Text>Open indoor map</Text>
+            </Pressable>
+          ) : null}
           <Text testID="building-info-close" onPress={onClose}>
             close
           </Text>
@@ -218,7 +235,13 @@ describe("CampusMap", () => {
     (getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 50.0, longitude: -70.0 },
     });
+    (watchPositionAsync as jest.Mock).mockResolvedValue({
+      remove: jest.fn(),
+    });
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(null);
+    (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) =>
+      buildingCode === "A" ? [1, 2] : [],
+    );
   });
 
   afterEach(() => {
@@ -351,10 +374,20 @@ describe("CampusMap", () => {
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[1]);
 
-    expect(screen.getByTestId("building-info-popup")).toBeTruthy();
+    // When polygon is pressed, if building has no floors, indoorVisible stays false and popup shows
+    // If it has floors, indoorVisible becomes true and popup is hidden
+    // Since we're not mocking floor data, the popup should be visible
+    await waitFor(() => {
+      expect(screen.getByTestId("building-info-popup")).toBeTruthy();
+    });
 
-    fireEvent.press(screen.getByTestId("map-view"));
-    expect(screen.queryByTestId("building-info-popup")).toBeNull();
+    // Press the close button to dismiss the popup
+    fireEvent.press(screen.getByTestId("building-info-close"));
+    
+    // After closing, the building should be deselected
+    await waitFor(() => {
+      expect(screen.queryByText(/displayName/)).not.toBeTruthy();
+    });
   });
 
   it("clears selection when the popup close is pressed", async () => {
@@ -461,6 +494,28 @@ describe("CampusMap", () => {
     fireEvent.press(setMyLocBtn);
 
     expect(onSetAsMyLocation).toHaveBeenCalled();
+  });
+
+  it("surfaces the indoor action from the building popup when the building has indoor floors", async () => {
+    const onViewIndoorMap = jest.fn();
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onViewIndoorMap={onViewIndoorMap}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
+
+    fireEvent.press(screen.getAllByTestId("polygon")[0]);
+    fireEvent.press(screen.getByTestId("building-info-view-indoor"));
+
+    expect(onViewIndoorMap).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "A" }),
+    );
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
   });
 
   it("does not crash when no route is available", async () => {

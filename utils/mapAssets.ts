@@ -1,17 +1,215 @@
-const AVAILABLE_MAPS: Record<string, number[]> = {
-  CC: [1],
-  H: [1, 2, 8, 9],
-  LB: [2, 3, 4, 5],
-  MB: [1, -2],
-  VE: [1, 2],
-  VL: [1, 2],
+import { FLOOR_PLAN_SVG_SOURCES } from "./floorPlanSvgSources";
+
+export interface LegacyFloorGeoJsonAsset {
+  type: string;
+  features: {
+    type: string;
+    properties: {
+      name: string;
+      type: string;
+      centroid?: number[];
+    };
+    geometry: {
+      type: string;
+      coordinates: number[][][];
+    };
+  }[];
+}
+
+export interface BuildingPlanNode {
+  id: string;
+  type: string;
+  buildingId: string;
+  floor: number;
+  x: number;
+  y: number;
+  label: string;
+  accessible: boolean;
+  roomNumber?: string;
+  name?: string;
+  displayName?: string;
+  aliases?: string[];
+}
+
+export interface BuildingPlanEdge {
+  source: string;
+  target: string;
+  type: string;
+  weight: number;
+  accessible: boolean;
+}
+
+export interface BuildingPlanAsset {
+  meta: {
+    buildingId: string;
+  };
+  nodes: BuildingPlanNode[];
+  edges?: BuildingPlanEdge[];
+}
+
+export interface IndoorFloorImageAsset {
+  source: number | string;
+  width: number;
+  height: number;
+  coordinateScale: number;
+}
+
+interface IndoorBuildingAssets {
+  floors: number[];
+  floorImages: Partial<Record<number, IndoorFloorImageAsset>>;
+  buildingPlanAsset?: BuildingPlanAsset;
+  legacyFloorGeoJson?: Partial<Record<number, LegacyFloorGeoJsonAsset>>;
+}
+
+const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
+  CC: {
+    floors: [1],
+    floorImages: {
+      1: {
+        source: FLOOR_PLAN_SVG_SOURCES.CC1,
+        width: 4096,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+    },
+    buildingPlanAsset: require("../assets/maps/buildingsPlan/cc1.json") as BuildingPlanAsset,
+  },
+  H: {
+    floors: [1, 2, 8, 9],
+    floorImages: {
+      1: {
+        source: FLOOR_PLAN_SVG_SOURCES.H1,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+      2: {
+        source: FLOOR_PLAN_SVG_SOURCES.H2,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+      8: {
+        source: FLOOR_PLAN_SVG_SOURCES.H8,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+      9: {
+        source: FLOOR_PLAN_SVG_SOURCES.H9,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+    },
+    buildingPlanAsset: require("../assets/maps/buildingsPlan/hall.json") as BuildingPlanAsset,
+  },
+  MB: {
+    floors: [1, -2],
+    floorImages: {
+      1: {
+        source: require("../assets/maps/FloorPlans/mb_1.png"),
+        width: 1024,
+        height: 1024,
+        coordinateScale: 1,
+      },
+      [-2]: {
+        source: require("../assets/maps/FloorPlans/mb_s2.png"),
+        width: 1024,
+        height: 1024,
+        coordinateScale: 1,
+      },
+    },
+    buildingPlanAsset: require("../assets/maps/buildingsPlan/mb_floors_combined.json") as BuildingPlanAsset,
+    legacyFloorGeoJson: {
+      1: require("../assets/maps/MB-1.json") as LegacyFloorGeoJsonAsset,
+      [-2]: require("../assets/maps/MB-S2.json") as LegacyFloorGeoJsonAsset,
+    },
+  },
+  VE: {
+    floors: [1, 2],
+    floorImages: {
+      1: {
+        source: FLOOR_PLAN_SVG_SOURCES.VE1,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+      2: {
+        source: FLOOR_PLAN_SVG_SOURCES.VE2,
+        width: 1024,
+        height: 1024,
+        coordinateScale: 0.5,
+      },
+    },
+    buildingPlanAsset: require("../assets/maps/buildingsPlan/ve.json") as BuildingPlanAsset,
+  },
+  VL: {
+    floors: [1, 2],
+    floorImages: {
+      1: {
+        source: require("../assets/maps/FloorPlans/vl_1.png"),
+        width: 1024,
+        height: 1024,
+        coordinateScale: 1,
+      },
+      2: {
+        source: require("../assets/maps/FloorPlans/vl_2.png"),
+        width: 1024,
+        height: 1024,
+        coordinateScale: 1,
+      },
+    },
+    buildingPlanAsset: require("../assets/maps/buildingsPlan/vl_floors_combined.json") as BuildingPlanAsset,
+  },
 };
 
+export function normalizeIndoorBuildingCode(buildingCode: string): string {
+  const normalized = buildingCode.trim().toUpperCase();
+  if (normalized === "HALL") return "H";
+  return normalized;
+}
+
+function getIndoorAssets(buildingCode: string): IndoorBuildingAssets | undefined {
+  const normalizedBuildingCode = normalizeIndoorBuildingCode(buildingCode);
+  return INDOOR_ASSET_REGISTRY[normalizedBuildingCode];
+}
+
 export function hasFloorMap(buildingCode: string, floor: number): boolean {
-  const floors = AVAILABLE_MAPS[buildingCode];
-  return floors ? floors.includes(floor) : false;
+  return floor in (getIndoorAssets(buildingCode)?.floorImages ?? {});
 }
 
 export function getAvailableFloors(buildingCode: string): number[] {
-  return AVAILABLE_MAPS[buildingCode] ?? [];
+  return [...(getIndoorAssets(buildingCode)?.floors ?? [])];
+}
+
+export function getFloorImageAsset(
+  buildingCode: string,
+  floor: number,
+): number | string | undefined {
+  return getIndoorAssets(buildingCode)?.floorImages[floor]?.source;
+}
+
+export function getFloorImageMetadata(
+  buildingCode: string,
+  floor: number,
+): IndoorFloorImageAsset | undefined {
+  return getIndoorAssets(buildingCode)?.floorImages[floor];
+}
+
+export function hasBuildingPlanAsset(buildingCode: string): boolean {
+  return getBuildingPlanAsset(buildingCode) != null;
+}
+
+export function getBuildingPlanAsset(
+  buildingCode: string,
+): BuildingPlanAsset | undefined {
+  return getIndoorAssets(buildingCode)?.buildingPlanAsset;
+}
+
+export function getLegacyFloorGeoJsonAsset(
+  buildingCode: string,
+  floor: number,
+): LegacyFloorGeoJsonAsset | undefined {
+  return getIndoorAssets(buildingCode)?.legacyFloorGeoJson?.[floor];
 }
