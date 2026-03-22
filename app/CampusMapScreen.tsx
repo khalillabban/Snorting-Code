@@ -134,11 +134,10 @@ export default function CampusMapScreen() {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
 
+    //Usability Testing
     try {
-      // 1. Get the analytics instance
       const analyticsInstance = getAnalytics();
 
-      // 2. Call the modular logEvent function
       await logEvent(analyticsInstance, "campus_switch", {
         campus_name: campusKey,
         screen: "CampusMapScreen",
@@ -311,7 +310,19 @@ export default function CampusMapScreen() {
         <Pressable
           testID="shuttle-schedule-button"
           accessibilityLabel="shuttle-schedule-button"
-          onPress={() => setShowShuttleSchedulePanel(true)}
+          //Usability Testing on finding the Shutle Schedule
+          onPress={async () => {
+            setShowShuttleSchedulePanel(true);
+            try {
+              const analyticsInstance = getAnalytics();
+              await logEvent(analyticsInstance, "shuttle_schedule_viewed", {
+                screen: "CampusMapScreen",
+                timestamp: new Date().toISOString(),
+              });
+            } catch (error) {
+              console.error("Firebase Analytics Error: ", error);
+            }
+          }}
           style={[styles.actionButton]}
         >
           <MaterialCommunityIcons
@@ -327,7 +338,24 @@ export default function CampusMapScreen() {
         <Pressable
           testID="next-class-button"
           accessibilityLabel="Navigate to next class"
-          onPress={() => setIsNextClassVisible(true)}
+          //Usability Testing finding next class
+          onPress={async () => {
+            setIsNextClassVisible(true);
+            try {
+              const analyticsInstance = getAnalytics();
+              await logEvent(
+                analyticsInstance,
+                "next_class_directions_requested",
+                {
+                  screen: "CampusMapScreen",
+                  has_next_class: nextClass !== null,
+                  timestamp: new Date().toISOString(),
+                },
+              );
+            } catch (error) {
+              console.error("Firebase Analytics Error: ", error);
+            }
+          }}
           disabled={nextClass === null}
           style={[
             styles.actionButton,
