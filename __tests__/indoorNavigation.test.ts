@@ -1,6 +1,6 @@
 import {
-    getIndoorNavigationRoute,
-    getRouteWaypointsForFloor,
+  getIndoorNavigationRoute,
+  getRouteWaypointsForFloor,
 } from "../utils/indoorNavigation";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -23,8 +23,8 @@ jest.mock("../utils/indoorPathFinding", () => ({
 
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-    findShortestPath,
-    resolveRoutingNodeId,
+  findShortestPath,
+  resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset } from "../utils/mapAssets";

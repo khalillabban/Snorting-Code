@@ -1,12 +1,12 @@
 import {
-    getNormalizedBuildingPlan,
-    IndoorRoomRecord,
+  getNormalizedBuildingPlan,
+  IndoorRoomRecord,
 } from "./indoorBuildingPlan";
 import {
-    findShortestPath,
-    IndoorPath,
-    PathfindingOptions,
-    resolveRoutingNodeId,
+  findShortestPath,
+  IndoorPath,
+  PathfindingOptions,
+  resolveRoutingNodeId,
 } from "./indoorPathFinding";
 import { findIndoorRoomMatch } from "./indoorRoomSearch";
 import { getBuildingPlanAsset } from "./mapAssets";
@@ -120,10 +120,9 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
       walkStart = step.cumulativeDistance;
       walkFloor = node.floor;
 
-      // Detect elevator vs stairs by node label / type heuristics
+      // Detect elevator vs stairs by explicit transition node types
       const isElevator =
-        prevNode.label?.toLowerCase().includes("elev") ||
-        node.label?.toLowerCase().includes("elev");
+        prevNode.type === "elevator_door" || node.type === "elevator_door";
 
       segments.push({
         kind: isElevator ? "elevator" : "stairs",
