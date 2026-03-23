@@ -194,4 +194,33 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  accessibleToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 6,
+  },
+  accessibleToggleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  accessibleToggleText: {
+    fontSize: 13,
+    color: colors.primary,
+  },
+  accessibleToggleTextActive: {
+    color: colors.white,
+  },
+  titleRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 8,
+},
 });

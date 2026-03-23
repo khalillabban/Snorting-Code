@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +14,7 @@ import {
   IndoorDirectionsPanel,
   IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
-import { spacing } from "../constants/theme";
+import { colors, spacing } from "../constants/theme";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   getNormalizedBuildingPlan,
@@ -415,18 +416,48 @@ export default function IndoorMapScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchPanel}>
-        <Text style={styles.buildingTitle}>{buildingName} Building</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.buildingTitle}>{buildingName} Building</Text>
+          <Pressable
+            testID="indoor-accessible-mode-toggle"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: accessibleOnly }}
+            accessibilityLabel="Toggle accessible route"
+            onPress={() => setAccessibleOnly((prev) => !prev)}
+            style={[
+              styles.accessibleToggle,
+              accessibleOnly && styles.accessibleToggleActive,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="wheelchair-accessibility"
+              size={18}
+              color={accessibleOnly ? colors.white : colors.primary}
+            />
+            <Text
+              style={[
+                styles.accessibleToggleText,
+                accessibleOnly && styles.accessibleToggleTextActive,
+              ]}
+            >
+              Accessible
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.searchRow}>
           <TextInput
             style={styles.searchInput}
-            placeholder="From room…"
+            placeholder="From (H-110)"
+            placeholderTextColor={colors.gray500}
             value={navOriginQuery}
             onChangeText={setNavOriginQuery}
             returnKeyType="next"
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="To room…"
+            placeholder="To (H-920)"
+            placeholderTextColor={colors.gray500}
             value={navDestQuery}
             onChangeText={setNavDestQuery}
             returnKeyType="go"
@@ -436,6 +467,8 @@ export default function IndoorMapScreen() {
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
+
+        
 
         {navError && (
           <View style={styles.errorBanner}>
