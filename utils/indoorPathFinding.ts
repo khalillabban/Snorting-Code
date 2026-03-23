@@ -1,7 +1,7 @@
 import {
-    BuildingPlanAsset,
-    BuildingPlanEdge,
-    BuildingPlanNode,
+  BuildingPlanAsset,
+  BuildingPlanEdge,
+  BuildingPlanNode,
 } from "./mapAssets";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +123,8 @@ function buildAdjacencyList(
 
   for (const edge of edges) {
     // Edges are treated as undirected
+    // Guard against invalid weights
+    if (!Number.isFinite(edge.weight) || edge.weight <= 0) continue;
     add(edge.source, edge.target, edge.weight, edge.accessible);
     add(edge.target, edge.source, edge.weight, edge.accessible);
   }
@@ -193,7 +195,10 @@ export function findShortestPath(
   // Reconstruct path
   const pathIds: string[] = [];
   let cursor: string | null = destinationId;
+  const visited = new Set<string>();
   while (cursor !== null) {
+    if (visited.has(cursor)) break;
+    visited.add(cursor);
     pathIds.unshift(cursor);
     cursor = prev.get(cursor) ?? null;
   }
@@ -255,8 +260,8 @@ export function resolveRoutingNodeId(
   roomY: number,
   floor: number,
 ): string | null {
-  // Direct match
-  if (asset.nodes.some((n) => n.id === roomId)) return roomId;
+  // Direct match (check floor)
+  if (asset.nodes.some((n) => n.id === roomId && n.floor === floor)) return roomId;
 
   // Nearest node on same floor
   let bestId: string | null = null;
