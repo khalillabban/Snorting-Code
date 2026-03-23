@@ -1,20 +1,20 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  PanResponder,
-  Platform,
-  Pressable,
-  StyleProp,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-  ViewStyle,
+    Animated,
+    Dimensions,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    Pressable,
+    StyleProp,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
+    ViewStyle,
 } from "react-native";
 
 import { BUILDINGS } from "../constants/buildings";
@@ -338,7 +338,7 @@ export default function NextClassDirectionsPanel({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-  }, [visible]);
+  }, [visible, translateY]);
 
   const handleSearch = (field: "start" | "destination", text: string) => {
     setActiveInput(field);

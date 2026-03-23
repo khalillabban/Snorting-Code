@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 import { BUILDINGS } from "../constants/buildings";
@@ -25,8 +25,8 @@ import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
 import { getIndoorAccessState } from "../utils/indoorAccess";
 import {
-    getNormalizedBuildingPlan,
-    IndoorRoomRecord,
+  getNormalizedBuildingPlan,
+  IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -295,7 +295,7 @@ export default function NavigationBar({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-  }, [visible]);
+  }, [visible, translateY]);
 
   // ── Auto-fill ───────────────────────────────────────────────────────────────
 

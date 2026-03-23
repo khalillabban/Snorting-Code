@@ -349,10 +349,6 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  const handleRoomSearch = () => {
-    performRoomSearch(searchQuery, selectedFloor);
-  };
-
   useEffect(() => {
     if (!initialRoomQuery) return;
     setSearchQuery(initialRoomQuery);
