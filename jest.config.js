@@ -12,6 +12,11 @@ module.exports = {
 
   collectCoverageFrom: [
     "**/*.{ts,tsx}",
+    "app/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "services/**/*.{ts,tsx}",
+    "utils/**/*.{ts,tsx}",
+    "hooks/**/*.{ts,tsx}",
     "!**/__tests__/**",
     "!**/*.test.{ts,tsx}",
     "!**/*.spec.{ts,tsx}",
@@ -36,6 +41,7 @@ module.exports = {
   moduleNameMapper: {
     "^utils/(.*)$": "<rootDir>/utils/$1",
     "^constants/(.*)$": "<rootDir>/constants/$1",
-    "^@react-native-async-storage/async-storage$": "<rootDir>/jest/async-storage-mock.js",
+    "^@react-native-async-storage/async-storage$":
+      "<rootDir>/jest/async-storage-mock.js",
   },
 };

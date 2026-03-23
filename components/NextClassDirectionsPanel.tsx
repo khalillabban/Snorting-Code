@@ -1,20 +1,20 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  PanResponder,
-  Platform,
-  Pressable,
-  StyleProp,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-  ViewStyle,
+    Animated,
+    Dimensions,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    Pressable,
+    StyleProp,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
+    ViewStyle,
 } from "react-native";
 
 import { BUILDINGS } from "../constants/buildings";
@@ -30,10 +30,8 @@ import { findBuildingByCode } from "../utils/findBuildingByCode";
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_TOP = SCREEN_HEIGHT - FULL_HEIGHT;
 
-// Shared spring animation config
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
 
-// Format a Date to a short time string like "10:30am"
 function fmtTime(d: Date): string {
   let h = d.getHours();
   const m = d.getMinutes();
@@ -41,7 +39,6 @@ function fmtTime(d: Date): string {
   h = h % 12 || 12;
   return `${h}:${m.toString().padStart(2, "0")}${ampm}`;
 }
-// Format a Date to a long date string like "Monday, March 9, 2026"
 function fmtDate(d: Date): string {
   return d.toLocaleDateString(undefined, {
     weekday: "long",
@@ -50,7 +47,6 @@ function fmtDate(d: Date): string {
     day: "numeric",
   });
 }
-// Deduplicate schedule items by (courseName, building, room)
 function deduplicateCourses(items: ScheduleItem[]): ScheduleItem[] {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -65,14 +61,12 @@ function getClassCourseItems(items: ScheduleItem[]): ScheduleItem[] {
   return items.filter((item) => item.kind === "class");
 }
 
-// Build a display string like "MB-1.210" from building + room
 function fmtRoom(building: string, room: string): string {
   if (!building) return "";
   if (!room) return building;
   return `${building}-${room}`;
 }
 
-// Single row inside a suggestion list
 interface SuggestionRowProps {
   testID: string;
   iconName: React.ComponentProps<typeof MaterialIcons>["name"];
@@ -99,7 +93,6 @@ function SuggestionRow({
   );
 }
 
-// Unified suggestion list for buildings or courses
 interface SuggestionListProps {
   buildings: Buildings[];
   courses: ScheduleItem[];
@@ -144,7 +137,7 @@ function SuggestionList({
             testID={`nc-course-${item.id}`}
             iconName="school"
             primaryText={item.courseName}
-            secondaryText={`${fmtRoom(item.building, item.room)} · ${item.campus}`}
+            secondaryText={`${fmtRoom(item.building, item.room)} - ${item.campus}`}
             onPress={() => onSelectCourse(item)}
           />
         )}
@@ -154,7 +147,6 @@ function SuggestionList({
   return null;
 }
 
-// Shared input row for start and destination
 interface LocationInputRowProps {
   testID: string;
   placeholder: string;
@@ -193,7 +185,7 @@ function LocationInputRow({
       <Pressable
         style={styles.pickButton}
         onPress={onPickPress}
-        testID={`${testID}-picker`} 
+        testID={`${testID}-picker`}
         accessibilityLabel={pickLabel}
         accessibilityRole="button"
       >
@@ -216,6 +208,8 @@ interface NextClassDirectionsPanelProps {
   autoStartBuilding?: Buildings | null;
   currentCampus?: CampusKey;
   onUseMyLocation?: () => Buildings | null;
+  canOpenIndoorMap?: boolean;
+  onOpenIndoorMap?: () => void;
 }
 
 export default function NextClassDirectionsPanel({
@@ -227,24 +221,23 @@ export default function NextClassDirectionsPanel({
   autoStartBuilding,
   currentCampus = "sgw",
   onUseMyLocation,
+  canOpenIndoorMap = false,
+  onOpenIndoorMap,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  // Start/destination state
   const [startLoc, setStartLoc] = useState("");
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
 
-  // Search/pick state
   const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<ScheduleItem[]>([]);
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
   >(null);
 
-  // Strategy & route summary
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSummary, setRouteSummary] = useState<{
@@ -253,31 +246,26 @@ export default function NextClassDirectionsPanel({
   } | null>(null);
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
 
-  // Error state
   const [error, setError] = useState<string | null>(null);
 
-  // Helper: set destination with error
   const clearDestWithError = (courseName: string) => {
     setError(`Missing course details for "${courseName}".`);
     setDestLoc("");
     setDestBuilding(null);
   };
 
-  // Helper: set destination from building
   const setDestFromBuilding = (building: Buildings) => {
     setError(null);
     setDestLoc(building.displayName);
     setDestBuilding(building);
   };
 
-  // Helper: clear search state
   const clearActiveSearch = () => {
     setFilteredBuildings([]);
     setFilteredCourses([]);
     setActiveInput(null);
   };
 
-  // Destination from nextClass
   useEffect(() => {
     if (!nextClass) {
       setDestLoc("");
@@ -293,7 +281,6 @@ export default function NextClassDirectionsPanel({
     }
   }, [nextClass]);
 
-  // Auto-start from location
   useEffect(() => {
     if (autoStartBuilding) {
       setStartLoc(autoStartBuilding.displayName);
@@ -301,7 +288,6 @@ export default function NextClassDirectionsPanel({
     }
   }, [autoStartBuilding]);
 
-  // Route summary
   useEffect(() => {
     const showingList =
       filteredBuildings.length > 0 || filteredCourses.length > 0;
@@ -338,11 +324,13 @@ export default function NextClassDirectionsPanel({
     filteredCourses.length,
   ]);
 
-  // Slide animation
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
-      Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
+      Animated.spring(translateY, {
+        toValue: SHEET_TOP,
+        ...SPRING_CONFIG,
+      }).start();
     } else {
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
@@ -350,10 +338,8 @@ export default function NextClassDirectionsPanel({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateY is a stable ref
-  }, [visible]);
+  }, [visible, translateY]);
 
-  // Unified search handler for both start and destination inputs
   const handleSearch = (field: "start" | "destination", text: string) => {
     setActiveInput(field);
     if (field === "start") {
@@ -383,7 +369,6 @@ export default function NextClassDirectionsPanel({
     }
   };
 
-  // Helper: finalize selection and dismiss
   const finalizeSelection = () => {
     clearActiveSearch();
     Keyboard.dismiss();
@@ -395,7 +380,6 @@ export default function NextClassDirectionsPanel({
     finalizeSelection();
   };
 
-  // When user picks a course from the destination list
   const selectCourse = (item: ScheduleItem) => {
     const building = findBuildingByCode(item.building);
     if (building) {
@@ -406,7 +390,6 @@ export default function NextClassDirectionsPanel({
     finalizeSelection();
   };
 
-  // Generic toggle picker: if already open, close; else open with provided items
   const togglePicker = (
     inputType: "start" | "destination",
     currentList: unknown[],
@@ -438,7 +421,9 @@ export default function NextClassDirectionsPanel({
 
   const showCoursePicker = () => {
     togglePicker("destination", filteredCourses, () => {
-      setFilteredCourses(deduplicateCourses(getClassCourseItems(scheduleItems)));
+      setFilteredCourses(
+        deduplicateCourses(getClassCourseItems(scheduleItems)),
+      );
     });
   };
 
@@ -479,13 +464,15 @@ export default function NextClassDirectionsPanel({
         if (g.dy > 120 || g.vy > 0.5) {
           onClose();
         } else {
-          Animated.spring(translateY, { toValue: SHEET_TOP, ...SPRING_CONFIG }).start();
+          Animated.spring(translateY, {
+            toValue: SHEET_TOP,
+            ...SPRING_CONFIG,
+          }).start();
         }
       },
     }),
   ).current;
 
-  // Render
   if (!shouldRender) return null;
 
   const showingList =
@@ -513,20 +500,18 @@ export default function NextClassDirectionsPanel({
           </View>
 
           <View style={styles.content}>
-            {/* Next‑class info card */}
+            {/* Next-class info card */}
             {nextClass && (
               <View style={styles.classInfoCard}>
                 <Text style={styles.classInfoLabel}>Next Class</Text>
                 {/* Row 1: course name (left), room (right) */}
                 <View style={styles.classInfoHeader}>
-                  <Text
-                    style={styles.classInfoTitle}
-                    testID="next-class-name"
-                  >
+                  <Text style={styles.classInfoTitle} testID="next-class-name">
                     {nextClass.courseName}
                   </Text>
                   <Text style={styles.classInfoLocation}>
-                    {fmtRoom(nextClass.building, nextClass.room) || nextClass.location}
+                    {fmtRoom(nextClass.building, nextClass.room) ||
+                      nextClass.location}
                   </Text>
                 </View>
                 {/* Row 2: date (left), time (right) */}
@@ -535,20 +520,36 @@ export default function NextClassDirectionsPanel({
                     {fmtDate(nextClass.start)}
                   </Text>
                   <Text style={styles.classInfoTime}>
-                    {fmtTime(nextClass.start)} – {fmtTime(nextClass.end)}
+                    {fmtTime(nextClass.start)} - {fmtTime(nextClass.end)}
                   </Text>
                 </View>
               </View>
             )}
 
+            {nextClass && canOpenIndoorMap && onOpenIndoorMap && (
+              <Pressable
+                style={styles.secondaryActionButton}
+                onPress={onOpenIndoorMap}
+                testID="next-class-open-indoor"
+              >
+                <Text style={styles.secondaryActionButtonText}>
+                  Open Indoor Map
+                </Text>
+              </Pressable>
+            )}
+
             {/* Error banner */}
             {error && (
               <View style={styles.errorBanner} testID="next-class-error">
-                <MaterialIcons name="error-outline" size={18} color={colors.error} />
+                <MaterialIcons
+                  name="error-outline"
+                  size={18}
+                  color={colors.error}
+                />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            
+
             {/* Origin / Destination */}
             <View style={styles.originDestinationCard}>
               <LocationInputRow
@@ -598,7 +599,11 @@ export default function NextClassDirectionsPanel({
                 onChangeText={(t) => handleSearch("destination", t)}
                 groupStyle={[styles.inputGroup, styles.inputGroupLast]}
                 iconSlot={
-                  <MaterialIcons name="place" size={20} color={colors.primary} />
+                  <MaterialIcons
+                    name="place"
+                    size={20}
+                    color={colors.primary}
+                  />
                 }
                 onPickPress={showCoursePicker}
                 pickLabel="Pick destination from course list"
@@ -611,7 +616,9 @@ export default function NextClassDirectionsPanel({
                 <View style={styles.modeContainer}>
                   {ALL_STRATEGIES.map((strategy) => {
                     const isActive = selectedStrategy.mode === strategy.mode;
-                    const strategyColor = isActive ? colors.white : colors.primary;
+                    const strategyColor = isActive
+                      ? colors.white
+                      : colors.primary;
                     return (
                       <Pressable
                         key={strategy.mode}
@@ -639,10 +646,10 @@ export default function NextClassDirectionsPanel({
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
                     {routeSummaryLoading
-                      ? "Loading…"
+                      ? "Loading..."
                       : [routeSummary?.duration, routeSummary?.distance]
                           .filter(Boolean)
-                          .join(" · ") || "—"}
+                          .join(" - ") || "-"}
                   </Text>
                 )}
               </View>

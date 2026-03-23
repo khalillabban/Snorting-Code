@@ -10,6 +10,7 @@ import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import { getNextClassFromItems, loadCachedSchedule } from "../utils/parseCourseEvents";
 
 
@@ -103,7 +104,7 @@ jest.mock("../components/CampusMap", () => {
         title="Select Building Without Map"
         onPress={() =>
           props.onBuildingSelected?.(
-            { name: "H", displayName: "Hall" },
+            { name: "EV", displayName: "EV Building" },
             false,
           )
         }
@@ -113,6 +114,13 @@ jest.mock("../components/CampusMap", () => {
         testID="trigger-indoor-floors"
         title="Set Indoor Floors"
         onPress={() => props.onIndoorFloorsAvailable?.([1, 2, 8])}
+      />
+      <Button
+        testID="trigger-popup-open-indoor"
+        title="Open Indoor From Popup"
+        onPress={() =>
+          props.onViewIndoorMap?.({ name: "H", displayName: "Hall" })
+        }
       />
     </View>
   );
@@ -131,6 +139,14 @@ jest.mock("../constants/campuses", () => ({
   },
 }));
 
+jest.mock("../utils/mapAssets", () => ({
+  getAvailableFloors: jest.fn(),
+  hasBuildingPlanAsset: jest.fn(),
+  normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
+    (buildingCode ?? "").trim().toUpperCase(),
+  ),
+}));
+
 jest.mock("../components/ShuttleBusTracker", () => ({
   useShuttleBus: () => ({
     activeBuses: [],
@@ -141,6 +157,19 @@ jest.mock("../components/ShuttleBusTracker", () => ({
 jest.mock("../components/NavigationBar", () => {
   const React = require("react");
   const { View, Text, Pressable } = require("react-native");
+
+  const mockBuilding = {
+    name: "H",
+    campusName: "sgw",
+    displayName: "Hall",
+    address: "1455 De Maisonneuve",
+    coordinates: { latitude: 45.497, longitude: -73.579 },
+    boundingBox: [
+      { latitude: 45.496, longitude: -73.58 },
+      { latitude: 45.497, longitude: -73.579 },
+      { latitude: 45.498, longitude: -73.578 },
+    ],
+  };
 
   const MockNavigationBar = (props: any) => {
     const [result, setResult] = React.useState(undefined);
@@ -186,6 +215,44 @@ jest.mock("../components/NavigationBar", () => {
           }
         >
           <Text>Confirm Null Start</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-confirm-same-building-rooms"
+          onPress={() =>
+            props.onConfirm(
+              mockBuilding,
+              mockBuilding,
+              {
+                mode: "walking",
+                label: "Walk",
+                icon: "walk",
+              },
+              { label: "H-110" },
+              { label: "H-920" },
+            )
+          }
+        >
+          <Text>Confirm Same Building Rooms</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-confirm-same-building-dest-room"
+          onPress={() =>
+            props.onConfirm(
+              mockBuilding,
+              mockBuilding,
+              {
+                mode: "walking",
+                label: "Walk",
+                icon: "walk",
+              },
+              null,
+              { label: "H-920" },
+            )
+          }
+        >
+          <Text>Confirm Same Building Dest Room</Text>
         </Pressable>
 
         <Pressable testID="nav-start-applied" onPress={props.onInitialStartApplied}>
@@ -314,6 +381,15 @@ jest.mock("../components/NextClassDirectionsPanel", () => {
           {result ? JSON.stringify(result) : "null"}
         </Text>
 
+        {props.canOpenIndoorMap && props.onOpenIndoorMap ? (
+          <Pressable
+            testID="next-class-open-indoor"
+            onPress={props.onOpenIndoorMap}
+          >
+            <Text>Open Indoor</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           testID="next-class-confirm"
           onPress={() => {
@@ -382,6 +458,16 @@ describe("CampusMapScreen", () => {
       });
 
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) => {
+      const normalized = (buildingCode ?? "").trim().toUpperCase();
+      if (normalized === "H") return [1, 2, 8];
+      if (normalized === "MB") return [1, -2];
+      return [];
+    });
+    (hasBuildingPlanAsset as jest.Mock).mockImplementation((buildingCode: string) => {
+      const normalized = (buildingCode ?? "").trim().toUpperCase();
+      return normalized === "H" || normalized === "MB";
+    });
 
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -818,6 +904,41 @@ describe("CampusMapScreen", () => {
     expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(trigger0);
   });
 
+  it("opens indoor map with navOrigin/navDest when same-building rooms are confirmed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm-same-building-rooms"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/IndoorMapScreen",
+      params: {
+        buildingName: "H",
+        floors: JSON.stringify([1, 2, 8]),
+        navOrigin: "H-110",
+        navDest: "H-920",
+      },
+    });
+    expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+  });
+
+  it("opens indoor map with roomQuery when same-building destination room is confirmed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm-same-building-dest-room"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/IndoorMapScreen",
+      params: {
+        buildingName: "H",
+        floors: JSON.stringify([1, 2, 8]),
+        roomQuery: "H-920",
+      },
+    });
+    expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+  });
+
   describe("Next Class Directions Panel", () => {
     it("keeps next class panel hidden when no next class is available", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
@@ -985,17 +1106,50 @@ describe("CampusMapScreen", () => {
       });
     });
 
+    it("opens indoor map for the next class and prefills the room query", async () => {
+      const mockNextClass = {
+        id: "1",
+        kind: "class",
+        courseName: "COMP 335",
+        start: new Date(Date.now() + 3_600_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW MB 1.210",
+        campus: "SGW",
+        building: "MB",
+        room: "1.210",
+        level: "1",
+      };
+
+      (loadCachedSchedule as jest.Mock).mockResolvedValue([mockNextClass]);
+      (getNextClassFromItems as jest.Mock).mockReturnValue(mockNextClass);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("next-class-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-open-indoor")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId("next-class-open-indoor"));
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/IndoorMapScreen",
+        params: {
+          buildingName: "MB",
+          floors: JSON.stringify([1, -2]),
+          roomQuery: "MB-1.210",
+        },
+      });
+    });
+
     it("shows Indoor button when selected building has a map and pushes indoor screen with floors", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-
-      const indoorButton = screen.getByTestId("indoor-view-toggle");
-      expect(indoorButton).toBeTruthy();
-
-      fireEvent.press(indoorButton);
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
 
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",
@@ -1012,7 +1166,7 @@ describe("CampusMapScreen", () => {
 
       fireEvent.press(screen.getByTestId("trigger-building-without-map"));
 
-      expect(screen.queryByTestId("indoor-view-toggle")).toBeNull();
+      expect(screen.queryByTestId("popup-view-indoor")).toBeNull();
     });
 
     it("falls back to empty schedule when cached schedule loading fails", async () => {
@@ -1123,21 +1277,33 @@ describe("CampusMapScreen", () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-      expect(screen.getByTestId("indoor-view-toggle")).toBeTruthy();
-
       fireEvent.press(screen.getByTestId("trigger-building-without-map"));
-      expect(screen.queryByTestId("indoor-view-toggle")).toBeNull();
+      expect(screen.queryByTestId("popup-view-indoor")).toBeNull();
     });
 
     it("uses the latest indoor floors when navigating to Indoor", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
-      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
       fireEvent.press(screen.getByTestId("trigger-building-with-map"));
-      fireEvent.press(screen.getByTestId("indoor-view-toggle"));
+      fireEvent.press(screen.getByTestId("trigger-indoor-floors"));
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/IndoorMapScreen",
+        params: {
+          buildingName: "H",
+          floors: JSON.stringify([1, 2, 8]),
+        },
+      });
+    });
+
+    it("uses the same normalized indoor route when opening from the building popup flow", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
 
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",

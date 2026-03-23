@@ -90,6 +90,21 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
   },
+  secondaryActionButton: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  secondaryActionButtonText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
 
   // Error banner
   errorBanner: {
