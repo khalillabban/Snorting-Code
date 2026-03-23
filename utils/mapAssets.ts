@@ -1,5 +1,3 @@
-import { FLOOR_PLAN_SVG_SOURCES } from "./floorPlanSvgSources";
-
 export interface LegacyFloorGeoJsonAsset {
   type: string;
   features: {
@@ -54,11 +52,60 @@ export interface IndoorFloorImageAsset {
   coordinateScale: number;
 }
 
+type FloorPlanSvgSourceKey =
+  | "CC1"
+  | "H1"
+  | "H2"
+  | "H8"
+  | "H9"
+  | "VE1"
+  | "VE2";
+
+type IndoorFloorImageAssetConfig = Omit<IndoorFloorImageAsset, "source"> & {
+  source?: number | string;
+  sourceKey?: FloorPlanSvgSourceKey;
+};
+
 interface IndoorBuildingAssets {
   floors: number[];
-  floorImages: Partial<Record<number, IndoorFloorImageAsset>>;
+  floorImages: Partial<Record<number, IndoorFloorImageAssetConfig>>;
   buildingPlanAsset?: BuildingPlanAsset;
   legacyFloorGeoJson?: Partial<Record<number, LegacyFloorGeoJsonAsset>>;
+}
+
+let floorPlanSvgSourcesCache:
+  | Record<FloorPlanSvgSourceKey, string>
+  | null = null;
+
+function getFloorPlanSvgSources(): Record<FloorPlanSvgSourceKey, string> {
+  if (!floorPlanSvgSourcesCache) {
+    floorPlanSvgSourcesCache = (
+      require("./floorPlanSvgSources") as {
+        FLOOR_PLAN_SVG_SOURCES: Record<FloorPlanSvgSourceKey, string>;
+      }
+    ).FLOOR_PLAN_SVG_SOURCES;
+  }
+
+  return floorPlanSvgSourcesCache;
+}
+
+function resolveFloorImageAsset(
+  imageConfig?: IndoorFloorImageAssetConfig,
+): IndoorFloorImageAsset | undefined {
+  if (!imageConfig) return undefined;
+
+  const source = imageConfig.sourceKey
+    ? getFloorPlanSvgSources()[imageConfig.sourceKey]
+    : imageConfig.source;
+
+  if (!source) return undefined;
+
+  return {
+    source,
+    width: imageConfig.width,
+    height: imageConfig.height,
+    coordinateScale: imageConfig.coordinateScale,
+  };
 }
 
 const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
@@ -66,7 +113,7 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
     floors: [1],
     floorImages: {
       1: {
-        source: FLOOR_PLAN_SVG_SOURCES.CC1,
+        sourceKey: "CC1",
         width: 4096,
         height: 1024,
         coordinateScale: 0.5,
@@ -78,25 +125,25 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
     floors: [1, 2, 8, 9],
     floorImages: {
       1: {
-        source: FLOOR_PLAN_SVG_SOURCES.H1,
+        sourceKey: "H1",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
       },
       2: {
-        source: FLOOR_PLAN_SVG_SOURCES.H2,
+        sourceKey: "H2",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
       },
       8: {
-        source: FLOOR_PLAN_SVG_SOURCES.H8,
+        sourceKey: "H8",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
       },
       9: {
-        source: FLOOR_PLAN_SVG_SOURCES.H9,
+        sourceKey: "H9",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
@@ -130,13 +177,13 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
     floors: [1, 2],
     floorImages: {
       1: {
-        source: FLOOR_PLAN_SVG_SOURCES.VE1,
+        sourceKey: "VE1",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
       },
       2: {
-        source: FLOOR_PLAN_SVG_SOURCES.VE2,
+        sourceKey: "VE2",
         width: 1024,
         height: 1024,
         coordinateScale: 0.5,
@@ -187,14 +234,15 @@ export function getFloorImageAsset(
   buildingCode: string,
   floor: number,
 ): number | string | undefined {
-  return getIndoorAssets(buildingCode)?.floorImages[floor]?.source;
+  return resolveFloorImageAsset(getIndoorAssets(buildingCode)?.floorImages[floor])
+    ?.source;
 }
 
 export function getFloorImageMetadata(
   buildingCode: string,
   floor: number,
 ): IndoorFloorImageAsset | undefined {
-  return getIndoorAssets(buildingCode)?.floorImages[floor];
+  return resolveFloorImageAsset(getIndoorAssets(buildingCode)?.floorImages[floor]);
 }
 
 export function hasBuildingPlanAsset(buildingCode: string): boolean {

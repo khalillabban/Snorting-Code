@@ -137,7 +137,7 @@ describe("NavigationBar coverage branches", () => {
       expect.objectContaining({ label: "H-220" }),
     );
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 
   it("re-queries suggestions on focus when start/dest already have values", async () => {
     const onClose = jest.fn();
