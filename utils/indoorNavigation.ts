@@ -11,44 +11,29 @@ import {
 import { findIndoorRoomMatch } from "./indoorRoomSearch";
 import { getBuildingPlanAsset } from "./mapAssets";
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
 export type NavigationSegmentKind =
-  | "walk" // straight hallway walk
-  | "enter_room" // step through a door into a room
-  | "exit_room" // leave a room into the hallway
-  | "stairs" // floor transition via stairs
-  | "elevator"; // floor transition via elevator
+  | "walk"
+  | "enter_room"
+  | "exit_room"
+  | "stairs"
+  | "elevator";
 
 export interface NavigationSegment {
   kind: NavigationSegmentKind;
   description: string;
-  /** Nodes included in this segment (for rendering on the floor plan). */
   nodeIds: string[];
-  /** Floor this segment takes place on. */
   floor: number;
-  /** Approximate distance of this segment in coordinate units. */
   distance: number;
 }
 
 export interface NavigationRoute {
-  /** Resolved origin room. */
   origin: IndoorRoomRecord;
-  /** Resolved destination room. */
   destination: IndoorRoomRecord;
-  /** Raw pathfinding result. */
   path: IndoorPath;
-  /** Human-readable turn-by-turn segments. */
   segments: NavigationSegment[];
-  /** Floors the route passes through. */
   floors: number[];
-  /** Total distance in coordinate units. */
   totalDistance: number;
-  /** True when every edge on the route is wheelchair-accessible. */
   fullyAccessible: boolean;
-  /** Estimated walking time in seconds (assumes ~1.4 coordinate units/sec). */
   estimatedSeconds: number;
 }
 
@@ -63,22 +48,9 @@ export type NavigationResult =
   | { success: true; route: NavigationRoute }
   | { success: false; error: NavigationError; message: string };
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+const WALK_SPEED = 1.4; // Average human walking speed in meters per second
+const PIXELS_PER_METER = 10; // Scaling factor from map coordinate units to meters
 
-/** Assumed walking speed in coordinate units per second. */
-const WALK_SPEED = 1.4;
-
-// ---------------------------------------------------------------------------
-// Segment builder
-// ---------------------------------------------------------------------------
-
-/**
- * Convert a raw IndoorPath into human-readable NavigationSegments.
- * Groups consecutive hallway waypoints into single "walk" segments and
- * identifies room entry/exit and floor transitions.
- */
 function buildSegments(path: IndoorPath): NavigationSegment[] {
   const segments: NavigationSegment[] = [];
   const steps = path.steps;
@@ -87,7 +59,7 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
 
   let walkNodeIds: string[] = [];
   let walkFloor = steps[0].node.floor;
-  let walkStart = 0; // cumulative distance at start of current walk segment
+  let walkStart = 0;
 
   const flushWalk = (endDistance: number) => {
     if (walkNodeIds.length < 2) {
@@ -95,7 +67,7 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
       return;
     }
     const dist = endDistance - walkStart;
-    const meters = Math.round(dist / 10); // rough unit → meters conversion hint
+    const meters = Math.round(dist / PIXELS_PER_METER);
     segments.push({
       kind: "walk",
       description:
@@ -114,15 +86,25 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
     const { node } = step;
     const prevNode = i > 0 ? steps[i - 1].node : null;
 
-    // Floor change
     if (prevNode && node.floor !== prevNode.floor) {
       flushWalk(steps[i - 1].cumulativeDistance);
       walkStart = step.cumulativeDistance;
       walkFloor = node.floor;
 
-      // Detect elevator vs stairs by explicit transition node types
+      const type1 = (prevNode.type || "").toLowerCase();
+      const type2 = (node.type || "").toLowerCase();
+      const label1 = (prevNode.label || "").toLowerCase();
+      const label2 = (node.label || "").toLowerCase();
+
       const isElevator =
-        prevNode.type === "elevator_door" || node.type === "elevator_door";
+        prevNode.type === "elevator_door" ||
+        node.type === "elevator_door" ||
+        type1.includes("elevator") ||
+        type2.includes("elevator") ||
+        type1 === "eblock" ||
+        type2 === "eblock" ||
+        label1.includes("elev") ||
+        label2.includes("elev");
 
       segments.push({
         kind: isElevator ? "elevator" : "stairs",
@@ -138,8 +120,8 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
       continue;
     }
 
-    // Room entry (destination)
     if (node.type === "room" && i === steps.length - 1) {
+      walkNodeIds.push(node.id);
       flushWalk(step.cumulativeDistance);
       segments.push({
         kind: "enter_room",
@@ -151,7 +133,6 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
       continue;
     }
 
-    // Room exit (origin)
     if (node.type === "room" && i === 0) {
       segments.push({
         kind: "exit_room",
@@ -166,17 +147,14 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
       continue;
     }
 
-    // Doorway
     if (node.type === "doorway") {
       walkNodeIds.push(node.id);
       continue;
     }
 
-    // Hallway waypoint / building_entry_exit → accumulate walk
     walkNodeIds.push(node.id);
   }
 
-  // Flush any remaining walk
   if (walkNodeIds.length >= 2) {
     flushWalk(steps[steps.length - 1].cumulativeDistance);
   }
@@ -184,17 +162,11 @@ function buildSegments(path: IndoorPath): NavigationSegment[] {
   return segments;
 }
 
-// ---------------------------------------------------------------------------
-// Main API
-// ---------------------------------------------------------------------------
-
 /**
- * Compute a navigable indoor route between two rooms in the same building.
- *
- * @param buildingCode  e.g. "CC", "H", "MB"
- * @param originQuery   Room label / number for the starting room (e.g. "CC-110")
- * @param destQuery     Room label / number for the destination (e.g. "CC-120")
- * @param options       Optional pathfinding flags (accessibleOnly, etc.)
+ * @param buildingCode
+ * @param originQuery
+ * @param destQuery
+ * @param options
  */
 export function getIndoorNavigationRoute(
   buildingCode: string,
@@ -202,7 +174,6 @@ export function getIndoorNavigationRoute(
   destQuery: string,
   options: PathfindingOptions = {},
 ): NavigationResult {
-  // 1. Resolve rooms via existing search infrastructure
   const plan = getNormalizedBuildingPlan(buildingCode);
   if (!plan) {
     return {
@@ -238,7 +209,6 @@ export function getIndoorNavigationRoute(
     };
   }
 
-  // 2. Get the raw graph asset
   const asset = getBuildingPlanAsset(buildingCode);
   if (!asset || !asset.edges || asset.edges.length === 0) {
     return {
@@ -248,7 +218,6 @@ export function getIndoorNavigationRoute(
     };
   }
 
-  // 3. Map rooms to graph node ids
   const originNodeId = resolveRoutingNodeId(
     asset,
     originMatch.room.id,
@@ -272,7 +241,6 @@ export function getIndoorNavigationRoute(
     };
   }
 
-  // 4. Run Dijkstra
   const path = findShortestPath(asset, originNodeId, destNodeId, options);
   if (!path) {
     return {
@@ -283,7 +251,6 @@ export function getIndoorNavigationRoute(
     };
   }
 
-  // 5. Build segments and return
   const segments = buildSegments(path);
 
   return {
@@ -296,19 +263,13 @@ export function getIndoorNavigationRoute(
       floors: path.floors,
       totalDistance: path.totalDistance,
       fullyAccessible: path.fullyAccessible,
-      estimatedSeconds: Math.round(path.totalDistance / WALK_SPEED),
+      estimatedSeconds: Math.round(
+        path.totalDistance / PIXELS_PER_METER / WALK_SPEED,
+      ),
     },
   };
 }
 
-// ---------------------------------------------------------------------------
-// Convenience: just retrieve ordered path node ids for a floor (for rendering)
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the (x, y) waypoints on a specific floor for a computed route.
- * Useful for drawing the path SVG overlay on the floor plan image.
- */
 export function getRouteWaypointsForFloor(
   route: NavigationRoute,
   floor: number,

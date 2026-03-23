@@ -4,10 +4,6 @@ import {
   BuildingPlanNode,
 } from "./mapAssets";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface PathNode {
   id: string;
   x: number;
@@ -124,7 +120,7 @@ function buildAdjacencyList(
   for (const edge of edges) {
     // Edges are treated as undirected
     // Guard against invalid weights
-    if (!Number.isFinite(edge.weight) || edge.weight <= 0) continue;
+    if (!Number.isFinite(edge.weight) || edge.weight < 0) continue;
     add(edge.source, edge.target, edge.weight, edge.accessible);
     add(edge.target, edge.source, edge.weight, edge.accessible);
   }
@@ -178,7 +174,19 @@ export function findShortestPath(
 
     const neighbors = adj.get(currentId) ?? [];
     for (const { targetId, weight, accessible } of neighbors) {
-      if (accessibleOnly && !accessible) continue;
+      const isEdgeAccessible =
+        accessible !== false && String(accessible) !== "false";
+      const targetNode = nodeMap.get(targetId);
+      const targetType = (targetNode?.type || "").toLowerCase();
+      const targetLabel = (targetNode?.label || "").toLowerCase();
+      const isStairs =
+        targetType.includes("stair") || targetLabel.includes("stair");
+      const isNodeAccessible =
+        targetNode?.accessible !== false &&
+        String(targetNode?.accessible) !== "false" &&
+        !isStairs;
+
+      if (accessibleOnly && (!isEdgeAccessible || !isNodeAccessible)) continue;
       const newCost = currentCost + weight;
       if (newCost < (dist.get(targetId) ?? Infinity)) {
         dist.set(targetId, newCost);
@@ -188,11 +196,9 @@ export function findShortestPath(
     }
   }
 
-  // No path found
   const totalDistance = dist.get(destinationId) ?? Infinity;
   if (!isFinite(totalDistance)) return null;
 
-  // Reconstruct path
   const pathIds: string[] = [];
   let cursor: string | null = destinationId;
   const visited = new Set<string>();
@@ -203,12 +209,10 @@ export function findShortestPath(
     cursor = prev.get(cursor) ?? null;
   }
 
-  // Build steps
   let cumulative = 0;
   let fullyAccessible = true;
   const floorSet = new Set<number>();
 
-  // Pre-build accessible edge lookup for the reconstruction pass
   const edgeAccessible = new Map<string, boolean>();
   for (const edge of asset.edges!) {
     const key = (a: string, b: string) => `${a}|${b}`;
@@ -223,12 +227,14 @@ export function findShortestPath(
     if (index > 0) {
       const prevId = pathIds[index - 1];
       const edgeKey = `${prevId}|${id}`;
-      const accessible = edgeAccessible.get(edgeKey) ?? true;
-      if (!accessible) fullyAccessible = false;
+      const isEdgeAccessible = edgeAccessible.get(edgeKey) !== false;
+      if (!isEdgeAccessible || node.accessible === false)
+        fullyAccessible = false;
 
-      // Recompute actual distance for this segment from adjacency list
       const seg = (adj.get(prevId) ?? []).find((e) => e.targetId === id);
       cumulative += seg?.weight ?? 0;
+    } else {
+      if (node.accessible === false) fullyAccessible = false;
     }
 
     return {
@@ -261,7 +267,8 @@ export function resolveRoutingNodeId(
   floor: number,
 ): string | null {
   // Direct match (check floor)
-  if (asset.nodes.some((n) => n.id === roomId && n.floor === floor)) return roomId;
+  if (asset.nodes.some((n) => n.id === roomId && n.floor === floor))
+    return roomId;
 
   // Nearest node on same floor
   let bestId: string | null = null;

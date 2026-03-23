@@ -18,13 +18,13 @@ import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
 import {
-  buildIndoorMapRouteParams,
-  getIndoorAccessState,
+    buildIndoorMapRouteParams,
+    getIndoorAccessState,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
-  getNextClassFromItems,
-  loadCachedSchedule,
+    getNextClassFromItems,
+    loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -39,8 +39,8 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 }
 
 export default function CampusMapScreen() {
-    // Accessibility mode state
-    const [accessibleOnly, setAccessibleOnly] = useState(false);
+  // Accessibility mode state
+  const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
@@ -61,9 +61,7 @@ export default function CampusMapScreen() {
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
   );
-  const [, setSelectedBuilding] = useState<Buildings | null>(
-    null,
-  );
+  const [, setSelectedBuilding] = useState<Buildings | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
   );
@@ -138,7 +136,7 @@ export default function CampusMapScreen() {
       roomQuery?: string,
       navOrigin?: string,
       navDest?: string,
-      accessibleOnlyOverride?: boolean
+      accessibleOnlyOverride?: boolean,
     ) => {
       const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
       if (!params) return;
@@ -149,7 +147,9 @@ export default function CampusMapScreen() {
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest ? { navDest } : {}),
           accessibleOnly: String(
-            accessibleOnlyOverride !== undefined ? accessibleOnlyOverride : accessibleOnly
+            accessibleOnlyOverride !== undefined
+              ? accessibleOnlyOverride
+              : accessibleOnly,
           ),
         },
       });
@@ -164,17 +164,37 @@ export default function CampusMapScreen() {
       strategy: RouteStrategy,
       startRoom?: IndoorRoomRecord | null,
       endRoom?: IndoorRoomRecord | null,
-      accessible?: boolean
+      accessible?: boolean,
     ) => {
-      if (start?.name && dest?.name && start.name === dest.name && startRoom && endRoom) {
+      setAccessibleOnly(!!accessible);
+
+      if (
+        start?.name &&
+        dest?.name &&
+        start.name === dest.name &&
+        startRoom &&
+        endRoom
+      ) {
         setIsNavVisible(false);
-        openIndoorMap(start.name, undefined, startRoom.label, endRoom.label);
+        openIndoorMap(
+          start.name,
+          undefined,
+          startRoom.label,
+          endRoom.label,
+          accessible,
+        );
         return;
       }
 
       if (start?.name && dest?.name && start.name === dest.name && endRoom) {
         setIsNavVisible(false);
-        openIndoorMap(dest.name, endRoom.label);
+        openIndoorMap(
+          dest.name,
+          endRoom.label,
+          undefined,
+          undefined,
+          accessible,
+        );
         return;
       }
 
@@ -182,7 +202,6 @@ export default function CampusMapScreen() {
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
-      setAccessibleOnly(!!accessible);
     },
     [openIndoorMap],
   );
