@@ -9,9 +9,11 @@ type Props = {
   readonly building: Buildings;
 };
 
-const OVERLAY_BOUNDS: Record<
+type OverlayBounds = { sw: [number, number]; ne: [number, number] };
+
+const CALIBRATED_OVERLAY_BOUNDS: Record<
   string,
-  { sw: [number, number]; ne: [number, number] }
+  OverlayBounds
 > = {
   H: {
     sw: [45.49682818364492, -73.57954223351966],
@@ -23,33 +25,43 @@ const OVERLAY_BOUNDS: Record<
   },
 };
 
-export function IndoorSVGOverlay({ source, building }: Props) {
+function resolveOverlayBounds(building: Buildings): OverlayBounds | null {
+  const calibrated = CALIBRATED_OVERLAY_BOUNDS[building.name];
+  if (calibrated) return calibrated;
+
   const box = building.boundingBox;
   if (!box?.length) return null;
 
-  const cal = OVERLAY_BOUNDS[building.name];
+  const lats = box.map((point) => point.latitude);
+  const lngs = box.map((point) => point.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
 
-  let sw: [number, number];
-  let ne: [number, number];
-
-  if (cal) {
-    sw = cal.sw;
-    ne = cal.ne;
-  } else {
-    const lats = box.map((p) => p.latitude);
-    const lngs = box.map((p) => p.longitude);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    if (!isFinite(minLat)) return null;
-    sw = [minLat, minLng];
-    ne = [maxLat, maxLng];
+  if (![minLat, maxLat, minLng, maxLng].every(Number.isFinite)) {
+    return null;
   }
 
-  // Convert string URLs to ImageURISource objects for Overlay compatibility
-  const imageSource: number | ImageURISource = 
-    typeof source === 'string' ? { uri: source } : source;
+  return {
+    sw: [minLat, minLng],
+    ne: [maxLat, maxLng],
+  };
+}
 
-  return <Overlay bounds={[sw, ne]} image={imageSource} opacity={0.85} />;
+export function IndoorSVGOverlay({ source, building }: Props) {
+  const bounds = resolveOverlayBounds(building);
+  if (!bounds) return null;
+
+  // Convert string URLs to ImageURISource objects for Overlay compatibility
+  const imageSource: number | ImageURISource =
+    typeof source === "string" ? { uri: source } : source;
+
+  return (
+    <Overlay
+      bounds={[bounds.sw, bounds.ne]}
+      image={imageSource}
+      opacity={0.85}
+    />
+  );
 }
