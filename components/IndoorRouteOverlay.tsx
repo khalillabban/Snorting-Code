@@ -101,7 +101,8 @@ export function IndoorRouteOverlay({
         />
       </G>
 
-      {destPoint && destPoint !== originPoint && (
+      {destPoint &&
+        (destPoint.x !== originPoint.x || destPoint.y !== originPoint.y) && (
         <G>
           <Circle
             cx={destPoint.x}
