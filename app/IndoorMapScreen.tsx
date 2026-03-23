@@ -180,14 +180,19 @@ function getFloorStageLayout(
 }
 
 export default function IndoorMapScreen() {
-  const { buildingName, floors, roomQuery, navOrigin, navDest } =
+  const { buildingName, floors, roomQuery, navOrigin, navDest, accessibleOnly: accessibleOnlyParam } =
     useLocalSearchParams<{
       buildingName: string;
       floors: string;
       roomQuery?: string;
       navOrigin?: string;
       navDest?: string;
+      accessibleOnly?: string;
     }>();
+  // Accessibility mode state
+  const [accessibleOnly, setAccessibleOnly] = useState(
+    accessibleOnlyParam === 'true'
+  );
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
@@ -364,7 +369,7 @@ export default function IndoorMapScreen() {
       navOriginQuery,
       navDestQuery,
       {
-        accessibleOnly: false,
+        accessibleOnly: accessibleOnly,
       },
     );
 
@@ -375,7 +380,7 @@ export default function IndoorMapScreen() {
       setNavError(result.message);
       setActiveRoute(null);
     }
-  }, [buildingName, navOriginQuery, navDestQuery]);
+  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
 
   useEffect(() => {
     if (
@@ -428,7 +433,11 @@ export default function IndoorMapScreen() {
 
         {navError && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{navError}</Text>
+            <Text style={styles.errorText}>
+              {accessibleOnly && navError.includes('No path found')
+                ? 'No accessible route exists between the selected rooms.'
+                : navError}
+            </Text>
           </View>
         )}
 

@@ -198,10 +198,23 @@ jest.mock("../components/NavigationBar", () => {
               mode: "walking",
               label: "Walk",
               icon: "walk",
-            })
+            }, null, null, false)
           }
         >
           <Text>Confirm</Text>
+        </Pressable>
+
+        <Pressable
+          testID="nav-confirm-accessible"
+          onPress={() =>
+            props.onConfirm("H", "MB", {
+              mode: "walking",
+              label: "Walk",
+              icon: "walk",
+            }, null, null, true)
+          }
+        >
+          <Text>Confirm Accessible</Text>
         </Pressable>
 
         <Pressable
@@ -211,7 +224,7 @@ jest.mock("../components/NavigationBar", () => {
               mode: "walking",
               label: "Walk",
               icon: "walk",
-            })
+            }, null, null, false)
           }
         >
           <Text>Confirm Null Start</Text>
@@ -917,6 +930,7 @@ describe("CampusMapScreen", () => {
         floors: JSON.stringify([1, 2, 8]),
         navOrigin: "H-110",
         navDest: "H-920",
+        accessibleOnly: "false",
       },
     });
     expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
@@ -934,6 +948,7 @@ describe("CampusMapScreen", () => {
         buildingName: "H",
         floors: JSON.stringify([1, 2, 8]),
         roomQuery: "H-920",
+        accessibleOnly: "false",
       },
     });
     expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
@@ -1140,6 +1155,7 @@ describe("CampusMapScreen", () => {
           buildingName: "MB",
           floors: JSON.stringify([1, -2]),
           roomQuery: "MB-1.210",
+          accessibleOnly: "false",
         },
       });
     });
@@ -1156,6 +1172,7 @@ describe("CampusMapScreen", () => {
         params: {
           buildingName: "H",
           floors: JSON.stringify([1, 2, 8]),
+          accessibleOnly: "false",
         },
       });
     });
@@ -1295,7 +1312,21 @@ describe("CampusMapScreen", () => {
         params: {
           buildingName: "H",
           floors: JSON.stringify([1, 2, 8]),
+          accessibleOnly: "false",
         },
+      });
+    });
+
+    it("passes accessibleOnly true to IndoorMapScreen when accessibility mode is on", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      await renderScreen();
+      fireEvent.press(screen.getByTestId("nav-confirm-accessible"));
+      fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/IndoorMapScreen",
+        params: expect.objectContaining({
+          accessibleOnly: "true",
+        }),
       });
     });
 
@@ -1310,6 +1341,7 @@ describe("CampusMapScreen", () => {
         params: {
           buildingName: "H",
           floors: JSON.stringify([1, 2, 8]),
+          accessibleOnly: "false",
         },
       });
     });

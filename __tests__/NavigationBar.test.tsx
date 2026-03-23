@@ -216,7 +216,8 @@ describe("NavigationBar", () => {
         null, // dest
         expect.objectContaining({ mode: "driving", label: "Car" }),
         null, // startRoom
-        null  // endRoom
+        null, // endRoom
+        false
       );
     });
   });
@@ -440,7 +441,8 @@ describe("NavigationBar", () => {
         }),
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
         null,
-        null
+        null,
+        false
       );
     });
 
@@ -476,32 +478,44 @@ describe("NavigationBar", () => {
         null,
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
         null,
-        null
+        null,
+        false
       );
     });
-  });
 
-  describe("Overlay Interaction", () => {
-    it("should dismiss keyboard when overlay is pressed", () => {
-      const dismissSpy = jest.spyOn(Keyboard, "dismiss");
-
-      const { getByTestId, UNSAFE_getAllByType } = render(
+    it("should not crash when autoStartBuilding is null", () => {
+      const { getByPlaceholderText } = render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
+          autoStartBuilding={null}
         />,
       );
 
-      const touchables = UNSAFE_getAllByType(
-        require("react-native").TouchableWithoutFeedback,
-      );
-
-      if (touchables.length > 0) {
-        fireEvent.press(touchables[0]);
-        expect(dismissSpy).toHaveBeenCalled();
-      }
+      expect(getByPlaceholderText(/From/).props.value).toBe("");
     });
+
+      it("should dismiss keyboard when overlay is pressed", () => {
+        const dismissSpy = jest.spyOn(Keyboard, "dismiss");
+
+        const { UNSAFE_getAllByType } = render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+          />,
+        );
+
+        const touchables = UNSAFE_getAllByType(
+          require("react-native").TouchableWithoutFeedback,
+        );
+
+        if (touchables.length > 0) {
+          fireEvent.press(touchables[0]);
+          expect(dismissSpy).toHaveBeenCalled();
+        }
+      });
 
     it("should call onClose when overlay is pressed", () => {
       const { UNSAFE_getAllByType } = render(
@@ -577,6 +591,7 @@ describe("NavigationBar", () => {
           />
         );
 
+        // Use the correct accessibility label for the building picker button
         const listButton = getAllByLabelText("Pick from list")[0];
         fireEvent.press(listButton);
 
@@ -1157,7 +1172,29 @@ describe("NavigationBar", () => {
         null,
         expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
         null,
-        null
+        null,
+        false
+      );
+    });
+
+    it("should call onConfirm with accessibleOnly true when accessible route toggle is on", () => {
+      const { getByTestId, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+      // Toggle accessible route
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      fireEvent.press(getByText("Get Directions"));
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null,
+        null,
+        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        null,
+        null,
+        true
       );
     });
 
@@ -1240,6 +1277,7 @@ describe("NavigationBar", () => {
         />
       );
 
+      // Use the correct accessibility label for the building picker button
       const listButton = getAllByLabelText("Pick from list")[0];
 
       // First press: opens picker
@@ -1262,6 +1300,7 @@ describe("NavigationBar", () => {
         />
       );
 
+      // Use the correct accessibility label for the building picker button
       const listButton = getAllByLabelText("Pick from list")[1];
 
       fireEvent.press(listButton);

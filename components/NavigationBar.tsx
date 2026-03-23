@@ -102,6 +102,7 @@ interface NavigationBarProps {
     strategy: RouteStrategy,
     startRoom?: IndoorRoomRecord | null,
     endRoom?: IndoorRoomRecord | null,
+    accessibleOnly?: boolean
   ) => void;
   autoStartBuilding?: Buildings | null;
   initialStart?: Buildings | null;
@@ -110,6 +111,8 @@ interface NavigationBarProps {
   onInitialDestinationApplied?: () => void;
   currentCampus?: CampusKey;
   onUseMyLocation?: () => Buildings | null;
+  accessibleOnly?: boolean;
+  onAccessibleOnlyChange?: (value: boolean) => void;
 }
 
 export default function NavigationBar({
@@ -123,6 +126,8 @@ export default function NavigationBar({
   onInitialDestinationApplied,
   currentCampus = "sgw",
   onUseMyLocation,
+  accessibleOnly = false,
+  onAccessibleOnlyChange,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -145,6 +150,7 @@ export default function NavigationBar({
     distance?: string;
   } | null>(null);
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
+  const [localAccessibleOnly, setLocalAccessibleOnly] = useState(accessibleOnly);
 
   const search = useCallback((text: string) => {
     if (!text.trim()) {
@@ -247,6 +253,7 @@ export default function NavigationBar({
       selectedStrategy,
       startRoom,
       endRoom,
+      localAccessibleOnly
     );
     onClose();
   };
@@ -533,6 +540,31 @@ export default function NavigationBar({
                       </Pressable>
                     );
                   })}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                  <Pressable
+                    onPress={() => {
+                      setLocalAccessibleOnly(!localAccessibleOnly);
+                      onAccessibleOnlyChange?.(!localAccessibleOnly);
+                    }}
+                    style={[
+                      styles.modeButton,
+                      localAccessibleOnly && styles.activeModeButton,
+                      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }
+                    ]}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: localAccessibleOnly }}
+                    testID="accessible-mode-toggle"
+                  >
+                    <MaterialCommunityIcons
+                      name={localAccessibleOnly ? 'wheelchair-accessibility' : 'walk'}
+                      size={22}
+                      color={localAccessibleOnly ? colors.white : colors.primary}
+                    />
+                    <Text style={{ color: localAccessibleOnly ? colors.white : colors.primary, marginLeft: 8 }}>
+                      Accessible Route
+                    </Text>
+                  </Pressable>
                 </View>
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>

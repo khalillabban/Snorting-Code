@@ -39,6 +39,8 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 }
 
 export default function CampusMapScreen() {
+    // Accessibility mode state
+    const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
@@ -136,6 +138,7 @@ export default function CampusMapScreen() {
       roomQuery?: string,
       navOrigin?: string,
       navDest?: string,
+      accessibleOnlyOverride?: boolean
     ) => {
       const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
       if (!params) return;
@@ -145,10 +148,13 @@ export default function CampusMapScreen() {
           ...params,
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest ? { navDest } : {}),
+          accessibleOnly: String(
+            accessibleOnlyOverride !== undefined ? accessibleOnlyOverride : accessibleOnly
+          ),
         },
       });
     },
-    [],
+    [accessibleOnly],
   );
 
   const handleConfirmRoute = useCallback(
@@ -158,6 +164,7 @@ export default function CampusMapScreen() {
       strategy: RouteStrategy,
       startRoom?: IndoorRoomRecord | null,
       endRoom?: IndoorRoomRecord | null,
+      accessible?: boolean
     ) => {
       if (start?.name && dest?.name && start.name === dest.name && startRoom && endRoom) {
         setIsNavVisible(false);
@@ -175,6 +182,7 @@ export default function CampusMapScreen() {
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
+      setAccessibleOnly(!!accessible);
     },
     [openIndoorMap],
   );
@@ -410,6 +418,8 @@ export default function CampusMapScreen() {
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
         onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        accessibleOnly={accessibleOnly}
+        onAccessibleOnlyChange={setAccessibleOnly}
       />
 
       <NextClassDirectionsPanel
