@@ -177,6 +177,13 @@ jest.mock("../components/NavigationBar", () => {
     return (
       <View>
         <Text testID="nav-visible">{props.visible ? "visible" : "hidden"}</Text>
+        <Pressable
+          testID="accessible-mode-toggle"
+          value={props.accessibleOnly}
+          onPress={() => props.onAccessibleOnlyChange?.(!props.accessibleOnly)}
+        >
+          <Text>Toggle Accessibility</Text>
+        </Pressable>
         <Text testID="nav-use-my-location-result">
           {result ? JSON.stringify(result) : "null"}
         </Text>
@@ -1320,8 +1327,14 @@ describe("CampusMapScreen", () => {
     it("passes accessibleOnly true to IndoorMapScreen when accessibility mode is on", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
+
+      fireEvent.press(screen.getByTestId("accessible-mode-toggle"));
+
+      expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(true);
+
       fireEvent.press(screen.getByTestId("nav-confirm-accessible"));
       fireEvent.press(screen.getByTestId("trigger-popup-open-indoor"));
+
       expect(router.push).toHaveBeenCalledWith({
         pathname: "/IndoorMapScreen",
         params: expect.objectContaining({

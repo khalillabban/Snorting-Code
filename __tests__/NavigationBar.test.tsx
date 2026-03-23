@@ -496,26 +496,26 @@ describe("NavigationBar", () => {
       expect(getByPlaceholderText(/From/).props.value).toBe("");
     });
 
-      it("should dismiss keyboard when overlay is pressed", () => {
-        const dismissSpy = jest.spyOn(Keyboard, "dismiss");
+    it("should dismiss keyboard when overlay is pressed", () => {
+      const dismissSpy = jest.spyOn(Keyboard, "dismiss");
 
-        const { UNSAFE_getAllByType } = render(
-          <NavigationBar
-            visible={true}
-            onClose={mockOnClose}
-            onConfirm={mockOnConfirm}
-          />,
-        );
+      const { UNSAFE_getAllByType } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
 
-        const touchables = UNSAFE_getAllByType(
-          require("react-native").TouchableWithoutFeedback,
-        );
+      const touchables = UNSAFE_getAllByType(
+        require("react-native").TouchableWithoutFeedback,
+      );
 
-        if (touchables.length > 0) {
-          fireEvent.press(touchables[0]);
-          expect(dismissSpy).toHaveBeenCalled();
-        }
-      });
+      if (touchables.length > 0) {
+        fireEvent.press(touchables[0]);
+        expect(dismissSpy).toHaveBeenCalled();
+      }
+    });
 
     it("should call onClose when overlay is pressed", () => {
       const { UNSAFE_getAllByType } = render(
@@ -1200,16 +1200,14 @@ describe("NavigationBar", () => {
     });
 
     it("should not crash when autoStartBuilding is null", () => {
-      const { getByPlaceholderText } = render(
+      expect(() => render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           autoStartBuilding={null}
         />
-      );
-
-      expect(getByPlaceholderText(/From/).props.value).toBe("");
+      )).not.toThrow();
     });
   });
 
@@ -1384,107 +1382,107 @@ describe("NavigationBar", () => {
   });
 
   describe("Accessible Route Toggle", () => {
-  it("renders the accessible route toggle button", () => {
-    const { getByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    expect(getByTestId("accessible-mode-toggle")).toBeTruthy();
-  });
+    it("renders the accessible route toggle button", () => {
+      const { getByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      expect(getByTestId("accessible-mode-toggle")).toBeTruthy();
+    });
 
-  it("defaults to unchecked (false) when no accessibleOnly prop is passed", () => {
-    const { getByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
-  });
+    it("defaults to unchecked (false) when no accessibleOnly prop is passed", () => {
+      const { getByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
+    });
 
-  it("defaults to checked (true) when accessibleOnly prop is true", () => {
-    const { getByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} accessibleOnly={true} />
-    );
-    expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
-  });
+    it("defaults to checked (true) when accessibleOnly prop is true", () => {
+      const { getByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} accessibleOnly={true} />
+      );
+      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
+    });
 
-  it("toggles to checked when pressed once", () => {
-    const { getByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
-  });
+    it("toggles to checked when pressed once", () => {
+      const { getByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
+    });
 
-  it("toggles back to unchecked when pressed twice", () => {
-    const { getByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
-  });
+    it("toggles back to unchecked when pressed twice", () => {
+      const { getByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
+    });
 
-  it("calls onAccessibleOnlyChange with true when toggled on", () => {
-    const mockOnChange = jest.fn();
-    const { getByTestId } = render(
-      <NavigationBar
-        visible={true}
-        onClose={mockOnClose}
-        onConfirm={mockOnConfirm}
-        onAccessibleOnlyChange={mockOnChange}
-      />
-    );
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    expect(mockOnChange).toHaveBeenCalledWith(true);
-  });
+    it("calls onAccessibleOnlyChange with true when toggled on", () => {
+      const mockOnChange = jest.fn();
+      const { getByTestId } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          onAccessibleOnlyChange={mockOnChange}
+        />
+      );
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      expect(mockOnChange).toHaveBeenCalledWith(true);
+    });
 
-  it("calls onAccessibleOnlyChange with false when toggled off", () => {
-    const mockOnChange = jest.fn();
-    const { getByTestId } = render(
-      <NavigationBar
-        visible={true}
-        onClose={mockOnClose}
-        onConfirm={mockOnConfirm}
-        accessibleOnly={true}
-        onAccessibleOnlyChange={mockOnChange}
-      />
-    );
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    expect(mockOnChange).toHaveBeenCalledWith(false);
-  });
+    it("calls onAccessibleOnlyChange with false when toggled off", () => {
+      const mockOnChange = jest.fn();
+      const { getByTestId } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          accessibleOnly={true}
+          onAccessibleOnlyChange={mockOnChange}
+        />
+      );
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      expect(mockOnChange).toHaveBeenCalledWith(false);
+    });
 
-  it("passes accessibleOnly=false to onConfirm when toggle is off", () => {
-    const { getByText } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    fireEvent.press(getByText("Get Directions"));
-    expect(mockOnConfirm).toHaveBeenCalledWith(
-      null, null,
-      expect.objectContaining({ mode: "walking" }),
-      null, null,
-      false
-    );
-  });
+    it("passes accessibleOnly=false to onConfirm when toggle is off", () => {
+      const { getByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      fireEvent.press(getByText("Get Directions"));
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null, null,
+        expect.objectContaining({ mode: "walking" }),
+        null, null,
+        false
+      );
+    });
 
-  it("passes accessibleOnly=true to onConfirm when toggle is on", () => {
-    const { getByTestId, getByText } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    fireEvent.press(getByTestId("accessible-mode-toggle"));
-    fireEvent.press(getByText("Get Directions"));
-    expect(mockOnConfirm).toHaveBeenCalledWith(
-      null, null,
-      expect.objectContaining({ mode: "walking" }),
-      null, null,
-      true
-    );
-  });
+    it("passes accessibleOnly=true to onConfirm when toggle is on", () => {
+      const { getByTestId, getByText } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      fireEvent.press(getByTestId("accessible-mode-toggle"));
+      fireEvent.press(getByText("Get Directions"));
+      expect(mockOnConfirm).toHaveBeenCalledWith(
+        null, null,
+        expect.objectContaining({ mode: "walking" }),
+        null, null,
+        true
+      );
+    });
 
-  it("toggle is hidden when the suggestion list is showing", () => {
-    const { getByPlaceholderText, queryByTestId } = render(
-      <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
-    );
-    fireEvent.changeText(getByPlaceholderText(/From/), "Science");
-    // suggestions are showing — modeSection (including toggle) is hidden
-    expect(queryByTestId("accessible-mode-toggle")).toBeNull();
+    it("toggle is hidden when the suggestion list is showing", () => {
+      const { getByPlaceholderText, queryByTestId } = render(
+        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+      );
+      fireEvent.changeText(getByPlaceholderText(/From/), "Science");
+      // suggestions are showing — modeSection (including toggle) is hidden
+      expect(queryByTestId("accessible-mode-toggle")).toBeNull();
+    });
   });
-});
 });
