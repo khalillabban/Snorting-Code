@@ -11065,6 +11065,20 @@
       "accessible": true
     },
     {
+      "source": "Hall_F8_elevator_door_12",
+      "target": "Hall_F9_elevator_door_10",
+      "type": "elevator",
+      "weight": 0,
+      "accessible": true
+    },
+    {
+      "source": "Hall_F8_elevator_door_13",
+      "target": "Hall_F9_elevator_door_11",
+      "type": "elevator",
+      "weight": 0,
+      "accessible": true
+    },
+    {
       "source": "Hall_F2_stair_landing_10",
       "target": "Hall_F8_stair_landing_29",
       "type": "stair",
