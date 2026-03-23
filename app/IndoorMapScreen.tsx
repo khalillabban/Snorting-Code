@@ -63,9 +63,9 @@ function clamp(value: number, min: number, max: number): number {
 function getFloorImageDimensions(
   floorImageMetadata:
     | {
-        width: number;
-        height: number;
-      }
+      width: number;
+      height: number;
+    }
     | undefined,
   currentFloorRooms: IndoorRoomRecord[],
 ) {
@@ -94,25 +94,25 @@ function getFloorContentBounds(
 
   const rawMinX = clamp(
     Math.min(...currentFloorRooms.map((room) => room.x)) -
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
     Math.max(...currentFloorRooms.map((room) => room.x)) +
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
     Math.min(...currentFloorRooms.map((room) => room.y)) -
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
     Math.max(...currentFloorRooms.map((room) => room.y)) +
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -307,12 +307,12 @@ export default function IndoorMapScreen() {
       left:
         floorStageLayout.frameLeft +
         (selectedRoomOnCurrentFloor.x - floorBounds.minX) *
-          floorStageLayout.scale -
+        floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
         (selectedRoomOnCurrentFloor.y - floorBounds.minY) *
-          floorStageLayout.scale -
+        floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
   }, [
@@ -404,11 +404,10 @@ export default function IndoorMapScreen() {
   const floorSummaryText = activeRoute
     ? `${activeRoute.origin.label} → ${activeRoute.destination.label}`
     : selectedRoomOnCurrentFloor
-      ? `${selectedRoomOnCurrentFloor.label}${
-          selectedRoomOnCurrentFloor.roomName
-            ? ` - ${selectedRoomOnCurrentFloor.roomName}`
-            : ""
-        }`
+      ? `${selectedRoomOnCurrentFloor.label}${selectedRoomOnCurrentFloor.roomName
+        ? ` - ${selectedRoomOnCurrentFloor.roomName}`
+        : ""
+      }`
       : normalizedBuildingPlan
         ? "Search a room to pin it on the floor plan."
         : "Floor overview";
@@ -468,15 +467,11 @@ export default function IndoorMapScreen() {
           </Pressable>
         </View>
 
-        
+
 
         {navError && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>
-              {accessibleOnly && navError.includes("No path found")
-                ? "No accessible route exists between the selected rooms."
-                : navError}
-            </Text>
+            <Text style={styles.errorText}>{navError}</Text>
           </View>
         )}
 
