@@ -60,24 +60,26 @@ function extractRoomNumber(
   return normalizedLabel;
 }
 
-function resolveFloorFromLabel(
-  buildingCode: string,
-  label: string,
-  fallbackFloor: number,
-): number {
+function resolveFloorFromMetadata(node: BuildingPlanNode, label: string): number {
+  const normalizedBuildingId = normalizeSearchValue(node.buildingId);
   const normalizedLabel = label.trim().toUpperCase();
 
-  if (buildingCode === "MB") {
-    if (
-      normalizedLabel.startsWith("MB-S2") ||
-      normalizedLabel.startsWith("S2.")
-    ) {
-      return -2;
-    }
-    return 1;
+  const sublevelFromBuilding = normalizedBuildingId.match(/(?:^|[-_])S(\d+)$/);
+  if (sublevelFromBuilding) {
+    return -Number(sublevelFromBuilding[1]);
   }
 
-  return fallbackFloor;
+  const sublevelFromLabel = normalizedLabel.match(/^[A-Z]+-S(\d+)(?:[.-]|$)/);
+  if (sublevelFromLabel) {
+    return -Number(sublevelFromLabel[1]);
+  }
+
+  const floorFromLabel = normalizedLabel.match(/^[A-Z]+-(\d+)\./);
+  if (floorFromLabel) {
+    return Number(floorFromLabel[1]);
+  }
+
+  return Number.isFinite(node.floor) ? node.floor : 1;
 }
 
 function buildRoomRecord(
@@ -94,11 +96,7 @@ function buildRoomRecord(
   const aliases = uniqueNonEmpty(
     (node.aliases ?? []).map((alias) => normalizeSearchValue(alias)),
   );
-  const floor = resolveFloorFromLabel(
-    buildingCode,
-    normalizedLabel,
-    node.floor,
-  );
+  const floor = resolveFloorFromMetadata(node, normalizedLabel);
   const searchTerms = uniqueNonEmpty([
     normalizedLabel,
     roomNumber,
