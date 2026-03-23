@@ -108,8 +108,10 @@ function resolveFloorImageAsset(
   };
 }
 
-const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
-  CC: {
+
+// Registry of asset loader functions (not the assets themselves)
+const INDOOR_ASSET_LOADERS: Record<string, () => IndoorBuildingAssets> = {
+  CC: () => ({
     floors: [1],
     floorImages: {
       1: {
@@ -120,8 +122,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
       },
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/cc1.json") as BuildingPlanAsset,
-  },
-  H: {
+  }),
+  H: () => ({
     floors: [1, 2, 8, 9],
     floorImages: {
       1: {
@@ -150,8 +152,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
       },
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/hall.json") as BuildingPlanAsset,
-  },
-  MB: {
+  }),
+  MB: () => ({
     floors: [1, -2],
     floorImages: {
       1: {
@@ -172,8 +174,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
       1: require("../assets/maps/MB-1.json") as LegacyFloorGeoJsonAsset,
       [-2]: require("../assets/maps/MB-S2.json") as LegacyFloorGeoJsonAsset,
     },
-  },
-  VE: {
+  }),
+  VE: () => ({
     floors: [1, 2],
     floorImages: {
       1: {
@@ -190,8 +192,8 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
       },
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/ve.json") as BuildingPlanAsset,
-  },
-  VL: {
+  }),
+  VL: () => ({
     floors: [1, 2],
     floorImages: {
       1: {
@@ -208,8 +210,11 @@ const INDOOR_ASSET_REGISTRY: Record<string, IndoorBuildingAssets> = {
       },
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/vl_floors_combined.json") as BuildingPlanAsset,
-  },
+  }),
 };
+
+// Cache for loaded assets
+const INDOOR_ASSET_CACHE: Record<string, IndoorBuildingAssets> = {};
 
 export function normalizeIndoorBuildingCode(buildingCode: string): string {
   const normalized = buildingCode.trim().toUpperCase();
@@ -219,7 +224,13 @@ export function normalizeIndoorBuildingCode(buildingCode: string): string {
 
 function getIndoorAssets(buildingCode: string): IndoorBuildingAssets | undefined {
   const normalizedBuildingCode = normalizeIndoorBuildingCode(buildingCode);
-  return INDOOR_ASSET_REGISTRY[normalizedBuildingCode];
+  if (!(normalizedBuildingCode in INDOOR_ASSET_CACHE)) {
+    const loader = INDOOR_ASSET_LOADERS[normalizedBuildingCode];
+    if (loader) {
+      INDOOR_ASSET_CACHE[normalizedBuildingCode] = loader();
+    }
+  }
+  return INDOOR_ASSET_CACHE[normalizedBuildingCode];
 }
 
 export function hasFloorMap(buildingCode: string, floor: number): boolean {
