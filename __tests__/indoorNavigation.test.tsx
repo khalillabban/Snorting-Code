@@ -1,6 +1,6 @@
 import {
-    getIndoorNavigationRoute,
-    getRouteWaypointsForFloor,
+  getIndoorNavigationRoute,
+  getRouteWaypointsForFloor,
 } from "../utils/indoorNavigation";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -23,8 +23,8 @@ jest.mock("../utils/indoorPathFinding", () => ({
 
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-    findShortestPath,
-    resolveRoutingNodeId,
+  findShortestPath,
+  resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
@@ -60,35 +60,117 @@ describe("utils/indoorNavigation", () => {
   const baseAsset: BuildingPlanAsset = {
     meta: { buildingId: "H" },
     nodes: [],
-    edges: [{ source: "n1", target: "n2", type: "walk", weight: 1, accessible: true }],
+    edges: [
+      { source: "n1", target: "n2", type: "walk", weight: 1, accessible: true },
+    ],
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockedGetNormalizedBuildingPlan.mockReturnValue({ rooms: [] });
-    mockedFindIndoorRoomMatch.mockImplementation((_: unknown, query: string) => {
-      if (query === "101") {
-        return { room: originRoom, floor: 1, matchType: "exact_label", score: 900 };
-      }
-      if (query === "201") {
-        return { room: destinationRoom, floor: 2, matchType: "exact_label", score: 900 };
-      }
-      return null;
-    });
+    mockedFindIndoorRoomMatch.mockImplementation(
+      (_: unknown, query: string) => {
+        if (query === "101") {
+          return {
+            room: originRoom,
+            floor: 1,
+            matchType: "exact_label",
+            score: 900,
+          };
+        }
+        if (query === "201") {
+          return {
+            room: destinationRoom,
+            floor: 2,
+            matchType: "exact_label",
+            score: 900,
+          };
+        }
+        return null;
+      },
+    );
     mockedGetBuildingPlanAsset.mockReturnValue(baseAsset);
-    mockedResolveRoutingNodeId.mockImplementation((_: unknown, roomId: string) => {
-      if (roomId === "room-a") return "room-a";
-      if (roomId === "room-b") return "room-b";
-      return null;
-    });
+    mockedResolveRoutingNodeId.mockImplementation(
+      (_: unknown, roomId: string) => {
+        if (roomId === "room-a") return "room-a";
+        if (roomId === "room-b") return "room-b";
+        return null;
+      },
+    );
     mockedFindShortestPath.mockReturnValue({
       steps: [
-        { node: { id: "room-a", x: 10, y: 10, floor: 1, type: "room", label: "H-101", accessible: true }, cumulativeDistance: 0 },
-        { node: { id: "door-1", x: 15, y: 10, floor: 1, type: "doorway", label: "Door", accessible: true }, cumulativeDistance: 5 },
-        { node: { id: "hall-1", x: 40, y: 10, floor: 1, type: "elevator_door", label: "Elev Lobby", accessible: true }, cumulativeDistance: 20 },
-        { node: { id: "hall-2", x: 40, y: 10, floor: 2, type: "elevator_door", label: "Elev Lobby", accessible: true }, cumulativeDistance: 20 },
-        { node: { id: "door-2", x: 60, y: 10, floor: 2, type: "doorway", label: "Door", accessible: true }, cumulativeDistance: 25 },
-        { node: { id: "room-b", x: 80, y: 10, floor: 2, type: "room", label: "H-201", accessible: true }, cumulativeDistance: 30 },
+        {
+          node: {
+            id: "room-a",
+            x: 10,
+            y: 10,
+            floor: 1,
+            type: "room",
+            label: "H-101",
+            accessible: true,
+          },
+          cumulativeDistance: 0,
+        },
+        {
+          node: {
+            id: "door-1",
+            x: 15,
+            y: 10,
+            floor: 1,
+            type: "doorway",
+            label: "Door",
+            accessible: true,
+          },
+          cumulativeDistance: 5,
+        },
+        {
+          node: {
+            id: "hall-1",
+            x: 40,
+            y: 10,
+            floor: 1,
+            type: "hallway",
+            label: "Elev Lobby",
+            accessible: true,
+          },
+          cumulativeDistance: 20,
+        },
+        {
+          node: {
+            id: "hall-2",
+            x: 40,
+            y: 10,
+            floor: 2,
+            type: "hallway",
+            label: "Elev Lobby",
+            accessible: true,
+          },
+          cumulativeDistance: 20,
+        },
+        {
+          node: {
+            id: "door-2",
+            x: 60,
+            y: 10,
+            floor: 2,
+            type: "doorway",
+            label: "Door",
+            accessible: true,
+          },
+          cumulativeDistance: 25,
+        },
+        {
+          node: {
+            id: "room-b",
+            x: 80,
+            y: 10,
+            floor: 2,
+            type: "room",
+            label: "H-201",
+            accessible: true,
+          },
+          cumulativeDistance: 30,
+        },
       ],
       totalDistance: 30,
       fullyAccessible: true,
@@ -112,7 +194,10 @@ describe("utils/indoorNavigation", () => {
 
     const noDestination = getIndoorNavigationRoute("H", "101", "bad");
     expect(noDestination).toEqual(
-      expect.objectContaining({ success: false, error: "DESTINATION_NOT_FOUND" }),
+      expect.objectContaining({
+        success: false,
+        error: "DESTINATION_NOT_FOUND",
+      }),
     );
   });
 
@@ -131,16 +216,22 @@ describe("utils/indoorNavigation", () => {
   });
 
   it("returns NO_GRAPH_DATA for missing edges and NO_PATH_FOUND for unresolved node/path", () => {
-    mockedGetBuildingPlanAsset.mockReturnValueOnce({ meta: { buildingId: "H" }, nodes: [], edges: [] });
+    mockedGetBuildingPlanAsset.mockReturnValueOnce({
+      meta: { buildingId: "H" },
+      nodes: [],
+      edges: [],
+    });
     const missingEdges = getIndoorNavigationRoute("H", "101", "201");
     expect(missingEdges).toEqual(
       expect.objectContaining({ success: false, error: "NO_GRAPH_DATA" }),
     );
 
-    mockedResolveRoutingNodeId.mockImplementationOnce((_: unknown, roomId: string) => {
-      if (roomId === "room-a") return null;
-      return "room-b";
-    });
+    mockedResolveRoutingNodeId.mockImplementationOnce(
+      (_: unknown, roomId: string) => {
+        if (roomId === "room-a") return null;
+        return "room-b";
+      },
+    );
     const unresolvedNode = getIndoorNavigationRoute("H", "101", "201");
     expect(unresolvedNode).toEqual(
       expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
@@ -171,7 +262,7 @@ describe("utils/indoorNavigation", () => {
     expect(result.route.segments.map((segment) => segment.kind)).toEqual(
       expect.arrayContaining(["exit_room", "walk", "elevator", "enter_room"]),
     );
-    expect(result.route.estimatedSeconds).toBe(Math.round(30 / 1.4));
+    expect(result.route.estimatedSeconds).toBe(Math.round(30 / 10 / 1.4));
   });
 
   it("returns scaled route waypoints for a specific floor", () => {
@@ -185,9 +276,42 @@ describe("utils/indoorNavigation", () => {
       segments: [],
       path: {
         steps: [
-          { node: { id: "a", x: 10, y: 20, floor: 1, type: "hallway", label: "A", accessible: true }, cumulativeDistance: 0 },
-          { node: { id: "b", x: 30, y: 40, floor: 2, type: "hallway", label: "B", accessible: true }, cumulativeDistance: 10 },
-          { node: { id: "c", x: 50, y: 60, floor: 2, type: "hallway", label: "C", accessible: true }, cumulativeDistance: 20 },
+          {
+            node: {
+              id: "a",
+              x: 10,
+              y: 20,
+              floor: 1,
+              type: "hallway",
+              label: "A",
+              accessible: true,
+            },
+            cumulativeDistance: 0,
+          },
+          {
+            node: {
+              id: "b",
+              x: 30,
+              y: 40,
+              floor: 2,
+              type: "hallway",
+              label: "B",
+              accessible: true,
+            },
+            cumulativeDistance: 10,
+          },
+          {
+            node: {
+              id: "c",
+              x: 50,
+              y: 60,
+              floor: 2,
+              type: "hallway",
+              label: "C",
+              accessible: true,
+            },
+            cumulativeDistance: 20,
+          },
         ],
         totalDistance: 20,
         fullyAccessible: true,
