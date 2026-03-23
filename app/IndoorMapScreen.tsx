@@ -7,7 +7,7 @@ import {
   Text,
   TextInput,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import {
   IndoorDirectionsPanel,
@@ -180,18 +180,24 @@ function getFloorStageLayout(
 }
 
 export default function IndoorMapScreen() {
-  const { buildingName, floors, roomQuery, navOrigin, navDest, accessibleOnly: accessibleOnlyParam } =
-    useLocalSearchParams<{
-      buildingName: string;
-      floors: string;
-      roomQuery?: string;
-      navOrigin?: string;
-      navDest?: string;
-      accessibleOnly?: string;
-    }>();
+  const {
+    buildingName,
+    floors,
+    roomQuery,
+    navOrigin,
+    navDest,
+    accessibleOnly: accessibleOnlyParam,
+  } = useLocalSearchParams<{
+    buildingName: string;
+    floors: string;
+    roomQuery?: string;
+    navOrigin?: string;
+    navDest?: string;
+    accessibleOnly?: string;
+  }>();
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(
-    accessibleOnlyParam === 'true'
+    accessibleOnlyParam === "true",
   );
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
@@ -434,8 +440,8 @@ export default function IndoorMapScreen() {
         {navError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>
-              {accessibleOnly && navError.includes('No path found')
-                ? 'No accessible route exists between the selected rooms.'
+              {accessibleOnly && navError.includes("No path found")
+                ? "No accessible route exists between the selected rooms."
                 : navError}
             </Text>
           </View>

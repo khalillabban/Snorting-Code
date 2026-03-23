@@ -16,29 +16,19 @@ export interface PathNode {
 
 export interface PathStep {
   node: PathNode;
-  /** Cumulative distance from origin at this step (in asset coordinate units). */
   cumulativeDistance: number;
 }
 
 export interface IndoorPath {
-  /** Ordered list of waypoints from origin to destination. */
   steps: PathStep[];
-  /** Total path cost (sum of edge weights). */
   totalDistance: number;
-  /** True when every edge along the path is accessible. */
   fullyAccessible: boolean;
-  /** IDs of the floors touched by this path. */
   floors: number[];
 }
 
 export interface PathfindingOptions {
-  /** When true, only traverse edges marked accessible:true. */
   accessibleOnly?: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Internal min-heap (priority queue) — avoids O(n²) Dijkstra
-// ---------------------------------------------------------------------------
 
 interface HeapEntry {
   id: string;
@@ -92,14 +82,11 @@ class MinHeap {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Graph builder
-// ---------------------------------------------------------------------------
-
 interface AdjEntry {
   targetId: string;
   weight: number;
   accessible: boolean;
+  edgeType: string;
 }
 
 function buildAdjacencyList(
@@ -112,17 +99,28 @@ function buildAdjacencyList(
     to: string,
     weight: number,
     accessible: boolean,
+    edgeType: string,
   ) => {
     if (!adj.has(from)) adj.set(from, []);
-    adj.get(from)!.push({ targetId: to, weight, accessible });
+    adj.get(from)!.push({ targetId: to, weight, accessible, edgeType });
   };
 
   for (const edge of edges) {
-    // Edges are treated as undirected
-    // Guard against invalid weights
     if (!Number.isFinite(edge.weight) || edge.weight < 0) continue;
-    add(edge.source, edge.target, edge.weight, edge.accessible);
-    add(edge.target, edge.source, edge.weight, edge.accessible);
+    add(
+      edge.source,
+      edge.target,
+      edge.weight,
+      edge.accessible,
+      edge.type ?? "",
+    );
+    add(
+      edge.target,
+      edge.source,
+      edge.weight,
+      edge.accessible,
+      edge.type ?? "",
+    );
   }
 
   return adj;
@@ -135,12 +133,14 @@ export function findShortestPath(
   options: PathfindingOptions = {},
 ): IndoorPath | null {
   const { accessibleOnly = false } = options;
+  const isAccessibleRoute =
+    accessibleOnly === true || String(accessibleOnly) === "true";
+  console.log("findShortestPath options:", options);
 
   if (!asset.edges || asset.edges.length === 0) {
     return null;
   }
 
-  // Index nodes by id
   const nodeMap = new Map<string, BuildingPlanNode>();
   for (const node of asset.nodes) {
     nodeMap.set(node.id, node);
@@ -167,27 +167,48 @@ export function findShortestPath(
   while (heap.size > 0) {
     const { id: currentId, cost: currentCost } = heap.pop()!;
 
-    // Skip stale heap entries
     if (currentCost > (dist.get(currentId) ?? Infinity)) continue;
 
     if (currentId === destinationId) break;
 
     const neighbors = adj.get(currentId) ?? [];
-    for (const { targetId, weight, accessible } of neighbors) {
+    for (const { targetId, weight, accessible, edgeType } of neighbors) {
       const isEdgeAccessible =
         accessible !== false && String(accessible) !== "false";
       const targetNode = nodeMap.get(targetId);
       const targetType = (targetNode?.type || "").toLowerCase();
       const targetLabel = (targetNode?.label || "").toLowerCase();
+      const edgeTypeLower = (edgeType || "").toLowerCase();
+
       const isStairs =
-        targetType.includes("stair") || targetLabel.includes("stair");
+        targetType.includes("stair") ||
+        targetLabel.includes("stair") ||
+        edgeTypeLower.includes("stair");
+
+      const isElevator =
+        targetType.includes("elevator") ||
+        targetType === "eblock" ||
+        targetLabel.includes("elev") ||
+        edgeTypeLower.includes("elevator");
+
       const isNodeAccessible =
         targetNode?.accessible !== false &&
-        String(targetNode?.accessible) !== "false" &&
-        !isStairs;
+        String(targetNode?.accessible) !== "false";
 
-      if (accessibleOnly && (!isEdgeAccessible || !isNodeAccessible)) continue;
-      const newCost = currentCost + weight;
+      let penalty = 0;
+
+      if (isAccessibleRoute) {
+        // Heavily penalize stairs so elevators are prioritized
+        if (isStairs) penalty += 100000;
+        // Penalize inaccessible nodes/edges slightly so they are avoided
+        if (!isElevator && (!isEdgeAccessible || !isNodeAccessible))
+          penalty += 50000;
+      } else {
+        // Heavily penalize elevators so stairs are prioritized
+        if (isElevator) penalty += 100000;
+      }
+
+      const newCost = currentCost + weight + penalty;
       if (newCost < (dist.get(targetId) ?? Infinity)) {
         dist.set(targetId, newCost);
         prev.set(targetId, currentId);
@@ -228,13 +249,21 @@ export function findShortestPath(
       const prevId = pathIds[index - 1];
       const edgeKey = `${prevId}|${id}`;
       const isEdgeAccessible = edgeAccessible.get(edgeKey) !== false;
-      if (!isEdgeAccessible || node.accessible === false)
+      if (
+        !isEdgeAccessible ||
+        node.accessible === false ||
+        node.type?.toLowerCase().includes("stair")
+      )
         fullyAccessible = false;
 
       const seg = (adj.get(prevId) ?? []).find((e) => e.targetId === id);
       cumulative += seg?.weight ?? 0;
     } else {
-      if (node.accessible === false) fullyAccessible = false;
+      if (
+        node.accessible === false ||
+        node.type?.toLowerCase().includes("stair")
+      )
+        fullyAccessible = false;
     }
 
     return {
@@ -253,7 +282,7 @@ export function findShortestPath(
 
   return {
     steps,
-    totalDistance,
+    totalDistance: cumulative,
     fullyAccessible,
     floors: [...floorSet].sort((a, b) => a - b),
   };
@@ -266,11 +295,9 @@ export function resolveRoutingNodeId(
   roomY: number,
   floor: number,
 ): string | null {
-  // Direct match (check floor)
   if (asset.nodes.some((n) => n.id === roomId && n.floor === floor))
     return roomId;
 
-  // Nearest node on same floor
   let bestId: string | null = null;
   let bestDist = Infinity;
 

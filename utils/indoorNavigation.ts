@@ -174,6 +174,7 @@ export function getIndoorNavigationRoute(
   destQuery: string,
   options: PathfindingOptions = {},
 ): NavigationResult {
+  console.log("findShortestPath options:", options);
   const plan = getNormalizedBuildingPlan(buildingCode);
   if (!plan) {
     return {

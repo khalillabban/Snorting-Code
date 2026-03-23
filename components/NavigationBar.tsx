@@ -31,7 +31,7 @@ import {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT =
-  Platform.OS === "android" ? SCREEN_HEIGHT * 0.8 : SCREEN_HEIGHT * 0.7;
+  Platform.OS === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
 const MAX_SUGGESTIONS = 20;
