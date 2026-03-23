@@ -59,7 +59,7 @@ export default function CampusMapScreen() {
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
   );
-  const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
+  const [, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
@@ -159,13 +159,13 @@ export default function CampusMapScreen() {
       startRoom?: IndoorRoomRecord | null,
       endRoom?: IndoorRoomRecord | null,
     ) => {
-      if (start && dest && start.name === dest.name && startRoom && endRoom) {
+      if (start?.name && dest?.name && start.name === dest.name && startRoom && endRoom) {
         setIsNavVisible(false);
         openIndoorMap(start.name, undefined, startRoom.label, endRoom.label);
         return;
       }
 
-      if (start && dest && start.name === dest.name && endRoom) {
+      if (start?.name && dest?.name && start.name === dest.name && endRoom) {
         setIsNavVisible(false);
         openIndoorMap(dest.name, endRoom.label);
         return;
@@ -174,7 +174,7 @@ export default function CampusMapScreen() {
       setSelectedRoute({ start, dest });
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
-      if (start) setRouteFocusTrigger((c) => c + 1);
+      setRouteFocusTrigger((c) => (start ? c + 1 : c));
     },
     [openIndoorMap],
   );
