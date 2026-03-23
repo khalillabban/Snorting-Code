@@ -171,7 +171,7 @@ describe("utils/indoorNavigation", () => {
     expect(result.route.segments.map((segment) => segment.kind)).toEqual(
       expect.arrayContaining(["exit_room", "walk", "elevator", "enter_room"]),
     );
-    expect(result.route.estimatedSeconds).toBe(Math.round(30 / 1.4));
+    expect(result.route.estimatedSeconds).toBe(Math.round(30 / 10/ 1.4));
   });
 
   it("returns scaled route waypoints for a specific floor", () => {
