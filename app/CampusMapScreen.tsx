@@ -18,13 +18,13 @@ import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
 import {
-    buildIndoorMapRouteParams,
-    getIndoorAccessState,
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
-    getNextClassFromItems,
-    loadCachedSchedule,
+  getNextClassFromItems,
+  loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -146,11 +146,7 @@ export default function CampusMapScreen() {
           ...params,
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest ? { navDest } : {}),
-          accessibleOnly: String(
-            accessibleOnlyOverride !== undefined
-              ? accessibleOnlyOverride
-              : accessibleOnly,
-          ),
+          accessibleOnly: String(accessibleOnlyOverride ?? accessibleOnly),
         },
       });
     },
