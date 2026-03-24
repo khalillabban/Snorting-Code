@@ -401,16 +401,6 @@ export default function IndoorMapScreen() {
     }
   }, []);
 
-  const floorSummaryText = activeRoute
-    ? `${activeRoute.origin.label} → ${activeRoute.destination.label}`
-    : selectedRoomOnCurrentFloor
-      ? `${selectedRoomOnCurrentFloor.label}${selectedRoomOnCurrentFloor.roomName
-        ? ` - ${selectedRoomOnCurrentFloor.roomName}`
-        : ""
-      }`
-      : normalizedBuildingPlan
-        ? "Search a room to pin it on the floor plan."
-        : "Floor overview";
 
   return (
     <View style={styles.container}>
