@@ -27,6 +27,7 @@ interface IndoorRouteOverlayProps {
   coordinateScale: number;
   stageLayout: FloorStageLayout;
   floorBounds: FloorBounds;
+  accessibleOnly?: boolean;
 }
 
 const ROUTE_COLOR = "#3B82F6";
@@ -44,6 +45,7 @@ export function IndoorRouteOverlay({
   coordinateScale,
   stageLayout,
   floorBounds,
+  accessibleOnly,
 }: IndoorRouteOverlayProps) {
   const { points, originPoint, destPoint } = useMemo(() => {
     const waypoints = getRouteWaypointsForFloor(route, floor, coordinateScale);
@@ -68,9 +70,9 @@ export function IndoorRouteOverlay({
 
   if (!points || !originPoint) return null;
 
-  const isAccessible = route.fullyAccessible;
-  const mainColor = isAccessible ? ACCESSIBLE_ROUTE_COLOR : ROUTE_COLOR;
-  const alphaColor = isAccessible ? ACCESSIBLE_ROUTE_COLOR_ALPHA : ROUTE_COLOR_ALPHA;
+  const mainColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR : ROUTE_COLOR;
+  const alphaColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR_ALPHA : ROUTE_COLOR_ALPHA;
+
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Polyline
@@ -96,7 +98,7 @@ export function IndoorRouteOverlay({
           cx={originPoint.x}
           cy={originPoint.y}
           r={DOT_RADIUS + 3}
-          fill={ROUTE_COLOR_ALPHA}
+          fill={alphaColor}
         />
         <Circle
           cx={originPoint.x}
@@ -113,7 +115,7 @@ export function IndoorRouteOverlay({
             cx={destPoint.x}
             cy={destPoint.y}
             r={DOT_RADIUS + 3}
-            fill={ROUTE_COLOR_ALPHA}
+            fill={alphaColor}
           />
           <Circle
             cx={destPoint.x}

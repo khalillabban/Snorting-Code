@@ -562,6 +562,7 @@ export default function IndoorMapScreen() {
                 coordinateScale={coordinateScale}
                 stageLayout={floorStageLayout}
                 floorBounds={floorBounds}
+                accessibleOnly={accessibleOnly}
               />
             )}
 
