@@ -27,10 +27,13 @@ interface IndoorRouteOverlayProps {
   coordinateScale: number;
   stageLayout: FloorStageLayout;
   floorBounds: FloorBounds;
+  accessibleOnly?: boolean;
 }
 
 const ROUTE_COLOR = "#3B82F6";
 const ROUTE_COLOR_ALPHA = "#3B82F640";
+const ACCESSIBLE_ROUTE_COLOR = "#2563eb"; // blue-600
+const ACCESSIBLE_ROUTE_COLOR_ALPHA = "#2563eb40";
 const DESTINATION_COLOR = "#EF4444";
 const ORIGIN_COLOR = "#22C55E";
 const STROKE_WIDTH = 3.5;
@@ -42,6 +45,7 @@ export function IndoorRouteOverlay({
   coordinateScale,
   stageLayout,
   floorBounds,
+  accessibleOnly,
 }: IndoorRouteOverlayProps) {
   const { points, originPoint, destPoint } = useMemo(() => {
     const waypoints = getRouteWaypointsForFloor(route, floor, coordinateScale);
@@ -66,11 +70,14 @@ export function IndoorRouteOverlay({
 
   if (!points || !originPoint) return null;
 
+  const mainColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR : ROUTE_COLOR;
+  const alphaColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR_ALPHA : ROUTE_COLOR_ALPHA;
+
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Polyline
         points={points}
-        stroke={ROUTE_COLOR_ALPHA}
+        stroke={alphaColor}
         strokeWidth={STROKE_WIDTH * 3}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -78,7 +85,7 @@ export function IndoorRouteOverlay({
       />
       <Polyline
         points={points}
-        stroke={ROUTE_COLOR}
+        stroke={mainColor}
         strokeWidth={STROKE_WIDTH}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -91,7 +98,7 @@ export function IndoorRouteOverlay({
           cx={originPoint.x}
           cy={originPoint.y}
           r={DOT_RADIUS + 3}
-          fill={ROUTE_COLOR_ALPHA}
+          fill={alphaColor}
         />
         <Circle
           cx={originPoint.x}
@@ -108,7 +115,7 @@ export function IndoorRouteOverlay({
             cx={destPoint.x}
             cy={destPoint.y}
             r={DOT_RADIUS + 3}
-            fill={ROUTE_COLOR_ALPHA}
+            fill={alphaColor}
           />
           <Circle
             cx={destPoint.x}

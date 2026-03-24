@@ -39,6 +39,8 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 }
 
 export default function CampusMapScreen() {
+  // Accessibility mode state
+  const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
@@ -58,9 +60,6 @@ export default function CampusMapScreen() {
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
-  );
-  const [, setSelectedBuilding] = useState<Buildings | null>(
-    null,
   );
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -136,6 +135,7 @@ export default function CampusMapScreen() {
       roomQuery?: string,
       navOrigin?: string,
       navDest?: string,
+      accessibleOnlyOverride?: boolean,
     ) => {
       const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
       if (!params) return;
@@ -145,10 +145,11 @@ export default function CampusMapScreen() {
           ...params,
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest ? { navDest } : {}),
+          accessibleOnly: String(accessibleOnlyOverride ?? accessibleOnly),
         },
       });
     },
-    [],
+    [accessibleOnly],
   );
 
   const handleConfirmRoute = useCallback(
@@ -158,16 +159,37 @@ export default function CampusMapScreen() {
       strategy: RouteStrategy,
       startRoom?: IndoorRoomRecord | null,
       endRoom?: IndoorRoomRecord | null,
+      accessible?: boolean,
     ) => {
-      if (start?.name && dest?.name && start.name === dest.name && startRoom && endRoom) {
+      setAccessibleOnly(!!accessible);
+
+      if (
+        start?.name &&
+        dest?.name &&
+        start.name === dest.name &&
+        startRoom &&
+        endRoom
+      ) {
         setIsNavVisible(false);
-        openIndoorMap(start.name, undefined, startRoom.label, endRoom.label);
+        openIndoorMap(
+          start.name,
+          undefined,
+          startRoom.label,
+          endRoom.label,
+          accessible,
+        );
         return;
       }
 
       if (start?.name && dest?.name && start.name === dest.name && endRoom) {
         setIsNavVisible(false);
-        openIndoorMap(dest.name, endRoom.label);
+        openIndoorMap(
+          dest.name,
+          endRoom.label,
+          undefined,
+          undefined,
+          accessible,
+        );
         return;
       }
 
@@ -188,7 +210,6 @@ export default function CampusMapScreen() {
 
   const handleViewBuildingIndoorMap = useCallback(
     (building: Buildings) => {
-      setSelectedBuilding(null);
       openIndoorMap(building.name);
     },
     [openIndoorMap],
@@ -250,7 +271,6 @@ export default function CampusMapScreen() {
           setIsNavVisible(true);
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
-        onBuildingSelected={(building) => setSelectedBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
       />
 
@@ -410,6 +430,8 @@ export default function CampusMapScreen() {
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
         onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        accessibleOnly={accessibleOnly}
+        onAccessibleOnlyChange={setAccessibleOnly}
       />
 
       <NextClassDirectionsPanel

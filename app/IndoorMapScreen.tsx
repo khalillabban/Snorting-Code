@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -7,13 +8,13 @@ import {
   Text,
   TextInput,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import {
   IndoorDirectionsPanel,
   IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
-import { spacing } from "../constants/theme";
+import { colors, spacing } from "../constants/theme";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   getNormalizedBuildingPlan,
@@ -62,9 +63,9 @@ function clamp(value: number, min: number, max: number): number {
 function getFloorImageDimensions(
   floorImageMetadata:
     | {
-        width: number;
-        height: number;
-      }
+      width: number;
+      height: number;
+    }
     | undefined,
   currentFloorRooms: IndoorRoomRecord[],
 ) {
@@ -93,25 +94,25 @@ function getFloorContentBounds(
 
   const rawMinX = clamp(
     Math.min(...currentFloorRooms.map((room) => room.x)) -
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
     Math.max(...currentFloorRooms.map((room) => room.x)) +
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
     Math.min(...currentFloorRooms.map((room) => room.y)) -
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
     Math.max(...currentFloorRooms.map((room) => room.y)) +
-      FLOOR_CONTENT_PADDING,
+    FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -179,15 +180,64 @@ function getFloorStageLayout(
   };
 }
 
+function trimParam(val: unknown): string {
+  return typeof val === "string" ? val.trim() : "";
+}
+
+function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
+  useEffect(() => {
+    if (!availableFloors.includes(selectedFloor)) {
+      setSelectedFloor(availableFloors[0] || 1);
+    }
+  }, [availableFloors, selectedFloor]);
+}
+
+function useInitialRoomQuery(
+  initialRoomQuery: string,
+  availableFloors: number[],
+  setSearchQuery: (q: string) => void,
+  performRoomSearch: (q: string, floor: number) => void,
+) {
+  useEffect(() => {
+    if (!initialRoomQuery) return;
+    setSearchQuery(initialRoomQuery);
+    performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+}
+
+function useNavAutoTrigger(
+  buildingName: string | undefined,
+  navOrigin: string | undefined,
+  navDest: string | undefined,
+  handleNavigate: () => void,
+) {
+  useEffect(() => {
+    if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
+      handleNavigate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export default function IndoorMapScreen() {
-  const { buildingName, floors, roomQuery, navOrigin, navDest } =
-    useLocalSearchParams<{
-      buildingName: string;
-      floors: string;
-      roomQuery?: string;
-      navOrigin?: string;
-      navDest?: string;
-    }>();
+  const {
+    buildingName,
+    floors,
+    roomQuery,
+    navOrigin,
+    navDest,
+    accessibleOnly: accessibleOnlyParam,
+  } = useLocalSearchParams<{
+    buildingName: string;
+    floors: string;
+    roomQuery?: string;
+    navOrigin?: string;
+    navDest?: string;
+    accessibleOnly?: string;
+  }>();
+  // Accessibility mode state
+  const [accessibleOnly, setAccessibleOnly] = useState(
+    accessibleOnlyParam === "true",
+  );
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const availableFloors = useMemo(() => parseFloors(floors), [floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
@@ -210,9 +260,7 @@ export default function IndoorMapScreen() {
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
 
-  const initialRoomQuery =
-    typeof roomQuery === "string" ? roomQuery.trim() : "";
-
+  const initialRoomQuery = trimParam(roomQuery);
   const mapKey = `${buildingName}-${selectedFloor}`;
   const floorImageMetadata = getFloorImageMetadata(
     buildingName || "",
@@ -230,11 +278,8 @@ export default function IndoorMapScreen() {
     setSelectedRoom(null);
   }, [buildingName]);
 
-  useEffect(() => {
-    if (!availableFloors.includes(selectedFloor)) {
-      setSelectedFloor(availableFloors[0] || 1);
-    }
-  }, [availableFloors, selectedFloor]);
+  useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
+
 
   const currentFloorRooms = useMemo(
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
@@ -262,15 +307,12 @@ export default function IndoorMapScreen() {
 
   const effectiveViewport = useMemo<FloorViewport>(
     () => ({
-      width:
-        mapViewport.width > 0 ? mapViewport.width : Math.max(windowWidth, 320),
-      height:
-        mapViewport.height > 0
-          ? mapViewport.height
-          : Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
+      width: mapViewport.width || Math.max(windowWidth, 320),
+      height: mapViewport.height || Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
     }),
     [mapViewport, windowHeight, windowWidth],
   );
+
   const floorStageLayout = useMemo(
     () =>
       getFloorStageLayout(effectiveViewport, floorImageDimensions, floorBounds),
@@ -295,12 +337,12 @@ export default function IndoorMapScreen() {
       left:
         floorStageLayout.frameLeft +
         (selectedRoomOnCurrentFloor.x - floorBounds.minX) *
-          floorStageLayout.scale -
+        floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
         (selectedRoomOnCurrentFloor.y - floorBounds.minY) *
-          floorStageLayout.scale -
+        floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
   }, [
@@ -349,11 +391,7 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useEffect(() => {
-    if (!initialRoomQuery) return;
-    setSearchQuery(initialRoomQuery);
-    performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+  useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
 
   const handleNavigate = useCallback(() => {
     if (!buildingName) return;
@@ -364,7 +402,7 @@ export default function IndoorMapScreen() {
       navOriginQuery,
       navDestQuery,
       {
-        accessibleOnly: false,
+        accessibleOnly: accessibleOnly,
       },
     );
 
@@ -375,47 +413,56 @@ export default function IndoorMapScreen() {
       setNavError(result.message);
       setActiveRoute(null);
     }
-  }, [buildingName, navOriginQuery, navDestQuery]);
+  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
 
-  useEffect(() => {
-    if (
-      buildingName &&
-      typeof navOrigin === "string" &&
-      navOrigin.trim() &&
-      typeof navDest === "string" &&
-      navDest.trim()
-    ) {
-      handleNavigate();
-    }
-  }, []);
+  useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
-  const floorSummaryText = activeRoute
-    ? `${activeRoute.origin.label} → ${activeRoute.destination.label}`
-    : selectedRoomOnCurrentFloor
-      ? `${selectedRoomOnCurrentFloor.label}${
-          selectedRoomOnCurrentFloor.roomName
-            ? ` - ${selectedRoomOnCurrentFloor.roomName}`
-            : ""
-        }`
-      : normalizedBuildingPlan
-        ? "Search a room to pin it on the floor plan."
-        : "Floor overview";
 
   return (
     <View style={styles.container}>
       <View style={styles.searchPanel}>
-        <Text style={styles.buildingTitle}>{buildingName} Building</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.buildingTitle}>{buildingName} Building</Text>
+          <Pressable
+            testID="indoor-accessible-mode-toggle"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: accessibleOnly }}
+            accessibilityLabel="Toggle accessible route"
+            onPress={() => setAccessibleOnly((prev) => !prev)}
+            style={[
+              styles.accessibleToggle,
+              accessibleOnly && styles.accessibleToggleActive,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="wheelchair-accessibility"
+              size={18}
+              color={accessibleOnly ? colors.white : colors.primary}
+            />
+            <Text
+              style={[
+                styles.accessibleToggleText,
+                accessibleOnly && styles.accessibleToggleTextActive,
+              ]}
+            >
+              Accessible
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.searchRow}>
           <TextInput
             style={styles.searchInput}
-            placeholder="From room…"
+            placeholder="From (H-110)"
+            placeholderTextColor={colors.gray500}
             value={navOriginQuery}
             onChangeText={setNavOriginQuery}
             returnKeyType="next"
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="To room…"
+            placeholder="To (H-920)"
+            placeholderTextColor={colors.gray500}
             value={navDestQuery}
             onChangeText={setNavDestQuery}
             returnKeyType="go"
@@ -425,6 +472,8 @@ export default function IndoorMapScreen() {
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
+
+
 
         {navError && (
           <View style={styles.errorBanner}>
@@ -519,6 +568,7 @@ export default function IndoorMapScreen() {
                 coordinateScale={coordinateScale}
                 stageLayout={floorStageLayout}
                 floorBounds={floorBounds}
+                accessibleOnly={accessibleOnly}
               />
             )}
 

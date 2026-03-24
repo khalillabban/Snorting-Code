@@ -31,7 +31,7 @@ import {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT =
-  Platform.OS === "android" ? SCREEN_HEIGHT * 0.75 : SCREEN_HEIGHT * 0.7;
+  Platform.OS === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
 const MAX_SUGGESTIONS = 20;
@@ -102,6 +102,7 @@ interface NavigationBarProps {
     strategy: RouteStrategy,
     startRoom?: IndoorRoomRecord | null,
     endRoom?: IndoorRoomRecord | null,
+    accessibleOnly?: boolean,
   ) => void;
   autoStartBuilding?: Buildings | null;
   initialStart?: Buildings | null;
@@ -110,6 +111,8 @@ interface NavigationBarProps {
   onInitialDestinationApplied?: () => void;
   currentCampus?: CampusKey;
   onUseMyLocation?: () => Buildings | null;
+  accessibleOnly?: boolean;
+  onAccessibleOnlyChange?: (value: boolean) => void;
 }
 
 export default function NavigationBar({
@@ -123,6 +126,8 @@ export default function NavigationBar({
   onInitialDestinationApplied,
   currentCampus = "sgw",
   onUseMyLocation,
+  accessibleOnly = false,
+  onAccessibleOnlyChange,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -145,6 +150,8 @@ export default function NavigationBar({
     distance?: string;
   } | null>(null);
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
+  const [localAccessibleOnly, setLocalAccessibleOnly] =
+    useState(accessibleOnly);
 
   const search = useCallback((text: string) => {
     if (!text.trim()) {
@@ -247,6 +254,7 @@ export default function NavigationBar({
       selectedStrategy,
       startRoom,
       endRoom,
+      localAccessibleOnly,
     );
     onClose();
   };
@@ -425,7 +433,10 @@ export default function NavigationBar({
                   <Text style={styles.roomBadgeText}>
                     Room {startRoom.label}
                   </Text>
-                  <Pressable testID="clear-start-room" onPress={() => setStartRoom(null)}>
+                  <Pressable
+                    testID="clear-start-room"
+                    onPress={() => setStartRoom(null)}
+                  >
                     <MaterialIcons
                       name="close"
                       size={14}
@@ -491,7 +502,10 @@ export default function NavigationBar({
                     color={colors.primary}
                   />
                   <Text style={styles.roomBadgeText}>Room {endRoom.label}</Text>
-                  <Pressable testID="clear-end-room" onPress={() => setEndRoom(null)}>
+                  <Pressable
+                    testID="clear-end-room"
+                    onPress={() => setEndRoom(null)}
+                  >
                     <MaterialIcons
                       name="close"
                       size={14}
@@ -533,6 +547,54 @@ export default function NavigationBar({
                       </Pressable>
                     );
                   })}
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  <Pressable
+                    onPress={() => {
+                      setLocalAccessibleOnly(!localAccessibleOnly);
+                      onAccessibleOnlyChange?.(!localAccessibleOnly);
+                    }}
+                    style={[
+                      styles.modeButton,
+                      localAccessibleOnly && styles.activeModeButton,
+                      {
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 12,
+                      },
+                    ]}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: localAccessibleOnly }}
+                    testID="accessible-mode-toggle"
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        localAccessibleOnly
+                          ? "wheelchair-accessibility"
+                          : "walk"
+                      }
+                      size={22}
+                      color={
+                        localAccessibleOnly ? colors.white : colors.primary
+                      }
+                    />
+                    <Text
+                      style={{
+                        color: localAccessibleOnly
+                          ? colors.white
+                          : colors.primary,
+                        marginLeft: 8,
+                      }}
+                    >
+                      Accessible Route
+                    </Text>
+                  </Pressable>
                 </View>
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
