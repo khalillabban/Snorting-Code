@@ -1,7 +1,13 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
+import Smartlook from "react-native-smartlook-analytics";
 import { colors } from "../constants/theme";
 
 export default function RootLayout() {
+  useEffect(() => {
+    Smartlook.instance.preferences.setProjectKey(process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY!);
+    Smartlook.instance.start();
+  }, []);
   return (
     <Stack
       screenOptions={{
