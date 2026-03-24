@@ -180,6 +180,44 @@ function getFloorStageLayout(
   };
 }
 
+function trimParam(val: unknown): string {
+  return typeof val === "string" ? val.trim() : "";
+}
+
+function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
+  useEffect(() => {
+    if (!availableFloors.includes(selectedFloor)) {
+      setSelectedFloor(availableFloors[0] || 1);
+    }
+  }, [availableFloors, selectedFloor]);
+}
+
+function useInitialRoomQuery(
+  initialRoomQuery: string,
+  availableFloors: number[],
+  setSearchQuery: (q: string) => void,
+  performRoomSearch: (q: string, floor: number) => void,
+) {
+  useEffect(() => {
+    if (!initialRoomQuery) return;
+    setSearchQuery(initialRoomQuery);
+    performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+}
+
+function useNavAutoTrigger(
+  buildingName: string | undefined,
+  navOrigin: string | undefined,
+  navDest: string | undefined,
+  handleNavigate: () => void,
+) {
+  useEffect(() => {
+    if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
+      handleNavigate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export default function IndoorMapScreen() {
   const {
     buildingName,
@@ -222,9 +260,7 @@ export default function IndoorMapScreen() {
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
 
-  const initialRoomQuery =
-    typeof roomQuery === "string" ? roomQuery.trim() : "";
-
+  const initialRoomQuery = trimParam(roomQuery);
   const mapKey = `${buildingName}-${selectedFloor}`;
   const floorImageMetadata = getFloorImageMetadata(
     buildingName || "",
@@ -242,11 +278,8 @@ export default function IndoorMapScreen() {
     setSelectedRoom(null);
   }, [buildingName]);
 
-  useEffect(() => {
-    if (!availableFloors.includes(selectedFloor)) {
-      setSelectedFloor(availableFloors[0] || 1);
-    }
-  }, [availableFloors, selectedFloor]);
+  useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
+
 
   const currentFloorRooms = useMemo(
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
@@ -274,15 +307,12 @@ export default function IndoorMapScreen() {
 
   const effectiveViewport = useMemo<FloorViewport>(
     () => ({
-      width:
-        mapViewport.width > 0 ? mapViewport.width : Math.max(windowWidth, 320),
-      height:
-        mapViewport.height > 0
-          ? mapViewport.height
-          : Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
+      width: mapViewport.width || Math.max(windowWidth, 320),
+      height: mapViewport.height || Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
     }),
     [mapViewport, windowHeight, windowWidth],
   );
+
   const floorStageLayout = useMemo(
     () =>
       getFloorStageLayout(effectiveViewport, floorImageDimensions, floorBounds),
@@ -361,11 +391,7 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useEffect(() => {
-    if (!initialRoomQuery) return;
-    setSearchQuery(initialRoomQuery);
-    performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+  useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
 
   const handleNavigate = useCallback(() => {
     if (!buildingName) return;
@@ -389,17 +415,7 @@ export default function IndoorMapScreen() {
     }
   }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
 
-  useEffect(() => {
-    if (
-      buildingName &&
-      typeof navOrigin === "string" &&
-      navOrigin.trim() &&
-      typeof navDest === "string" &&
-      navDest.trim()
-    ) {
-      handleNavigate();
-    }
-  }, []);
+  useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
 
   return (
