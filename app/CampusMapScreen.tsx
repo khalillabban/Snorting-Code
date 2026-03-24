@@ -61,7 +61,6 @@ export default function CampusMapScreen() {
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
   );
-  const [, setSelectedBuilding] = useState<Buildings | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
   );
@@ -211,7 +210,6 @@ export default function CampusMapScreen() {
 
   const handleViewBuildingIndoorMap = useCallback(
     (building: Buildings) => {
-      setSelectedBuilding(null);
       openIndoorMap(building.name);
     },
     [openIndoorMap],
@@ -273,7 +271,6 @@ export default function CampusMapScreen() {
           setIsNavVisible(true);
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
-        onBuildingSelected={(building) => setSelectedBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
       />
 
