@@ -1,6 +1,6 @@
 import {
   getIndoorNavigationRoute,
-  getRouteWaypointsForFloor
+  getRouteWaypointsForFloor,
 } from "../utils/indoorNavigation";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -24,7 +24,7 @@ jest.mock("../utils/indoorPathFinding", () => ({
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
   findShortestPath,
-  resolveRoutingNodeId
+  resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
@@ -56,13 +56,6 @@ const destinationRoom = {
   roomNumber: "201",
 };
 
-const baseAsset: BuildingPlanAsset = {
-  meta: { buildingId: "H" },
-  nodes: [],
-  edges: [
-    { source: "n1", target: "n2", type: "walk", weight: 1, accessible: true },
-  ],
-};
 const baseAsset: BuildingPlanAsset = {
   meta: { buildingId: "H" },
   nodes: [],
@@ -231,6 +224,35 @@ const stairsPath = {
 };
 
 describe("utils/indoorNavigation", () => {
+  const originRoom = {
+    id: "room-a",
+    buildingCode: "H",
+    floor: 1,
+    label: "H-101",
+    roomNumber: "101",
+    x: 10,
+    y: 10,
+    accessible: true,
+    searchTerms: ["H-101", "101"],
+    searchKeys: ["H101", "101"],
+  };
+
+  const destinationRoom = {
+    ...originRoom,
+    id: "room-b",
+    floor: 2,
+    label: "H-201",
+    roomNumber: "201",
+  };
+
+  const baseAsset: BuildingPlanAsset = {
+    meta: { buildingId: "H" },
+    nodes: [],
+    edges: [
+      { source: "n1", target: "n2", type: "walk", weight: 1, accessible: true },
+    ],
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockedGetNormalizedBuildingPlan.mockReturnValue({ rooms: [] });
@@ -482,12 +504,6 @@ describe("utils/indoorNavigation", () => {
     expect(result.route.segments.map((segment) => segment.kind)).toEqual(
       expect.arrayContaining(["exit_room", "walk", "elevator", "enter_room"]),
     );
-    expect(result.route.estimatedSeconds).toBe(Math.round(30 / 10 / 1.4));
-    const kinds = result.route.segments.map((s) => s.kind);
-    expect(kinds).toEqual(
-      expect.arrayContaining(["exit_room", "walk", "elevator", "enter_room"]),
-    );
-    expect(result.route.fullyAccessible).toBe(true);
     expect(result.route.estimatedSeconds).toBe(Math.round(30 / 10 / 1.4));
   });
 
