@@ -247,10 +247,9 @@ export function getIndoorNavigationRoute(
     return {
       success: false,
       error: "NO_PATH_FOUND",
-      message:
-        options.accessibleOnly
-          ? "No accessible route found. There may be no elevator connecting these floors."
-          : "No path found between the two rooms. The rooms may not be connected in the graph.",
+      message: options.accessibleOnly
+        ? "No accessible route found. There may be no elevator connecting these floors."
+        : "No path found between the two rooms. The rooms may not be connected in the graph.",
     };
   }
 
