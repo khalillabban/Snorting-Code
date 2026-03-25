@@ -7,10 +7,10 @@ jest.mock("../utils/mapAssets", () => ({
 
 import type { POICategoryId } from "../constants/indoorPOI";
 import {
-    filterPOIsByCategories,
-    filterPOIsByFloor,
-    getIndoorPOIs,
-    type IndoorPOI,
+  filterPOIsByCategories,
+  filterPOIsByFloor,
+  getIndoorPOIs,
+  type IndoorPOI,
 } from "../utils/indoorPOI";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
 
@@ -68,10 +68,20 @@ describe("getIndoorPOIs", () => {
   it("returns only manual POIs when no building plan is found", () => {
     (getBuildingPlanAsset as jest.Mock).mockReturnValue(undefined);
 
-    const pois = getIndoorPOIs("CC");
-    // CC has manual entries but no structural nodes returned since mock returns undefined
+    // MB has manual washroom/water_fountain entries; when the plan asset is absent
+    // only the manual registry entries are returned
+    const pois = getIndoorPOIs("MB");
     const manualPois = pois.filter((p) => p.id.includes("manual"));
     expect(manualPois.length).toBeGreaterThan(0);
+    expect(manualPois.some((p) => p.category === "washroom")).toBe(true);
+  });
+
+  it("returns empty array for CC when building plan is absent (no manual entries)", () => {
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue(undefined);
+
+    // CC's manual registry is empty — all POIs come from structural JSON nodes
+    const pois = getIndoorPOIs("CC");
+    expect(pois).toEqual([]);
   });
 
   it("returns empty array for unknown building", () => {

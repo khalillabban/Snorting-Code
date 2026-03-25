@@ -106,6 +106,30 @@ describe("IndoorPOIOverlay", () => {
     );
   });
 
+  it("skips rendering POI markers with an unknown category", () => {
+    // A POI whose category has no entry in POI_CATEGORY_MAP should be silently
+    // skipped (the `if (!catDef) return null` branch) and must not throw.
+    const poisWithBadCat: IndoorPOI[] = [
+      { id: "bad1", category: "stairs" as any, buildingCode: "H", floor: 1, x: 100, y: 200 },
+      // Force an unknown category via type cast
+      { id: "bad2", category: "unknown_category" as any, buildingCode: "H", floor: 1, x: 200, y: 300 },
+    ];
+    const active = new Set<POICategoryId>(["stairs", "unknown_category" as any]);
+    render(
+      <IndoorPOIOverlay
+        pois={poisWithBadCat}
+        floor={1}
+        coordinateScale={1}
+        stageLayout={mockStageLayout}
+        floorBounds={mockFloorBounds}
+        activeCategories={active}
+      />,
+    );
+    // The valid stairs POI renders; the bad-category POI does not crash and is skipped
+    expect(screen.getByTestId("poi-marker-bad1")).toBeTruthy();
+    expect(screen.queryByTestId("poi-marker-bad2")).toBeNull();
+  });
+
   it("shows POIs on the correct floor only", () => {
     const active = new Set<POICategoryId>(["stairs"]);
     render(
