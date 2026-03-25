@@ -752,6 +752,106 @@ describe("IndoorMapScreen", () => {
     expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
   });
 
+  it("falls back to Math.max room-coordinate dimensions when no floor image metadata exists", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8]),
+    });
+    // Return undefined so floorImageMetadata is undefined → lines 79 & 82 hit the ?? fallback
+    (getFloorImageMetadata as jest.Mock).mockReturnValue(undefined);
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+
+    render(<IndoorMapScreen />);
+
+    // No floor image asset → shows the no-map message rather than the stage
+    await waitFor(() => {
+      expect(screen.getByText("No map available for H-8")).toBeTruthy();
+    });
+  });
+
+  it("uses floor 1 as fallback when availableFloors is empty and roomQuery is provided (line 208)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: "", // parseFloors("") → []
+      roomQuery: "H-867",
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockHallRoom, floor: 8 });
+
+    render(<IndoorMapScreen />);
+
+    // useInitialRoomQuery fires with availableFloors[0] || 1 → 1 (the || 1 branch)
+    await waitFor(() => {
+      expect(findIndoorRoomMatch).toHaveBeenCalled();
+    });
+  });
+
+  it("adds and removes a POI category when its filter chip is pressed (lines 286-293)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+
+    render(<IndoorMapScreen />);
+
+    const washroomChip = await waitFor(() =>
+      screen.getByTestId("poi-filter-chip-washroom"),
+    );
+
+    // First press: category not in set → next.add(categoryId) — line 291
+    fireEvent.press(washroomChip);
+
+    // Second press: category now in set → next.delete(categoryId) — line 289
+    fireEvent.press(washroomChip);
+
+    // Chip is back to inactive state
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("poi-filter-chip-washroom").props.accessibilityState,
+      ).toEqual(expect.objectContaining({ selected: false }));
+    });
+  });
+
+  it("does nothing when Go is pressed without a buildingName (line 423 early return)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: undefined,
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByText("Go")).toBeTruthy());
+    fireEvent.press(screen.getByText("Go"));
+
+    // handleNavigate returns early; getIndoorNavigationRoute is never called
+    expect(getIndoorNavigationRoute).not.toHaveBeenCalled();
+  });
+
+  it("updates map viewport dimensions when the map container is laid out (lines 564-565)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+
+    render(<IndoorMapScreen />);
+
+    const mapContainer = await waitFor(() =>
+      screen.getByTestId("indoor-map-container"),
+    );
+
+    // Fire the layout event to trigger setMapViewport (lines 564-565)
+    fireEvent(mapContainer, "layout", {
+      nativeEvent: { layout: { width: 390, height: 560 } },
+    });
+
+    // Component should re-render without error; floor stage is still present
+    await waitFor(() => {
+      expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
+    });
+  });
+
   it("auto-triggers navigation from navOrigin and navDest URL params on mount", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",

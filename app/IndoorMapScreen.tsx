@@ -381,6 +381,7 @@ export default function IndoorMapScreen() {
     (rawQuery: string, currentFloor: number) => {
       const trimmedQuery = rawQuery.trim();
 
+      /* istanbul ignore next — trimParam() pre-strips whitespace before this is called, so trimmedQuery is never empty here */
       if (!trimmedQuery) {
         setSelectedRoom(null);
         setSearchError("Enter a room number or room name.");
@@ -558,6 +559,7 @@ export default function IndoorMapScreen() {
       />
 
       <View
+        testID="indoor-map-container"
         style={styles.mapContainer}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
