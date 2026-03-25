@@ -7,8 +7,8 @@
  */
 
 import {
-    NODE_TYPE_TO_POI,
-    POICategoryId,
+  NODE_TYPE_TO_POI,
+  POICategoryId,
 } from "../constants/indoorPOI";
 import { getBuildingPlanAsset, normalizeIndoorBuildingCode } from "./mapAssets";
 
@@ -32,14 +32,6 @@ interface ManualPOIEntry {
 
 const MANUAL_POI_REGISTRY: Record<string, ManualPOIEntry[]> = {
   H: [
-    // Floor 1
-    { category: "washroom", floor: 1, x: 500, y: 500, label: "Washroom" },
-    { category: "water_fountain", floor: 1, x: 500, y: 400, label: "Water Fountain" },
-    // { category: "elevator", floor: 1, x: 1140, y: 1650, label: "Elevators" }, // moved to hall.json as Hall_F1_elevator_door_1
-    // { category: "elevator", floor: 1, x: 1210, y: 1650, label: "Elevators" }, // moved to hall.json as Hall_F1_elevator_door_2
-    // Floor 2
-    { category: "washroom", floor: 2, x: 500, y: 500, label: "Washroom" },
-    { category: "water_fountain", floor: 2, x: 500, y: 400, label: "Water Fountain" },
     // Floor 8
     { category: "washroom", floor: 8, x: 800, y: 520, label: "Washroom" },
     { category: "washroom", floor: 8, x: 1275, y: 520, label: "Washroom" },
@@ -90,9 +82,7 @@ const MANUAL_POI_REGISTRY: Record<string, ManualPOIEntry[]> = {
   ],
   CC: [
     // Floor 1
-    { category: "washroom", floor: 1, x: 1500, y: 500, label: "Washroom" },
-    { category: "water_fountain", floor: 1, x: 1500, y: 1000, label: "Water Fountain" },
-    { category: "entrance", floor: 1, x: 950, y: 1100, label: "Entrances" },
+    // { category: "entrance", floor: 1, x: 950, y: 1100, label: "Entrances" }, // moved to cc1.json as CC_F1_building_entry_exit_1
   ],
 };
 
