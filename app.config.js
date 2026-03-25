@@ -27,9 +27,11 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.concordia.snortingcode",
+      googleServicesFile: "./GoogleService-Info.plist",
     },
     android: {
       package: "com.concordia.snortingcode",
+      googleServicesFile: "./google-services.json",
       intentFilters: [
         {
           action: "VIEW",
@@ -84,6 +86,7 @@ export default {
       ],
       "expo-web-browser",
       "expo-secure-store",
+      "@react-native-firebase/app",
     ],
     experiments: {
       typedRoutes: true,

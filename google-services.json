@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "761453975991",
+    "project_id": "soen-390-48ad2",
+    "storage_bucket": "soen-390-48ad2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:761453975991:android:d53959adbfb3ab00e8f032",
+        "android_client_info": {
+          "package_name": "com.concordia.snortingcode"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCxM2J7naFmsP_F6Xticidti9ceH3D3dA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
