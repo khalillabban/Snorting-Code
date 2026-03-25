@@ -1622,6 +1622,26 @@
       "y": 117,
       "label": "VL-121-1",
       "accessible": true
+    },
+    {
+      "id": "VL_F1_stair_2",
+      "type": "stair_landing",
+      "buildingId": "VL",
+      "floor": 1,
+      "x": 825,
+      "y": 600,
+      "label": "VL-stair2",
+      "accessible": false
+    },
+    {
+      "id": "VL_F2_stair6",
+      "type": "stair_landing",
+      "buildingId": "VL",
+      "floor": 2,
+      "x": 65,
+      "y": 950,
+      "label": "VL-stair6",
+      "accessible": false
     }
   ],
   "edges": [
@@ -2800,6 +2820,13 @@
       "type": "stair",
       "weight": 0,
       "accessible": true
+    },
+    {
+      "source": "VL_F1_stair_2",
+      "target": "VL_F2_stair6",
+      "type": "stair",
+      "weight": 0,
+      "accessible": false
     }
   ]
 }

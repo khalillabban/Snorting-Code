@@ -34,6 +34,12 @@ jest.mock("../utils/indoorNavigation", () => ({
   getRouteWaypointsForFloor: jest.fn(() => []),
 }));
 
+jest.mock("../utils/indoorPOI", () => ({
+  getIndoorPOIs: jest.fn(() => []),
+  filterPOIsByFloor: jest.fn(() => []),
+  filterPOIsByCategories: jest.fn(() => []),
+}));
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
