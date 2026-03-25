@@ -15,7 +15,7 @@ interface IndoorPOIFilterProps {
 export function IndoorPOIFilter({
   activeCategories,
   onToggle,
-}: IndoorPOIFilterProps) {
+}: Readonly<IndoorPOIFilterProps>) {
   return (
     <View style={styles.wrapper} testID="poi-filter-bar">
       <View style={styles.row}>

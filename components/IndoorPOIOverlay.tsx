@@ -2,14 +2,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import {
-    POI_CATEGORY_MAP,
-    type POICategoryId,
+  POI_CATEGORY_MAP,
+  type POICategoryId,
 } from "../constants/indoorPOI";
 import { styles } from "../styles/IndoorPOIOverlay.styles";
 import {
-    filterPOIsByCategories,
-    filterPOIsByFloor,
-    type IndoorPOI,
+  filterPOIsByCategories,
+  filterPOIsByFloor,
+  type IndoorPOI,
 } from "../utils/indoorPOI";
 
 interface FloorStageLayout {
@@ -42,7 +42,7 @@ export function IndoorPOIOverlay({
   stageLayout,
   floorBounds,
   activeCategories,
-}: IndoorPOIOverlayProps) {
+}: Readonly<IndoorPOIOverlayProps>) {
   const visiblePOIs = useMemo(() => {
     const onFloor = filterPOIsByFloor(pois, floor);
     return filterPOIsByCategories(onFloor, activeCategories);
