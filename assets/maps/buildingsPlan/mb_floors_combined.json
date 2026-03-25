@@ -474,6 +474,16 @@
       "accessible": true
     },
     {
+      "id": "MB_F1_stair6",
+      "type": "stair_landing",
+      "buildingId": "MB",
+      "floor": 1,
+      "x": 700,
+      "y": 220,
+      "label": "MB-stair6",
+      "accessible": true
+    },
+    {
       "id": "MB_F1_hallway_waypoint_45",
       "type": "hallway_waypoint",
       "buildingId": "MB",
@@ -3519,6 +3529,41 @@
       "target": "mb-2-235",
       "type": "room_to_door",
       "weight": 63,
+      "accessible": true
+    },
+    {
+      "source": "MB_F1_hallway_waypoint_71",
+      "target": "MB_F1_stair6",
+      "type": "hallway",
+      "weight": 48,
+      "accessible": false
+    },
+    {
+      "source": "MB_F1_stair6",
+      "target": "MB_F1_hallway_waypoint_71",
+      "type": "hallway",
+      "weight": 48,
+      "accessible": true
+    },
+    {
+      "source": "MB_F1_hallway_waypoint_72",
+      "target": "MB_F1_stair6",
+      "type": "hallway",
+      "weight": 41,
+      "accessible": true
+    },
+    {
+      "source": "MB_F1_stair6",
+      "target": "MB_F1_hallway_waypoint_72",
+      "type": "hallway",
+      "weight": 41,
+      "accessible": true
+    },
+    {
+      "source": "MB-S2_F0_stair4",
+      "target": "MB_F1_stair6",
+      "type": "stair",
+      "weight": 0,
       "accessible": true
     }
   ]
