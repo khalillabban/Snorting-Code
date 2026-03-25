@@ -1,13 +1,29 @@
-import { useEffect } from "react";
+import Constants from "expo-constants";
 import { Stack } from "expo-router";
-import Smartlook from "react-native-smartlook-analytics";
+import { useEffect } from "react";
 import { colors } from "../constants/theme";
 
 export default function RootLayout() {
   useEffect(() => {
-    Smartlook.instance.preferences.setProjectKey(process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY!);
-    Smartlook.instance.start();
+    const projectKey = process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY;
+
+    if (!projectKey) {
+      return;
+    }
+
+    if (Constants.executionEnvironment === "storeClient") {
+      return;
+    }
+
+    try {
+      const Smartlook = require("react-native-smartlook-analytics").default;
+      Smartlook.instance.preferences.setProjectKey(projectKey);
+      Smartlook.instance.start();
+    } catch (error) {
+      console.warn("Smartlook is not available in this build.", error);
+    }
   }, []);
+
   return (
     <Stack
       screenOptions={{
@@ -19,12 +35,12 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ title: "Home" }} />
       <Stack.Screen
         name="CampusMapScreen"
-        options={{ title: "Campus Map", headerBackButtonDisplayMode: "minimal" }}
+        options={{
+          title: "Campus Map",
+          headerBackButtonDisplayMode: "minimal",
+        }}
       />
-      <Stack.Screen
-        name="IndoorMapScreen"
-        options={{ title: "Indoor Map" }}
-      />
+      <Stack.Screen name="IndoorMapScreen" options={{ title: "Indoor Map" }} />
       <Stack.Screen
         name="schedule"
         options={{ title: "Schedule", headerBackButtonDisplayMode: "minimal" }}
