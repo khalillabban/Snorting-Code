@@ -219,7 +219,6 @@ export default function CampusMapScreen() {
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
-    // ─────────────────────────────────────────────────────────────────────
   };
 
   const focusUserLocation = useCallback(() => {
@@ -617,7 +616,7 @@ export default function CampusMapScreen() {
           onClose={() => {
             setShowShuttleSchedulePanel(false);
 
-            // ── Task 7: Schedule panel closed ────────────────────────────
+            // Task 7: Schedule panel closed
             endTask("task_7");
           }}
         />
