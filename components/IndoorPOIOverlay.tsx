@@ -44,7 +44,7 @@ export function IndoorPOIOverlay({
   activeCategories,
 }: Readonly<IndoorPOIOverlayProps>) {
   const activeCategoryIds = useMemo(
-    () => Array.from(activeCategories).sort().join(","),
+    () => Array.from(activeCategories).sort((a, b) => a.localeCompare(b)).join(","),
     [activeCategories],
   );
 
