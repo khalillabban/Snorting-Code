@@ -612,6 +612,16 @@
       "y": 1068,
       "label": "",
       "accessible": true
+    },
+    {
+      "id": "CC_F1_building_entry_exit_1",
+      "type": "building_entry_exit",
+      "buildingId": "CC",
+      "floor": 1,
+      "x": 950,
+      "y": 1100,
+      "label": "CC-entrance1",
+      "accessible": true
     }
   ],
   "edges": [
@@ -1208,6 +1218,20 @@
       "target": "CC_F1_doorway_251",
       "type": "door_to_hallway",
       "weight": 817,
+      "accessible": true
+    },
+    {
+      "source": "CC_F1_building_entry_exit_1",
+      "target": "CC_F1_doorway_276",
+      "type": "hallway",
+      "weight": 50,
+      "accessible": true
+    },
+    {
+      "source": "CC_F1_doorway_276",
+      "target": "CC_F1_building_entry_exit_1",
+      "type": "hallway",
+      "weight": 50,
       "accessible": true
     }
   ]

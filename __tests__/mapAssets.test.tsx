@@ -1,12 +1,12 @@
 import {
-    getAvailableFloors,
-    getBuildingPlanAsset,
-    getFloorImageAsset,
-    getFloorImageMetadata,
-    getLegacyFloorGeoJsonAsset,
-    hasBuildingPlanAsset,
-    hasFloorMap,
-    normalizeIndoorBuildingCode,
+  getAvailableFloors,
+  getBuildingPlanAsset,
+  getFloorImageAsset,
+  getFloorImageMetadata,
+  getLegacyFloorGeoJsonAsset,
+  hasBuildingPlanAsset,
+  hasFloorMap,
+  normalizeIndoorBuildingCode,
 } from "../utils/mapAssets";
 
 jest.mock("../hooks/useFloorData", () => ({
@@ -105,6 +105,35 @@ describe("mapAssets", () => {
       );
       expect(getFloorImageAsset("UNKNOWN", 1)).toBeUndefined();
       expect(getFloorImageMetadata("UNKNOWN", 1)).toBeUndefined();
+    });
+
+    it("MB floor images include showFullImage: true", () => {
+      const f1 = getFloorImageMetadata("MB", 1);
+      const fs2 = getFloorImageMetadata("MB", -2);
+      expect(f1).toBeDefined();
+      expect(f1?.showFullImage).toBe(true);
+      expect(fs2).toBeDefined();
+      expect(fs2?.showFullImage).toBe(true);
+    });
+
+    it("non-MB buildings do not set showFullImage", () => {
+      const h1 = getFloorImageMetadata("H", 1);
+      const cc1 = getFloorImageMetadata("CC", 1);
+      expect(h1?.showFullImage).toBeFalsy();
+      expect(cc1?.showFullImage).toBeFalsy();
+    });
+
+    it("returns undefined source when floor is missing", () => {
+      expect(getFloorImageAsset("MB", 99)).toBeUndefined();
+      expect(getFloorImageMetadata("H", 3)).toBeUndefined();
+    });
+
+    it("VL floor images are defined without showFullImage", () => {
+      const vl1 = getFloorImageMetadata("VL", 1);
+      const vl2 = getFloorImageMetadata("VL", 2);
+      expect(vl1).toBeDefined();
+      expect(vl2).toBeDefined();
+      expect(vl1?.showFullImage).toBeFalsy();
     });
 
     it("reports building plan and legacy geojson availability", () => {

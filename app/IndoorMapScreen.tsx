@@ -10,10 +10,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { IndoorPOIFilter } from "../components/IndoorPOIFilter";
+import { IndoorPOIOverlay } from "../components/IndoorPOIOverlay";
 import {
   IndoorDirectionsPanel,
   IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
+import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
@@ -24,6 +27,7 @@ import {
   getIndoorNavigationRoute,
   NavigationRoute,
 } from "../utils/indoorNavigation";
+import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
@@ -186,10 +190,10 @@ function trimParam(val: unknown): string {
 
 function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
   useEffect(() => {
-    if (!availableFloors.includes(selectedFloor)) {
+    if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
       setSelectedFloor(availableFloors[0] || 1);
     }
-  }, [availableFloors, selectedFloor]);
+  }, [availableFloors, selectedFloor, setSelectedFloor]);
 }
 
 function useInitialRoomQuery(
@@ -202,7 +206,7 @@ function useInitialRoomQuery(
     if (!initialRoomQuery) return;
     setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+  }, [availableFloors, initialRoomQuery, performRoomSearch, setSearchQuery]);
 }
 
 function useNavAutoTrigger(
@@ -259,6 +263,7 @@ export default function IndoorMapScreen() {
   );
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
+  const [activePOICategories, setActivePOICategories] = useState<Set<POICategoryId>>(new Set());
 
   const initialRoomQuery = trimParam(roomQuery);
   const mapKey = `${buildingName}-${selectedFloor}`;
@@ -271,6 +276,20 @@ export default function IndoorMapScreen() {
     () => (buildingName ? getNormalizedBuildingPlan(buildingName) : null),
     [buildingName],
   );
+
+  const allPOIs = buildingName ? getIndoorPOIs(buildingName) : [];
+
+  const handlePOIToggle = useCallback((categoryId: POICategoryId) => {
+    setActivePOICategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setSearchQuery("");
@@ -301,8 +320,11 @@ export default function IndoorMapScreen() {
     [floorImageMetadata, scaledCurrentFloorRooms],
   );
   const floorBounds = useMemo(
-    () => getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
-    [floorImageDimensions, scaledCurrentFloorRooms],
+    () =>
+      floorImageMetadata?.showFullImage
+        ? { minX: 0, minY: 0, maxX: floorImageDimensions.width, maxY: floorImageDimensions.height }
+        : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
+    [floorImageDimensions, floorImageMetadata?.showFullImage, scaledCurrentFloorRooms],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
@@ -355,12 +377,6 @@ export default function IndoorMapScreen() {
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
       const trimmedQuery = rawQuery.trim();
-
-      if (!trimmedQuery) {
-        setSelectedRoom(null);
-        setSearchError("Enter a room number or room name.");
-        return;
-      }
 
       if (!normalizedBuildingPlan) {
         setSelectedRoom(null);
@@ -527,7 +543,13 @@ export default function IndoorMapScreen() {
         </ScrollView>
       </View>
 
+      <IndoorPOIFilter
+        activeCategories={activePOICategories}
+        onToggle={handlePOIToggle}
+      />
+
       <View
+        testID="indoor-map-container"
         style={styles.mapContainer}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
@@ -569,6 +591,17 @@ export default function IndoorMapScreen() {
                 stageLayout={floorStageLayout}
                 floorBounds={floorBounds}
                 accessibleOnly={accessibleOnly}
+              />
+            )}
+
+            {activePOICategories.size > 0 && (
+              <IndoorPOIOverlay
+                pois={allPOIs}
+                floor={selectedFloor}
+                coordinateScale={coordinateScale}
+                stageLayout={floorStageLayout}
+                floorBounds={floorBounds}
+                activeCategories={activePOICategories}
               />
             )}
 
