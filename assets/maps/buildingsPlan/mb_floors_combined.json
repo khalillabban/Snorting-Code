@@ -3565,6 +3565,41 @@
       "type": "stair",
       "weight": 0,
       "accessible": true
+    },
+    {
+      "source": "MB-S2_F0_stair4",
+      "target": "MB-S2_F1_hallway_waypoint_15",
+      "type": "hallway",
+      "weight": 81,
+      "accessible": false
+    },
+    {
+      "source": "MB-S2_F1_hallway_waypoint_15",
+      "target": "MB-S2_F0_stair4",
+      "type": "hallway",
+      "weight": 81,
+      "accessible": false
+    },
+    {
+      "source": "MB-S2_F0_stair4",
+      "target": "MB-S2_F1_hallway_waypoint_14",
+      "type": "hallway",
+      "weight": 124,
+      "accessible": false
+    },
+    {
+      "source": "MB-S2_F1_hallway_waypoint_14",
+      "target": "MB-S2_F0_stair4",
+      "type": "hallway",
+      "weight": 124,
+      "accessible": false
+    },
+    {
+      "source": "MB_F1_stair6",
+      "target": "MB-S2_F0_stair4",
+      "type": "stair",
+      "weight": 0,
+      "accessible": false
     }
   ]
 }
