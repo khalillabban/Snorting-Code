@@ -3,7 +3,7 @@ import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
@@ -13,10 +13,16 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
-import { colors, spacing, typography } from "../constants/theme";
+import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
+import { styles } from "../styles/CampusMapScreen.styles";
+import {
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
+} from "../utils/indoorAccess";
+import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
@@ -25,12 +31,24 @@ import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
 type FocusTarget = CampusKey | "user";
 
+function normalizeRoomQuery(buildingCode: string, room: string): string {
+  const trimmed = room.trim();
+  if (!trimmed) return "";
+  const prefix = `${buildingCode.toUpperCase()}-`;
+  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
+  return `${prefix}${trimmed}`;
+}
+const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
+  useState<Buildings | null>(null);
+const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
+  [],
+);
 export default function CampusMapScreen() {
+  // Accessibility mode state
+  const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   // ─── Usability Testing: Session + Task timers ────────────────────────────
-  // A unique session ID tags every event so you can reconstruct per-participant
-  // journeys in BigQuery with: WHERE session_id = 'session_P01_...'
   const sessionId = useRef(
     `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
   );
@@ -75,11 +93,6 @@ export default function CampusMapScreen() {
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
-  );
-  const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
-    useState<Buildings | null>(null);
-  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
-    [],
   );
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(
     campus === "loyola" ? "loyola" : "sgw",
@@ -225,19 +238,76 @@ export default function CampusMapScreen() {
       console.error("Firebase Analytics Error: ", error);
     }
   }, []);
+  // ── Indoor map ─────────────────────────────────────────────────────────────
+
+  const openIndoorMap = useCallback(
+    (
+      buildingCode?: string | null,
+      roomQuery?: string,
+      navOrigin?: string,
+      navDest?: string,
+      accessibleOnlyOverride?: boolean,
+    ) => {
+      const params = buildIndoorMapRouteParams(buildingCode, roomQuery);
+      if (!params) return;
+      router.push({
+        pathname: "/IndoorMapScreen",
+        params: {
+          ...params,
+          ...(navOrigin ? { navOrigin } : {}),
+          ...(navDest ? { navDest } : {}),
+          accessibleOnly: String(accessibleOnlyOverride ?? accessibleOnly),
+        },
+      });
+    },
+    [accessibleOnly],
+  );
+
   const handleConfirmRoute = useCallback(
     (
       start: Buildings | null,
       dest: Buildings | null,
       strategy: RouteStrategy,
+      startRoom?: IndoorRoomRecord | null,
+      endRoom?: IndoorRoomRecord | null,
+      accessible?: boolean,
     ) => {
+      setAccessibleOnly(!!accessible);
+
+      if (
+        start?.name &&
+        dest?.name &&
+        start.name === dest.name &&
+        startRoom &&
+        endRoom
+      ) {
+        setIsNavVisible(false);
+        openIndoorMap(
+          start.name,
+          undefined,
+          startRoom.label,
+          endRoom.label,
+          accessible,
+        );
+        return;
+      }
+
+      if (start?.name && dest?.name && start.name === dest.name && endRoom) {
+        setIsNavVisible(false);
+        openIndoorMap(
+          dest.name,
+          endRoom.label,
+          undefined,
+          undefined,
+          accessible,
+        );
+        return;
+      }
+
       setSelectedRoute({ start, dest });
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
-      if (start) {
-        setRouteFocusTrigger((c) => c + 1);
-      }
-
+      setRouteFocusTrigger((c) => (start ? c + 1 : c));
       // ── Task 5 + Task 6: Route generated ─────────────────────────────────
       try {
         const timeSpent = navStartTime.current
@@ -262,8 +332,24 @@ export default function CampusMapScreen() {
         console.error("Firebase Analytics Error: ", error);
       }
     },
-    [],
+    [openIndoorMap],
   );
+
+  const handleOpenNextClassIndoorMap = useCallback(() => {
+    if (!nextClass?.room.trim()) return;
+    setIsNextClassVisible(false);
+    const roomQuery = normalizeRoomQuery(nextClass.building, nextClass.room);
+    openIndoorMap(nextClass.building, roomQuery);
+  }, [nextClass, openIndoorMap]);
+
+  const handleViewBuildingIndoorMap = useCallback(
+    (building: Buildings) => {
+      openIndoorMap(building.name);
+    },
+    [openIndoorMap],
+  );
+
+  // ── Shuttle ────────────────────────────────────────────────────────────────
 
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
@@ -280,9 +366,7 @@ export default function CampusMapScreen() {
   }
 
   useEffect(() => {
-    if (!shuttleStatus.available && showShuttle) {
-      setShowShuttle(false);
-    }
+    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
   }, [shuttleStatus.available, showShuttle]);
 
   const hasActiveRoute =
@@ -326,29 +410,15 @@ export default function CampusMapScreen() {
     setDemoCurrentBuilding(building);
   }, []);
 
-  const handleBuildingSelected = useCallback(
-    (building: Buildings | null, hasMap: boolean) => {
-      setSelectedBuildingWithMap(hasMap ? building : null);
-      if (building) {
-        try {
-          logEvent(getAnalytics(), "building_info_viewed", {
-            session_id: sessionId.current,
-            building_name: building.name,
-            campus: building.campusName,
-            has_indoor_map: hasMap,
-            time_since_map_load_ms: Date.now() - mapLoadTime.current,
-          });
-          endTask("task_3", { building_name: building.name });
-          startTask("task_4");
-        } catch (e) {}
-      }
-    },
-    [],
+  const nextClassIndoorAccess = useMemo(
+    () => getIndoorAccessState(nextClass?.building),
+    [nextClass?.building],
+  );
+  const canOpenNextClassIndoorMap = Boolean(
+    nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
 
-  const handleIndoorFloorsAvailable = useCallback((floors: number[]) => {
-    setIndoorAvailableFloors(floors);
-  }, []);
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1 }}>
@@ -362,12 +432,17 @@ export default function CampusMapScreen() {
         showShuttle={showShuttle}
         strategy={selectedStrategy}
         demoCurrentBuilding={demoCurrentBuilding}
-        onRouteSteps={handleRouteSteps}
-        onSetAsStart={handleSetAsStart}
-        onSetAsDestination={handleSetAsDestination}
-        onSetAsMyLocation={handleSetAsMyLocation}
-        onBuildingSelected={handleBuildingSelected}
-        onIndoorFloorsAvailable={handleIndoorFloorsAvailable}
+        onRouteSteps={setRouteSteps}
+        onSetAsStart={(building) => {
+          setInitialStart(building);
+          setIsNavVisible(true);
+        }}
+        onSetAsDestination={(building) => {
+          setInitialDestination(building);
+          setIsNavVisible(true);
+        }}
+        onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
+        onViewIndoorMap={handleViewBuildingIndoorMap}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -390,7 +465,6 @@ export default function CampusMapScreen() {
               SGW
             </Text>
           </Pressable>
-
           <Pressable
             onPress={() => selectCampus("loyola")}
             testID="campus-toggle-loyola"
@@ -411,36 +485,7 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {selectedBuildingWithMap && (
-        <Pressable
-          onPress={() => {
-            // ── Task 4: User navigated to indoor map from popup ──────────
-            try {
-              logEvent(getAnalytics(), "indoor_map_opened", {
-                session_id: sessionId.current,
-                building_name: selectedBuildingWithMap.name,
-              });
-              endTask("task_4", {
-                building_name: selectedBuildingWithMap.name,
-                action: "opened_indoor_map",
-              });
-            } catch (e) {}
-            router.push({
-              pathname: "/IndoorMapScreen",
-              params: {
-                buildingName: selectedBuildingWithMap.name,
-                floors: JSON.stringify(indoorAvailableFloors),
-              },
-            });
-          }}
-          testID="indoor-view-toggle"
-          style={styles.indoorButton}
-        >
-          <Text style={styles.indoorButtonText}>Indoor</Text>
-        </Pressable>
-      )}
-
-      {/* Left button stack: shuttle status + shuttle schedule */}
+      {/* Left button stack*/}
       <View
         style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
       >
@@ -476,7 +521,6 @@ export default function CampusMapScreen() {
             color={colors.white}
           />
         </Pressable>
-
         <Pressable
           testID="shuttle-schedule-button"
           accessibilityLabel="shuttle-schedule-button"
@@ -507,7 +551,7 @@ export default function CampusMapScreen() {
         </Pressable>
       </View>
 
-      {/* Right button stack: next-class + directions + my-location */}
+      {/* Right button stack */}
       <View style={styles.buttonStack}>
         <Pressable
           testID="next-class-button"
@@ -539,7 +583,6 @@ export default function CampusMapScreen() {
         >
           <MaterialIcons name="school" size={24} color={colors.white} />
         </Pressable>
-
         <Pressable
           testID="directions-button"
           accessibilityLabel="directions-button"
@@ -556,7 +599,6 @@ export default function CampusMapScreen() {
             importantForAccessibility="no-hide-descendants"
           />
         </Pressable>
-
         <Pressable
           testID="my-location-button"
           accessibilityLabel="my-location-button"
@@ -650,6 +692,8 @@ export default function CampusMapScreen() {
           } catch (e) {}
           return demoCurrentBuilding ?? autoStartBuilding ?? null;
         }}
+        accessibleOnly={accessibleOnly}
+        onAccessibleOnlyChange={setAccessibleOnly}
       />
 
       <NextClassDirectionsPanel
@@ -661,123 +705,9 @@ export default function CampusMapScreen() {
         autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
         currentCampus={currentCampus}
         onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        canOpenIndoorMap={canOpenNextClassIndoorMap}
+        onOpenIndoorMap={handleOpenNextClassIndoorMap}
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  campusToggleContainer: {
-    position: "absolute",
-    top: 30,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 10,
-    pointerEvents: "box-none",
-  },
-  campusToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  campusToggle: {
-    flexDirection: "row",
-    backgroundColor: colors.offWhite,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    borderRadius: 8,
-    overflow: "hidden",
-    maxWidth: 160,
-    opacity: 0.93,
-  },
-  routeFromCampusButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primaryDarker,
-    opacity: 0.93,
-  },
-  routeFromCampusButtonText: {
-    ...typography.button,
-    color: colors.white,
-    fontSize: 14,
-  },
-  campusToggleOption: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    alignItems: "center",
-  },
-  campusToggleOptionLeft: {
-    borderRightWidth: 1,
-    borderRightColor: colors.primaryDarker,
-  },
-  campusToggleOptionActive: {
-    backgroundColor: colors.primaryBarelyTransparent,
-  },
-  campusToggleText: {
-    color: colors.primary,
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.button.fontWeight,
-  },
-  campusToggleTextActive: {
-    color: colors.white,
-  },
-  indoorButton: {
-    position: "absolute",
-    top: 30,
-    right: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.offWhite,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    opacity: 0.93,
-    zIndex: 10,
-  },
-  indoorButtonText: {
-    color: colors.primary,
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.button.fontWeight,
-  },
-  buttonStack: {
-    position: "absolute",
-    bottom: 50,
-    right: spacing.md,
-    gap: 12,
-  },
-  actionButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.primary,
-    borderColor: colors.primaryDarker,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5,
-  },
-  myLocationButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  shuttleDisabled: {
-    backgroundColor: "#666",
-    opacity: 0.8,
-  },
-  nextClassButton: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondaryDark,
-  },
-  nextClassButtonDisabled: {
-    backgroundColor: colors.gray500,
-    borderColor: colors.gray500,
-    opacity: 0.5,
-  },
-});

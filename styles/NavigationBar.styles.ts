@@ -150,7 +150,7 @@ export const styles = StyleSheet.create({
   modeContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between", 
+    justifyContent: "space-between",
     gap: 4,
   },
   routeSummaryText: {
@@ -181,5 +181,32 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     fontWeight: "600",
+  },
+  roomBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: colors.secondaryTransparent,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.gray100,
+  },
+  roomBadgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  roomTag: {
+    backgroundColor: colors.secondaryTransparent,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  roomTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.secondary,
   },
 });

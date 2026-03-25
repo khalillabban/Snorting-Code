@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { Animated } from "react-native";
+import { Animated, Keyboard, PanResponder, TouchableWithoutFeedback } from "react-native";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
 import type { ScheduleItem } from "../constants/type";
 
@@ -86,10 +86,12 @@ const mockScheduleItems: ScheduleItem[] = [
 describe("NextClassDirectionsPanel", () => {
   let mockOnClose: jest.Mock;
   let mockOnConfirm: jest.Mock;
+  let mockOnOpenIndoorMap: jest.Mock;
 
   beforeEach(() => {
     mockOnClose = jest.fn();
     mockOnConfirm = jest.fn();
+    mockOnOpenIndoorMap = jest.fn();
 
     const mockAnimatedValue = {
       setValue: jest.fn(),
@@ -318,6 +320,44 @@ describe("NextClassDirectionsPanel", () => {
       fireEvent.press(getByTestId("next-class-get-directions"));
       expect(mockOnConfirm).toHaveBeenCalledTimes(1);
       expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders and handles the indoor map shortcut when enabled", async () => {
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          canOpenIndoorMap={true}
+          onOpenIndoorMap={mockOnOpenIndoorMap}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-open-indoor")).toBeTruthy();
+        expect(getByText("Open Indoor Map")).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId("next-class-open-indoor"));
+      expect(mockOnOpenIndoorMap).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the indoor map shortcut when disabled", async () => {
+      const { queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("next-class-open-indoor")).toBeNull();
+      });
     });
 
     it("shows course list when destination picker is pressed", async () => {
@@ -825,6 +865,62 @@ describe("NextClassDirectionsPanel", () => {
         // Only one course should appear (deduplicated)
         const courses = queryAllByTestId(/^nc-course-/);
         expect(courses.length).toBe(1);
+        });
+      });
+
+      describe("Gesture and overlay coverage", () => {
+        it("closes on fast/large downward swipe and springs back on small swipe", async () => {
+          const panSpy = jest
+            .spyOn(PanResponder, "create")
+            .mockImplementation((config: any) => ({ panHandlers: config } as any));
+
+          render(
+            <NextClassDirectionsPanel
+              visible={true}
+              onClose={mockOnClose}
+              onConfirm={mockOnConfirm}
+              nextClass={mockScheduleItems[0]}
+              scheduleItems={mockScheduleItems}
+            />,
+          );
+
+          const gestureConfig = panSpy.mock.calls[0][0];
+          expect(gestureConfig).toBeTruthy();
+
+          expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(false);
+          expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 20 })).toBe(true);
+
+          gestureConfig.onPanResponderMove({}, { dy: -10, vy: 0 });
+          gestureConfig.onPanResponderRelease({}, { dy: 30, vy: 0.1 });
+          expect(Animated.spring).toHaveBeenCalled();
+
+          gestureConfig.onPanResponderMove({}, { dy: 40, vy: 0.1 });
+          gestureConfig.onPanResponderRelease({}, { dy: 140, vy: 0.1 });
+          expect(mockOnClose).toHaveBeenCalled();
+
+          panSpy.mockRestore();
+        });
+
+        it("dismisses keyboard and closes when backdrop is pressed", async () => {
+          const dismissSpy = jest.spyOn(Keyboard, "dismiss").mockImplementation(() => {});
+
+          const rendered = render(
+            <NextClassDirectionsPanel
+              visible={true}
+              onClose={mockOnClose}
+              onConfirm={mockOnConfirm}
+              nextClass={mockScheduleItems[0]}
+              scheduleItems={mockScheduleItems}
+            />,
+          );
+
+          const touchables = rendered.UNSAFE_getAllByType(TouchableWithoutFeedback);
+          touchables[0].props.onPress();
+
+          expect(dismissSpy).toHaveBeenCalled();
+          expect(mockOnClose).toHaveBeenCalled();
+
+          dismissSpy.mockRestore();
         });
       });
     });

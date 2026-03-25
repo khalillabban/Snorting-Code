@@ -1,0 +1,92 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run npm test",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run npm test after test updates",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run npm test after fixing accessibility label tests",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run npm test after fixing test nesting and params",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run npm test with verbose output for diagnostics",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--",
+				"--verbose"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run Jest tests with verbose output",
+			"type": "shell",
+			"command": "npm test -- --verbose",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Run Jest tests with verbose output",
+			"type": "shell",
+			"command": "npm test -- --verbose",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		}
+	]
+}
