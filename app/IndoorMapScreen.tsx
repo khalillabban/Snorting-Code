@@ -301,8 +301,11 @@ export default function IndoorMapScreen() {
     [floorImageMetadata, scaledCurrentFloorRooms],
   );
   const floorBounds = useMemo(
-    () => getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
-    [floorImageDimensions, scaledCurrentFloorRooms],
+    () =>
+      floorImageMetadata?.showFullImage
+        ? { minX: 0, minY: 0, maxX: floorImageDimensions.width, maxY: floorImageDimensions.height }
+        : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
+    [floorImageDimensions, floorImageMetadata?.showFullImage, scaledCurrentFloorRooms],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
