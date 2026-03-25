@@ -50,16 +50,10 @@ const MANUAL_POI_REGISTRY: Record<string, ManualPOIEntry[]> = {
     { category: "washroom", floor: 1, x: 720, y: 760, label: "Washroom" },
     { category: "washroom", floor: 1, x: 800, y: 790, label: "Washroom" },
     { category: "water_fountain", floor: 1, x: 755, y: 790, label: "Water Fountain" },
-    // { category: "entrance", floor: 1, x: 520, y: 930, label: "Entrances" }, // moved to mb_floors_combined.json as MB_F1_building_entry_exit_1
-    // { category: "entrance", floor: 1, x: 480, y: 120, label: "Entrances" }, // moved to mb_floors_combined.json as MB_F1_building_entry_exit_2
     // Floor -2 (S2)
     { category: "washroom", floor: -2, x: 645, y: 770, label: "Washroom" },
     { category: "washroom", floor: -2, x: 730, y: 770, label: "Washroom" },
     { category: "water_fountain", floor: -2, x: 690, y: 790, label: "Water Fountain" },
-    // { category: "entrance", floor: -2, x: 370, y: 470, label: "Entrances" }, // moved to mb_floors_combined.json as MB-S2_F1_building_entry_exit_1
-    // { category: "stairs", floor: -2, x: 585, y: 170, label: "Stairs" }, // moved to mb_floors_combined.json as MB-S2_F0_stair4
-    // { category: "stairs", floor: -2, x: 770, y: 880, label: "Stairs" }, // moved to mb_floors_combined.json as MB-S2_F0_stair5
-    // { category: "stairs", floor: -2, x: 835, y: 640, label: "Stairs" }, // moved to mb_floors_combined.json as MB-S2_F0_stair6
   ],
   VE: [
     // Floor 2
@@ -73,17 +67,12 @@ const MANUAL_POI_REGISTRY: Record<string, ManualPOIEntry[]> = {
     { category: "washroom", floor: 1, x: 710, y: 300, label: "Washroom" },
     { category: "washroom", floor: 1, x: 710, y: 240, label: "Washroom" },
     { category: "water_fountain", floor: 1, x: 650, y: 260, label: "Water Fountain" },
-    // { category: "stairs", floor: 1, x: 825, y: 600, label: "Stairs" }, // moved to vl_floors_combined.json as VL_F1_stair_2
     // Floor 2
     { category: "washroom", floor: 2, x: 700, y: 235, label: "Washroom" },
     { category: "washroom", floor: 2, x: 700, y: 305, label: "Washroom" },
     { category: "water_fountain", floor: 2, x: 650, y: 270, label: "Water Fountain" },
-    // { category: "stairs", floor: 2, x: 65, y: 950, label: "Stairs" }, // moved to vl_floors_combined.json as VL_F2_stair6
   ],
-  CC: [
-    // Floor 1
-    // { category: "entrance", floor: 1, x: 950, y: 1100, label: "Entrances" }, // moved to cc1.json as CC_F1_building_entry_exit_1
-  ],
+  CC: [],
 };
 
 export function getIndoorPOIs(buildingCode: string): IndoorPOI[] {
