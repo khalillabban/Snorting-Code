@@ -1,7 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
 import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
@@ -65,12 +72,8 @@ function parseCalendarDate(value?: {
 }): Date | null {
   const raw = value?.dateTime ?? value?.date;
   if (!raw) return null;
-
   const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
+  if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
 }
 
@@ -81,21 +84,18 @@ function eventOverlapsRange(
 ): boolean {
   const start = parseCalendarDate(event.start);
   if (!start) return false;
-
   const end = parseCalendarDate(event.end) ?? start;
   return end > rangeStart && start < rangeEnd;
 }
 
 function getEventDedupKey(event: GoogleCalendarEvent): string | null {
   if (!event.id) return null;
-
   const occurrenceKey =
     event.originalStartTime?.dateTime ??
     event.originalStartTime?.date ??
     event.start?.dateTime ??
     event.start?.date ??
     "";
-
   return occurrenceKey ? `${event.id}::${occurrenceKey}` : event.id;
 }
 
@@ -105,17 +105,13 @@ function buildScheduleItems(
   rangeEnd: Date,
 ): ScheduleItem[] {
   const deduped = new Map<string, GoogleCalendarEvent>();
-
   for (const event of events) {
     if (event.status === "cancelled") continue;
     if (!eventOverlapsRange(event, rangeStart, rangeEnd)) continue;
-
     const key = getEventDedupKey(event);
     if (!key) continue;
-
     deduped.set(key, event);
   }
-
   return parseCourseEvents(Array.from(deduped.values()));
 }
 
@@ -125,13 +121,8 @@ function getUiStateForItems(items: ScheduleItem[]): UiState {
 
 function pickDefaultCalendarIds(calendars: GoogleCalendarListItem[]): string[] {
   if (calendars.length === 0) return [];
-
-  const primaryIds = calendars.filter((calendar) => calendar.primary).map((calendar) => calendar.id);
-  if (primaryIds.length > 0) {
-    return primaryIds;
-  }
-
-  return [calendars[0].id];
+  const primaryIds = calendars.filter((c) => c.primary).map((c) => c.id);
+  return primaryIds.length > 0 ? primaryIds : [calendars[0].id];
 }
 
 function applyCachedSchedule(
@@ -146,7 +137,8 @@ function applyCachedSchedule(
 async function resolveAccessToken(
   saved: Awaited<ReturnType<typeof getGoogleAccessToken>>,
 ): Promise<string | null> {
-  if (!saved.accessToken || !isTokenLikelyExpired(saved.meta)) return saved.accessToken;
+  if (!saved.accessToken || !isTokenLikelyExpired(saved.meta))
+    return saved.accessToken;
   await deleteGoogleAccessToken();
   return null;
 }
@@ -156,7 +148,9 @@ async function loadCalendarsAndMaybeAutoSelect(
   accessToken: string | null,
   shouldAutoSelectDefaultRef: { current: boolean },
   setSelectedCalendarIds: React.Dispatch<React.SetStateAction<string[]>>,
-  setAvailableCalendars: React.Dispatch<React.SetStateAction<GoogleCalendarListItem[]>>,
+  setAvailableCalendars: React.Dispatch<
+    React.SetStateAction<GoogleCalendarListItem[]>
+  >,
 ) {
   const savedCalendarIds = await getSelectedCalendarIds();
   if (cancelledRef.current) return;
@@ -171,7 +165,9 @@ async function loadCalendarsAndMaybeAutoSelect(
   setAvailableCalendars(visibleCalendars);
 
   const shouldAutoSelect =
-    accessToken && shouldAutoSelectDefaultRef.current && visibleCalendars.length > 0;
+    accessToken &&
+    shouldAutoSelectDefaultRef.current &&
+    visibleCalendars.length > 0;
   if (!shouldAutoSelect) return;
 
   const defaultIds = pickDefaultCalendarIds(visibleCalendars);
@@ -207,7 +203,9 @@ export default function ScheduleScreen() {
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [ui, setUi] = useState<UiState>({ status: "idle" });
-  const [availableCalendars, setAvailableCalendars] = useState<GoogleCalendarListItem[]>([]);
+  const [availableCalendars, setAvailableCalendars] = useState<
+    GoogleCalendarListItem[]
+  >([]);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
   const [hasHydratedStorage, setHasHydratedStorage] = useState(false);
 
@@ -218,10 +216,23 @@ export default function ScheduleScreen() {
   const scheduleSyncRequestRef = useRef(0);
   const shouldAutoSelectDefaultRef = useRef(true);
 
+  // ── Usability Testing: Task 8 timers ─────────────────────────────────────
+  const scheduleScreenLoadTime = useRef<number>(Date.now());
+  const connectStartTime = useRef<number | null>(null);
+
+  // ── Task 8: Log when Schedule screen loads ────────────────────────────────
+  useEffect(() => {
+    scheduleScreenLoadTime.current = Date.now();
+    try {
+      logEvent(getAnalytics(), "schedule_screen_loaded", {
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+  }, []);
+
   useEffect(() => {
     accessTokenRef.current = accessToken;
   }, [accessToken]);
-
   useEffect(() => {
     selectedCalendarIdsRef.current = selectedCalendarIds;
   }, [selectedCalendarIds]);
@@ -233,10 +244,10 @@ export default function ScheduleScreen() {
 
   const loadItemsFromRawCache = useCallback(
     async (calendarIds: string[]) => {
-      const cachedEntries = await loadCachedGoogleCalendarEventsForIds(calendarIds);
+      const cachedEntries =
+        await loadCachedGoogleCalendarEventsForIds(calendarIds);
       const rawEvents = cachedEntries.flatMap((entry) => entry.events);
       const items = buildScheduleItems(rawEvents, start, end);
-
       return { cachedEntries, items };
     },
     [start, end],
@@ -255,11 +266,13 @@ export default function ScheduleScreen() {
           calendarId,
           syncToken,
         });
-
         const nextEvents = syncToken
-          ? mergeCachedCalendarEvents(cachedEntry?.events ?? [], result.items, calendarId)
+          ? mergeCachedCalendarEvents(
+              cachedEntry?.events ?? [],
+              result.items,
+              calendarId,
+            )
           : mergeCachedCalendarEvents([], result.items, calendarId);
-
         await saveCachedGoogleCalendarEvents({
           calendarId,
           events: nextEvents,
@@ -271,19 +284,25 @@ export default function ScheduleScreen() {
       };
 
       try {
-        await runSync(useIncremental ? cachedEntry?.syncToken ?? undefined : undefined);
+        await runSync(
+          useIncremental ? (cachedEntry?.syncToken ?? undefined) : undefined,
+        );
       } catch (error) {
-        if (error instanceof GoogleCalendarApiError && error.status === 410 && !force) {
+        if (
+          error instanceof GoogleCalendarApiError &&
+          error.status === 410 &&
+          !force
+        ) {
           await clearCachedGoogleCalendarEvents(calendarId);
           await runSync();
           return;
         }
-
         throw error;
       }
     },
     [start, end],
   );
+
   const loadAndDisplayCache = useCallback(
     async (calendarIds: string[], background: boolean) => {
       const result = await loadItemsFromRawCache(calendarIds);
@@ -300,7 +319,9 @@ export default function ScheduleScreen() {
   const getCalendarIdsToSync = useCallback(
     (
       calendarIds: string[],
-      cachedEntries: Awaited<ReturnType<typeof loadItemsFromRawCache>>["cachedEntries"],
+      cachedEntries: Awaited<
+        ReturnType<typeof loadItemsFromRawCache>
+      >["cachedEntries"],
       force: boolean,
     ) => {
       if (force) return calendarIds;
@@ -370,17 +391,26 @@ export default function ScheduleScreen() {
       );
       if (scheduleSyncRequestRef.current !== requestId) return;
 
-      const calendarIdsToSync = getCalendarIdsToSync(calendarIds, cachedEntries, force);
+      const calendarIdsToSync = getCalendarIdsToSync(
+        calendarIds,
+        cachedEntries,
+        force,
+      );
 
       if (calendarIdsToSync.length === 0) {
-        if (background && cachedEntries.length > 0) {
+        if (background && cachedEntries.length > 0)
           await applyItemsToUi(cachedItems);
-        }
         return;
       }
 
       try {
-        await syncAndRefresh(token, calendarIds, calendarIdsToSync, force, requestId);
+        await syncAndRefresh(
+          token,
+          calendarIds,
+          calendarIdsToSync,
+          force,
+          requestId,
+        );
       } catch (error: any) {
         if (scheduleSyncRequestRef.current !== requestId) return;
         if (cachedEntries.length > 0) {
@@ -401,8 +431,8 @@ export default function ScheduleScreen() {
       const visibleCalendars = filterVisibleCachedCalendars(calendars);
       setAvailableCalendars(visibleCalendars);
 
-      const validSelected = selectedCalendarIdsRef.current.filter((calendarId) =>
-        visibleCalendars.some((calendar) => calendar.id === calendarId),
+      const validSelected = selectedCalendarIdsRef.current.filter((id) =>
+        visibleCalendars.some((c) => c.id === id),
       );
 
       if (validSelected.length !== selectedCalendarIdsRef.current.length) {
@@ -428,19 +458,20 @@ export default function ScheduleScreen() {
   const syncCalendarListData = useCallback(
     async (token: string, force = false) => {
       const cachedList = await loadCachedGoogleCalendarList();
-      if (cachedList) {
+      if (cachedList)
         setAvailableCalendars(filterVisibleCachedCalendars(cachedList.items));
-      }
 
       const shouldSync =
         force ||
         !cachedList?.syncToken ||
         isGoogleCalendarListCacheStale(cachedList);
-
       if (!shouldSync) return;
 
       const syncAndPersist = async (syncToken?: string) => {
-        const result = await syncCalendarList({ accessToken: token, syncToken });
+        const result = await syncCalendarList({
+          accessToken: token,
+          syncToken,
+        });
         const nextItems = syncToken
           ? mergeCachedCalendarListItems(cachedList?.items ?? [], result.items)
           : mergeCachedCalendarListItems([], result.items);
@@ -450,6 +481,15 @@ export default function ScheduleScreen() {
           syncToken: result.nextSyncToken,
         });
         await applyCalendarSelection(nextItems);
+
+        // ── Task 8: Calendars loaded successfully ───────────────────────────
+        try {
+          logEvent(getAnalytics(), "calendar_list_loaded", {
+            calendar_count: nextItems.length,
+            time_since_screen_load_ms:
+              Date.now() - scheduleScreenLoadTime.current,
+          });
+        } catch (e) {}
       };
 
       try {
@@ -457,7 +497,11 @@ export default function ScheduleScreen() {
           !force && cachedList?.syncToken ? cachedList.syncToken : undefined,
         );
       } catch (error) {
-        if (error instanceof GoogleCalendarApiError && error.status === 410 && !force) {
+        if (
+          error instanceof GoogleCalendarApiError &&
+          error.status === 410 &&
+          !force
+        ) {
           await syncAndPersist();
           return;
         }
@@ -469,57 +513,47 @@ export default function ScheduleScreen() {
 
   useEffect(() => {
     const handleURL = ({ url }: { url: string }) => {
-      if (url.includes("oauthredirect")) {
-        WebBrowser.maybeCompleteAuthSession();
-      }
+      if (url.includes("oauthredirect")) WebBrowser.maybeCompleteAuthSession();
     };
-
     const subscription = Linking.addEventListener("url", handleURL);
-
     Linking.getInitialURL().then((url) => {
-      if (url?.includes("oauthredirect")) {
-        WebBrowser.maybeCompleteAuthSession();
-      }
+      if (url?.includes("oauthredirect")) WebBrowser.maybeCompleteAuthSession();
     });
-
     return () => subscription.remove();
   }, []);
 
-  const initializeSchedule = useCallback(async (cancelledRef: { current: boolean }) => {
-    let cachedSchedule: ScheduleItem[] | null = null;
-    try {
-      cachedSchedule = await loadCachedSchedule();
-      applyCachedSchedule(cancelledRef, cachedSchedule, setUi);
-
-      if (cancelledRef.current) return;
-      const saved = await getGoogleAccessToken();
-      if (cancelledRef.current) return;
-
-      const accessToken = await resolveAccessToken(saved);
-      setAccessToken(accessToken);
-
-      await loadCalendarsAndMaybeAutoSelect(
-        cancelledRef,
-        accessToken,
-        shouldAutoSelectDefaultRef,
-        setSelectedCalendarIds,
-        setAvailableCalendars,
-      );
-
-      if (cancelledRef.current) return;
-      setIdleIfNoData(accessToken, cachedSchedule, setUi);
-    } catch (error) {
-      handleScheduleInitError(cancelledRef, error, setUi);
-    } finally {
-      if (!cancelledRef.current) setHasHydratedStorage(true);
-    }
-  }, []);
+  const initializeSchedule = useCallback(
+    async (cancelledRef: { current: boolean }) => {
+      let cachedSchedule: ScheduleItem[] | null = null;
+      try {
+        cachedSchedule = await loadCachedSchedule();
+        applyCachedSchedule(cancelledRef, cachedSchedule, setUi);
+        if (cancelledRef.current) return;
+        const saved = await getGoogleAccessToken();
+        if (cancelledRef.current) return;
+        const token = await resolveAccessToken(saved);
+        setAccessToken(token);
+        await loadCalendarsAndMaybeAutoSelect(
+          cancelledRef,
+          token,
+          shouldAutoSelectDefaultRef,
+          setSelectedCalendarIds,
+          setAvailableCalendars,
+        );
+        if (cancelledRef.current) return;
+        setIdleIfNoData(token, cachedSchedule, setUi);
+      } catch (error) {
+        handleScheduleInitError(cancelledRef, error, setUi);
+      } finally {
+        if (!cancelledRef.current) setHasHydratedStorage(true);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const cancelledRef = { current: false };
-
     initializeSchedule(cancelledRef);
-
     return () => {
       cancelledRef.current = true;
     };
@@ -531,27 +565,55 @@ export default function ScheduleScreen() {
 
     if (!res.ok) {
       if (res.reason === "cancelled") {
-        if (ui.status === "ready" || ui.status === "empty") {
-          return;
-        }
-
+        // ── Task 8: User cancelled Google sign-in ──────────────────────────
+        try {
+          logEvent(getAnalytics(), "google_signin_cancelled", {
+            time_spent_ms: connectStartTime.current
+              ? Date.now() - connectStartTime.current
+              : 0,
+          });
+        } catch (e) {}
+        if (ui.status === "ready" || ui.status === "empty") return;
         setUi({ status: "idle" });
         return;
       }
 
+      // ── Task 8: Sign-in failed ─────────────────────────────────────────
+      try {
+        logEvent(getAnalytics(), "google_signin_failed", {
+          reason: res.message ?? "unknown",
+        });
+      } catch (e) {}
       setUi({ status: "error", message: res.message ?? "Login failed." });
       return;
     }
 
-    setAccessToken(res.accessToken);
+    // ── Task 8: Sign-in succeeded ──────────────────────────────────────────
+    try {
+      logEvent(getAnalytics(), "google_signin_success", {
+        time_to_connect_ms: connectStartTime.current
+          ? Date.now() - connectStartTime.current
+          : 0,
+        time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
+      });
+      connectStartTime.current = null;
+    } catch (e) {}
 
+    setAccessToken(res.accessToken);
     saveGoogleAccessToken(res.accessToken, {
       issuedAt: res.issuedAt,
       expiresIn: res.expiresIn,
-    }).catch(() => { });
+    }).catch(() => {});
   }, [response, getResultFromResponse, ui.status]);
 
   const connect = useCallback(async () => {
+    // ── Task 8: Connect button tapped ─────────────────────────────────────
+    connectStartTime.current = Date.now();
+    try {
+      logEvent(getAnalytics(), "google_connect_tapped", {
+        time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
+      });
+    } catch (e) {}
     try {
       setUi({ status: "connecting" });
       await promptAsync();
@@ -568,7 +630,6 @@ export default function ScheduleScreen() {
       await connect();
       return;
     }
-
     await syncCalendarListData(accessTokenRef.current, true);
     await syncScheduleForSelection(
       accessTokenRef.current,
@@ -578,6 +639,10 @@ export default function ScheduleScreen() {
   }, [connect, syncCalendarListData, syncScheduleForSelection]);
 
   const disconnect = useCallback(async () => {
+    // ── Task 8: Disconnect tapped ─────────────────────────────────────────
+    try {
+      logEvent(getAnalytics(), "google_calendar_disconnected", {});
+    } catch (e) {}
     try {
       await deleteGoogleAccessToken();
       await AsyncStorage.removeItem(SCHEDULE_ITEMS);
@@ -599,8 +664,8 @@ export default function ScheduleScreen() {
 
   useEffect(() => {
     if (!hasHydratedStorage || !accessToken) return;
-    if (selectedCalendarIds.length === 0 && availableCalendars.length === 0) return;
-
+    if (selectedCalendarIds.length === 0 && availableCalendars.length === 0)
+      return;
     void syncScheduleForSelection(accessToken, selectedCalendarIds);
   }, [
     accessToken,
@@ -614,14 +679,12 @@ export default function ScheduleScreen() {
     const subscription = AppState.addEventListener("change", (nextState) => {
       const previousState = appStateRef.current;
       appStateRef.current = nextState;
-
       if (
         previousState.match(/inactive|background/) &&
         nextState === "active" &&
         accessTokenRef.current
       ) {
         void syncCalendarListData(accessTokenRef.current);
-
         if (
           selectedCalendarIdsRef.current.length > 0 ||
           availableCalendars.length > 0
@@ -634,23 +697,50 @@ export default function ScheduleScreen() {
         }
       }
     });
-
     return () => subscription.remove();
-  }, [availableCalendars.length, syncCalendarListData, syncScheduleForSelection]);
+  }, [
+    availableCalendars.length,
+    syncCalendarListData,
+    syncScheduleForSelection,
+  ]);
 
   const toggleCalendarSelection = useCallback(
-    async (calendarId: string) => {
+    async (calendarId: string, calendarName: string) => {
       shouldAutoSelectDefaultRef.current = false;
 
-      const nextSelected = selectedCalendarIds.includes(calendarId)
+      const isCurrentlySelected = selectedCalendarIds.includes(calendarId);
+      const nextSelected = isCurrentlySelected
         ? selectedCalendarIds.filter((id) => id !== calendarId)
         : [...selectedCalendarIds, calendarId];
+
+      // ── Task 8: Calendar toggled ──────────────────────────────────────────
+      try {
+        logEvent(getAnalytics(), "calendar_toggled", {
+          calendar_name: calendarName,
+          action: isCurrentlySelected ? "deselected" : "selected",
+          selected_count: nextSelected.length,
+          time_since_screen_load_ms:
+            Date.now() - scheduleScreenLoadTime.current,
+        });
+      } catch (e) {}
 
       setSelectedCalendarIds(nextSelected);
       await saveSelectedCalendarIds(nextSelected);
     },
     [selectedCalendarIds],
   );
+
+  // ── Task 8: Log when schedule items are displayed ─────────────────────────
+  useEffect(() => {
+    if (ui.status !== "ready" && ui.status !== "empty") return;
+    try {
+      logEvent(getAnalytics(), "schedule_displayed", {
+        item_count: ui.status === "ready" ? ui.items.length : 0,
+        status: ui.status,
+        time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
+      });
+    } catch (e) {}
+  }, [ui.status]);
 
   const header = (
     <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
@@ -691,22 +781,29 @@ export default function ScheduleScreen() {
           <Text style={{ color: colors.primaryDark, fontWeight: "600" }}>
             Selected Calendars
           </Text>
-
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {availableCalendars.map((calendar) => {
               const selected = selectedCalendarIds.includes(calendar.id);
-
               return (
                 <Pressable
                   key={calendar.id}
-                  testID={`calendar-toggle-${calendar.summary?.replaceAll(/\s+/g, "-").toLowerCase()}`}                  onPress={() => toggleCalendarSelection(calendar.id)}
+                  testID={`calendar-toggle-${calendar.summary?.replaceAll(/\s+/g, "-").toLowerCase()}`}
+                  // ── Pass calendar name so the event knows which was tapped ──
+                  onPress={() =>
+                    toggleCalendarSelection(
+                      calendar.id,
+                      calendar.summary ?? "unknown",
+                    )
+                  }
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 12,
                     borderRadius: 999,
                     borderWidth: 1,
                     borderColor: selected ? colors.primaryDark : colors.gray300,
-                    backgroundColor: selected ? colors.primaryDark : colors.white,
+                    backgroundColor: selected
+                      ? colors.primaryDark
+                      : colors.white,
                   }}
                 >
                   <Text
@@ -761,7 +858,9 @@ export default function ScheduleScreen() {
       <View style={{ flex: 1, backgroundColor: colors.white }}>
         {header}
         <View style={{ padding: spacing.lg }}>
-          <Text style={{ color: colors.gray700 }}>Loading your schedule...</Text>
+          <Text style={{ color: colors.gray700 }}>
+            Loading your schedule...
+          </Text>
         </View>
       </View>
     );
