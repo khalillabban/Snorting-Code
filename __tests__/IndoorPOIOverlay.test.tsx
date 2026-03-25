@@ -24,6 +24,8 @@ const mockFloorBounds = {
   minY: 0,
 };
 
+const hidden = { includeHiddenElements: true };
+
 describe("IndoorPOIOverlay", () => {
   it("renders nothing when no categories are active", () => {
     render(
@@ -37,7 +39,7 @@ describe("IndoorPOIOverlay", () => {
       />,
     );
 
-    expect(screen.queryByTestId("poi-overlay")).toBeNull();
+    expect(screen.queryByTestId("poi-overlay", hidden)).toBeNull();
   });
 
   it("renders only POIs that match active categories on the current floor", () => {
@@ -53,14 +55,14 @@ describe("IndoorPOIOverlay", () => {
       />,
     );
 
-    expect(screen.getByTestId("poi-overlay")).toBeTruthy();
+    expect(screen.getByTestId("poi-overlay", hidden)).toBeTruthy();
     // Only stair1 is on floor 1 with category stairs
-    expect(screen.getByTestId("poi-marker-stair1")).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-stair1", hidden)).toBeTruthy();
     // stair2 is on floor 2, should not appear
-    expect(screen.queryByTestId("poi-marker-stair2")).toBeNull();
+    expect(screen.queryByTestId("poi-marker-stair2", hidden)).toBeNull();
     // elevator and washroom not active
-    expect(screen.queryByTestId("poi-marker-elev1")).toBeNull();
-    expect(screen.queryByTestId("poi-marker-wc1")).toBeNull();
+    expect(screen.queryByTestId("poi-marker-elev1", hidden)).toBeNull();
+    expect(screen.queryByTestId("poi-marker-wc1", hidden)).toBeNull();
   });
 
   it("renders multiple categories when selected", () => {
@@ -76,11 +78,11 @@ describe("IndoorPOIOverlay", () => {
       />,
     );
 
-    expect(screen.getByTestId("poi-marker-stair1")).toBeTruthy();
-    expect(screen.getByTestId("poi-marker-elev1")).toBeTruthy();
-    expect(screen.getByTestId("poi-marker-wc1")).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-stair1", hidden)).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-elev1", hidden)).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-wc1", hidden)).toBeTruthy();
     // water_fountain not active
-    expect(screen.queryByTestId("poi-marker-wf1")).toBeNull();
+    expect(screen.queryByTestId("poi-marker-wf1", hidden)).toBeNull();
   });
 
   it("applies coordinate scale to positions", () => {
@@ -96,7 +98,7 @@ describe("IndoorPOIOverlay", () => {
       />,
     );
 
-    const marker = screen.getByTestId("poi-marker-stair1");
+    const marker = screen.getByTestId("poi-marker-stair1", hidden);
     // x=100, coordinateScale=0.5 → scaledX=50, frameLeft=0, minX=0, scale=1 → left = 50 - 13 = 37
     // y=200, coordinateScale=0.5 → scaledY=100, frameTop=0, minY=0, scale=1 → top = 100 - 13 = 87
     expect(marker.props.style).toEqual(
@@ -126,8 +128,8 @@ describe("IndoorPOIOverlay", () => {
       />,
     );
     // The valid stairs POI renders; the bad-category POI does not crash and is skipped
-    expect(screen.getByTestId("poi-marker-bad1")).toBeTruthy();
-    expect(screen.queryByTestId("poi-marker-bad2")).toBeNull();
+    expect(screen.getByTestId("poi-marker-bad1", hidden)).toBeTruthy();
+    expect(screen.queryByTestId("poi-marker-bad2", hidden)).toBeNull();
   });
 
   it("shows POIs on the correct floor only", () => {
@@ -144,8 +146,8 @@ describe("IndoorPOIOverlay", () => {
     );
 
     // stair2 is on floor 2
-    expect(screen.getByTestId("poi-marker-stair2")).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-stair2", hidden)).toBeTruthy();
     // stair1 is on floor 1
-    expect(screen.queryByTestId("poi-marker-stair1")).toBeNull();
+    expect(screen.queryByTestId("poi-marker-stair1", hidden)).toBeNull();
   });
 });
