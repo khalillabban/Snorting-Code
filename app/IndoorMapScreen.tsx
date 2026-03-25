@@ -1,7 +1,14 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Pressable,
   ScrollView,
@@ -27,11 +34,13 @@ import {
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
+
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
 const DEFAULT_VIEWPORT_HEIGHT = 420;
+
 type FloorViewport = {
   width: number;
   height: number;
@@ -63,9 +72,9 @@ function clamp(value: number, min: number, max: number): number {
 function getFloorImageDimensions(
   floorImageMetadata:
     | {
-      width: number;
-      height: number;
-    }
+        width: number;
+        height: number;
+      }
     | undefined,
   currentFloorRooms: IndoorRoomRecord[],
 ) {
@@ -94,25 +103,25 @@ function getFloorContentBounds(
 
   const rawMinX = clamp(
     Math.min(...currentFloorRooms.map((room) => room.x)) -
-    FLOOR_CONTENT_PADDING,
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
     Math.max(...currentFloorRooms.map((room) => room.x)) +
-    FLOOR_CONTENT_PADDING,
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
     Math.min(...currentFloorRooms.map((room) => room.y)) -
-    FLOOR_CONTENT_PADDING,
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
     Math.max(...currentFloorRooms.map((room) => room.y)) +
-    FLOOR_CONTENT_PADDING,
+      FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -184,7 +193,11 @@ function trimParam(val: unknown): string {
   return typeof val === "string" ? val.trim() : "";
 }
 
-function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
+function useFloorSync(
+  availableFloors: number[],
+  selectedFloor: number,
+  setSelectedFloor: (f: number) => void,
+) {
   useEffect(() => {
     if (!availableFloors.includes(selectedFloor)) {
       setSelectedFloor(availableFloors[0] || 1);
@@ -215,7 +228,7 @@ function useNavAutoTrigger(
     if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
       handleNavigate();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 }
 
 export default function IndoorMapScreen() {
@@ -234,6 +247,7 @@ export default function IndoorMapScreen() {
     navDest?: string;
     accessibleOnly?: string;
   }>();
+
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(
     accessibleOnlyParam === "true",
@@ -260,6 +274,55 @@ export default function IndoorMapScreen() {
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
 
+  // ─── Usability Testing: Session + Task timers ────────────────────────────
+  const sessionId = useRef(
+    `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  );
+  const screenLoadTime = useRef<number>(Date.now());
+  const taskTimers = useRef<Record<string, number>>({});
+
+  const startTask = useCallback((taskId: string) => {
+    taskTimers.current[taskId] = Date.now();
+  }, []);
+
+  const endTask = useCallback(
+    async (taskId: string, extraParams: Record<string, unknown> = {}) => {
+      const start = taskTimers.current[taskId];
+      const duration_ms = start ? Date.now() - start : 0;
+      delete taskTimers.current[taskId];
+      try {
+        await logEvent(getAnalytics(), "task_completed", {
+          session_id: sessionId.current,
+          task_id: taskId,
+          duration_ms,
+          ...extraParams,
+        });
+      } catch (e) {}
+    },
+    [],
+  );
+
+  const navAttemptCount = useRef(0);
+
+  // Lets us distinguish Task 10 (accessible) from Task 9 (standard) in events.
+  const accessibleToggledDuringNav = useRef(false);
+
+  // ── Task 9 + 10: Screen load — starts the Task 9 timer ───────────────────
+  useEffect(() => {
+    screenLoadTime.current = Date.now();
+    startTask("task_9");
+    try {
+      logEvent(getAnalytics(), "indoor_map_screen_loaded", {
+        session_id: sessionId.current,
+        building_name: buildingName ?? "unknown",
+        has_nav_origin: !!trimParam(navOrigin),
+        has_nav_dest: !!trimParam(navDest),
+        accessible_only_param: accessibleOnlyParam === "true",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+  }, []);
+
   const initialRoomQuery = trimParam(roomQuery);
   const mapKey = `${buildingName}-${selectedFloor}`;
   const floorImageMetadata = getFloorImageMetadata(
@@ -279,7 +342,6 @@ export default function IndoorMapScreen() {
   }, [buildingName]);
 
   useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
-
 
   const currentFloorRooms = useMemo(
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
@@ -308,7 +370,9 @@ export default function IndoorMapScreen() {
   const effectiveViewport = useMemo<FloorViewport>(
     () => ({
       width: mapViewport.width || Math.max(windowWidth, 320),
-      height: mapViewport.height || Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
+      height:
+        mapViewport.height ||
+        Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
     }),
     [mapViewport, windowHeight, windowWidth],
   );
@@ -337,12 +401,12 @@ export default function IndoorMapScreen() {
       left:
         floorStageLayout.frameLeft +
         (selectedRoomOnCurrentFloor.x - floorBounds.minX) *
-        floorStageLayout.scale -
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
         (selectedRoomOnCurrentFloor.y - floorBounds.minY) *
-        floorStageLayout.scale -
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
   }, [
@@ -391,32 +455,132 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
+  useInitialRoomQuery(
+    initialRoomQuery,
+    availableFloors,
+    setSearchQuery,
+    performRoomSearch,
+  );
 
   const handleNavigate = useCallback(() => {
     if (!buildingName) return;
     setNavError(null);
 
+    navAttemptCount.current += 1;
+
+    // ── Task 9 + 10: Log every "Go" tap ──────────────────────────────────
+    try {
+      logEvent(getAnalytics(), "indoor_nav_attempted", {
+        session_id: sessionId.current,
+        building_name: buildingName,
+        origin_query: navOriginQuery,
+        dest_query: navDestQuery,
+        accessible_only: accessibleOnly,
+        attempt_number: navAttemptCount.current,
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      });
+    } catch (e) {}
+
     const result = getIndoorNavigationRoute(
       buildingName,
       navOriginQuery,
       navDestQuery,
-      {
-        accessibleOnly: accessibleOnly,
-      },
+      { accessibleOnly },
     );
 
     if (result.success) {
       setActiveRoute(result.route);
       setSelectedFloor(result.route.origin.floor);
+
+      // ── Task 9 + 10: Route success ────────────────────────────────────
+      const taskId = accessibleOnly ? "task_10" : "task_9";
+      try {
+        logEvent(getAnalytics(), "indoor_route_generated", {
+          session_id: sessionId.current,
+          building_name: buildingName,
+          origin: navOriginQuery,
+          destination: navDestQuery,
+          accessible_only: accessibleOnly,
+          accessible_toggled_during_nav: accessibleToggledDuringNav.current,
+          attempt_count: navAttemptCount.current,
+          origin_floor: result.route.origin.floor,
+          dest_floor:
+            result.route.destination?.floor ?? result.route.origin.floor,
+          cross_floor:
+            result.route.origin.floor !==
+            (result.route.destination?.floor ?? result.route.origin.floor),
+          time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+        });
+        endTask(taskId, {
+          building_name: buildingName,
+          accessible_only: accessibleOnly,
+          attempt_count: navAttemptCount.current,
+        });
+      } catch (e) {}
     } else {
       setNavError(result.message);
       setActiveRoute(null);
+
+      // ── Task 9 + 10: Route failure ────────────────────────────────────
+      try {
+        logEvent(getAnalytics(), "indoor_route_failed", {
+          session_id: sessionId.current,
+          building_name: buildingName,
+          origin_query: navOriginQuery,
+          dest_query: navDestQuery,
+          accessible_only: accessibleOnly,
+          attempt_number: navAttemptCount.current,
+          error_message: result.message,
+        });
+      } catch (e) {}
     }
-  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
+  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly, endTask]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
+  // ── Task 10: Accessibility toggle ────────────────────────────────────────
+  const handleAccessibleToggle = useCallback(() => {
+    const newValue = !accessibleOnly;
+    setAccessibleOnly(newValue);
+    accessibleToggledDuringNav.current = true;
+
+    if (newValue) {
+      navAttemptCount.current = 0;
+      startTask("task_10");
+    }
+
+    try {
+      logEvent(getAnalytics(), "indoor_accessible_mode_toggled", {
+        session_id: sessionId.current,
+        building_name: buildingName ?? "unknown",
+        accessible_only: newValue,
+        has_active_route: activeRoute !== null,
+        origin_query: navOriginQuery,
+        dest_query: navDestQuery,
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      });
+    } catch (e) {}
+  }, [
+    accessibleOnly,
+    activeRoute,
+    buildingName,
+    navDestQuery,
+    navOriginQuery,
+    startTask,
+  ]);
+
+  // ── Task 9 + 10: Directions panel closed ─────────────────────────────────
+  const handleCloseDirectionsPanel = useCallback(() => {
+    try {
+      logEvent(getAnalytics(), "indoor_directions_panel_closed", {
+        session_id: sessionId.current,
+        building_name: buildingName ?? "unknown",
+        accessible_only: accessibleOnly,
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      });
+    } catch (e) {}
+    setActiveRoute(null);
+  }, [accessibleOnly, activeRoute, buildingName]);
 
   return (
     <View style={styles.container}>
@@ -428,7 +592,7 @@ export default function IndoorMapScreen() {
             accessibilityRole="switch"
             accessibilityState={{ checked: accessibleOnly }}
             accessibilityLabel="Toggle accessible route"
-            onPress={() => setAccessibleOnly((prev) => !prev)}
+            onPress={handleAccessibleToggle}
             style={[
               styles.accessibleToggle,
               accessibleOnly && styles.accessibleToggleActive,
@@ -456,7 +620,20 @@ export default function IndoorMapScreen() {
             placeholder="From (H-110)"
             placeholderTextColor={colors.gray500}
             value={navOriginQuery}
-            onChangeText={setNavOriginQuery}
+            onChangeText={(text) => {
+              setNavOriginQuery(text);
+              // ── Task 9 + 10: First keystroke in origin field ──────────
+              if (text.length === 1) {
+                try {
+                  logEvent(getAnalytics(), "indoor_nav_origin_started", {
+                    session_id: sessionId.current,
+                    building_name: buildingName ?? "unknown",
+                    time_since_screen_load_ms:
+                      Date.now() - screenLoadTime.current,
+                  });
+                } catch (e) {}
+              }
+            }}
             returnKeyType="next"
           />
           <TextInput
@@ -464,7 +641,20 @@ export default function IndoorMapScreen() {
             placeholder="To (H-920)"
             placeholderTextColor={colors.gray500}
             value={navDestQuery}
-            onChangeText={setNavDestQuery}
+            onChangeText={(text) => {
+              setNavDestQuery(text);
+              // ── Task 9 + 10: First keystroke in destination field ─────
+              if (text.length === 1) {
+                try {
+                  logEvent(getAnalytics(), "indoor_nav_dest_started", {
+                    session_id: sessionId.current,
+                    building_name: buildingName ?? "unknown",
+                    time_since_screen_load_ms:
+                      Date.now() - screenLoadTime.current,
+                  });
+                } catch (e) {}
+              }
+            }}
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
@@ -472,8 +662,6 @@ export default function IndoorMapScreen() {
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
-
-
 
         {navError && (
           <View style={styles.errorBanner}>
@@ -506,7 +694,19 @@ export default function IndoorMapScreen() {
             <Pressable
               key={floor}
               testID={`floor-button-${floor}`}
-              onPress={() => setSelectedFloor(floor)}
+              onPress={() => {
+                setSelectedFloor(floor);
+                // ── Task 9 + 10: Floor changed ───────────────────────────
+                try {
+                  logEvent(getAnalytics(), "indoor_floor_changed", {
+                    session_id: sessionId.current,
+                    building_name: buildingName ?? "unknown",
+                    floor_selected: floor,
+                    previous_floor: selectedFloor,
+                    has_active_route: activeRoute !== null,
+                  });
+                } catch (e) {}
+              }}
               style={[
                 styles.floorButton,
                 selectedFloor === floor && styles.floorButtonActive,
@@ -600,7 +800,7 @@ export default function IndoorMapScreen() {
       {activeRoute && (
         <IndoorDirectionsPanel
           route={activeRoute}
-          onClose={() => setActiveRoute(null)}
+          onClose={handleCloseDirectionsPanel}
         />
       )}
     </View>
