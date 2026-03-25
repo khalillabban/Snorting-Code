@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { View } from "react-native";
 import {
   POI_CATEGORY_MAP,
@@ -43,15 +43,27 @@ export function IndoorPOIOverlay({
   floorBounds,
   activeCategories,
 }: Readonly<IndoorPOIOverlayProps>) {
+  const activeCategoryIds = useMemo(
+    () => Array.from(activeCategories).sort().join(","),
+    [activeCategories],
+  );
+
   const visiblePOIs = useMemo(() => {
     const onFloor = filterPOIsByFloor(pois, floor);
     return filterPOIsByCategories(onFloor, activeCategories);
-  }, [pois, floor, activeCategories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pois, floor, activeCategoryIds]);
 
   if (visiblePOIs.length === 0) return null;
 
   return (
-    <View style={styles.overlayContainer} pointerEvents="none" testID="poi-overlay">
+    <View
+      style={styles.overlayContainer}
+      pointerEvents="none"
+      testID="poi-overlay"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
       {visiblePOIs.map((poi) => {
         const scaledX = poi.x * coordinateScale;
         const scaledY = poi.y * coordinateScale;
@@ -81,7 +93,7 @@ export function IndoorPOIOverlay({
             ]}
           >
             <MaterialCommunityIcons
-              name={catDef.icon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
+              name={catDef.icon}
               size={ICON_SIZE}
               color="#fff"
             />

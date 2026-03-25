@@ -190,10 +190,10 @@ function trimParam(val: unknown): string {
 
 function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
   useEffect(() => {
-    if (!availableFloors.includes(selectedFloor)) {
+    if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
       setSelectedFloor(availableFloors[0] || 1);
     }
-  }, [availableFloors, selectedFloor]);
+  }, [availableFloors, selectedFloor, setSelectedFloor]);
 }
 
 function useInitialRoomQuery(
@@ -206,7 +206,7 @@ function useInitialRoomQuery(
     if (!initialRoomQuery) return;
     setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch]);
+  }, [availableFloors, initialRoomQuery, performRoomSearch, setSearchQuery]);
 }
 
 function useNavAutoTrigger(
@@ -277,10 +277,7 @@ export default function IndoorMapScreen() {
     [buildingName],
   );
 
-  const allPOIs = useMemo(
-    () => (buildingName ? getIndoorPOIs(buildingName) : []),
-    [buildingName],
-  );
+  const allPOIs = buildingName ? getIndoorPOIs(buildingName) : [];
 
   const handlePOIToggle = useCallback((categoryId: POICategoryId) => {
     setActivePOICategories((prev) => {
@@ -380,13 +377,6 @@ export default function IndoorMapScreen() {
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
       const trimmedQuery = rawQuery.trim();
-
-      /* istanbul ignore next — trimParam() pre-strips whitespace before this is called, so trimmedQuery is never empty here */
-      if (!trimmedQuery) {
-        setSelectedRoom(null);
-        setSearchError("Enter a room number or room name.");
-        return;
-      }
 
       if (!normalizedBuildingPlan) {
         setSelectedRoom(null);

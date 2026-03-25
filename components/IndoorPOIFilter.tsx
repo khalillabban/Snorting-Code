@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
 import { Pressable, View } from "react-native";
 import {
   POI_CATEGORIES,
@@ -28,6 +27,7 @@ export function IndoorPOIFilter({
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={`${isActive ? "Hide" : "Show"} ${cat.label}`}
+              accessibilityHint="Toggles this point of interest category on the map"
               onPress={() => onToggle(cat.id)}
               style={[
                 styles.chip,
@@ -35,7 +35,7 @@ export function IndoorPOIFilter({
               ]}
             >
               <MaterialCommunityIcons
-                name={cat.icon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
+                name={cat.icon}
                 size={14}
                 color={isActive ? "#fff" : cat.color}
               />

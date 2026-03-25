@@ -1,3 +1,6 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React from "react";
+
 export type POICategoryId =
   | "washroom"
   | "water_fountain"
@@ -5,10 +8,12 @@ export type POICategoryId =
   | "elevator"
   | "entrance";
 
+type MaterialIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+
 export interface POICategoryDefinition {
   id: POICategoryId;
   label: string;
-  icon: string;
+  icon: MaterialIconName;
   color: string;
 }
 
