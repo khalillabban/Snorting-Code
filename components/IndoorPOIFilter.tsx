@@ -1,9 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import {
-    POI_CATEGORIES,
-    type POICategoryId,
+  POI_CATEGORIES,
+  type POICategoryId,
 } from "../constants/indoorPOI";
 import { styles } from "../styles/IndoorPOIFilter.styles";
 
@@ -18,11 +18,7 @@ export function IndoorPOIFilter({
 }: IndoorPOIFilterProps) {
   return (
     <View style={styles.wrapper} testID="poi-filter-bar">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.row}>
         {POI_CATEGORIES.map((cat) => {
           const isActive = activeCategories.has(cat.id);
           return (
@@ -40,21 +36,13 @@ export function IndoorPOIFilter({
             >
               <MaterialCommunityIcons
                 name={cat.icon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
-                size={16}
+                size={14}
                 color={isActive ? "#fff" : cat.color}
               />
-              <Text
-                style={[
-                  styles.chipLabel,
-                  isActive && styles.chipLabelActive,
-                ]}
-              >
-                {cat.label}
-              </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }

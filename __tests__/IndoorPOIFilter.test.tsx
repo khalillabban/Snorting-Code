@@ -17,7 +17,8 @@ describe("IndoorPOIFilter", () => {
 
     for (const cat of POI_CATEGORIES) {
       expect(screen.getByTestId(`poi-filter-chip-${cat.id}`)).toBeTruthy();
-      expect(screen.getByText(cat.label)).toBeTruthy();
+      // Labels removed — chips are icon-only; verify via accessibilityLabel instead
+      expect(screen.getByLabelText(`Show ${cat.label}`)).toBeTruthy();
     }
   });
 

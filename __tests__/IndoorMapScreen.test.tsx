@@ -718,4 +718,60 @@ describe("IndoorMapScreen", () => {
       );
     });
   });
+
+  it("uses full-image bounds (showFullImage: true) instead of content-fitted bounds for MB", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+    });
+
+    // Return MB metadata with showFullImage: true to cover the new branch in floorBounds useMemo
+    (getFloorImageMetadata as jest.Mock).mockImplementation(
+      (buildingCode: string, floor: number) => {
+        const normalized = (buildingCode ?? "").trim().toUpperCase();
+        if (normalized === "MB" && [1, -2].includes(floor)) {
+          return {
+            source: 2,
+            width: 1024,
+            height: 1024,
+            coordinateScale: 1,
+            showFullImage: true,
+          };
+        }
+        return undefined;
+      },
+    );
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
+      expect(screen.getByTestId("indoor-floor-image")).toBeTruthy();
+    });
+
+    expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
+  });
+
+  it("auto-triggers navigation from navOrigin and navDest URL params on mount", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: false,
+      error: "NO_PATH_FOUND",
+      message: "No indoor route found.",
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
+        "H", "H-110", "H-920", { accessibleOnly: false },
+      );
+    });
+  });
 });

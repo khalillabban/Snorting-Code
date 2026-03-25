@@ -7,21 +7,21 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.gray300,
-  },
-  scrollContent: {
     paddingHorizontal: spacing.md,
+  },
+  row: {
+    flexDirection: "row",
     gap: spacing.sm,
   },
   chip: {
-    flexDirection: "row",
+    flex: 1,
     alignItems: "center",
-    paddingHorizontal: 10,
+    justifyContent: "center",
     paddingVertical: 5,
-    borderRadius: 16,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.gray300,
     backgroundColor: colors.white,
-    gap: 4,
   },
   chipLabel: {
     fontSize: 12,
