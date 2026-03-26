@@ -48,7 +48,7 @@ export default function CampusMapScreen() {
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
-  // ─── Usability Testing: Session + Task timers ────────────────────────────
+  //  Usability Testing: Session + Task timers
   const sessionId = useRef(
     `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
   );
@@ -74,7 +74,6 @@ export default function CampusMapScreen() {
       });
     } catch (e) {}
   };
-  // ─────────────────────────────────────────────────────────────────────────
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
     let nearest = BUILDINGS[0];
@@ -116,7 +115,7 @@ export default function CampusMapScreen() {
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
-  // ─── Usability Testing: Nav bar timing (Task 5) ──────────────────────────
+  // Usability Testing: Nav bar timing (Task 5)
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
 
@@ -174,7 +173,7 @@ export default function CampusMapScreen() {
       const building = findNearestBuilding(latitude, longitude);
       setAutoStartBuilding(building);
 
-      // ── Task 1: Log that we detected user's building on load ──────────────
+      //  Task 1: Log that we detected user's building on load
       try {
         logEvent(getAnalytics(), "user_building_detected", {
           session_id: sessionId.current,
@@ -182,12 +181,11 @@ export default function CampusMapScreen() {
           time_since_map_load_ms: Date.now() - mapLoadTime.current,
         });
       } catch (e) {}
-      // ─────────────────────────────────────────────────────────────────────
     };
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  // ── Task 1: Log map screen loaded ────────────────────────────────────────
+  // Task 1: Log map screen loaded
   useEffect(() => {
     mapLoadTime.current = Date.now();
     startTask("task_1");
@@ -204,7 +202,7 @@ export default function CampusMapScreen() {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
 
-    // ── Task 2: Campus toggle ─────────────────────────────────────────────
+    // Task 2: Campus toggle
     try {
       const analyticsInstance = getAnalytics();
       await logEvent(analyticsInstance, "campus_switch", {
@@ -225,7 +223,7 @@ export default function CampusMapScreen() {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
 
-    // ── Task 1: Current location button tapped ───────────────────────────
+    // Task 1: Current location button tapped
     try {
       logEvent(getAnalytics(), "current_location_pressed", {
         session_id: sessionId.current,
@@ -237,7 +235,7 @@ export default function CampusMapScreen() {
       console.error("Firebase Analytics Error: ", error);
     }
   }, []);
-  // ── Indoor map ─────────────────────────────────────────────────────────────
+  // Indoor map
 
   const openIndoorMap = useCallback(
     (
@@ -307,7 +305,7 @@ export default function CampusMapScreen() {
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
-      // ── Task 5 + Task 6: Route generated ─────────────────────────────────
+      //  Task 5 + Task 6: Route generated
       try {
         const timeSpent = navStartTime.current
           ? Date.now() - navStartTime.current
@@ -348,7 +346,7 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  // ── Shuttle ────────────────────────────────────────────────────────────────
+  // Shuttle
 
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
@@ -417,7 +415,7 @@ export default function CampusMapScreen() {
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  //  Render
 
   return (
     <View style={{ flex: 1 }}>
@@ -495,7 +493,7 @@ export default function CampusMapScreen() {
               const newState = !showShuttle;
               setShowShuttle(newState);
 
-              // ── Task 7: Bus stops button toggled ────────────────────────
+              // Task 7: Bus stops button toggled
 
               try {
                 logEvent(getAnalytics(), "shuttle_stops_toggled", {
@@ -527,7 +525,7 @@ export default function CampusMapScreen() {
             setShowShuttleSchedulePanel(true);
             startTask("task_7");
 
-            // ── Task 7: Schedule panel opened ────────────────────────────
+            // Task 7: Schedule panel opened
             try {
               const analyticsInstance = getAnalytics();
               await logEvent(analyticsInstance, "shuttle_schedule_viewed", {
@@ -586,7 +584,7 @@ export default function CampusMapScreen() {
           testID="directions-button"
           accessibilityLabel="directions-button"
           onPress={() => {
-            // ── Task 5: Directions button tapped directly ─────────────────
+            // Task 5: Directions button tapped directly
             openNavigationBar("directions_button");
           }}
           style={styles.actionButton}
@@ -630,7 +628,7 @@ export default function CampusMapScreen() {
             setInitialStart(selectedRoute.start);
             setInitialDestination(selectedRoute.dest);
 
-            // ── Task 6: "Change route" tapped from steps panel ────────────
+            // Task 6: "Change route" tapped from steps panel
             try {
               logEvent(getAnalytics(), "route_change_requested", {
                 session_id: sessionId.current,
@@ -644,7 +642,7 @@ export default function CampusMapScreen() {
             setSelectedRoute({ start: null, dest: null });
             setRouteSteps([]);
 
-            // ── Task 6: Steps panel dismissed ────────────────────────────
+            // Task 6: Steps panel dismissed
             try {
               logEvent(getAnalytics(), "steps_panel_dismissed", {
                 session_id: sessionId.current,
@@ -662,7 +660,7 @@ export default function CampusMapScreen() {
           setInitialStart(null);
           setInitialDestination(null);
 
-          // ── Task 5: Nav bar closed without confirming a route ─────────
+          // Task 5: Nav bar closed without confirming a route
           if (navStartTime.current) {
             try {
               logEvent(getAnalytics(), "route_generation_abandoned", {
@@ -682,7 +680,7 @@ export default function CampusMapScreen() {
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
         onUseMyLocation={() => {
-          // ── Task 5: "Use my location" tapped inside nav bar ───────────
+          //  Task 5: "Use my location" tapped inside nav bar
           try {
             logEvent(getAnalytics(), "nav_used_my_location", {
               session_id: sessionId.current,

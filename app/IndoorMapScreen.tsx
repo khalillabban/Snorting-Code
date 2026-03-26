@@ -203,7 +203,10 @@ function useFloorSync(
   setSelectedFloor: (f: number) => void,
 ) {
   useEffect(() => {
-    if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
+    if (
+      availableFloors.length > 0 &&
+      !availableFloors.includes(selectedFloor)
+    ) {
       setSelectedFloor(availableFloors[0] || 1);
     }
   }, [availableFloors, selectedFloor, setSelectedFloor]);
@@ -277,12 +280,15 @@ export default function IndoorMapScreen() {
   );
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
-  const [activePOICategories, setActivePOICategories] = useState<Set<POICategoryId>>(new Set());
+  const [activePOICategories, setActivePOICategories] = useState<
+    Set<POICategoryId>
+  >(new Set());
 
-  // ─── Usability Testing: Session + Task timers ────────────────────────────
+  // Usability Testing: Session + Task timers
   const sessionId = useRef(
     `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
   );
+  const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
 
@@ -312,7 +318,7 @@ export default function IndoorMapScreen() {
   // Lets us distinguish Task 10 (accessible) from Task 9 (standard) in events.
   const accessibleToggledDuringNav = useRef(false);
 
-  // ── Task 9 + 10: Screen load — starts the Task 9 timer ───────────────────
+  // Task 9 + 10: Screen load — starts the Task 9 timer
   useEffect(() => {
     screenLoadTime.current = Date.now();
     startTask("task_9");
@@ -342,23 +348,60 @@ export default function IndoorMapScreen() {
 
   const allPOIs = buildingName ? getIndoorPOIs(buildingName) : [];
 
-  const handlePOIToggle = useCallback((categoryId: POICategoryId) => {
-    setActivePOICategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) {
-        next.delete(categoryId);
-      } else {
-        next.add(categoryId);
-      }
-      return next;
-    });
-  }, []);
+  const handlePOIToggle = useCallback(
+    (categoryId: POICategoryId) => {
+      setActivePOICategories((prev) => {
+        const next = new Set(prev);
+        const wasActive = next.has(categoryId);
+        if (wasActive) {
+          next.delete(categoryId);
+        } else {
+          next.add(categoryId);
+        }
 
-  useEffect(() => {
-    setSearchQuery("");
-    setSearchError(null);
-    setSelectedRoom(null);
-  }, [buildingName]);
+        const newCount = next.size;
+        const isNowActive = !wasActive;
+
+        // Task 11: Log every POI category toggle
+        try {
+          logEvent(getAnalytics(), "indoor_poi_category_toggled", {
+            session_id: sessionId.current,
+            building_name: buildingName ?? "unknown",
+            category_id: categoryId,
+            is_now_active: isNowActive,
+            active_category_count: newCount,
+            active_categories: Array.from(next).sort().join(","),
+            floor: selectedFloor,
+            time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+          });
+        } catch (e) {}
+
+        // Task 11: Complete on first successful activation
+        if (isNowActive && !task11Completed.current) {
+          task11Completed.current = true;
+          endTask("task_11", {
+            building_name: buildingName ?? "unknown",
+            first_category_activated: categoryId,
+            floor: selectedFloor,
+            time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+          });
+        }
+
+        return next;
+      });
+    },
+    [buildingName, endTask, selectedFloor],
+  );
+  const handlePOIFilterFirstInteraction = useCallback(() => {
+    try {
+      logEvent(getAnalytics(), "indoor_poi_filter_bar_first_tap", {
+        session_id: sessionId.current,
+        building_name: buildingName ?? "unknown",
+        floor: selectedFloor,
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      });
+    } catch (e) {}
+  }, [buildingName, selectedFloor]);
 
   useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
 
@@ -384,9 +427,18 @@ export default function IndoorMapScreen() {
   const floorBounds = useMemo(
     () =>
       floorImageMetadata?.showFullImage
-        ? { minX: 0, minY: 0, maxX: floorImageDimensions.width, maxY: floorImageDimensions.height }
+        ? {
+            minX: 0,
+            minY: 0,
+            maxX: floorImageDimensions.width,
+            maxY: floorImageDimensions.height,
+          }
         : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
-    [floorImageDimensions, floorImageMetadata?.showFullImage, scaledCurrentFloorRooms],
+    [
+      floorImageDimensions,
+      floorImageMetadata?.showFullImage,
+      scaledCurrentFloorRooms,
+    ],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
@@ -484,7 +536,7 @@ export default function IndoorMapScreen() {
 
     navAttemptCount.current += 1;
 
-    // ── Task 9 + 10: Log every "Go" tap ──────────────────────────────────
+    //  Task 9 + 10: Log every "Go" tap
     try {
       logEvent(getAnalytics(), "indoor_nav_attempted", {
         session_id: sessionId.current,
@@ -508,7 +560,7 @@ export default function IndoorMapScreen() {
       setActiveRoute(result.route);
       setSelectedFloor(result.route.origin.floor);
 
-      // ── Task 9 + 10: Route success ────────────────────────────────────
+      // Task 9 + 10: Route success
       const taskId = accessibleOnly ? "task_10" : "task_9";
       try {
         logEvent(getAnalytics(), "indoor_route_generated", {
@@ -537,7 +589,7 @@ export default function IndoorMapScreen() {
       setNavError(result.message);
       setActiveRoute(null);
 
-      // ── Task 9 + 10: Route failure ────────────────────────────────────
+      // Task 9 + 10: Route failure
       try {
         logEvent(getAnalytics(), "indoor_route_failed", {
           session_id: sessionId.current,
@@ -554,7 +606,7 @@ export default function IndoorMapScreen() {
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
-  // ── Task 10: Accessibility toggle ────────────────────────────────────────
+  //  Task 10: Accessibility toggle
   const handleAccessibleToggle = useCallback(() => {
     const newValue = !accessibleOnly;
     setAccessibleOnly(newValue);
@@ -585,7 +637,7 @@ export default function IndoorMapScreen() {
     startTask,
   ]);
 
-  // ── Task 9 + 10: Directions panel closed ─────────────────────────────────
+  //  Task 9 + 10: Directions panel closed
   const handleCloseDirectionsPanel = useCallback(() => {
     try {
       logEvent(getAnalytics(), "indoor_directions_panel_closed", {
@@ -638,7 +690,7 @@ export default function IndoorMapScreen() {
             value={navOriginQuery}
             onChangeText={(text) => {
               setNavOriginQuery(text);
-              // ── Task 9 + 10: First keystroke in origin field ──────────
+              // Task 9 + 10: First keystroke in origin field
               if (text.length === 1) {
                 try {
                   logEvent(getAnalytics(), "indoor_nav_origin_started", {
@@ -659,7 +711,7 @@ export default function IndoorMapScreen() {
             value={navDestQuery}
             onChangeText={(text) => {
               setNavDestQuery(text);
-              // ── Task 9 + 10: First keystroke in destination field ─────
+              // Task 9 + 10: First keystroke in destination field
               if (text.length === 1) {
                 try {
                   logEvent(getAnalytics(), "indoor_nav_dest_started", {
@@ -712,7 +764,7 @@ export default function IndoorMapScreen() {
               testID={`floor-button-${floor}`}
               onPress={() => {
                 setSelectedFloor(floor);
-                // ── Task 9 + 10: Floor changed ───────────────────────────
+                // Task 9 + 10: Floor changed
                 try {
                   logEvent(getAnalytics(), "indoor_floor_changed", {
                     session_id: sessionId.current,
@@ -746,6 +798,7 @@ export default function IndoorMapScreen() {
       <IndoorPOIFilter
         activeCategories={activePOICategories}
         onToggle={handlePOIToggle}
+        onFirstInteraction={handlePOIFilterFirstInteraction}
       />
 
       <View
