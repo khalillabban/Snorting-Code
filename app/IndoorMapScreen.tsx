@@ -287,9 +287,7 @@ export default function IndoorMapScreen() {
   >(new Set());
 
   // Usability Testing: Session + Task timers
-  const sessionId = useRef(
-    `session_${Date.now()}_${Crypto.randomUUID()}`,
-  );
+  const sessionId = useRef(`session_${Date.now()}_${Crypto.randomUUID()}`);
   const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
@@ -387,7 +385,7 @@ export default function IndoorMapScreen() {
                   [...activePOICategories].filter((c) => c !== categoryId),
                 ),
           )
-            .sort()
+            .sort((a, b) => a.localeCompare(b))
             .join(","),
           floor: selectedFloor,
           time_since_screen_load_ms: Date.now() - screenLoadTime.current,

@@ -364,7 +364,7 @@ export default function CampusMapScreen() {
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
 
-  const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
+  /*const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
     setRouteSteps(steps);
     if (steps.length > 0) {
       try {
@@ -377,14 +377,14 @@ export default function CampusMapScreen() {
         console.error("Firebase Analytics Error: ", error);
       }
     }
-  }, []);
+  }, []);*/
 
-  const handleSetAsStart = useCallback((building: Buildings) => {
+  /*const handleSetAsStart = useCallback((building: Buildings) => {
     setInitialStart(building);
     openNavigationBar("set_as_start");
-  }, []);
+  }, []);*/
 
-  const handleSetAsDestination = useCallback(async (building: Buildings) => {
+  /*const handleSetAsDestination = useCallback(async (building: Buildings) => {
     setInitialDestination(building);
     try {
       await openNavigationBar("set_as_destination");
@@ -399,11 +399,11 @@ export default function CampusMapScreen() {
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
-  }, []);
+  }, []);*/
 
-  const handleSetAsMyLocation = useCallback((building: Buildings) => {
+  /*const handleSetAsMyLocation = useCallback((building: Buildings) => {
     setDemoCurrentBuilding(building);
-  }, []);
+  }, []);*/
 
   const nextClassIndoorAccess = useMemo(
     () => getIndoorAccessState(nextClass?.building),
@@ -412,7 +412,22 @@ export default function CampusMapScreen() {
   const canOpenNextClassIndoorMap = Boolean(
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
+  const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
+    setRouteSteps(steps);
+    console.log("[Task 6] steps_panel_viewed — step_count:", steps.length);
 
+    if (steps.length > 0) {
+      try {
+        await logUsabilityEvent("steps_panel_viewed", {
+          session_id: sessionId.current,
+          step_count: steps.length,
+        });
+        await endTask("task_6", { step_count: steps.length });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    }
+  }, []);
   //  Render
 
   return (
@@ -427,14 +442,31 @@ export default function CampusMapScreen() {
         showShuttle={showShuttle}
         strategy={selectedStrategy}
         demoCurrentBuilding={demoCurrentBuilding}
-        onRouteSteps={setRouteSteps}
+        onRouteSteps={handleRouteSteps}
         onSetAsStart={(building) => {
           setInitialStart(building);
           setIsNavVisible(true);
+          console.log(
+            "[Task 4] set_as_start pressed — building:",
+            building?.name,
+          );
+          logUsabilityEvent("set_as_start_from_popup", {
+            session_id: sessionId.current,
+            building_name: building?.name ?? "unknown",
+          }).catch(console.error);
+          startTask("task_5");
         }}
         onSetAsDestination={(building) => {
           setInitialDestination(building);
           setIsNavVisible(true);
+          logUsabilityEvent("set_as_destination_from_popup", {
+            session_id: sessionId.current,
+            building_name: building?.name ?? "unknown",
+          }).catch(console.error);
+          endTask("task_4", {
+            building_name: building?.name ?? "unknown",
+            action: "set_as_destination",
+          }).catch(console.error);
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
