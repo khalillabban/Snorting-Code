@@ -28,6 +28,7 @@ import {
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
   NavigationRoute,
+  type NavigationResult,
 } from "../utils/indoorNavigation";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
@@ -48,6 +49,7 @@ const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
 const DEFAULT_VIEWPORT_HEIGHT = 420;
+const DEFAULT_AVAILABLE_FLOORS = [1] as const;
 type FloorViewport = {
   width: number;
   height: number;
@@ -274,7 +276,7 @@ export default function IndoorMapScreen() {
       const fallback = getAvailableFloors(buildingName);
       if (Array.isArray(fallback) && fallback.length > 0) return fallback;
     }
-    return [1];
+    return [...DEFAULT_AVAILABLE_FLOORS];
   }, [buildingName, floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -466,7 +468,7 @@ export default function IndoorMapScreen() {
   }, []);
 
   const applyNavigationResult = useCallback(
-    (result: { success: true; route: any } | { success: false; message: string }) => {
+    (result: NavigationResult) => {
       if (result.success) {
         setActiveRoute(result.route);
         setSelectedFloor(result.route.origin.floor);
@@ -651,7 +653,7 @@ export default function IndoorMapScreen() {
       accessibleOnly: accessibleOnly,
     });
 
-    applyNavigationResult(result as any);
+    applyNavigationResult(result);
   }, [
     accessibleOnly,
     applyNavigationResult,

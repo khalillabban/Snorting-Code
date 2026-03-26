@@ -15,7 +15,7 @@ import React, {
   useState,
 } from "react";
 import { Animated, Platform, StyleSheet, Text, View } from "react-native";
-import type { Region } from "react-native-maps";
+import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
@@ -42,7 +42,7 @@ type CampusMapProps = Readonly<{
   userFocusCounter?: number;
   routeFocusTrigger?: number;
   startPoint?: Buildings | null;
-  startOverride?: Location | null;
+  startOverride?: LatLng | null;
   destinationPoint?: Buildings | null;
   showShuttle: boolean;
   strategy: RouteStrategy;
@@ -198,6 +198,11 @@ export default function CampusMap({
   });
   const [routeSegments, setRouteSegments] = useState<RouteSegment[]>([]);
 
+  const effectiveOrigin = useMemo(
+    () => startOverride ?? startPoint?.coordinates ?? null,
+    [startOverride, startPoint],
+  );
+
   // Sync region center when campus changes
   useEffect(() => {
     setRegion((prev) => ({
@@ -306,12 +311,16 @@ export default function CampusMap({
     let cancelled = false;
 
     async function fetchRoute() {
-      const effectiveOrigin = startOverride ?? startPoint?.coordinates ?? null;
       if (!effectiveOrigin || !destinationPoint) {
         setRouteSegments([]);
         onRouteSteps?.([]);
         return;
       }
+
+      // Clear any stale route immediately before recomputing a new one.
+      // This avoids briefly showing an out-of-date path when only the origin override changes.
+      setRouteSegments([]);
+      onRouteSteps?.([]);
 
       try {
         const { steps, segments } = await getOutdoorRouteWithSteps(
@@ -337,7 +346,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, startOverride, destinationPoint, strategy, onRouteSteps]);
+  }, [destinationPoint, effectiveOrigin, strategy, onRouteSteps]);
 
   // Fetch shuttle route (campus to campus) via Google Directions when showShuttle is true
   useEffect(() => {
@@ -393,19 +402,18 @@ export default function CampusMap({
 
   // Focus on start point when route is confirmed
   useEffect(() => {
-    const focusOrigin = startOverride ?? startPoint?.coordinates ?? null;
-    if (focusOrigin && mapReady && routeFocusTrigger > 0) {
+    if (effectiveOrigin && mapReady && routeFocusTrigger > 0) {
       mapRef.current?.animateToRegion(
         {
-          latitude: focusOrigin.latitude,
-          longitude: focusOrigin.longitude,
+          latitude: effectiveOrigin.latitude,
+          longitude: effectiveOrigin.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         },
         500,
       );
     }
-  }, [startPoint, startOverride, mapReady, routeFocusTrigger]);
+  }, [effectiveOrigin, mapReady, routeFocusTrigger]);
 
   // Focus selected building
   useEffect(() => {
@@ -451,7 +459,7 @@ export default function CampusMap({
         {startPoint && (
           <Marker
             testID="marker-start"
-            coordinate={(startOverride ?? startPoint.coordinates) as any}
+            coordinate={effectiveOrigin ?? startPoint.coordinates}
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={Platform.OS === "android"}
           >

@@ -6,6 +6,27 @@ import { RouteStep } from "../constants/type";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/DirectionStepsPanel.styles";
 
+type StepWrapperProps = {
+  readonly onPress?: () => void;
+  readonly children: React.ReactNode;
+};
+
+function StepWrapper({ onPress, children }: StepWrapperProps) {
+  if (!onPress) {
+    return <View style={styles.stepRow}>{children}</View>;
+  }
+
+  return (
+    <Pressable
+      style={styles.stepRow}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 type ActionableRouteStep = RouteStep & {
   readonly onPress?: () => void;
 };
@@ -88,19 +109,8 @@ export function DirectionStepsPanel({
 
             const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
-            const StepContainer: any = step.onPress ? Pressable : View;
-
             return (
-              <StepContainer
-                key={stepKey}
-                style={styles.stepRow}
-                {...(step.onPress
-                  ? {
-                      onPress: step.onPress,
-                      accessibilityRole: "button",
-                    }
-                  : null)}
-              >
+              <StepWrapper key={stepKey} onPress={step.onPress}>
                 <View style={styles.stepLeft}>
                   <View
                     style={[
@@ -136,7 +146,7 @@ export function DirectionStepsPanel({
                     </Text>
                   )}
                 </View>
-              </StepContainer>
+              </StepWrapper>
             );
           })}
         </ScrollView>
