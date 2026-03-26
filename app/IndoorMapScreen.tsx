@@ -310,7 +310,9 @@ export default function IndoorMapScreen() {
           duration_ms,
           ...extraParams,
         });
-      } catch (e) {}
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
     },
     [],
   );
