@@ -167,14 +167,26 @@ export default function CampusMapScreen() {
       ? BUILDINGS.find((b) => b.name.trim().toUpperCase() === originCode)
       : null;
 
+    // If we can’t resolve the origin building by code (or if the code is stale),
+    // fall back to the building nearest to the exitOutdoor coordinate.
+    const originByExit = transitionPayload.exitOutdoor
+      ? findNearestBuilding(
+          transitionPayload.exitOutdoor.latitude,
+          transitionPayload.exitOutdoor.longitude,
+        )
+      : null;
+
     // Force the campus toggle to the destination campus so the user sees the correct map.
     const destCampus =
       destBuilding.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const);
     setCurrentCampus(destCampus);
     setFocusTarget((prev) => (prev === "user" ? prev : destCampus));
 
-  // Ensure both endpoints are set so CampusMap computes a route immediately.
-  setSelectedRoute({ start: originBuilding ?? null, dest: destBuilding });
+    // Ensure both endpoints are set so CampusMap computes a route immediately.
+    setSelectedRoute({
+      start: originBuilding ?? originByExit ?? null,
+      dest: destBuilding,
+    });
     setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
     setRouteFocusTrigger((c) => c + 1);
 

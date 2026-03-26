@@ -308,6 +308,12 @@ export default function IndoorMapScreen() {
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
   const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Safety: if the user switches buildings, never reuse a previous building's selected exit
+  // coordinate when transitioning outside.
+  useEffect(() => {
+    setPendingExitOutdoor(null);
+  }, [buildingName]);
   const [activePOICategories, setActivePOICategories] = useState<Set<POICategoryId>>(new Set());
 
   const initialRoomQuery = trimParam(roomQuery);
@@ -594,8 +600,13 @@ export default function IndoorMapScreen() {
           return;
         }
 
+        // Always prefer an explicit per-exit outdoor coordinate.
+        // If it's missing, fall back to the building centroid later when continuing outside.
         if (exitPick.exit.outdoorLatLng) {
           setPendingExitOutdoor(exitPick.exit.outdoorLatLng);
+        } else {
+          // Reset explicitly so we don't accidentally reuse a previous building's exit coordinate.
+          setPendingExitOutdoor(null);
         }
 
         const exitNodeId = exitPick.exit.nodeId;
@@ -645,8 +656,25 @@ export default function IndoorMapScreen() {
     const originBuilding = BUILDINGS.find(
       (b) => b.name.trim().toUpperCase() === originCode,
     );
+
+    // Guardrail: never start the outdoor leg from a coordinate that is clearly not near
+    // the current building (stale state, bad exit metadata, etc.).
+    const isLikelyNearOriginBuilding = (candidate: { latitude: number; longitude: number }) => {
+      const origin = originBuilding?.coordinates;
+      if (!origin) return true; // can’t validate; accept
+      const dLat = candidate.latitude - origin.latitude;
+      const dLng = candidate.longitude - origin.longitude;
+      // Rough distance check in degrees. For Concordia SGW buildings this should be very small.
+      const distSq = dLat * dLat + dLng * dLng;
+      // ~0.003 degrees is on the order of a few hundred meters; different campuses will be far larger.
+      return distSq < 0.003 * 0.003;
+    };
+
+    const candidateExitOutdoor = pendingExitOutdoor;
     const effectiveExitOutdoor =
-      pendingExitOutdoor ?? originBuilding?.coordinates ?? null;
+      candidateExitOutdoor && isLikelyNearOriginBuilding(candidateExitOutdoor)
+        ? candidateExitOutdoor
+        : originBuilding?.coordinates ?? null;
     if (!effectiveExitOutdoor) {
       setNavError(
         "Couldn't determine an outdoor start point for this building exit. Please try a different exit.",
