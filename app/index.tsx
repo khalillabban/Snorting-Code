@@ -1,4 +1,4 @@
-import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
+import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { useRouter } from "expo-router";
 import { useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -13,12 +13,10 @@ export default function Index() {
 
   const goToCampus = (campus: CampusKey) => {
     // ── Task 8 (last step): User went back to Home and tapped SGW ───────────
-    try {
-      logEvent(getAnalytics(), "home_campus_button_tapped", {
-        campus,
-        time_since_home_load_ms: Date.now() - homeLoadTime.current,
-      });
-    } catch (e) {}
+    void logUsabilityEvent("home_campus_button_tapped", {
+      campus,
+      time_since_home_load_ms: Date.now() - homeLoadTime.current,
+    });
     router.push({
       pathname: "/CampusMapScreen",
       params: { campus },
@@ -41,12 +39,10 @@ export default function Index() {
       <Pressable
         style={styles.button}
         onPress={() => {
-          // ── Task 8: My Schedule button tapped ──────────────────────────────
-          try {
-            logEvent(getAnalytics(), "my_schedule_button_tapped", {
-              time_since_home_load_ms: Date.now() - homeLoadTime.current,
-            });
-          } catch (e) {}
+          // Task 8: My Schedule button tapped
+          void logUsabilityEvent("my_schedule_button_tapped", {
+            time_since_home_load_ms: Date.now() - homeLoadTime.current,
+          });
           router.push("/schedule" as any);
         }}
       >

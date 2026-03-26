@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, {
@@ -25,6 +24,7 @@ import {
 } from "../components/IndoorRouteOverlay";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
+import { USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   getNormalizedBuildingPlan,
@@ -38,6 +38,7 @@ import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
+import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
@@ -293,6 +294,7 @@ export default function IndoorMapScreen() {
   const taskTimers = useRef<Record<string, number>>({});
 
   const startTask = useCallback((taskId: string) => {
+    if (!USABILITY_TESTING_ENABLED) return;
     taskTimers.current[taskId] = Date.now();
   }, []);
 
@@ -302,7 +304,8 @@ export default function IndoorMapScreen() {
       const duration_ms = start ? Date.now() - start : 0;
       delete taskTimers.current[taskId];
       try {
-        await logEvent(getAnalytics(), "task_completed", {
+        if (!USABILITY_TESTING_ENABLED) return;
+        await logUsabilityEvent("task_completed", {
           session_id: sessionId.current,
           task_id: taskId,
           duration_ms,
@@ -320,18 +323,23 @@ export default function IndoorMapScreen() {
 
   // Task 9 + 10: Screen load — starts the Task 9 timer
   useEffect(() => {
-    screenLoadTime.current = Date.now();
-    startTask("task_9");
-    try {
-      logEvent(getAnalytics(), "indoor_map_screen_loaded", {
-        session_id: sessionId.current,
-        building_name: buildingName ?? "unknown",
-        has_nav_origin: !!trimParam(navOrigin),
-        has_nav_dest: !!trimParam(navDest),
-        accessible_only_param: accessibleOnlyParam === "true",
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {}
+    const run = async () => {
+      screenLoadTime.current = Date.now();
+      startTask("task_9");
+      try {
+        await logUsabilityEvent("indoor_map_screen_loaded", {
+          session_id: sessionId.current,
+          building_name: buildingName ?? "unknown",
+          has_nav_origin: !!trimParam(navOrigin),
+          has_nav_dest: !!trimParam(navDest),
+          accessible_only_param: accessibleOnlyParam === "true",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    };
+    run();
   }, []);
 
   const initialRoomQuery = trimParam(roomQuery);
@@ -350,57 +358,67 @@ export default function IndoorMapScreen() {
 
   const handlePOIToggle = useCallback(
     (categoryId: POICategoryId) => {
+      const willBeActive = !activePOICategories.has(categoryId);
+      const newCount = activePOICategories.size + (willBeActive ? 1 : -1);
+
       setActivePOICategories((prev) => {
         const next = new Set(prev);
-        const wasActive = next.has(categoryId);
-        if (wasActive) {
+        if (next.has(categoryId)) {
           next.delete(categoryId);
         } else {
           next.add(categoryId);
         }
+        return next;
+      });
 
-        const newCount = next.size;
-        const isNowActive = !wasActive;
-
-        // Task 11: Log every POI category toggle
-        try {
-          logEvent(getAnalytics(), "indoor_poi_category_toggled", {
-            session_id: sessionId.current,
-            building_name: buildingName ?? "unknown",
-            category_id: categoryId,
-            is_now_active: isNowActive,
-            active_category_count: newCount,
-            active_categories: Array.from(next).sort().join(","),
-            floor: selectedFloor,
-            time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-          });
-        } catch (e) {}
+      // Log analytics after state update calculation
+      try {
+        logUsabilityEvent("indoor_poi_category_toggled", {
+          session_id: sessionId.current,
+          building_name: buildingName ?? "unknown",
+          category_id: categoryId,
+          is_now_active: willBeActive,
+          active_category_count: newCount,
+          active_categories: Array.from(
+            willBeActive
+              ? new Set([...activePOICategories, categoryId])
+              : new Set(
+                  [...activePOICategories].filter((c) => c !== categoryId),
+                ),
+          )
+            .sort()
+            .join(","),
+          floor: selectedFloor,
+          time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+        }).catch((error) => {
+          console.error("Firebase Analytics Error: ", error);
+        });
 
         // Task 11: Complete on first successful activation
-        if (isNowActive && !task11Completed.current) {
+        if (willBeActive && !task11Completed.current) {
           task11Completed.current = true;
           endTask("task_11", {
             building_name: buildingName ?? "unknown",
             first_category_activated: categoryId,
             floor: selectedFloor,
             time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+          }).catch((error) => {
+            console.error("Firebase Analytics Error: ", error);
           });
         }
-
-        return next;
-      });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
     },
-    [buildingName, endTask, selectedFloor],
+    [buildingName, endTask, selectedFloor, activePOICategories],
   );
-  const handlePOIFilterFirstInteraction = useCallback(() => {
-    try {
-      logEvent(getAnalytics(), "indoor_poi_filter_bar_first_tap", {
-        session_id: sessionId.current,
-        building_name: buildingName ?? "unknown",
-        floor: selectedFloor,
-        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-      });
-    } catch (e) {}
+  const handlePOIFilterFirstInteraction = useCallback(async () => {
+    await logUsabilityEvent("indoor_poi_filter_bar_first_tap", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      floor: selectedFloor,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    });
   }, [buildingName, selectedFloor]);
 
   useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
@@ -530,24 +548,23 @@ export default function IndoorMapScreen() {
     performRoomSearch,
   );
 
-  const handleNavigate = useCallback(() => {
+  const handleNavigate = useCallback(async () => {
     if (!buildingName) return;
     setNavError(null);
 
     navAttemptCount.current += 1;
 
     //  Task 9 + 10: Log every "Go" tap
-    try {
-      logEvent(getAnalytics(), "indoor_nav_attempted", {
-        session_id: sessionId.current,
-        building_name: buildingName,
-        origin_query: navOriginQuery,
-        dest_query: navDestQuery,
-        accessible_only: accessibleOnly,
-        attempt_number: navAttemptCount.current,
-        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-      });
-    } catch (e) {}
+
+    await logUsabilityEvent("indoor_nav_attempted", {
+      session_id: sessionId.current,
+      building_name: buildingName,
+      origin_query: navOriginQuery,
+      dest_query: navDestQuery,
+      accessible_only: accessibleOnly,
+      attempt_number: navAttemptCount.current,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    });
 
     const result = getIndoorNavigationRoute(
       buildingName,
@@ -562,52 +579,48 @@ export default function IndoorMapScreen() {
 
       // Task 9 + 10: Route success
       const taskId = accessibleOnly ? "task_10" : "task_9";
-      try {
-        logEvent(getAnalytics(), "indoor_route_generated", {
-          session_id: sessionId.current,
-          building_name: buildingName,
-          origin: navOriginQuery,
-          destination: navDestQuery,
-          accessible_only: accessibleOnly,
-          accessible_toggled_during_nav: accessibleToggledDuringNav.current,
-          attempt_count: navAttemptCount.current,
-          origin_floor: result.route.origin.floor,
-          dest_floor:
-            result.route.destination?.floor ?? result.route.origin.floor,
-          cross_floor:
-            result.route.origin.floor !==
-            (result.route.destination?.floor ?? result.route.origin.floor),
-          time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-        });
-        endTask(taskId, {
-          building_name: buildingName,
-          accessible_only: accessibleOnly,
-          attempt_count: navAttemptCount.current,
-        });
-      } catch (e) {}
+      await logUsabilityEvent("indoor_route_generated", {
+        session_id: sessionId.current,
+        building_name: buildingName,
+        origin: navOriginQuery,
+        destination: navDestQuery,
+        accessible_only: accessibleOnly,
+        accessible_toggled_during_nav: accessibleToggledDuringNav.current,
+        attempt_count: navAttemptCount.current,
+        origin_floor: result.route.origin.floor,
+        dest_floor:
+          result.route.destination?.floor ?? result.route.origin.floor,
+        cross_floor:
+          result.route.origin.floor !==
+          (result.route.destination?.floor ?? result.route.origin.floor),
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      });
+      endTask(taskId, {
+        building_name: buildingName,
+        accessible_only: accessibleOnly,
+        attempt_count: navAttemptCount.current,
+      });
     } else {
       setNavError(result.message);
       setActiveRoute(null);
 
       // Task 9 + 10: Route failure
-      try {
-        logEvent(getAnalytics(), "indoor_route_failed", {
-          session_id: sessionId.current,
-          building_name: buildingName,
-          origin_query: navOriginQuery,
-          dest_query: navDestQuery,
-          accessible_only: accessibleOnly,
-          attempt_number: navAttemptCount.current,
-          error_message: result.message,
-        });
-      } catch (e) {}
+      await logUsabilityEvent("indoor_route_failed", {
+        session_id: sessionId.current,
+        building_name: buildingName,
+        origin_query: navOriginQuery,
+        dest_query: navDestQuery,
+        accessible_only: accessibleOnly,
+        attempt_number: navAttemptCount.current,
+        error_message: result.message,
+      });
     }
   }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly, endTask]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
   //  Task 10: Accessibility toggle
-  const handleAccessibleToggle = useCallback(() => {
+  const handleAccessibleToggle = useCallback(async () => {
     const newValue = !accessibleOnly;
     setAccessibleOnly(newValue);
     accessibleToggledDuringNav.current = true;
@@ -617,17 +630,15 @@ export default function IndoorMapScreen() {
       startTask("task_10");
     }
 
-    try {
-      logEvent(getAnalytics(), "indoor_accessible_mode_toggled", {
-        session_id: sessionId.current,
-        building_name: buildingName ?? "unknown",
-        accessible_only: newValue,
-        has_active_route: activeRoute !== null,
-        origin_query: navOriginQuery,
-        dest_query: navDestQuery,
-        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-      });
-    } catch (e) {}
+    await logUsabilityEvent("indoor_accessible_mode_toggled", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      accessible_only: newValue,
+      has_active_route: activeRoute !== null,
+      origin_query: navOriginQuery,
+      dest_query: navDestQuery,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    });
   }, [
     accessibleOnly,
     activeRoute,
@@ -639,15 +650,15 @@ export default function IndoorMapScreen() {
 
   //  Task 9 + 10: Directions panel closed
   const handleCloseDirectionsPanel = useCallback(() => {
-    try {
-      logEvent(getAnalytics(), "indoor_directions_panel_closed", {
-        session_id: sessionId.current,
-        building_name: buildingName ?? "unknown",
-        accessible_only: accessibleOnly,
-        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
-      });
-    } catch (e) {}
     setActiveRoute(null);
+    logUsabilityEvent("indoor_directions_panel_closed", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      accessible_only: accessibleOnly,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    }).catch((error) => {
+      console.error("Firebase Analytics Error: ", error);
+    });
   }, [accessibleOnly, activeRoute, buildingName]);
 
   return (
@@ -692,14 +703,14 @@ export default function IndoorMapScreen() {
               setNavOriginQuery(text);
               // Task 9 + 10: First keystroke in origin field
               if (text.length === 1) {
-                try {
-                  logEvent(getAnalytics(), "indoor_nav_origin_started", {
-                    session_id: sessionId.current,
-                    building_name: buildingName ?? "unknown",
-                    time_since_screen_load_ms:
-                      Date.now() - screenLoadTime.current,
-                  });
-                } catch (e) {}
+                logUsabilityEvent("indoor_nav_origin_started", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  time_since_screen_load_ms:
+                    Date.now() - screenLoadTime.current,
+                }).catch((error) => {
+                  console.error("Firebase Analytics Error: ", error);
+                });
               }
             }}
             returnKeyType="next"
@@ -713,14 +724,14 @@ export default function IndoorMapScreen() {
               setNavDestQuery(text);
               // Task 9 + 10: First keystroke in destination field
               if (text.length === 1) {
-                try {
-                  logEvent(getAnalytics(), "indoor_nav_dest_started", {
-                    session_id: sessionId.current,
-                    building_name: buildingName ?? "unknown",
-                    time_since_screen_load_ms:
-                      Date.now() - screenLoadTime.current,
-                  });
-                } catch (e) {}
+                logUsabilityEvent("indoor_nav_dest_started", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  time_since_screen_load_ms:
+                    Date.now() - screenLoadTime.current,
+                }).catch((error) => {
+                  console.error("Firebase Analytics Error: ", error);
+                });
               }
             }}
             returnKeyType="go"
@@ -765,15 +776,15 @@ export default function IndoorMapScreen() {
               onPress={() => {
                 setSelectedFloor(floor);
                 // Task 9 + 10: Floor changed
-                try {
-                  logEvent(getAnalytics(), "indoor_floor_changed", {
-                    session_id: sessionId.current,
-                    building_name: buildingName ?? "unknown",
-                    floor_selected: floor,
-                    previous_floor: selectedFloor,
-                    has_active_route: activeRoute !== null,
-                  });
-                } catch (e) {}
+                logUsabilityEvent("indoor_floor_changed", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  floor_selected: floor,
+                  previous_floor: selectedFloor,
+                  has_active_route: activeRoute !== null,
+                }).catch((error) => {
+                  console.error("Firebase Analytics Error: ", error);
+                });
               }}
               style={[
                 styles.floorButton,

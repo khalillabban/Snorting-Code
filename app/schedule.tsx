@@ -1,5 +1,5 @@
+import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, {
@@ -216,18 +216,19 @@ export default function ScheduleScreen() {
   const scheduleSyncRequestRef = useRef(0);
   const shouldAutoSelectDefaultRef = useRef(true);
 
-  // ── Usability Testing: Task 8 timers ─────────────────────────────────────
+  //  Usability Testing: Task 8 timers
   const scheduleScreenLoadTime = useRef<number>(Date.now());
   const connectStartTime = useRef<number | null>(null);
 
-  // ── Task 8: Log when Schedule screen loads ────────────────────────────────
+  // Task 8: Log when Schedule screen loads
   useEffect(() => {
     scheduleScreenLoadTime.current = Date.now();
-    try {
-      logEvent(getAnalytics(), "schedule_screen_loaded", {
+    const run = async () => {
+      await logUsabilityEvent("schedule_screen_loaded", {
         timestamp: new Date().toISOString(),
       });
-    } catch (e) {}
+    };
+    run();
   }, []);
 
   useEffect(() => {
@@ -482,14 +483,12 @@ export default function ScheduleScreen() {
         });
         await applyCalendarSelection(nextItems);
 
-        // ── Task 8: Calendars loaded successfully ───────────────────────────
-        try {
-          logEvent(getAnalytics(), "calendar_list_loaded", {
-            calendar_count: nextItems.length,
-            time_since_screen_load_ms:
-              Date.now() - scheduleScreenLoadTime.current,
-          });
-        } catch (e) {}
+        // Task 8: Calendars loaded successfully
+        await logUsabilityEvent("calendar_list_loaded", {
+          calendar_count: nextItems.length,
+          time_since_screen_load_ms:
+            Date.now() - scheduleScreenLoadTime.current,
+        });
       };
 
       try {
@@ -560,60 +559,57 @@ export default function ScheduleScreen() {
   }, [initializeSchedule]);
 
   useEffect(() => {
-    const res = getResultFromResponse();
-    if (!res) return;
+    const run = async () => {
+      const res = getResultFromResponse();
+      if (!res) return;
 
-    if (!res.ok) {
-      if (res.reason === "cancelled") {
-        // ── Task 8: User cancelled Google sign-in ──────────────────────────
-        try {
-          logEvent(getAnalytics(), "google_signin_cancelled", {
+      if (!res.ok) {
+        if (res.reason === "cancelled") {
+          // Task 8: User cancelled Google sign-in
+          void logUsabilityEvent("google_signin_cancelled", {
             time_spent_ms: connectStartTime.current
               ? Date.now() - connectStartTime.current
               : 0,
           });
-        } catch (e) {}
-        if (ui.status === "ready" || ui.status === "empty") return;
-        setUi({ status: "idle" });
+
+          if (ui.status === "ready" || ui.status === "empty") return;
+          setUi({ status: "idle" });
+          return;
+        }
+
+        // Task 8: Sign-in failed
+        void logUsabilityEvent("google_signin_failed", {
+          reason: res.message ?? "unknown",
+        });
+
+        setUi({ status: "error", message: res.message ?? "Login failed." });
         return;
       }
 
-      // ── Task 8: Sign-in failed ─────────────────────────────────────────
-      try {
-        logEvent(getAnalytics(), "google_signin_failed", {
-          reason: res.message ?? "unknown",
-        });
-      } catch (e) {}
-      setUi({ status: "error", message: res.message ?? "Login failed." });
-      return;
-    }
-
-    // ── Task 8: Sign-in succeeded ──────────────────────────────────────────
-    try {
-      logEvent(getAnalytics(), "google_signin_success", {
+      // ── Task 8: Sign-in succeeded ────────────────────────────────────────
+      void logUsabilityEvent("google_signin_success", {
         time_to_connect_ms: connectStartTime.current
           ? Date.now() - connectStartTime.current
           : 0,
         time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
       });
       connectStartTime.current = null;
-    } catch (e) {}
 
-    setAccessToken(res.accessToken);
-    saveGoogleAccessToken(res.accessToken, {
-      issuedAt: res.issuedAt,
-      expiresIn: res.expiresIn,
-    }).catch(() => {});
+      setAccessToken(res.accessToken);
+      saveGoogleAccessToken(res.accessToken, {
+        issuedAt: res.issuedAt,
+        expiresIn: res.expiresIn,
+      }).catch(() => {});
+    };
+    run();
   }, [response, getResultFromResponse, ui.status]);
 
   const connect = useCallback(async () => {
-    // ── Task 8: Connect button tapped ─────────────────────────────────────
+    //  Task 8: Connect button tapped
     connectStartTime.current = Date.now();
-    try {
-      logEvent(getAnalytics(), "google_connect_tapped", {
-        time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
-      });
-    } catch (e) {}
+    void logUsabilityEvent("google_connect_tapped", {
+      time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
+    });
     try {
       setUi({ status: "connecting" });
       await promptAsync();
@@ -639,10 +635,9 @@ export default function ScheduleScreen() {
   }, [connect, syncCalendarListData, syncScheduleForSelection]);
 
   const disconnect = useCallback(async () => {
-    // ── Task 8: Disconnect tapped ─────────────────────────────────────────
-    try {
-      logEvent(getAnalytics(), "google_calendar_disconnected", {});
-    } catch (e) {}
+    //Task 8: Disconnect tapped
+    await logUsabilityEvent("google_calendar_disconnected", {});
+
     try {
       await deleteGoogleAccessToken();
       await AsyncStorage.removeItem(SCHEDULE_ITEMS);
@@ -713,16 +708,13 @@ export default function ScheduleScreen() {
         ? selectedCalendarIds.filter((id) => id !== calendarId)
         : [...selectedCalendarIds, calendarId];
 
-      // ── Task 8: Calendar toggled ──────────────────────────────────────────
-      try {
-        logEvent(getAnalytics(), "calendar_toggled", {
-          calendar_name: calendarName,
-          action: isCurrentlySelected ? "deselected" : "selected",
-          selected_count: nextSelected.length,
-          time_since_screen_load_ms:
-            Date.now() - scheduleScreenLoadTime.current,
-        });
-      } catch (e) {}
+      // Task 8: Calendar toggled
+      await logUsabilityEvent("calendar_toggled", {
+        calendar_name: calendarName,
+        action: isCurrentlySelected ? "deselected" : "selected",
+        selected_count: nextSelected.length,
+        time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
+      });
 
       setSelectedCalendarIds(nextSelected);
       await saveSelectedCalendarIds(nextSelected);
@@ -730,16 +722,17 @@ export default function ScheduleScreen() {
     [selectedCalendarIds],
   );
 
-  // ── Task 8: Log when schedule items are displayed ─────────────────────────
+  // Task 8: Log when schedule items are displayed
   useEffect(() => {
     if (ui.status !== "ready" && ui.status !== "empty") return;
-    try {
-      logEvent(getAnalytics(), "schedule_displayed", {
+    const run = async () => {
+      await logUsabilityEvent("schedule_displayed", {
         item_count: ui.status === "ready" ? ui.items.length : 0,
         status: ui.status,
         time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
       });
-    } catch (e) {}
+    };
+    run();
   }, [ui.status]);
 
   const header = (

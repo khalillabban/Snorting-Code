@@ -1,5 +1,5 @@
+import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { getAnalytics, logEvent } from "@react-native-firebase/analytics";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +15,7 @@ import { CAMPUSES } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
+import { USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
@@ -38,12 +39,15 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
   if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
   return `${prefix}${trimmed}`;
 }
-const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
-  useState<Buildings | null>(null);
-const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
-  [],
-);
+
 export default function CampusMapScreen() {
+  //Fix 1: Moved these hooks inside the component
+  const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
+    useState<Buildings | null>(null);
+  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
+    [],
+  );
+
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
@@ -56,23 +60,25 @@ export default function CampusMapScreen() {
   const taskTimers = useRef<Record<string, number>>({});
 
   const startTask = (taskId: string) => {
+    if (!USABILITY_TESTING_ENABLED) return;
     taskTimers.current[taskId] = Date.now();
   };
+
   const endTask = async (
     taskId: string,
     extraParams: Record<string, unknown> = {},
   ) => {
+    if (!USABILITY_TESTING_ENABLED) return;
     const start = taskTimers.current[taskId];
     const duration_ms = start ? Date.now() - start : 0;
     delete taskTimers.current[taskId];
-    try {
-      await logEvent(getAnalytics(), "task_completed", {
-        session_id: sessionId.current,
-        task_id: taskId,
-        duration_ms,
-        ...extraParams,
-      });
-    } catch (e) {}
+
+    await logUsabilityEvent("task_completed", {
+      session_id: sessionId.current,
+      task_id: taskId,
+      duration_ms,
+      ...extraParams,
+    });
   };
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
@@ -119,19 +125,18 @@ export default function CampusMapScreen() {
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
 
-  const openNavigationBar = (trigger: string = "directions_button") => {
+  //Fix 2: Already correct from previous fix
+  const openNavigationBar = async (trigger: string = "directions_button") => {
     navStartTime.current = Date.now();
     navOpenCount.current += 1;
     setIsNavVisible(true);
-    // Task 5 starts: log trigger source and how many times user has opened this
-    try {
-      logEvent(getAnalytics(), "nav_bar_opened", {
-        session_id: sessionId.current,
-        trigger,
-        open_count: navOpenCount.current,
-        time_since_map_load_ms: Date.now() - mapLoadTime.current,
-      });
-    } catch (e) {}
+    await logUsabilityEvent("nav_bar_opened", {
+      session_id: sessionId.current,
+      trigger,
+      open_count: navOpenCount.current,
+      time_since_map_load_ms: Date.now() - mapLoadTime.current,
+    });
+
     if (navOpenCount.current === 1) {
       startTask("task_5");
     }
@@ -173,39 +178,35 @@ export default function CampusMapScreen() {
       const building = findNearestBuilding(latitude, longitude);
       setAutoStartBuilding(building);
 
-      //  Task 1: Log that we detected user's building on load
-      try {
-        logEvent(getAnalytics(), "user_building_detected", {
-          session_id: sessionId.current,
-          building_name: building?.name ?? "unknown",
-          time_since_map_load_ms: Date.now() - mapLoadTime.current,
-        });
-      } catch (e) {}
+      await logUsabilityEvent("user_building_detected", {
+        session_id: sessionId.current,
+        building_name: building?.name ?? "unknown",
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      });
     };
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  // Task 1: Log map screen loaded
+  // Fix 3: Wrapped bare await in inner async function ─────────────────────
   useEffect(() => {
     mapLoadTime.current = Date.now();
     startTask("task_1");
-    try {
-      logEvent(getAnalytics(), "map_screen_loaded", {
+    const run = async () => {
+      await logUsabilityEvent("map_screen_loaded", {
         session_id: sessionId.current,
         campus: campus ?? "sgw",
         timestamp: new Date().toISOString(),
       });
-    } catch (e) {}
+    };
+    run();
   }, []);
 
   const selectCampus = async (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
 
-    // Task 2: Campus toggle
     try {
-      const analyticsInstance = getAnalytics();
-      await logEvent(analyticsInstance, "campus_switch", {
+      await logUsabilityEvent("campus_switch", {
         session_id: sessionId.current,
         campus_name: campusKey,
         screen: "CampusMapScreen",
@@ -219,23 +220,22 @@ export default function CampusMapScreen() {
     }
   };
 
-  const focusUserLocation = useCallback(() => {
+  // ── Fix 4: Added async to useCallback ────────────────────────────────────
+  const focusUserLocation = useCallback(async () => {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
 
-    // Task 1: Current location button tapped
     try {
-      logEvent(getAnalytics(), "current_location_pressed", {
+      await logUsabilityEvent("current_location_pressed", {
         session_id: sessionId.current,
         screen: "CampusMapScreen",
         time_since_map_load_ms: Date.now() - mapLoadTime.current,
       });
-      endTask("task_1");
+      await endTask("task_1");
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
   }, []);
-  // Indoor map
 
   const openIndoorMap = useCallback(
     (
@@ -260,15 +260,16 @@ export default function CampusMapScreen() {
     [accessibleOnly],
   );
 
+  // ── Fix 5: Moved async to the callback, not a parameter ──────────────────
   const handleConfirmRoute = useCallback(
-    (
+    async (
       start: Buildings | null,
       dest: Buildings | null,
       strategy: RouteStrategy,
       startRoom?: IndoorRoomRecord | null,
       endRoom?: IndoorRoomRecord | null,
       accessible?: boolean,
-    ) => {
+    ): Promise<void> => {
       setAccessibleOnly(!!accessible);
 
       if (
@@ -305,12 +306,12 @@ export default function CampusMapScreen() {
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
-      //  Task 5 + Task 6: Route generated
+
       try {
         const timeSpent = navStartTime.current
           ? Date.now() - navStartTime.current
           : 0;
-        logEvent(getAnalytics(), "route_generated", {
+        await logUsabilityEvent("route_generated", {
           session_id: sessionId.current,
           start_location: start?.name ?? "My Location",
           dest_location: dest?.name ?? "Unknown",
@@ -319,7 +320,7 @@ export default function CampusMapScreen() {
           nav_open_count: navOpenCount.current,
         });
         navStartTime.current = null;
-        endTask("task_5", {
+        await endTask("task_5", {
           start_location: start?.name ?? "My Location",
           dest_location: dest?.name ?? "Unknown",
           travel_mode: strategy.mode,
@@ -347,7 +348,6 @@ export default function CampusMapScreen() {
   );
 
   // Shuttle
-
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
     useState(false);
@@ -370,16 +370,19 @@ export default function CampusMapScreen() {
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
 
-  const handleRouteSteps = useCallback((steps: RouteStep[]) => {
+  // ── Fix 6: Added async to useCallback ────────────────────────────────────
+  const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
     setRouteSteps(steps);
     if (steps.length > 0) {
       try {
-        logEvent(getAnalytics(), "steps_panel_viewed", {
+        await logUsabilityEvent("steps_panel_viewed", {
           session_id: sessionId.current,
           step_count: steps.length,
         });
-        endTask("task_6", { step_count: steps.length });
-      } catch (e) {}
+        await endTask("task_6", { step_count: steps.length });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
     }
   }, []);
 
@@ -388,19 +391,22 @@ export default function CampusMapScreen() {
     openNavigationBar("set_as_start");
   }, []);
 
-  const handleSetAsDestination = useCallback((building: Buildings) => {
+  // ── Fix 7: Added async to useCallback ────────────────────────────────────
+  const handleSetAsDestination = useCallback(async (building: Buildings) => {
     setInitialDestination(building);
-    openNavigationBar("set_as_destination");
     try {
-      logEvent(getAnalytics(), "set_as_destination_from_popup", {
+      await openNavigationBar("set_as_destination");
+      await logUsabilityEvent("set_as_destination_from_popup", {
         session_id: sessionId.current,
         building_name: building?.name ?? "unknown",
       });
-      endTask("task_4", {
+      await endTask("task_4", {
         building_name: building?.name ?? "unknown",
         action: "set_as_destination",
       });
-    } catch (e) {}
+    } catch (error) {
+      console.error("Firebase Analytics Error: ", error);
+    }
   }, []);
 
   const handleSetAsMyLocation = useCallback((building: Buildings) => {
@@ -482,26 +488,27 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {/* Left button stack*/}
+      {/* Left button stack */}
       <View
         style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
       >
+        {/* ── Fix 8: Added async to onPress ──────────────────────────────── */}
         <Pressable
           testID="show-shuttle-button"
-          onPress={() => {
+          onPress={async () => {
             if (shuttleStatus.available) {
               const newState = !showShuttle;
               setShowShuttle(newState);
 
-              // Task 7: Bus stops button toggled
-
               try {
-                logEvent(getAnalytics(), "shuttle_stops_toggled", {
+                await logUsabilityEvent("shuttle_stops_toggled", {
                   session_id: sessionId.current,
                   state: newState ? "visible" : "hidden",
                   time_since_map_load_ms: Date.now() - mapLoadTime.current,
                 });
-              } catch (e) {}
+              } catch (error) {
+                console.error("Firebase Analytics Error: ", error);
+              }
             }
           }}
           style={[
@@ -525,18 +532,12 @@ export default function CampusMapScreen() {
             setShowShuttleSchedulePanel(true);
             startTask("task_7");
 
-            // Task 7: Schedule panel opened
-            try {
-              const analyticsInstance = getAnalytics();
-              await logEvent(analyticsInstance, "shuttle_schedule_viewed", {
-                session_id: sessionId.current,
-                screen: "CampusMapScreen",
-                time_since_map_load_ms: Date.now() - mapLoadTime.current,
-                timestamp: new Date().toISOString(),
-              });
-            } catch (error) {
-              console.error("Firebase Analytics Error: ", error);
-            }
+            await logUsabilityEvent("shuttle_schedule_viewed", {
+              session_id: sessionId.current,
+              screen: "CampusMapScreen",
+              time_since_map_load_ms: Date.now() - mapLoadTime.current,
+              timestamp: new Date().toISOString(),
+            });
           }}
           style={[styles.actionButton]}
         >
@@ -555,21 +556,12 @@ export default function CampusMapScreen() {
           accessibilityLabel="Navigate to next class"
           onPress={async () => {
             setIsNextClassVisible(true);
-            try {
-              const analyticsInstance = getAnalytics();
-              await logEvent(
-                analyticsInstance,
-                "next_class_directions_requested",
-                {
-                  session_id: sessionId.current,
-                  screen: "CampusMapScreen",
-                  has_next_class: nextClass !== null,
-                  timestamp: new Date().toISOString(),
-                },
-              );
-            } catch (error) {
-              console.error("Firebase Analytics Error: ", error);
-            }
+            await logUsabilityEvent("next_class_directions_requested", {
+              session_id: sessionId.current,
+              screen: "CampusMapScreen",
+              has_next_class: nextClass !== null,
+              timestamp: new Date().toISOString(),
+            });
           }}
           disabled={nextClass === null}
           style={[
@@ -584,7 +576,6 @@ export default function CampusMapScreen() {
           testID="directions-button"
           accessibilityLabel="directions-button"
           onPress={() => {
-            // Task 5: Directions button tapped directly
             openNavigationBar("directions_button");
           }}
           style={styles.actionButton}
@@ -613,8 +604,6 @@ export default function CampusMapScreen() {
         <ShuttleSchedulePanel
           onClose={() => {
             setShowShuttleSchedulePanel(false);
-
-            // Task 7: Schedule panel closed
             endTask("task_7");
           }}
         />
@@ -628,26 +617,28 @@ export default function CampusMapScreen() {
             setInitialStart(selectedRoute.start);
             setInitialDestination(selectedRoute.dest);
 
-            // Task 6: "Change route" tapped from steps panel
-            try {
-              logEvent(getAnalytics(), "route_change_requested", {
-                session_id: sessionId.current,
-                from_start: selectedRoute.start?.name ?? "unknown",
-                from_dest: selectedRoute.dest?.name ?? "unknown",
-              });
-            } catch (e) {}
-            openNavigationBar("change_route");
+            openNavigationBar("change_route").catch((error) => {
+              console.error("Firebase Analytics Error: ", error);
+            });
+            logUsabilityEvent("route_change_requested", {
+              session_id: sessionId.current,
+              from_start: selectedRoute.start?.name ?? "unknown",
+              from_dest: selectedRoute.dest?.name ?? "unknown",
+            }).catch((error) => {
+              console.error("Firebase Analytics Error: ", error);
+            });
           }}
-          onDismiss={() => {
+          onDismiss={async () => {
             setSelectedRoute({ start: null, dest: null });
             setRouteSteps([]);
 
-            // Task 6: Steps panel dismissed
             try {
-              logEvent(getAnalytics(), "steps_panel_dismissed", {
+              await logUsabilityEvent("steps_panel_dismissed", {
                 session_id: sessionId.current,
               });
-            } catch (e) {}
+            } catch (error) {
+              console.error("Firebase Analytics Error: ", error);
+            }
           }}
           onFocusUser={focusUserLocation}
         />
@@ -655,20 +646,21 @@ export default function CampusMapScreen() {
 
       <NavigationBar
         visible={isNavVisible}
-        onClose={() => {
+        onClose={async () => {
           setIsNavVisible(false);
           setInitialStart(null);
           setInitialDestination(null);
 
-          // Task 5: Nav bar closed without confirming a route
           if (navStartTime.current) {
             try {
-              logEvent(getAnalytics(), "route_generation_abandoned", {
+              await logUsabilityEvent("route_generation_abandoned", {
                 session_id: sessionId.current,
                 time_spent_ms: Date.now() - navStartTime.current,
                 nav_open_count: navOpenCount.current,
               });
-            } catch (e) {}
+            } catch (error) {
+              console.error("Firebase Analytics Error: ", error);
+            }
             navStartTime.current = null;
           }
         }}
@@ -680,13 +672,12 @@ export default function CampusMapScreen() {
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
         onUseMyLocation={() => {
-          //  Task 5: "Use my location" tapped inside nav bar
-          try {
-            logEvent(getAnalytics(), "nav_used_my_location", {
-              session_id: sessionId.current,
-              field: "start",
-            });
-          } catch (e) {}
+          logUsabilityEvent("nav_used_my_location", {
+            session_id: sessionId.current,
+            field: "start",
+          }).catch((error) => {
+            console.error("Firebase Analytics Error: ", error);
+          });
           return demoCurrentBuilding ?? autoStartBuilding ?? null;
         }}
         accessibleOnly={accessibleOnly}
