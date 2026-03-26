@@ -171,9 +171,9 @@ export default function CampusMapScreen() {
     // fall back to the building nearest to the exitOutdoor coordinate.
     const originByExit = transitionPayload.exitOutdoor
       ? findNearestBuilding(
-          transitionPayload.exitOutdoor.latitude,
-          transitionPayload.exitOutdoor.longitude,
-        )
+        transitionPayload.exitOutdoor.latitude,
+        transitionPayload.exitOutdoor.longitude,
+      )
       : null;
 
     // Force the campus toggle to the destination campus so the user sees the correct map.
@@ -192,7 +192,7 @@ export default function CampusMapScreen() {
 
     // Show the navigation drawer so the user can pick walk/bike/drive/transit/shuttle.
     setIsNavVisible(true);
-  }, [transitionPayload]);
+  }, [transitionPayload, findNearestBuilding]);
 
   // When we came from indoor navigation and the payload contains a final indoor destination,
   // we can show a single merged step list (indoor + outdoor + indoor).
@@ -219,19 +219,30 @@ export default function CampusMapScreen() {
       );
       const destOutdoor = destBuilding?.coordinates;
 
-      const entryNodes = (asset?.nodes ?? []).filter(
-        (n: any) => n.type === "building_entry_exit" && n.outdoorLatLng,
+      type EntryExitNode = {
+        id: string;
+        type: string;
+        outdoorLatLng?: {
+          latitude: number;
+          longitude: number;
+        };
+      };
+
+      const entryNodes: EntryExitNode[] = (asset?.nodes ?? []).filter(
+        (node: EntryExitNode) =>
+          node.type === "building_entry_exit" && Boolean(node.outdoorLatLng),
       );
 
       if (destOutdoor && entryNodes.length > 0) {
         const bestNode = entryNodes
-          .map((n: any) => {
-            const ll = n.outdoorLatLng;
+          .map((node) => {
+            const ll = node.outdoorLatLng;
+            if (!ll) return { node, d: Number.POSITIVE_INFINITY };
             const dx = ll.latitude - destOutdoor.latitude;
             const dy = ll.longitude - destOutdoor.longitude;
-            return { n, d: dx * dx + dy * dy };
+            return { node, d: dx * dx + dy * dy };
           })
-          .sort((a: any, b: any) => a.d - b.d)[0]?.n;
+          .sort((a, b) => a.d - b.d)[0]?.node;
 
         if (bestNode?.id) {
           const indoorLeg = getIndoorNavigationRouteFromNode(
@@ -344,13 +355,23 @@ export default function CampusMapScreen() {
     ) => {
       setAccessibleOnly(!!accessible);
 
+      type CrossBuildingIndoorTransition = {
+        mode: "cross_building_indoor";
+        originBuildingCode: string;
+        originIndoorRoomQuery: string;
+        destinationBuildingCode: string;
+        destinationIndoorRoomQuery: string;
+        strategy: RouteStrategy;
+        accessibleOnly: boolean;
+      };
+
       // Cross-building indoor-to-indoor trip (Option A): plan it from Campus Map.
       // When both endpoints are rooms but buildings differ, we kick off the origin indoor leg.
       if (start?.name && dest?.name && startRoom && endRoom && start.name !== dest.name) {
         const originBuildingCode = start.name.trim().toUpperCase();
         const destinationBuildingCode = dest.name.trim().toUpperCase();
-        const payload = {
-          mode: "cross_building_indoor" as const,
+        const payload: CrossBuildingIndoorTransition = {
+          mode: "cross_building_indoor",
           originBuildingCode,
           originIndoorRoomQuery: startRoom.label,
           destinationBuildingCode,
@@ -362,8 +383,8 @@ export default function CampusMapScreen() {
         router.push({
           pathname: "/CampusMapScreen",
           params: {
-            campus: (start.campusName as any) ?? "sgw",
-            transition: serializeTransitionPayload(payload as any),
+            campus: (start.campusName ?? "sgw") as CampusKey,
+            transition: serializeTransitionPayload(payload),
           },
         });
         return;
@@ -467,8 +488,12 @@ export default function CampusMapScreen() {
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
 
-  const routeStepsWithContinueIndoors = useMemo(() => {
-    const baseSteps = (mergedSteps ?? routeSteps) as any[];
+  type InteractiveRouteStep = RouteStep & {
+    onPress?: () => void;
+  };
+
+  const routeStepsWithContinueIndoors = useMemo<InteractiveRouteStep[]>(() => {
+    const baseSteps: InteractiveRouteStep[] = mergedSteps ?? routeSteps;
     if (!canContinueIndoors) return baseSteps;
 
     const built = buildContinueIndoorsStep({
@@ -479,7 +504,7 @@ export default function CampusMapScreen() {
     if (!built) return baseSteps;
 
     // Attach the press handler here (keeps helper pure for easy 100% tests).
-    const steps = built.steps;
+    const steps: InteractiveRouteStep[] = [...built.steps];
     const lastIndex = steps.length - 1;
     if (lastIndex >= 0) {
       steps[lastIndex] = {
@@ -580,7 +605,7 @@ export default function CampusMapScreen() {
           style={[
             styles.actionButton,
             (!showShuttle || !shuttleStatus.available) &&
-              styles.shuttleDisabled,
+            styles.shuttleDisabled,
           ]}
           accessibilityState={{ disabled: !shuttleStatus.available }}
           accessibilityLabel={accessibilityLabel}
@@ -654,7 +679,7 @@ export default function CampusMapScreen() {
 
       {showStepsPanel && (
         <DirectionStepsPanel
-          steps={routeStepsWithContinueIndoors as any}
+          steps={routeStepsWithContinueIndoors}
           strategy={selectedStrategy}
           onChangeRoute={() => {
             setInitialStart(selectedRoute.start);
