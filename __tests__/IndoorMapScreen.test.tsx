@@ -62,6 +62,15 @@ import {
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
 import { selectBestIndoorExit } from "../utils/indoorExit";
+import { BUILDINGS } from "../constants/buildings";
+
+jest.mock("../utils/destinationIndoorLeg", () => ({
+  // Keep the real sentinel logic, but expose the pick fn so we can force the fallback branch.
+  isDestinationLegOrigin: (value: any) => (String(value ?? "").trim().toUpperCase() === "ENTRANCE"),
+  pickClosestEntryExitNodeId: jest.fn(),
+}));
+
+import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",
@@ -273,6 +282,105 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("falls back to the first entrance node when pickClosestEntryExitNodeId returns undefined", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (pickClosestEntryExitNodeId as jest.Mock).mockReturnValue(undefined);
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockMBRoom, floor: 1 });
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      meta: { buildingId: "MB" },
+      nodes: [
+        {
+          id: "entry-node-first",
+          type: "building_entry_exit",
+          buildingId: "MB",
+          floor: 1,
+          x: 10,
+          y: 10,
+          label: "MB-ENTRY",
+          accessible: true,
+        },
+        {
+          id: "entry-node-second",
+          type: "building_entry_exit",
+          buildingId: "MB",
+          floor: 1,
+          x: 100,
+          y: 100,
+          label: "MB-ENTRY-2",
+          accessible: true,
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 10, y: 10 },
+        destination: { floor: 1, x: mockMBRoom.x, y: mockMBRoom.y },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(getIndoorNavigationRouteFromNode).toHaveBeenCalledWith(
+        "MB",
+        "entry-node-first",
+        "MB-1.210",
+        expect.any(Object),
+      );
+    });
+  });
+
+  it("shows an error when entrance routing fails (getIndoorNavigationRouteFromNode returns success=false)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (pickClosestEntryExitNodeId as jest.Mock).mockReturnValue("entry-node-1");
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockMBRoom, floor: 1 });
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      meta: { buildingId: "MB" },
+      nodes: [
+        {
+          id: "entry-node-1",
+          type: "building_entry_exit",
+          buildingId: "MB",
+          floor: 1,
+          x: 10,
+          y: 10,
+          label: "MB-ENTRY",
+          accessible: true,
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: false,
+      message: "No entrance route available.",
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No entrance route available.")).toBeTruthy();
+    });
+  });
+
   it("shows an error when ENTRANCE routing is requested without a destination room", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
@@ -365,6 +473,398 @@ describe("IndoorMapScreen", () => {
     });
 
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("computes cross-building origin-leg directions to an exit and enables Continue outside", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: { latitude: 45.4971, longitude: -73.5791 },
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    // Auto-trigger navigation at mount (via params).
+    await waitFor(() => {
+      expect(selectBestIndoorExit).toHaveBeenCalled();
+      expect(getIndoorNavigationRouteToNode).toHaveBeenCalledWith(
+        "H",
+        "H-867",
+        "exit-node-1",
+        expect.any(Object),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("continue-outside")).toBeTruthy();
+    });
+  });
+
+  it("Continue outside uses the exit outdoor coordinate when it’s near the origin building and pushes CampusMapScreen", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+      outdoorStrategy: JSON.stringify({ travelMode: "WALKING" }),
+      outdoorAccessibleOnly: "true",
+    });
+
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === "H",
+    );
+    const near = originBuilding?.coordinates ?? { latitude: 45.4971, longitude: -73.5791 };
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: near,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("continue-outside")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+  });
+
+  it("Continue outside rejects an implausible exit coordinate and falls back to building centroid", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    // A far-away coordinate should trip the guardrail and use the building centroid instead.
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: { latitude: 0, longitude: 0 },
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("continue-outside")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+  });
+
+  it("cross-building origin-leg resets pendingExitOutdoor when exit has no outdoorLatLng", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: null,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("continue-outside")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+  });
+
+  it("shows an error when selectBestIndoorExit fails on cross-building origin-leg", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: false,
+      message: "No exits found.",
+    });
+
+    render(<IndoorMapScreen />);
+
+    // Auto-trigger navigation.
+    await waitFor(() => {
+      expect(screen.getByText("No exits found.")).toBeTruthy();
+    });
+  });
+
+  it("shows an error when no building plan is available for cross-building origin-leg", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(null);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No building plan found for "H".'),
+      ).toBeTruthy();
+    });
+  });
+
+  it("shows an error when origin room match is missing for cross-building origin-leg", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-DOES-NOT-EXIST",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Could not find room matching "H-DOES-NOT-EXIST" in H\./,
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it("shows an error when computing the cross-building origin-leg route throws", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockHallRoom });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: { latitude: 45.4971, longitude: -73.5791 },
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockImplementation(() => {
+      throw new Error("boom");
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Unable to compute an indoor route to an exit."),
+      ).toBeTruthy();
+    });
+  });
+
+  it("Continue outside shows an error when no origin building centroid is available (effectiveExitOutdoor null)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "NOT_A_BUILDING",
+      floors: JSON.stringify([1]),
+      navOrigin: "H-867",
+      navDest: "NOT_A_BUILDING",
+      outdoorDestBuilding: "MB",
+    });
+
+    // This needs the cross-building origin-leg route so `activeRoute` becomes truthy and the CTA renders.
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue({
+      buildingCode: "NOT_A_BUILDING",
+      floors: [1],
+      rooms: [mockHallRoom],
+      roomsByFloor: { 1: [mockHallRoom] },
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockHallRoom });
+
+    // Select an exit with no outdoor coordinate.
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: { nodeId: "exit-node-1", outdoorLatLng: null },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 0, y: 0 },
+        destination: { floor: 1, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("continue-outside")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Couldn't determine an outdoor start point for this building exit/i,
+        ),
+      ).toBeTruthy();
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("Continue outside tolerates invalid outdoorStrategy JSON (strategy becomes undefined) and still navigates", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+      outdoorStrategy: "{not-json}",
+    });
+
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === "H",
+    );
+    const near = originBuilding?.coordinates ?? { latitude: 45.4971, longitude: -73.5791 };
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: near,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("continue-outside")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalled();
+    });
   });
 
   it("shows no map when buildingName is undefined", async () => {

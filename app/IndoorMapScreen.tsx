@@ -785,7 +785,7 @@ export default function IndoorMapScreen() {
           </View>
         )}
 
-        {activeRoute && trimParam(outdoorDestBuilding) && (
+        {Boolean(activeRoute) && Boolean(trimParam(outdoorDestBuilding)) && (
           <View style={{ marginTop: spacing.sm }}>
             {destinationRoomQueryText ? (
               <Text style={{ color: colors.gray700, marginBottom: spacing.xs }}>
