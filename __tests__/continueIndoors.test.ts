@@ -112,8 +112,21 @@ describe("utils/continueIndoors", () => {
       expect(result!.openArgs).toEqual({
         buildingCode: "CC",
         navOrigin: "ENTRANCE",
-        navDest: undefined,
       });
+    });
+
+    it("uses the trimmed destinationBuildingCode when building-only", () => {
+      const result = buildContinueIndoorsStep({
+        baseSteps,
+        destinationBuildingCode: "  cc ",
+        destinationRoomQuery: "",
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.steps[result!.steps.length - 1].instruction).toBe(
+        "Continue indoors in cc",
+      );
+      expect(result!.openArgs.buildingCode).toBe("cc");
     });
   });
 });

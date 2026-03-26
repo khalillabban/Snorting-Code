@@ -73,5 +73,17 @@ describe("utils/destinationIndoorLeg", () => {
         }),
       ).toBe("a");
     });
+
+    it("returns the id of the closest node", () => {
+      const result = pickClosestEntryExitNodeId({
+        entryNodes: [
+          { id: "A", x: 0, y: 0, type: "building_entry_exit" },
+          { id: "B", x: 100, y: 100, type: "building_entry_exit" },
+        ],
+        destinationRoom: { x: 1, y: 1 },
+      });
+
+      expect(result).toBe("A");
+    });
   });
 });

@@ -40,7 +40,7 @@ export function buildContinueIndoorsStep(opts: {
   const openArgs: OpenIndoorNavArgs = {
     buildingCode: destCode,
     navOrigin: DESTINATION_LEG_ORIGIN_SENTINEL,
-    navDest: roomQuery ? roomQuery : undefined,
+    ...(roomQuery ? { navDest: roomQuery } : {}),
   };
 
   const step = {

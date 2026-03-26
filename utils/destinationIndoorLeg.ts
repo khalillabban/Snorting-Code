@@ -27,5 +27,6 @@ export function pickClosestEntryExitNodeId(opts: {
     })
     .sort((a, b) => a.d - b.d)[0];
 
-  return best?.id ?? opts.entryNodes[0]?.id ?? null;
+  // With entryNodes.length > 0, best is always present.
+  return best.id;
 }
