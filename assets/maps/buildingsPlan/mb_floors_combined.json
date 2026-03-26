@@ -1760,6 +1760,7 @@
       "floor": -2,
       "x": 370,
       "y": 470,
+      "outdoorLatLng": { "latitude": 45.497035, "longitude": -73.578560 },
       "label": "Entrance",
       "accessible": true
     },
@@ -1770,6 +1771,7 @@
       "floor": -2,
       "x": 585,
       "y": 170,
+      "outdoorLatLng": { "latitude": 45.497010, "longitude": -73.578560 },
       "label": "MB-stair4",
       "accessible": false
     },

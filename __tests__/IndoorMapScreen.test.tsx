@@ -1,8 +1,10 @@
 import React from "react";
 
+const mockPush = jest.fn();
+
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(),
-  useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
+  useRouter: jest.fn(() => ({ push: mockPush, back: jest.fn() })),
 }));
 
 jest.mock("expo-image", () => {
@@ -15,6 +17,7 @@ jest.mock("expo-image", () => {
 
 jest.mock("../utils/mapAssets", () => ({
   getFloorImageMetadata: jest.fn(),
+  getAvailableFloors: jest.fn(() => []),
   getLegacyFloorGeoJsonAsset: jest.fn(),
   normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
     (buildingCode ?? "").trim().toUpperCase(),
@@ -31,7 +34,12 @@ jest.mock("../utils/indoorRoomSearch", () => ({
 
 jest.mock("../utils/indoorNavigation", () => ({
   getIndoorNavigationRoute: jest.fn(),
+  getIndoorNavigationRouteToNode: jest.fn(),
   getRouteWaypointsForFloor: jest.fn(() => []),
+}));
+
+jest.mock("../utils/indoorExit", () => ({
+  selectBestIndoorExit: jest.fn(),
 }));
 
 jest.mock("../utils/indoorPOI", () => ({
@@ -44,9 +52,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { getIndoorNavigationRoute } from "../utils/indoorNavigation";
+import {
+  getIndoorNavigationRoute,
+  getIndoorNavigationRouteToNode,
+} from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
+import { selectBestIndoorExit } from "../utils/indoorExit";
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",
@@ -217,6 +229,44 @@ describe("IndoorMapScreen", () => {
     await waitFor(() => {
       expect(screen.getByText(/MB Building/)).toBeTruthy();
     });
+  });
+
+  it("shows an error when attempting cross-building navigation from an indoor map", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      outdoorDestBuilding: "MB",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation((_plan: any, query: string) => {
+      if (query === "H-867") return { room: mockHallRoom };
+      return null;
+    });
+
+    // User tries to route to another building code from an indoor map.
+    // This should now be blocked and instruct the user to use the Campus Map.
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "CC",
+    });
+
+    render(<IndoorMapScreen />);
+
+  // Trigger the navigation calculation.
+  fireEvent.press(screen.getByText("Go"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Cross-building directions start from the Campus Map/i,
+        ),
+      ).toBeTruthy();
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("shows no map when buildingName is undefined", async () => {

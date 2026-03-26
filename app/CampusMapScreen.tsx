@@ -17,6 +17,12 @@ import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
+import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
+import { getBuildingPlanAsset } from "../utils/mapAssets";
+import {
+  getIndoorNavigationRouteFromNode,
+  indoorRouteToSteps,
+} from "../utils/indoorNavigation";
 import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
@@ -41,7 +47,45 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 export default function CampusMapScreen() {
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(false);
-  const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
+  const { campus, transition, destinationRoomQuery } = useLocalSearchParams<{
+    campus?: CampusKey;
+    transition?: string;
+    destinationRoomQuery?: string;
+  }>();
+
+  const transitionPayload = useMemo(
+    () => parseTransitionPayload(typeof transition === "string" ? transition : undefined),
+    [transition],
+  );
+
+  // If the user planned a cross-building trip with indoor rooms at both ends from the
+  // navigation drawer, immediately jump into the origin building's indoor navigation.
+  useEffect(() => {
+    if (transitionPayload?.mode !== "cross_building_indoor") return;
+
+    const originCode = transitionPayload.originBuildingCode.trim().toUpperCase();
+    const destCode = transitionPayload.destinationBuildingCode.trim().toUpperCase();
+
+    router.push({
+      pathname: "/IndoorMapScreen",
+      params: {
+        buildingName: originCode,
+        floors: "1", // IndoorMapScreen will normalize if the building has different floors.
+        navOrigin: transitionPayload.originIndoorRoomQuery,
+        // We set navDest to the destination building code to force the origin-building
+        // indoor leg to route to a good exit. (IndoorMapScreen will *not* do cross-building
+        // room navigation.)
+        navDest: destCode,
+        outdoorDestBuilding: destCode,
+        outdoorStrategy: transitionPayload.strategy ? JSON.stringify(transitionPayload.strategy) : undefined,
+        outdoorAccessibleOnly: transitionPayload.accessibleOnly ? "true" : "false",
+        // Carry the final indoor query for later (CampusMapScreen will use it to offer
+        // a "Continue indoors" option near the destination building).
+        destinationRoomQuery: transitionPayload.destinationIndoorRoomQuery,
+        accessibleOnly: String(Boolean(transitionPayload.accessibleOnly)),
+      },
+    });
+  }, [transitionPayload]);
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
     let nearest = BUILDINGS[0];
@@ -82,6 +126,127 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+
+  const destinationRoomQueryText = useMemo(() => {
+    if (typeof destinationRoomQuery === "string" && destinationRoomQuery.trim()) {
+      return destinationRoomQuery;
+    }
+    // If we arrived via a transition payload (ex: indoor_to_outdoor), prefer the payload field.
+    if (
+      transitionPayload?.mode === "indoor_to_outdoor" &&
+      typeof transitionPayload.destinationIndoorRoomQuery === "string"
+    ) {
+      return transitionPayload.destinationIndoorRoomQuery;
+    }
+    return "";
+  }, [destinationRoomQuery, transitionPayload]);
+
+  // If we arrived from indoor navigation, auto-select the outdoor route so the map
+  // immediately renders a path (instead of waiting for the user to pick buildings).
+  useEffect(() => {
+    if (transitionPayload?.mode !== "indoor_to_outdoor") return;
+
+    const destCode = transitionPayload.destinationBuildingCode
+      ?.trim()
+      .toUpperCase();
+    if (!destCode) return;
+
+    const destBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === destCode,
+    );
+    if (!destBuilding) return;
+
+    const originCode = transitionPayload.originBuildingCode
+      ?.trim()
+      .toUpperCase();
+    const originBuilding = originCode
+      ? BUILDINGS.find((b) => b.name.trim().toUpperCase() === originCode)
+      : null;
+
+    // Force the campus toggle to the destination campus so the user sees the correct map.
+    const destCampus =
+      destBuilding.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const);
+    setCurrentCampus(destCampus);
+    setFocusTarget((prev) => (prev === "user" ? prev : destCampus));
+
+  // Ensure both endpoints are set so CampusMap computes a route immediately.
+  setSelectedRoute({ start: originBuilding ?? null, dest: destBuilding });
+    setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
+    setRouteFocusTrigger((c) => c + 1);
+
+    // Show the navigation drawer so the user can pick walk/bike/drive/transit/shuttle.
+    setIsNavVisible(true);
+  }, [transitionPayload]);
+
+  // When we came from indoor navigation and the payload contains a final indoor destination,
+  // we can show a single merged step list (indoor + outdoor + indoor).
+  const mergedSteps = useMemo(() => {
+    if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
+    const destRoom = transitionPayload.destinationIndoorRoomQuery?.trim();
+    if (!destRoom) return null;
+
+    const prefix: RouteStep[] = [
+      {
+        instruction: `Exit ${transitionPayload.originBuildingCode} to the selected entrance`,
+      },
+    ];
+
+    const destCode = transitionPayload.destinationBuildingCode;
+    const asset = getBuildingPlanAsset(destCode);
+
+    // Attempt to compute a real indoor leg inside the destination building.
+    // We pick the closest entry/exit node (by outdoorLatLng) to the building's outdoor coordinate.
+    let finalIndoorSteps: RouteStep[] = [];
+    try {
+      const destBuilding = BUILDINGS.find(
+        (b) => b.name.trim().toUpperCase() === destCode.trim().toUpperCase(),
+      );
+      const destOutdoor = destBuilding?.coordinates;
+
+      const entryNodes = (asset?.nodes ?? []).filter(
+        (n: any) => n.type === "building_entry_exit" && n.outdoorLatLng,
+      );
+
+      if (destOutdoor && entryNodes.length > 0) {
+        const bestNode = entryNodes
+          .map((n: any) => {
+            const ll = n.outdoorLatLng;
+            const dx = ll.latitude - destOutdoor.latitude;
+            const dy = ll.longitude - destOutdoor.longitude;
+            return { n, d: dx * dx + dy * dy };
+          })
+          .sort((a: any, b: any) => a.d - b.d)[0]?.n;
+
+        if (bestNode?.id) {
+          const indoorLeg = getIndoorNavigationRouteFromNode(
+            destCode,
+            bestNode.id,
+            destRoom,
+            { accessibleOnly: Boolean(transitionPayload.accessibleOnly) },
+          );
+          if (indoorLeg.success) {
+            finalIndoorSteps = indoorRouteToSteps(indoorLeg.route);
+          }
+        }
+      }
+    } catch {
+      // If anything goes wrong, fall back to a single final hint line.
+      finalIndoorSteps = [];
+    }
+
+    const suffix: RouteStep[] =
+      finalIndoorSteps.length > 0
+        ? [{ instruction: `Enter ${destCode}` }, ...finalIndoorSteps]
+        : [{ instruction: `Enter ${destCode} and continue to ${destRoom}` }];
+
+    return [...prefix, ...routeSteps, ...suffix];
+  }, [routeSteps, transitionPayload]);
+
+  // Optional origin override when arriving from indoor navigation.
+  const startOverride =
+    transitionPayload?.mode === "indoor_to_outdoor"
+      ? transitionPayload.exitOutdoor
+      : null;
   const [isNextClassVisible, setIsNextClassVisible] = useState(false);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
 
@@ -163,6 +328,29 @@ export default function CampusMapScreen() {
     ) => {
       setAccessibleOnly(!!accessible);
 
+      // Cross-building indoor-to-indoor trip (Option A): plan it from Campus Map.
+      // When both endpoints are rooms but buildings differ, we kick off the origin indoor leg.
+      if (start?.name && dest?.name && startRoom && endRoom && start.name !== dest.name) {
+        const payload = {
+          mode: "cross_building_indoor" as const,
+          originBuildingCode: start.name,
+          originIndoorRoomQuery: startRoom.label,
+          destinationBuildingCode: dest.name,
+          destinationIndoorRoomQuery: endRoom.label,
+          strategy,
+          accessibleOnly: !!accessible,
+        };
+
+        router.push({
+          pathname: "/CampusMapScreen",
+          params: {
+            campus: (start.campusName as any) ?? "sgw",
+            transition: serializeTransitionPayload(payload as any),
+          },
+        });
+        return;
+      }
+
       if (
         start?.name &&
         dest?.name &&
@@ -237,7 +425,24 @@ export default function CampusMapScreen() {
 
   const hasActiveRoute =
     selectedRoute.start != null && selectedRoute.dest != null;
-  const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
+  const showStepsPanel = hasActiveRoute && (mergedSteps?.length || routeSteps.length) > 0;
+
+  // Destination building code for the "Continue indoors" affordance.
+  // In production, indoor floor metadata may not be loaded here, so we only gate
+  // on having a destination building code.
+  const continueIndoorsBuildingCode = useMemo(() => {
+    const selected = selectedRoute.dest?.name?.trim();
+    if (selected) return selected;
+
+    if (transitionPayload?.mode === "indoor_to_outdoor") {
+      const payloadCode = transitionPayload.destinationBuildingCode?.trim();
+      if (payloadCode) return payloadCode;
+    }
+
+    return "";
+  }, [selectedRoute.dest?.name, transitionPayload]);
+
+  const canContinueIndoors = Boolean(continueIndoorsBuildingCode);
 
   const nextClassIndoorAccess = useMemo(
     () => getIndoorAccessState(nextClass?.building),
@@ -246,6 +451,34 @@ export default function CampusMapScreen() {
   const canOpenNextClassIndoorMap = Boolean(
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
+
+  const routeStepsWithContinueIndoors = useMemo(() => {
+    const baseSteps = (mergedSteps ?? routeSteps) as any[];
+    if (!canContinueIndoors) return baseSteps;
+
+    const destCode = continueIndoorsBuildingCode;
+    if (!destCode) return baseSteps;
+
+    const labelRoom = destinationRoomQueryText.trim();
+    const instruction = labelRoom
+      ? `Continue indoors to ${labelRoom}`
+      : `Continue indoors in ${destCode}`;
+
+    return [
+      ...baseSteps,
+      {
+        instruction,
+        onPress: () => {
+          const roomQuery = destinationRoomQueryText.trim();
+          // For "continue indoors" we want an actual route polyline, not just a marker.
+          // IndoorMapScreen will auto-trigger navigation when both navOrigin + navDest are present.
+          // - navOrigin: "ENTRANCE" (special-cased inside IndoorMapScreen for destination-leg)
+          // - navDest: destination room query (ex: CC-124)
+          openIndoorMap(destCode, undefined, "ENTRANCE", roomQuery || undefined);
+        },
+      },
+    ];
+  }, [mergedSteps, routeSteps, canContinueIndoors, continueIndoorsBuildingCode, destinationRoomQueryText, openIndoorMap]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -257,6 +490,7 @@ export default function CampusMapScreen() {
         userFocusCounter={userFocusCounter}
         routeFocusTrigger={routeFocusTrigger}
         startPoint={selectedRoute.start}
+        startOverride={startOverride}
         destinationPoint={selectedRoute.dest}
         showShuttle={showShuttle}
         strategy={selectedStrategy}
@@ -313,6 +547,8 @@ export default function CampusMapScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Continue indoors is rendered as the final step inside the directions panel. */}
 
       {/* Left button stack */}
       <View
@@ -400,7 +636,7 @@ export default function CampusMapScreen() {
 
       {showStepsPanel && (
         <DirectionStepsPanel
-          steps={routeSteps}
+          steps={routeStepsWithContinueIndoors as any}
           strategy={selectedStrategy}
           onChangeRoute={() => {
             setInitialStart(selectedRoute.start);

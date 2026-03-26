@@ -6,8 +6,12 @@ import { RouteStep } from "../constants/type";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/DirectionStepsPanel.styles";
 
+type ActionableRouteStep = RouteStep & {
+  readonly onPress?: () => void;
+};
+
 interface DirectionStepsPanelProps {
-  readonly steps: RouteStep[];
+  readonly steps: ActionableRouteStep[];
   readonly strategy: RouteStrategy;
   readonly onChangeRoute: () => void;
   readonly onDismiss?: () => void;
@@ -84,8 +88,19 @@ export function DirectionStepsPanel({
 
             const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
+            const StepContainer: any = step.onPress ? Pressable : View;
+
             return (
-              <View key={stepKey} style={styles.stepRow}>
+              <StepContainer
+                key={stepKey}
+                style={styles.stepRow}
+                {...(step.onPress
+                  ? {
+                      onPress: step.onPress,
+                      accessibilityRole: "button",
+                    }
+                  : null)}
+              >
                 <View style={styles.stepLeft}>
                   <View
                     style={[
@@ -121,7 +136,7 @@ export function DirectionStepsPanel({
                     </Text>
                   )}
                 </View>
-              </View>
+              </StepContainer>
             );
           })}
         </ScrollView>

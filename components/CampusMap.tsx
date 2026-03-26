@@ -42,6 +42,7 @@ type CampusMapProps = Readonly<{
   userFocusCounter?: number;
   routeFocusTrigger?: number;
   startPoint?: Buildings | null;
+  startOverride?: Location | null;
   destinationPoint?: Buildings | null;
   showShuttle: boolean;
   strategy: RouteStrategy;
@@ -139,6 +140,7 @@ export default function CampusMap({
   userFocusCounter = 0,
   routeFocusTrigger = 0,
   startPoint,
+  startOverride,
   destinationPoint,
   showShuttle,
   strategy,
@@ -304,7 +306,8 @@ export default function CampusMap({
     let cancelled = false;
 
     async function fetchRoute() {
-      if (!startPoint || !destinationPoint) {
+      const effectiveOrigin = startOverride ?? startPoint?.coordinates ?? null;
+      if (!effectiveOrigin || !destinationPoint) {
         setRouteSegments([]);
         onRouteSteps?.([]);
         return;
@@ -312,7 +315,7 @@ export default function CampusMap({
 
       try {
         const { steps, segments } = await getOutdoorRouteWithSteps(
-          startPoint.coordinates,
+          effectiveOrigin,
           destinationPoint.coordinates,
           strategy,
         );
@@ -334,7 +337,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [startPoint, destinationPoint, strategy, onRouteSteps]);
+  }, [startPoint, startOverride, destinationPoint, strategy, onRouteSteps]);
 
   // Fetch shuttle route (campus to campus) via Google Directions when showShuttle is true
   useEffect(() => {
@@ -390,18 +393,19 @@ export default function CampusMap({
 
   // Focus on start point when route is confirmed
   useEffect(() => {
-    if (startPoint && mapReady && routeFocusTrigger > 0) {
+    const focusOrigin = startOverride ?? startPoint?.coordinates ?? null;
+    if (focusOrigin && mapReady && routeFocusTrigger > 0) {
       mapRef.current?.animateToRegion(
         {
-          latitude: startPoint.coordinates.latitude,
-          longitude: startPoint.coordinates.longitude,
+          latitude: focusOrigin.latitude,
+          longitude: focusOrigin.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         },
         500,
       );
     }
-  }, [startPoint, mapReady, routeFocusTrigger]);
+  }, [startPoint, startOverride, mapReady, routeFocusTrigger]);
 
   // Focus selected building
   useEffect(() => {
@@ -447,7 +451,7 @@ export default function CampusMap({
         {startPoint && (
           <Marker
             testID="marker-start"
-            coordinate={startPoint.coordinates}
+            coordinate={(startOverride ?? startPoint.coordinates) as any}
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={Platform.OS === "android"}
           >

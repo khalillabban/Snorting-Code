@@ -12,6 +12,13 @@ import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import { getNextClassFromItems, loadCachedSchedule } from "../utils/parseCourseEvents";
+import { parseTransitionPayload } from "../utils/routeTransition";
+
+jest.mock("../utils/routeTransition", () => ({
+  __esModule: true,
+  parseTransitionPayload: jest.fn(),
+  serializeTransitionPayload: jest.fn(),
+}));
 
 
 jest.mock("@expo/vector-icons", () => {
@@ -61,6 +68,7 @@ jest.mock("../components/CampusMap", () => {
         {JSON.stringify({
           coordinates: props.coordinates,
           focusTarget: props.focusTarget,
+          startOverride: props.startOverride,
           startPoint: props.startPoint,
           destinationPoint: props.destinationPoint,
           strategy: props.strategy,
@@ -141,6 +149,7 @@ jest.mock("../constants/campuses", () => ({
 
 jest.mock("../utils/mapAssets", () => ({
   getAvailableFloors: jest.fn(),
+  getBuildingPlanAsset: jest.fn(() => ({ nodes: [], edges: [] })),
   hasBuildingPlanAsset: jest.fn(),
   normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
     (buildingCode ?? "").trim().toUpperCase(),
@@ -309,12 +318,15 @@ jest.mock("../components/NavigationBar", () => {
 
 jest.mock("../components/DirectionStepsPanel", () => {
   const React = require("react");
-  const { View, Button } = require("react-native");
+  const { View, Button, Text } = require("react-native");
 
   const MockDirectionStepsPanel = (props: any) => (
     <View testID="steps-panel">
       <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
       <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
+      <Text testID="steps-serialized">
+        {(props.steps ?? []).map((s: any) => s?.instruction).join("\n")}
+      </Text>
       {props.onFocusUser && (
         <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
       )}
@@ -326,6 +338,11 @@ jest.mock("../components/DirectionStepsPanel", () => {
     default: MockDirectionStepsPanel,
     DirectionStepsPanel: MockDirectionStepsPanel,
   };
+});
+
+beforeEach(() => {
+  // Most tests don't care about transitions; default to none.
+  (parseTransitionPayload as jest.Mock).mockReturnValue(null);
 });
 
 jest.mock("../hooks/useShuttleAvailability", () => ({
@@ -501,6 +518,7 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 1, longitude: 2 },
       focusTarget: "sgw",
+      startOverride: null,
       startPoint: null,
       destinationPoint: null,
       strategy: WALKING_STRATEGY,
@@ -515,6 +533,7 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
+      startOverride: null,
       startPoint: null,
       destinationPoint: null,
       strategy: WALKING_STRATEGY,
@@ -531,10 +550,69 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
+      startOverride: null,
       startPoint: null,
       destinationPoint: null,
       strategy: WALKING_STRATEGY,
     });
+  });
+
+  it("passes transition exitOutdoor to CampusMap as startOverride", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: JSON.stringify({
+        mode: "indoor_to_outdoor",
+        originBuildingCode: "H",
+        exitNodeId: "Hall_F1_building_entry_exit_1",
+        exitIndoor: { buildingCode: "H", floor: 1, x: 1, y: 2 },
+        exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+        destinationBuildingCode: "MB",
+        destinationCampus: "sgw",
+      }),
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      exitNodeId: "Hall_F1_building_entry_exit_1",
+      exitIndoor: { buildingCode: "H", floor: 1, x: 1, y: 2 },
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      destinationBuildingCode: "MB",
+      destinationCampus: "sgw",
+    });
+
+    await renderScreen();
+
+    expect(getMapProps().startOverride).toEqual({ latitude: 45.0, longitude: -73.0 });
+  });
+
+  it("merges indoor/outdoor/indoor steps when transition includes a destination indoor room", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "loyola",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      exitNodeId: "H_EXIT_1",
+      exitIndoor: { buildingCode: "H", floor: 1, x: 0, y: 0 },
+      exitOutdoor: { latitude: 45, longitude: -73 },
+      destinationBuildingCode: "VL",
+      destinationCampus: "loyola",
+      destinationIndoorRoomQuery: "VL-202-30",
+    });
+
+    await renderScreen();
+
+    // Create an active route (start/dest) and inject outdoor steps via the CampusMap mock.
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const serialized = screen.getByTestId("steps-serialized").props.children;
+    expect(serialized).toContain("Exit H to the selected entrance");
+    expect(serialized).toContain("Walk");
+    expect(serialized).toContain("Enter VL and continue to VL-202-30");
   });
   it("handles initial destination lifecycle", async () => {
     await renderScreen();
@@ -573,6 +651,7 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "user",
+      startOverride: null,
       startPoint: null,
       destinationPoint: null,
       strategy: WALKING_STRATEGY,
@@ -659,6 +738,7 @@ describe("CampusMapScreen", () => {
       expect(getMapProps()).toEqual({
         coordinates: { latitude: 1, longitude: 2 },
         focusTarget: "sgw",
+        startOverride: null,
         startPoint: null,
         destinationPoint: null,
         strategy: WALKING_STRATEGY,
