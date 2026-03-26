@@ -623,7 +623,6 @@ export default function IndoorMapScreen() {
     // IndoorMapScreen is building-local only. If the destination looks like a different
     // building/campus code, tell the user to start cross-building navigation from the Campus Map.
     const typedDest = navDestQuery.trim().toUpperCase();
-    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
     const isCampusCode = typedDest === "SGW" || typedDest === "LOYOLA";
     const isDifferentBuildingCode = BUILDINGS.some(
       (b) => b.name.trim().toUpperCase() === typedDest,

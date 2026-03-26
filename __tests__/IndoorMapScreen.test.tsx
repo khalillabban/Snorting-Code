@@ -424,6 +424,109 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("shows an error when ENTRANCE routing is requested but no building plan/asset exists", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(null);
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue(null);
+
+    render(<IndoorMapScreen />);
+
+    expect(
+      await screen.findByText('No building plan found for "MB".'),
+    ).toBeTruthy();
+  });
+
+  it("shows an error when ENTRANCE routing is requested but destination room match is missing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockMBPlan);
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [{ id: "E1", type: "building_entry_exit" }],
+      edges: [],
+    });
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+
+    render(<IndoorMapScreen />);
+
+    expect(
+      await screen.findByText('Room "MB-1.210" was not found in MB.'),
+    ).toBeTruthy();
+  });
+
+  it("shows an error when ENTRANCE routing is requested but no usable entrance node id exists", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockMBPlan);
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockMBRoom, floor: 1 });
+    // Force the fallback to use entryNodes[0]?.id, but make it falsy.
+    (pickClosestEntryExitNodeId as jest.Mock).mockReturnValue(undefined);
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [{ type: "building_entry_exit" }],
+      edges: [],
+    });
+
+    render(<IndoorMapScreen />);
+
+    expect(
+      await screen.findByText('No usable entrance node was found for MB.'),
+    ).toBeTruthy();
+  });
+
+  it("prefills the destination input from destinationRoomQuery when doing a cross-building origin leg", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      navOrigin: "MB-1.210",
+      navDest: "CC",
+      outdoorDestBuilding: "CC",
+      destinationRoomQuery: "CC-124",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockMBPlan);
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({ nodes: [], edges: [] });
+
+    render(<IndoorMapScreen />);
+
+    // The "To" field should be prefilled to the destinationRoomQuery value.
+    const to = await screen.findByPlaceholderText("To (H-920)");
+    expect((to as any).props.value).toBe("CC-124");
+  });
+
+  it("shows a generic error when ENTRANCE routing throws an exception", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockMBPlan);
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [{ id: "E1", type: "building_entry_exit" }],
+      edges: [],
+    });
+    (findIndoorRoomMatch as jest.Mock).mockImplementation(() => {
+      throw new Error("boom");
+    });
+
+    render(<IndoorMapScreen />);
+
+    expect(
+      await screen.findByText("Unable to compute indoor directions from the entrance."),
+    ).toBeTruthy();
+  });
+
   it("handles empty floors array gracefully", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "MB",
