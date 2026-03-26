@@ -5900,6 +5900,7 @@
       "floor": 1,
       "x": 1940,
       "y": 1815,
+      "outdoorLatLng": { "latitude": 45.497385, "longitude": -73.578645 },
       "label": "",
       "accessible": true
     },
@@ -5910,6 +5911,7 @@
       "floor": 1,
       "x": 1943,
       "y": 1985,
+      "outdoorLatLng": { "latitude": 45.497395, "longitude": -73.578635 },
       "label": "",
       "accessible": true
     },
@@ -5920,6 +5922,7 @@
       "floor": 1,
       "x": 739,
       "y": 1933,
+      "outdoorLatLng": { "latitude": 45.497410, "longitude": -73.578710 },
       "label": "",
       "accessible": true
     },
@@ -5930,6 +5933,7 @@
       "floor": 1,
       "x": 490,
       "y": 1941,
+      "outdoorLatLng": { "latitude": 45.497420, "longitude": -73.578735 },
       "label": "",
       "accessible": true
     },

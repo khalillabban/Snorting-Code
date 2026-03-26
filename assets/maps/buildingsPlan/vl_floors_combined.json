@@ -1661,7 +1661,11 @@
       "x": 840,
       "y": 510,
       "label": "VL-entrance1",
-      "accessible": true
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.458430,
+        "longitude": -73.640950
+      }
     }
   ],
   "edges": [

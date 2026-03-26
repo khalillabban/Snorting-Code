@@ -429,6 +429,39 @@ describe("CampusMap", () => {
     expect(await screen.findByTestId("marker-destination")).toBeTruthy();
   });
 
+  it("uses startOverride as the origin for routing when provided", async () => {
+    const startOverride = { latitude: 99, longitude: 88 };
+
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [],
+      steps: [],
+      segments: [],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startOverride={startOverride}
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getOutdoorRouteWithSteps).toHaveBeenCalled();
+    });
+
+    const lastCallArgs = (getOutdoorRouteWithSteps as jest.Mock).mock.calls[
+      (getOutdoorRouteWithSteps as jest.Mock).mock.calls.length - 1
+    ];
+
+    // origin is first arg
+    expect(lastCallArgs[0]).toEqual(startOverride);
+  });
+
   // --- Polyline coverage ---
   it("renders multi-segment polylines correctly", async () => {
     const mockSegments = [

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -25,17 +25,31 @@ import {
 } from "../utils/indoorBuildingPlan";
 import {
   getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
   NavigationRoute,
+  type NavigationResult,
 } from "../utils/indoorNavigation";
+import { selectBestIndoorExit } from "../utils/indoorExit";
+import {
+  isDestinationLegOrigin,
+  pickClosestEntryExitNodeId,
+} from "../utils/destinationIndoorLeg";
 import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getFloorImageMetadata } from "../utils/mapAssets";
+import { getAvailableFloors, getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
+import { BUILDINGS } from "../constants/buildings";
+import {
+  serializeTransitionPayload,
+  type IndoorToOutdoorTransitionPayload,
+} from "../utils/routeTransition";
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
 const DEFAULT_VIEWPORT_HEIGHT = 420;
+const DEFAULT_AVAILABLE_FLOORS = [1] as const;
 type FloorViewport = {
   width: number;
   height: number;
@@ -223,12 +237,17 @@ function useNavAutoTrigger(
 }
 
 export default function IndoorMapScreen() {
+  const router = useRouter();
   const {
     buildingName,
     floors,
     roomQuery,
     navOrigin,
     navDest,
+    outdoorDestBuilding,
+    outdoorStrategy,
+    outdoorAccessibleOnly,
+    destinationRoomQuery,
     accessibleOnly: accessibleOnlyParam,
   } = useLocalSearchParams<{
     buildingName: string;
@@ -236,6 +255,10 @@ export default function IndoorMapScreen() {
     roomQuery?: string;
     navOrigin?: string;
     navDest?: string;
+    outdoorDestBuilding?: string;
+    outdoorStrategy?: string;
+    outdoorAccessibleOnly?: string;
+    destinationRoomQuery?: string;
     accessibleOnly?: string;
   }>();
   // Accessibility mode state
@@ -243,7 +266,18 @@ export default function IndoorMapScreen() {
     accessibleOnlyParam === "true",
   );
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const availableFloors = useMemo(() => parseFloors(floors), [floors]);
+  const availableFloors = useMemo(() => {
+    const parsed = parseFloors(floors);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+
+    // Defensive fallback: some navigation flows may omit/garble `floors`.
+    // Prefer using the building's real floors when available.
+    if (typeof buildingName === "string" && buildingName.trim()) {
+      const fallback = getAvailableFloors(buildingName);
+      if (Array.isArray(fallback) && fallback.length > 0) return fallback;
+    }
+    return [...DEFAULT_AVAILABLE_FLOORS];
+  }, [buildingName, floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -261,8 +295,27 @@ export default function IndoorMapScreen() {
   const [navDestQuery, setNavDestQuery] = useState(
     typeof navDest === "string" ? navDest.trim() : "",
   );
+
+  const destinationRoomQueryText =
+    typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
+
+  // Cross-building origin leg UX: show the final destination room in the "To" input,
+  // even though we route to an exit based on `outdoorDestBuilding`.
+  useEffect(() => {
+    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    if (!isCrossBuildingOriginLeg) return;
+    if (!destinationRoomQueryText) return;
+    setNavDestQuery(destinationRoomQueryText);
+  }, [destinationRoomQueryText, outdoorDestBuilding]);
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
+  const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Safety: if the user switches buildings, never reuse a previous building's selected exit
+  // coordinate when transitioning outside.
+  useEffect(() => {
+    setPendingExitOutdoor(null);
+  }, [buildingName]);
   const [activePOICategories, setActivePOICategories] = useState<Set<POICategoryId>>(new Set());
 
   const initialRoomQuery = trimParam(roomQuery);
@@ -409,27 +462,285 @@ export default function IndoorMapScreen() {
 
   useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
 
+  const failNavigation = useCallback((message: string) => {
+    setNavError(message);
+    setActiveRoute(null);
+  }, []);
+
+  const applyNavigationResult = useCallback(
+    (result: NavigationResult) => {
+      if (result.success) {
+        setActiveRoute(result.route);
+        setSelectedFloor(result.route.origin.floor);
+      } else {
+        failNavigation(result.message);
+      }
+    },
+    [failNavigation],
+  );
+
+  const routeDestinationIndoorLegFromEntrance = useCallback((): boolean => {
+    if (!buildingName) return true;
+    if (!isDestinationLegOrigin(navOriginQuery)) return false;
+
+    try {
+      const destQuery = navDestQuery.trim();
+      if (!destQuery) {
+        failNavigation("Enter a destination room to continue indoors.");
+        return true;
+      }
+
+      const plan = getNormalizedBuildingPlan(buildingName);
+      const asset = getBuildingPlanAsset(buildingName);
+      if (!plan || !asset) {
+        failNavigation(`No building plan found for "${buildingName}".`);
+        return true;
+      }
+
+      const destMatch = findIndoorRoomMatch(plan, destQuery);
+      if (!destMatch) {
+        failNavigation(`Room "${destQuery}" was not found in ${buildingName}.`);
+        return true;
+      }
+
+      const entryNodes = (asset.nodes ?? []).filter(
+        (n: any) => n.type === "building_entry_exit",
+      );
+      if (entryNodes.length === 0) {
+        failNavigation(`No building entrances were found for ${buildingName}.`);
+        return true;
+      }
+
+      const entryNodeId =
+        pickClosestEntryExitNodeId({
+          entryNodes,
+          destinationRoom: destMatch.room,
+        }) ?? entryNodes[0]?.id;
+      if (!entryNodeId) {
+        failNavigation(`No usable entrance node was found for ${buildingName}.`);
+        return true;
+      }
+
+      const result = getIndoorNavigationRouteFromNode(
+        buildingName,
+        entryNodeId,
+        destQuery,
+        { accessibleOnly },
+      );
+
+      applyNavigationResult(result as any);
+      return true;
+    } catch {
+      failNavigation("Unable to compute indoor directions from the entrance.");
+      return true;
+    }
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    failNavigation,
+    navDestQuery,
+    navOriginQuery,
+  ]);
+
+  const routeToBestExitForCrossBuildingOrigin = useCallback((): boolean => {
+    if (!buildingName) return true;
+
+    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
+    const isCrossBuildingSignal =
+      Boolean(destBuildingCode) &&
+      destBuildingCode !== buildingName.trim().toUpperCase();
+    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+
+    if (!(isCrossBuildingOriginLeg && isCrossBuildingSignal)) return false;
+
+    try {
+      const plan = getNormalizedBuildingPlan(buildingName);
+      if (!plan) {
+        failNavigation(`No building plan found for "${buildingName}".`);
+        return true;
+      }
+
+      const originMatch = findIndoorRoomMatch(plan, navOriginQuery);
+      if (!originMatch) {
+        failNavigation(
+          `Could not find room matching "${navOriginQuery}" in ${buildingName}.`,
+        );
+        return true;
+      }
+
+      const exitPick = selectBestIndoorExit(
+        buildingName,
+        {
+          roomOrNodeId: originMatch.room.id,
+          x: originMatch.room.x,
+          y: originMatch.room.y,
+          floor: originMatch.room.floor,
+        },
+        { accessibleOnly },
+      );
+
+      if (!exitPick.success) {
+        failNavigation(exitPick.message);
+        return true;
+      }
+
+      // Always prefer an explicit per-exit outdoor coordinate.
+      // If it's missing, fall back to the building centroid later when continuing outside.
+      setPendingExitOutdoor(exitPick.exit.outdoorLatLng ?? null);
+
+      const result = getIndoorNavigationRouteToNode(
+        buildingName,
+        navOriginQuery,
+        exitPick.exit.nodeId,
+        { accessibleOnly },
+      );
+
+      applyNavigationResult(result as any);
+      return true;
+    } catch {
+      failNavigation("Unable to compute an indoor route to an exit.");
+      return true;
+    }
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    failNavigation,
+    navOriginQuery,
+    outdoorDestBuilding,
+  ]);
+
   const handleNavigate = useCallback(() => {
     if (!buildingName) return;
     setNavError(null);
+    setPendingExitOutdoor(null);
 
-    const result = getIndoorNavigationRoute(
-      buildingName,
-      navOriginQuery,
-      navDestQuery,
-      {
-        accessibleOnly: accessibleOnly,
-      },
+    // Destination-building leg: when arriving from the Campus Map "Continue indoors" step,
+    // we may not know which entrance the user used. In that case, CampusMapScreen passes
+    // navOrigin="ENTRANCE" and navDest=<room query>. We route from the closest
+    // building_entry_exit node to the destination room.
+    if (routeDestinationIndoorLegFromEntrance()) return;
+
+    // IndoorMapScreen is building-local only. If the destination looks like a different
+    // building/campus code, tell the user to start cross-building navigation from the Campus Map.
+    const typedDest = navDestQuery.trim().toUpperCase();
+    const isCampusCode = typedDest === "SGW" || typedDest === "LOYOLA";
+    const isDifferentBuildingCode = BUILDINGS.some(
+      (b) => b.name.trim().toUpperCase() === typedDest,
+    );
+    // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
+    // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
+    // different building code as navDest because it means "route to an exit and continue outside".
+    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    if (
+      !isCrossBuildingOriginLeg &&
+      (isCampusCode || isDifferentBuildingCode) &&
+      typedDest !== buildingName.trim().toUpperCase()
+    ) {
+      setNavError(
+        "Cross-building directions start from the Campus Map. Open the Campus Map and use Directions to navigate between buildings.",
+      );
+      setActiveRoute(null);
+      return;
+    }
+
+    // Cross-building origin leg: if navDest is a building/campus code (ex: "CC") we
+    // interpret it as "route to the best exit".
+    if (routeToBestExitForCrossBuildingOrigin()) return;
+
+    const result = getIndoorNavigationRoute(buildingName, navOriginQuery, navDestQuery, {
+      accessibleOnly: accessibleOnly,
+    });
+
+    applyNavigationResult(result);
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    navDestQuery,
+    navOrigin,
+    navOriginQuery,
+    navDest,
+    outdoorDestBuilding,
+    routeDestinationIndoorLegFromEntrance,
+    routeToBestExitForCrossBuildingOrigin,
+  ]);
+
+  const handleContinueOutside = useCallback(() => {
+    if (!buildingName) return;
+    const destCode = trimParam(outdoorDestBuilding).toUpperCase();
+    if (!destCode) return;
+
+    // Choose a sane outdoor starting point. Prefer the selected exit's outdoorLatLng.
+    // If it's missing, fall back to the building centroid (never (0,0)).
+    const originCode = buildingName.trim().toUpperCase();
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === originCode,
     );
 
-    if (result.success) {
-      setActiveRoute(result.route);
-      setSelectedFloor(result.route.origin.floor);
-    } else {
-      setNavError(result.message);
-      setActiveRoute(null);
+    // Guardrail: never start the outdoor leg from a coordinate that is clearly not near
+    // the current building (stale state, bad exit metadata, etc.).
+    const isLikelyNearOriginBuilding = (candidate: { latitude: number; longitude: number }) => {
+      const origin = originBuilding?.coordinates;
+      if (!origin) return true; // can’t validate; accept
+      const dLat = candidate.latitude - origin.latitude;
+      const dLng = candidate.longitude - origin.longitude;
+      // Rough distance check in degrees. For Concordia SGW buildings this should be very small.
+      const distSq = dLat * dLat + dLng * dLng;
+      // ~0.003 degrees is on the order of a few hundred meters; different campuses will be far larger.
+      return distSq < 0.003 * 0.003;
+    };
+
+    const candidateExitOutdoor = pendingExitOutdoor;
+    const effectiveExitOutdoor =
+      candidateExitOutdoor && isLikelyNearOriginBuilding(candidateExitOutdoor)
+        ? candidateExitOutdoor
+        : originBuilding?.coordinates ?? null;
+    if (!effectiveExitOutdoor) {
+      setNavError(
+        "Couldn't determine an outdoor start point for this building exit. Please try a different exit.",
+      );
+      return;
     }
-  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
+
+    const payload: IndoorToOutdoorTransitionPayload = {
+      mode: "indoor_to_outdoor",
+      originBuildingCode: originCode,
+      // These are not used by CampusMapScreen for the outdoor leg start override.
+      // Provide safe placeholders (exitOutdoor is the important piece for startOverride).
+      exitNodeId: "",
+      exitIndoor: {
+        buildingCode: originCode,
+        floor: 1,
+        x: 0,
+        y: 0,
+      },
+      destinationBuildingCode: destCode,
+      strategy: (() => {
+        if (typeof outdoorStrategy !== "string" || !outdoorStrategy) return undefined;
+        try {
+          return JSON.parse(outdoorStrategy);
+        } catch (e) {
+          // If the strategy param is malformed, ignore it and continue with defaults.
+          // Sonar: don't swallow exceptions silently.
+          console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
+          return undefined;
+        }
+      })(),
+      accessibleOnly:
+        outdoorAccessibleOnly === "true" || accessibleOnly === true,
+      exitOutdoor: effectiveExitOutdoor,
+    };
+
+    router.push({
+      pathname: "/CampusMapScreen",
+      params: {
+        transition: serializeTransitionPayload(payload),
+        ...(destinationRoomQueryText ? { destinationRoomQuery: destinationRoomQueryText } : {}),
+      },
+    });
+  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuilding, outdoorStrategy, pendingExitOutdoor, router]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
@@ -494,6 +805,24 @@ export default function IndoorMapScreen() {
         {navError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{navError}</Text>
+          </View>
+        )}
+
+        {Boolean(activeRoute) && Boolean(trimParam(outdoorDestBuilding)) && (
+          <View style={{ marginTop: spacing.sm }}>
+            {destinationRoomQueryText ? (
+              <Text style={{ color: colors.gray700, marginBottom: spacing.xs }}>
+                Destination: {destinationRoomQueryText}
+              </Text>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleContinueOutside}
+              style={[styles.searchButton, { alignSelf: "flex-start" }]}
+              testID="continue-outside"
+            >
+              <Text style={styles.searchButtonText}>Continue outside</Text>
+            </Pressable>
           </View>
         )}
 
@@ -633,9 +962,13 @@ export default function IndoorMapScreen() {
       {activeRoute && (
         <IndoorDirectionsPanel
           route={activeRoute}
-          onClose={() => setActiveRoute(null)}
+          onClose={() => {
+            setActiveRoute(null);
+          }}
         />
       )}
+
+
     </View>
   );
 }
