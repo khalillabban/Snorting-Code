@@ -42,12 +42,6 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 }
 
 export default function CampusMapScreen() {
-  const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
-    useState<Buildings | null>(null);
-  const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
-    [],
-  );
-
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
