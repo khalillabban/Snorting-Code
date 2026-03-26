@@ -18,6 +18,7 @@ jest.mock("expo-image", () => {
 jest.mock("../utils/mapAssets", () => ({
   getFloorImageMetadata: jest.fn(),
   getAvailableFloors: jest.fn(() => []),
+  getBuildingPlanAsset: jest.fn(),
   getLegacyFloorGeoJsonAsset: jest.fn(),
   normalizeIndoorBuildingCode: jest.fn((buildingCode: string) =>
     (buildingCode ?? "").trim().toUpperCase(),
@@ -34,6 +35,7 @@ jest.mock("../utils/indoorRoomSearch", () => ({
 
 jest.mock("../utils/indoorNavigation", () => ({
   getIndoorNavigationRoute: jest.fn(),
+  getIndoorNavigationRouteFromNode: jest.fn(),
   getIndoorNavigationRouteToNode: jest.fn(),
   getRouteWaypointsForFloor: jest.fn(() => []),
 }));
@@ -54,10 +56,11 @@ import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
   getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getFloorImageMetadata } from "../utils/mapAssets";
+import { getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 
 const mockHallRoom = {
@@ -215,6 +218,101 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("No map available for UNKNOWN-99")).toBeTruthy();
+    });
+  });
+
+  it("computes destination-leg directions when navOrigin is ENTRANCE", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    // Destination room exists.
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockMBRoom, floor: 1 });
+
+    // Provide a plan asset with at least one entry/exit node.
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      meta: { buildingId: "MB" },
+      nodes: [
+        {
+          id: "entry-node-1",
+          type: "building_entry_exit",
+          buildingId: "MB",
+          floor: 1,
+          x: 10,
+          y: 10,
+          label: "MB-ENTRY",
+          accessible: true,
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 10, y: 10 },
+        destination: { floor: 1, x: mockMBRoom.x, y: mockMBRoom.y },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    // Auto-trigger navigation at mount.
+    await waitFor(() => {
+      expect(getIndoorNavigationRouteFromNode).toHaveBeenCalledWith(
+        "MB",
+        "entry-node-1",
+        "MB-1.210",
+        expect.any(Object),
+      );
+    });
+  });
+
+  it("shows an error when ENTRANCE routing is requested without a destination room", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+      navOrigin: "ENTRANCE",
+      navDest: "",
+    });
+
+    render(<IndoorMapScreen />);
+
+  fireEvent.press(screen.getByText("Go"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Enter a destination room to continue indoors."),
+      ).toBeTruthy();
+    });
+  });
+
+  it("shows an error when ENTRANCE routing is requested but no entrance nodes exist", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockMBRoom, floor: 1 });
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      meta: { buildingId: "MB" },
+      nodes: [],
+      edges: [],
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No building entrances were found for MB."),
+      ).toBeTruthy();
     });
   });
 

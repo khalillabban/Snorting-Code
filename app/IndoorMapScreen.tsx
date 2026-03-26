@@ -30,6 +30,10 @@ import {
   NavigationRoute,
 } from "../utils/indoorNavigation";
 import { selectBestIndoorExit } from "../utils/indoorExit";
+import {
+  isDestinationLegOrigin,
+  pickClosestEntryExitNodeId,
+} from "../utils/destinationIndoorLeg";
 import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getAvailableFloors, getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
@@ -459,7 +463,7 @@ export default function IndoorMapScreen() {
     // we may not know which entrance the user used. In that case, CampusMapScreen passes
     // navOrigin="ENTRANCE" and navDest=<room query>. We route from the closest
     // building_entry_exit node to the destination room.
-    const isDestinationIndoorLeg = navOriginQuery.trim().toUpperCase() === "ENTRANCE";
+  const isDestinationIndoorLeg = isDestinationLegOrigin(navOriginQuery);
     if (isDestinationIndoorLeg) {
       try {
         const destQuery = navDestQuery.trim();
@@ -493,16 +497,11 @@ export default function IndoorMapScreen() {
           return;
         }
 
-        // Pick the closest entrance to the destination room (simple heuristic).
-        const bestEntry = entryNodes
-          .map((n: any) => {
-            const dx = (n.x ?? 0) - destMatch.room.x;
-            const dy = (n.y ?? 0) - destMatch.room.y;
-            return { n, d: dx * dx + dy * dy };
-          })
-          .sort((a: any, b: any) => a.d - b.d)[0]?.n;
-
-        const entryNodeId = bestEntry?.id ?? entryNodes[0]?.id;
+        const entryNodeId =
+          pickClosestEntryExitNodeId({
+            entryNodes,
+            destinationRoom: destMatch.room,
+          }) ?? entryNodes[0]?.id;
         if (!entryNodeId) {
           setNavError(`No usable entrance node was found for ${buildingName}.`);
           setActiveRoute(null);

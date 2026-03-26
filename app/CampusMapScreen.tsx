@@ -27,6 +27,10 @@ import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
 } from "../utils/indoorAccess";
+import {
+  buildContinueIndoorsStep,
+  getContinueIndoorsBuildingCode,
+} from "../utils/continueIndoors";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
   getNextClassFromItems,
@@ -331,11 +335,13 @@ export default function CampusMapScreen() {
       // Cross-building indoor-to-indoor trip (Option A): plan it from Campus Map.
       // When both endpoints are rooms but buildings differ, we kick off the origin indoor leg.
       if (start?.name && dest?.name && startRoom && endRoom && start.name !== dest.name) {
+        const originBuildingCode = start.name.trim().toUpperCase();
+        const destinationBuildingCode = dest.name.trim().toUpperCase();
         const payload = {
           mode: "cross_building_indoor" as const,
-          originBuildingCode: start.name,
+          originBuildingCode,
           originIndoorRoomQuery: startRoom.label,
-          destinationBuildingCode: dest.name,
+          destinationBuildingCode,
           destinationIndoorRoomQuery: endRoom.label,
           strategy,
           accessibleOnly: !!accessible,
@@ -430,17 +436,14 @@ export default function CampusMapScreen() {
   // Destination building code for the "Continue indoors" affordance.
   // In production, indoor floor metadata may not be loaded here, so we only gate
   // on having a destination building code.
-  const continueIndoorsBuildingCode = useMemo(() => {
-    const selected = selectedRoute.dest?.name?.trim();
-    if (selected) return selected;
-
-    if (transitionPayload?.mode === "indoor_to_outdoor") {
-      const payloadCode = transitionPayload.destinationBuildingCode?.trim();
-      if (payloadCode) return payloadCode;
-    }
-
-    return "";
-  }, [selectedRoute.dest?.name, transitionPayload]);
+  const continueIndoorsBuildingCode = useMemo(
+    () =>
+      getContinueIndoorsBuildingCode({
+        selectedDest: selectedRoute.dest,
+        transitionPayload,
+      }),
+    [selectedRoute.dest, transitionPayload],
+  );
 
   const canContinueIndoors = Boolean(continueIndoorsBuildingCode);
 
@@ -456,28 +459,31 @@ export default function CampusMapScreen() {
     const baseSteps = (mergedSteps ?? routeSteps) as any[];
     if (!canContinueIndoors) return baseSteps;
 
-    const destCode = continueIndoorsBuildingCode;
-    if (!destCode) return baseSteps;
+    const built = buildContinueIndoorsStep({
+      baseSteps,
+      destinationBuildingCode: continueIndoorsBuildingCode,
+      destinationRoomQuery: destinationRoomQueryText,
+    });
+    if (!built) return baseSteps;
 
-    const labelRoom = destinationRoomQueryText.trim();
-    const instruction = labelRoom
-      ? `Continue indoors to ${labelRoom}`
-      : `Continue indoors in ${destCode}`;
-
-    return [
-      ...baseSteps,
-      {
-        instruction,
+    // Attach the press handler here (keeps helper pure for easy 100% tests).
+    const steps = built.steps;
+    const lastIndex = steps.length - 1;
+    if (lastIndex >= 0) {
+      steps[lastIndex] = {
+        ...steps[lastIndex],
         onPress: () => {
-          const roomQuery = destinationRoomQueryText.trim();
-          // For "continue indoors" we want an actual route polyline, not just a marker.
-          // IndoorMapScreen will auto-trigger navigation when both navOrigin + navDest are present.
-          // - navOrigin: "ENTRANCE" (special-cased inside IndoorMapScreen for destination-leg)
-          // - navDest: destination room query (ex: CC-124)
-          openIndoorMap(destCode, undefined, "ENTRANCE", roomQuery || undefined);
+          openIndoorMap(
+            built.openArgs.buildingCode,
+            undefined,
+            built.openArgs.navOrigin,
+            built.openArgs.navDest,
+          );
         },
-      },
-    ];
+      };
+    }
+
+    return steps;
   }, [mergedSteps, routeSteps, canContinueIndoors, continueIndoorsBuildingCode, destinationRoomQueryText, openIndoorMap]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
