@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Crypto from "expo-crypto";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, {
@@ -287,7 +288,7 @@ export default function IndoorMapScreen() {
 
   // Usability Testing: Session + Task timers
   const sessionId = useRef(
-    `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    `session_${Date.now()}_${Crypto.randomUUID()}`,
   );
   const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());

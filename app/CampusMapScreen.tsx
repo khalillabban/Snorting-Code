@@ -1,5 +1,6 @@
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -41,7 +42,6 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
 }
 
 export default function CampusMapScreen() {
-  //Fix 1: Moved these hooks inside the component
   const [selectedBuildingWithMap, setSelectedBuildingWithMap] =
     useState<Buildings | null>(null);
   const [indoorAvailableFloors, setIndoorAvailableFloors] = useState<number[]>(
@@ -53,9 +53,7 @@ export default function CampusMapScreen() {
   const { campus } = useLocalSearchParams<{ campus?: CampusKey }>();
 
   //  Usability Testing: Session + Task timers
-  const sessionId = useRef(
-    `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-  );
+  const sessionId = useRef(`session_${Date.now()}_${Crypto.randomUUID()}`);
   const mapLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
 
@@ -125,7 +123,6 @@ export default function CampusMapScreen() {
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
 
-  //Fix 2: Already correct from previous fix
   const openNavigationBar = async (trigger: string = "directions_button") => {
     navStartTime.current = Date.now();
     navOpenCount.current += 1;
@@ -187,7 +184,6 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  // Fix 3: Wrapped bare await in inner async function ─────────────────────
   useEffect(() => {
     mapLoadTime.current = Date.now();
     startTask("task_1");
@@ -220,7 +216,6 @@ export default function CampusMapScreen() {
     }
   };
 
-  // ── Fix 4: Added async to useCallback ────────────────────────────────────
   const focusUserLocation = useCallback(async () => {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
@@ -260,7 +255,6 @@ export default function CampusMapScreen() {
     [accessibleOnly],
   );
 
-  // ── Fix 5: Moved async to the callback, not a parameter ──────────────────
   const handleConfirmRoute = useCallback(
     async (
       start: Buildings | null,
@@ -370,7 +364,6 @@ export default function CampusMapScreen() {
     selectedRoute.start != null && selectedRoute.dest != null;
   const showStepsPanel = hasActiveRoute && routeSteps.length > 0;
 
-  // ── Fix 6: Added async to useCallback ────────────────────────────────────
   const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
     setRouteSteps(steps);
     if (steps.length > 0) {
@@ -391,7 +384,6 @@ export default function CampusMapScreen() {
     openNavigationBar("set_as_start");
   }, []);
 
-  // ── Fix 7: Added async to useCallback ────────────────────────────────────
   const handleSetAsDestination = useCallback(async (building: Buildings) => {
     setInitialDestination(building);
     try {
@@ -492,7 +484,6 @@ export default function CampusMapScreen() {
       <View
         style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
       >
-        {/* ── Fix 8: Added async to onPress ──────────────────────────────── */}
         <Pressable
           testID="show-shuttle-button"
           onPress={async () => {
