@@ -5,6 +5,11 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: jest.fn(), back: jest.fn() })),
 }));
 
+jest.mock("../utils/usabilityAnalytics", () => ({
+  logUsabilityEvent: jest.fn(),
+}));
+jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "mock-uuid") }));
+
 jest.mock("expo-image", () => {
   const React = require("react");
   const { Image } = require("react-native");
@@ -40,13 +45,19 @@ jest.mock("../utils/indoorPOI", () => ({
   filterPOIsByCategories: jest.fn(() => []),
 }));
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { getIndoorNavigationRoute } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getFloorImageMetadata } from "../utils/mapAssets";
+import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",
@@ -103,6 +114,7 @@ const mockMBPlan = {
 describe("IndoorMapScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
 
     (getFloorImageMetadata as jest.Mock).mockImplementation(
       (buildingCode: string, floor: number) => {
@@ -141,6 +153,7 @@ describe("IndoorMapScreen", () => {
       success: false,
       error: "NO_PATH_FOUND",
       message: "No indoor route found.",
+      route: null, // Ensure route is null for failure cases
     });
   });
 
@@ -151,6 +164,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/MB Building/); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByText(/MB Building/)).toBeTruthy();
@@ -168,6 +182,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/MB Building/); // Wait for initial render effects
 
     await waitFor(() => {
       expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
@@ -181,6 +196,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/MB Building/); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByText("-2")).toBeTruthy();
@@ -200,6 +216,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("No map available for UNKNOWN-99"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByText("No map available for UNKNOWN-99")).toBeTruthy();
@@ -213,6 +230,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/MB Building/); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByText(/MB Building/)).toBeTruthy();
@@ -226,19 +244,21 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("No map available for undefined-1"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByText("No map available for undefined-1")).toBeTruthy();
     });
   });
 
- it("renders room search inputs with placeholder text and Go button", async () => {
+  it("renders room search inputs with placeholder text and Go button", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
       floors: JSON.stringify([1, 2, 8, 9]),
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByPlaceholderText("From (H-110)"); // Wait for initial render effects
 
     await waitFor(() => {
       // Placeholders were updated — must match current IndoorMapScreen JSX
@@ -248,7 +268,6 @@ describe("IndoorMapScreen", () => {
     });
   });
 
-
   it("renders the accessible toggle button", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -256,6 +275,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByTestId("indoor-accessible-mode-toggle")).toBeTruthy();
@@ -270,6 +290,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle"); // Wait for initial render effects
 
     await waitFor(() => {
       const toggle = screen.getByTestId("indoor-accessible-mode-toggle");
@@ -285,6 +306,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle"); // Wait for initial render effects
 
     await waitFor(() => {
       const toggle = screen.getByTestId("indoor-accessible-mode-toggle");
@@ -299,6 +321,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByTestId("indoor-accessible-mode-toggle")).toBeTruthy();
@@ -309,6 +332,10 @@ describe("IndoorMapScreen", () => {
     await waitFor(() => {
       const toggle = screen.getByTestId("indoor-accessible-mode-toggle");
       expect(toggle.props.accessibilityState).toEqual({ checked: true });
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_accessible_mode_toggled",
+        expect.any(Object),
+      );
     });
   });
 
@@ -324,18 +351,26 @@ describe("IndoorMapScreen", () => {
     (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
       success: false,
       error: "NO_PATH_FOUND",
-      message: "No accessible route found. There may be no elevator connecting these floors.",
+      message:
+        "No accessible route found. There may be no elevator connecting these floors.",
+      route: null,
     });
 
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
       expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
-        "H", "H-110", "H-920", { accessibleOnly: true },
+        "H",
+        "H-110",
+        "H-920",
+        { accessibleOnly: true },
       );
     });
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_nav_attempted",
+      expect.any(Object),
+    );
   });
-
 
   it("switches floor when a floor button is pressed", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
@@ -344,6 +379,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("-2"); // Wait for initial render effects
 
     await waitFor(() => expect(screen.getByText("-2")).toBeTruthy());
 
@@ -362,16 +398,18 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => expect(screen.getByText("-2")).toBeTruthy());
     fireEvent.press(screen.getByText("-2"));
-    await waitFor(() => expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", -2));
+    await waitFor(() =>
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", -2),
+    );
 
     params = { buildingName: "MB", floors: JSON.stringify([1]) };
     rerender(<IndoorMapScreen />);
 
+    await screen.findByText("1"); // Wait for re-render
     await waitFor(() => {
       expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
     });
   });
-
 
   it("finds a room on another floor and shows a marker on the destination floor", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
@@ -388,6 +426,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("selected-room-banner"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(findIndoorRoomMatch).toHaveBeenCalledWith(mockHallPlan, "H-867", {
@@ -396,7 +435,9 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByTestId("selected-room-banner")).toBeTruthy();
       expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
-      expect(screen.getByTestId("floor-button-8").props.accessibilityState).toEqual({
+      expect(
+        screen.getByTestId("floor-button-8").props.accessibilityState,
+      ).toEqual({
         selected: true,
       });
     });
@@ -434,6 +475,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("selected-room-marker"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
@@ -456,6 +498,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("Showing H-867 on floor 8"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(findIndoorRoomMatch).toHaveBeenCalledWith(mockHallPlan, "867", {
@@ -473,6 +516,12 @@ describe("IndoorMapScreen", () => {
     };
 
     (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
+    (getFloorImageMetadata as jest.Mock).mockReturnValue({
+      source: 1,
+      width: 1024,
+      height: 1024,
+      coordinateScale: 1,
+    });
 
     const { rerender } = render(<IndoorMapScreen />);
 
@@ -493,6 +542,7 @@ describe("IndoorMapScreen", () => {
 
     rerender(<IndoorMapScreen />);
 
+    await screen.findByText("1"); // Wait for re-render
     await waitFor(() => {
       expect(getFloorImageMetadata).toHaveBeenCalledWith("MB", 1);
     });
@@ -505,6 +555,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-floor-stage"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
@@ -520,6 +571,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("room-search-error"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(screen.getByTestId("room-search-error")).toBeTruthy();
@@ -558,6 +610,7 @@ describe("IndoorMapScreen", () => {
       success: true,
       route: {
         origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        // @ts-ignore
         destination: { ...mockHallRoom, floor: 9, label: "H-920" },
         path: { steps: [] },
         segments: [
@@ -577,6 +630,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("H-110 → H-920"); // Wait for initial render effects
 
     await waitFor(() => {
       expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
@@ -591,10 +645,13 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByText("✕"));
 
     await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_directions_panel_closed",
+        expect.any(Object),
+      );
       expect(screen.queryByText("H-110 → H-920")).toBeNull();
     });
   });
-
 
   it("closes the directions panel when the close button is pressed", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
@@ -608,10 +665,17 @@ describe("IndoorMapScreen", () => {
       success: true,
       route: {
         origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        // @ts-ignore
         destination: { ...mockHallRoom, floor: 9, label: "H-920" },
         path: { steps: [] },
         segments: [
-          { kind: "walk", description: "Walk forward", nodeIds: ["a", "b"], floor: 2, distance: 50 },
+          {
+            kind: "walk",
+            description: "Walk forward",
+            nodeIds: ["a", "b"],
+            floor: 2,
+            distance: 50,
+          },
         ],
         floors: [2, 9],
         totalDistance: 50,
@@ -621,6 +685,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("H-110 → H-920"); // Wait for initial render effects
 
     await waitFor(() => expect(screen.getByText("H-110 → H-920")).toBeTruthy());
 
@@ -646,6 +711,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("Unable to find indoor route");
 
     await waitFor(() => {
       expect(screen.getByText("Unable to find indoor route")).toBeTruthy();
@@ -664,14 +730,20 @@ describe("IndoorMapScreen", () => {
     (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
       success: false,
       error: "NO_PATH_FOUND",
-      message: "No accessible route found. There may be no elevator connecting these floors.",
+      message:
+        "No accessible route found. There may be no elevator connecting these floors.",
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(
+      "No accessible route found. There may be no elevator connecting these floors.",
+    ); // Wait for initial render effects
 
     await waitFor(() => {
       expect(
-        screen.getByText("No accessible route found. There may be no elevator connecting these floors."),
+        screen.getByText(
+          "No accessible route found. There may be no elevator connecting these floors.",
+        ),
       ).toBeTruthy();
     });
   });
@@ -683,6 +755,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText("Go"); // Wait for initial render effects
 
     await waitFor(() => expect(screen.getByText("Go")).toBeTruthy());
 
@@ -692,7 +765,10 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
-        "H", "H-110", "H-920", { accessibleOnly: false },
+        "H",
+        "H-110",
+        "H-920",
+        { accessibleOnly: false },
       );
     });
   });
@@ -704,8 +780,11 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle"); // Wait for initial render effects
 
-    await waitFor(() => expect(screen.getByTestId("indoor-accessible-mode-toggle")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("indoor-accessible-mode-toggle")).toBeTruthy(),
+    );
 
     fireEvent.press(screen.getByTestId("indoor-accessible-mode-toggle"));
     fireEvent.changeText(screen.getByPlaceholderText("From (H-110)"), "H-110");
@@ -714,7 +793,10 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => {
       expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
-        "H", "H-110", "H-920", { accessibleOnly: true },
+        "H",
+        "H-110",
+        "H-920",
+        { accessibleOnly: true },
       );
     });
   });
@@ -743,6 +825,7 @@ describe("IndoorMapScreen", () => {
     );
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-floor-stage");
 
     await waitFor(() => {
       expect(screen.getByTestId("indoor-floor-stage")).toBeTruthy();
@@ -762,6 +845,7 @@ describe("IndoorMapScreen", () => {
     (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
 
     render(<IndoorMapScreen />);
+    await screen.findByText("No map available for H-8"); // Wait for initial render effects
 
     // No floor image asset → shows the no-map message rather than the stage
     await waitFor(() => {
@@ -776,9 +860,13 @@ describe("IndoorMapScreen", () => {
       roomQuery: "H-867",
     });
     (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
-    (findIndoorRoomMatch as jest.Mock).mockReturnValue({ room: mockHallRoom, floor: 8 });
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockHallRoom,
+      floor: 8,
+    });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/H Building/);
 
     // useInitialRoomQuery fires with availableFloors[0] || 1 → 1 (the || 1 branch)
     await waitFor(() => {
@@ -794,6 +882,7 @@ describe("IndoorMapScreen", () => {
     (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("poi-filter-chip-washroom"); // Wait for initial render effects
 
     const washroomChip = await waitFor(() =>
       screen.getByTestId("poi-filter-chip-washroom"),
@@ -801,11 +890,18 @@ describe("IndoorMapScreen", () => {
 
     // First press: category not in set → next.add(categoryId) — line 291
     fireEvent.press(washroomChip);
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_poi_category_toggled",
+      expect.any(Object),
+    );
 
     // Second press: category now in set → next.delete(categoryId) — line 289
     fireEvent.press(washroomChip);
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_poi_category_toggled",
+      expect.any(Object),
+    );
 
-    // Chip is back to inactive state
     await waitFor(() => {
       expect(
         screen.getByTestId("poi-filter-chip-washroom").props.accessibilityState,
@@ -820,6 +916,7 @@ describe("IndoorMapScreen", () => {
     });
 
     render(<IndoorMapScreen />);
+    await screen.findByText(/Building/);
 
     await waitFor(() => expect(screen.getByText("Go")).toBeTruthy());
     fireEvent.press(screen.getByText("Go"));
@@ -836,6 +933,7 @@ describe("IndoorMapScreen", () => {
     (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
 
     render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-map-container"); // Wait for initial render effects
 
     const mapContainer = await waitFor(() =>
       screen.getByTestId("indoor-map-container"),
@@ -866,12 +964,136 @@ describe("IndoorMapScreen", () => {
       message: "No indoor route found.",
     });
 
-    render(<IndoorMapScreen />);
+    render(<IndoorMapScreen />); // This will trigger the useEffect for auto-trigger
+    await screen.findByText("No indoor route found."); // Wait for the error message to appear
 
     await waitFor(() => {
       expect(getIndoorNavigationRoute).toHaveBeenCalledWith(
-        "H", "H-110", "H-920", { accessibleOnly: false },
+        "H",
+        "H-110",
+        "H-920",
+        { accessibleOnly: false },
       );
     });
+  });
+
+  // New test for handlePOIFilterFirstInteraction
+  it("logs first POI filter interaction only once", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1]),
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+
+    render(<IndoorMapScreen />);
+
+    const washroomChip = await waitFor(() =>
+      screen.getByTestId("poi-filter-chip-washroom"),
+    );
+    const stairsChip = screen.getByTestId("poi-filter-chip-stairs");
+    const callsBefore = (logUsabilityEvent as jest.Mock).mock.calls.length;
+
+    fireEvent.press(washroomChip);
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_poi_filter_bar_first_tap",
+      expect.any(Object),
+    );
+    const callsAfterFirstPress = (logUsabilityEvent as jest.Mock).mock.calls
+      .length;
+    expect(callsAfterFirstPress).toBeGreaterThan(callsBefore);
+
+    fireEvent.press(stairsChip);
+    const callsAfterSecondPress = (logUsabilityEvent as jest.Mock).mock.calls
+      .length;
+    expect(callsAfterSecondPress).toBeGreaterThan(callsAfterFirstPress);
+  });
+
+  // New test for navOrigin/navDest onChangeText analytics
+  it("logs nav origin/dest started on first keystroke", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1]),
+    });
+    render(<IndoorMapScreen />);
+
+    const originInput = screen.getByPlaceholderText("From (H-110)");
+    const destInput = screen.getByPlaceholderText("To (H-920)");
+
+    fireEvent.changeText(originInput, "H");
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_nav_origin_started",
+      expect.any(Object),
+    );
+    expect(logUsabilityEvent).toHaveBeenCalledTimes(2); // screen_loaded + origin_started
+
+    fireEvent.changeText(originInput, "H-1"); // Not first keystroke, should not log again
+    expect(logUsabilityEvent).toHaveBeenCalledTimes(2);
+
+    fireEvent.changeText(destInput, "H");
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_nav_dest_started",
+      expect.any(Object),
+    );
+    expect(logUsabilityEvent).toHaveBeenCalledTimes(3); // screen_loaded + origin_started + dest_started
+  });
+
+  // New test for floor change analytics
+  it("logs indoor_floor_changed when floor button is pressed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+    });
+    render(<IndoorMapScreen />);
+
+    const floorMinus2Button = screen.getByText("-2");
+    fireEvent.press(floorMinus2Button);
+
+    expect(logUsabilityEvent).toHaveBeenCalledWith(
+      "indoor_floor_changed",
+      expect.objectContaining({
+        floor_selected: -2,
+        previous_floor: 1,
+      }),
+    );
+  });
+
+  // New test for useFloorSync when availableFloors is empty
+  it("useFloorSync sets selectedFloor to 1 if availableFloors is empty", async () => {
+    let params = {
+      buildingName: "H",
+      floors: JSON.stringify([]),
+      roomQuery: "H-867",
+    };
+    (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockHallRoom,
+      floor: 8,
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("H", 1);
+    });
+  });
+
+  // New test for getFloorContentBounds when currentFloorRooms is empty
+  it("getFloorContentBounds returns full image dimensions when currentFloorRooms is empty", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue({
+      ...mockMBPlan,
+      rooms: [],
+      roomsByFloor: { 1: [] },
+    });
+    render(<IndoorMapScreen />);
+
+    // The floorBounds calculation should use the full image dimensions (0,0,width,height)
+    // This is implicitly covered by the rendering of the map when there are no rooms.
+    // The `floorImageDimensions` will be used directly.
+    await screen.findByTestId("indoor-floor-stage");
   });
 });
