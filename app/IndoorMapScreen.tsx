@@ -460,6 +460,155 @@ export default function IndoorMapScreen() {
 
   useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
 
+  const failNavigation = useCallback((message: string) => {
+    setNavError(message);
+    setActiveRoute(null);
+  }, []);
+
+  const applyNavigationResult = useCallback(
+    (result: { success: true; route: any } | { success: false; message: string }) => {
+      if (result.success) {
+        setActiveRoute(result.route);
+        setSelectedFloor(result.route.origin.floor);
+      } else {
+        failNavigation(result.message);
+      }
+    },
+    [failNavigation],
+  );
+
+  const routeDestinationIndoorLegFromEntrance = useCallback((): boolean => {
+    if (!buildingName) return true;
+    if (!isDestinationLegOrigin(navOriginQuery)) return false;
+
+    try {
+      const destQuery = navDestQuery.trim();
+      if (!destQuery) {
+        failNavigation("Enter a destination room to continue indoors.");
+        return true;
+      }
+
+      const plan = getNormalizedBuildingPlan(buildingName);
+      const asset = getBuildingPlanAsset(buildingName);
+      if (!plan || !asset) {
+        failNavigation(`No building plan found for "${buildingName}".`);
+        return true;
+      }
+
+      const destMatch = findIndoorRoomMatch(plan, destQuery);
+      if (!destMatch) {
+        failNavigation(`Room "${destQuery}" was not found in ${buildingName}.`);
+        return true;
+      }
+
+      const entryNodes = (asset.nodes ?? []).filter(
+        (n: any) => n.type === "building_entry_exit",
+      );
+      if (entryNodes.length === 0) {
+        failNavigation(`No building entrances were found for ${buildingName}.`);
+        return true;
+      }
+
+      const entryNodeId =
+        pickClosestEntryExitNodeId({
+          entryNodes,
+          destinationRoom: destMatch.room,
+        }) ?? entryNodes[0]?.id;
+      if (!entryNodeId) {
+        failNavigation(`No usable entrance node was found for ${buildingName}.`);
+        return true;
+      }
+
+      const result = getIndoorNavigationRouteFromNode(
+        buildingName,
+        entryNodeId,
+        destQuery,
+        { accessibleOnly },
+      );
+
+      applyNavigationResult(result as any);
+      return true;
+    } catch {
+      failNavigation("Unable to compute indoor directions from the entrance.");
+      return true;
+    }
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    failNavigation,
+    navDestQuery,
+    navOriginQuery,
+  ]);
+
+  const routeToBestExitForCrossBuildingOrigin = useCallback((): boolean => {
+    if (!buildingName) return true;
+
+    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
+    const isCrossBuildingSignal =
+      Boolean(destBuildingCode) &&
+      destBuildingCode !== buildingName.trim().toUpperCase();
+    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+
+    if (!(isCrossBuildingOriginLeg && isCrossBuildingSignal)) return false;
+
+    try {
+      const plan = getNormalizedBuildingPlan(buildingName);
+      if (!plan) {
+        failNavigation(`No building plan found for "${buildingName}".`);
+        return true;
+      }
+
+      const originMatch = findIndoorRoomMatch(plan, navOriginQuery);
+      if (!originMatch) {
+        failNavigation(
+          `Could not find room matching "${navOriginQuery}" in ${buildingName}.`,
+        );
+        return true;
+      }
+
+      const exitPick = selectBestIndoorExit(
+        buildingName,
+        {
+          roomOrNodeId: originMatch.room.id,
+          x: originMatch.room.x,
+          y: originMatch.room.y,
+          floor: originMatch.room.floor,
+        },
+        { accessibleOnly },
+      );
+
+      if (!exitPick.success) {
+        failNavigation(exitPick.message);
+        return true;
+      }
+
+      // Always prefer an explicit per-exit outdoor coordinate.
+      // If it's missing, fall back to the building centroid later when continuing outside.
+      setPendingExitOutdoor(exitPick.exit.outdoorLatLng ?? null);
+
+      const result = getIndoorNavigationRouteToNode(
+        buildingName,
+        navOriginQuery,
+        exitPick.exit.nodeId,
+        { accessibleOnly },
+      );
+
+      applyNavigationResult(result as any);
+      return true;
+    } catch {
+      failNavigation("Unable to compute an indoor route to an exit.");
+      return true;
+    }
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    failNavigation,
+    navOriginQuery,
+    outdoorDestBuilding,
+  ]);
+
   const handleNavigate = useCallback(() => {
     if (!buildingName) return;
     setNavError(null);
@@ -469,72 +618,7 @@ export default function IndoorMapScreen() {
     // we may not know which entrance the user used. In that case, CampusMapScreen passes
     // navOrigin="ENTRANCE" and navDest=<room query>. We route from the closest
     // building_entry_exit node to the destination room.
-  const isDestinationIndoorLeg = isDestinationLegOrigin(navOriginQuery);
-    if (isDestinationIndoorLeg) {
-      try {
-        const destQuery = navDestQuery.trim();
-        if (!destQuery) {
-          setNavError("Enter a destination room to continue indoors.");
-          setActiveRoute(null);
-          return;
-        }
-
-        const plan = getNormalizedBuildingPlan(buildingName);
-        const asset = getBuildingPlanAsset(buildingName);
-        if (!plan || !asset) {
-          setNavError(`No building plan found for "${buildingName}".`);
-          setActiveRoute(null);
-          return;
-        }
-
-        const destMatch = findIndoorRoomMatch(plan, destQuery);
-        if (!destMatch) {
-          setNavError(`Room "${destQuery}" was not found in ${buildingName}.`);
-          setActiveRoute(null);
-          return;
-        }
-
-        const entryNodes = (asset.nodes ?? []).filter(
-          (n: any) => n.type === "building_entry_exit",
-        );
-        if (entryNodes.length === 0) {
-          setNavError(`No building entrances were found for ${buildingName}.`);
-          setActiveRoute(null);
-          return;
-        }
-
-        const entryNodeId =
-          pickClosestEntryExitNodeId({
-            entryNodes,
-            destinationRoom: destMatch.room,
-          }) ?? entryNodes[0]?.id;
-        if (!entryNodeId) {
-          setNavError(`No usable entrance node was found for ${buildingName}.`);
-          setActiveRoute(null);
-          return;
-        }
-
-        const result = getIndoorNavigationRouteFromNode(
-          buildingName,
-          entryNodeId,
-          destQuery,
-          { accessibleOnly },
-        );
-
-        if (result.success) {
-          setActiveRoute(result.route);
-          setSelectedFloor(result.route.origin.floor);
-        } else {
-          setNavError(result.message);
-          setActiveRoute(null);
-        }
-        return;
-      } catch {
-        setNavError("Unable to compute indoor directions from the entrance.");
-        setActiveRoute(null);
-        return;
-      }
-    }
+    if (routeDestinationIndoorLegFromEntrance()) return;
 
     // IndoorMapScreen is building-local only. If the destination looks like a different
     // building/campus code, tell the user to start cross-building navigation from the Campus Map.
@@ -544,9 +628,6 @@ export default function IndoorMapScreen() {
     const isDifferentBuildingCode = BUILDINGS.some(
       (b) => b.name.trim().toUpperCase() === typedDest,
     );
-    const isCrossBuildingSignal =
-      Boolean(destBuildingCode) &&
-      destBuildingCode !== buildingName.trim().toUpperCase();
     // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
     // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
     // different building code as navDest because it means "route to an exit and continue outside".
@@ -565,85 +646,25 @@ export default function IndoorMapScreen() {
 
     // Cross-building origin leg: if navDest is a building/campus code (ex: "CC") we
     // interpret it as "route to the best exit".
-    if (isCrossBuildingOriginLeg && isCrossBuildingSignal) {
-      try {
-        const plan = getNormalizedBuildingPlan(buildingName);
-        if (!plan) {
-          setNavError(`No building plan found for "${buildingName}".`);
-          setActiveRoute(null);
-          return;
-        }
-
-        const originMatch = findIndoorRoomMatch(plan, navOriginQuery);
-        if (!originMatch) {
-          setNavError(
-            `Could not find room matching "${navOriginQuery}" in ${buildingName}.`,
-          );
-          setActiveRoute(null);
-          return;
-        }
-
-        const exitPick = selectBestIndoorExit(
-          buildingName,
-          {
-            roomOrNodeId: originMatch.room.id,
-            x: originMatch.room.x,
-            y: originMatch.room.y,
-            floor: originMatch.room.floor,
-          },
-          { accessibleOnly },
-        );
-
-        if (!exitPick.success) {
-          setNavError(exitPick.message);
-          setActiveRoute(null);
-          return;
-        }
-
-        // Always prefer an explicit per-exit outdoor coordinate.
-        // If it's missing, fall back to the building centroid later when continuing outside.
-        if (exitPick.exit.outdoorLatLng) {
-          setPendingExitOutdoor(exitPick.exit.outdoorLatLng);
-        } else {
-          // Reset explicitly so we don't accidentally reuse a previous building's exit coordinate.
-          setPendingExitOutdoor(null);
-        }
-
-        const exitNodeId = exitPick.exit.nodeId;
-        const result = getIndoorNavigationRouteToNode(
-          buildingName,
-          navOriginQuery,
-          exitNodeId,
-          { accessibleOnly },
-        );
-
-        if (result.success) {
-          setActiveRoute(result.route);
-          setSelectedFloor(result.route.origin.floor);
-        } else {
-          setNavError(result.message);
-          setActiveRoute(null);
-        }
-        return;
-      } catch (e) {
-        setNavError("Unable to compute an indoor route to an exit.");
-        setActiveRoute(null);
-        return;
-      }
-    }
+    if (routeToBestExitForCrossBuildingOrigin()) return;
 
     const result = getIndoorNavigationRoute(buildingName, navOriginQuery, navDestQuery, {
       accessibleOnly: accessibleOnly,
     });
 
-    if (result.success) {
-      setActiveRoute(result.route);
-      setSelectedFloor(result.route.origin.floor);
-    } else {
-      setNavError(result.message);
-      setActiveRoute(null);
-    }
-  }, [buildingName, navOriginQuery, navDestQuery, accessibleOnly]);
+    applyNavigationResult(result as any);
+  }, [
+    accessibleOnly,
+    applyNavigationResult,
+    buildingName,
+    navDestQuery,
+    navOrigin,
+    navOriginQuery,
+    navDest,
+    outdoorDestBuilding,
+    routeDestinationIndoorLegFromEntrance,
+    routeToBestExitForCrossBuildingOrigin,
+  ]);
 
   const handleContinueOutside = useCallback(() => {
     if (!buildingName) return;
@@ -695,16 +716,17 @@ export default function IndoorMapScreen() {
         y: 0,
       },
       destinationBuildingCode: destCode,
-      strategy:
-        typeof outdoorStrategy === "string" && outdoorStrategy
-          ? (() => {
-              try {
-                return JSON.parse(outdoorStrategy);
-              } catch {
-                return undefined;
-              }
-            })()
-          : undefined,
+      strategy: (() => {
+        if (typeof outdoorStrategy !== "string" || !outdoorStrategy) return undefined;
+        try {
+          return JSON.parse(outdoorStrategy);
+        } catch (e) {
+          // If the strategy param is malformed, ignore it and continue with defaults.
+          // Sonar: don't swallow exceptions silently.
+          console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
+          return undefined;
+        }
+      })(),
       accessibleOnly:
         outdoorAccessibleOnly === "true" || accessibleOnly === true,
       exitOutdoor: effectiveExitOutdoor,
