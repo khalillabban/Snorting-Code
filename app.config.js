@@ -3,7 +3,10 @@ import "dotenv/config";
 const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "";
 const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
 
-const androidPrefix = androidClientId.replace(".apps.googleusercontent.com", "");
+const androidPrefix = androidClientId.replace(
+  ".apps.googleusercontent.com",
+  "",
+);
 const iosPrefix = iosClientId.replace(".apps.googleusercontent.com", "");
 
 if (!androidPrefix) {
