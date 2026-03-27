@@ -503,8 +503,15 @@ export default function IndoorMapScreen() {
         return true;
       }
 
-      const entryNodes = (asset.nodes ?? []).filter(
-        (n: any) => n.type === "building_entry_exit",
+      type EntryExitNode = {
+        id: string;
+        type: string;
+        x?: number;
+        y?: number;
+      };
+
+      const entryNodes: EntryExitNode[] = (asset.nodes ?? []).filter(
+        (n: EntryExitNode) => n.type === "building_entry_exit",
       );
       if (entryNodes.length === 0) {
         failNavigation(`No building entrances were found for ${buildingName}.`);
@@ -528,7 +535,7 @@ export default function IndoorMapScreen() {
         { accessibleOnly },
       );
 
-      applyNavigationResult(result as any);
+      applyNavigationResult(result);
       return true;
     } catch {
       failNavigation("Unable to compute indoor directions from the entrance.");

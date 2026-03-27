@@ -91,7 +91,7 @@ describe("utils/continueIndoors", () => {
 
       expect(result).not.toBeNull();
       expect(result!.steps).toHaveLength(3);
-      expect(result!.steps[2].instruction).toBe("Continue indoors to CC-124");
+      expect(result!.steps[2].instruction).toBe("Continue indoors");
       expect(result!.openArgs).toEqual({
         buildingCode: "CC",
         navOrigin: "ENTRANCE",
@@ -108,7 +108,7 @@ describe("utils/continueIndoors", () => {
 
       expect(result).not.toBeNull();
       expect(result!.steps).toHaveLength(3);
-      expect(result!.steps[2].instruction).toBe("Continue indoors in CC");
+  expect(result!.steps[2].instruction).toBe("Continue indoors");
       expect(result!.openArgs).toEqual({
         buildingCode: "CC",
         navOrigin: "ENTRANCE",
@@ -124,7 +124,7 @@ describe("utils/continueIndoors", () => {
 
       expect(result).not.toBeNull();
       expect(result!.steps[result!.steps.length - 1].instruction).toBe(
-        "Continue indoors in cc",
+        "Continue indoors",
       );
       expect(result!.openArgs.buildingCode).toBe("cc");
     });

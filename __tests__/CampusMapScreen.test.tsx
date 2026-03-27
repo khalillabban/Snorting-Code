@@ -774,7 +774,7 @@ describe("CampusMapScreen", () => {
   fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
     // The mock steps panel now renders pressables for steps with onPress.
-    fireEvent.press(screen.getByTestId("step-pressable-1"));
+  fireEvent.press(screen.getByTestId("step-pressable-1"));
 
     expect(router.push).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1515,6 +1515,7 @@ describe("CampusMapScreen", () => {
         floors: JSON.stringify([1, 2, 8]),
         navOrigin: "H-110",
         navDest: "H-920",
+        roomQuery: "H-920",
         accessibleOnly: "false",
       },
     });
