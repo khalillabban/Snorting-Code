@@ -113,6 +113,13 @@ export function DirectionStepsPanel({
 
             const isContinueIndoorsCta = Boolean(step.onPress) && index === steps.length - 1;
 
+            let iconName: "door-open" | "bus" | "walk" = "walk";
+            if (isContinueIndoorsCta) {
+              iconName = "door-open";
+            } else if (isShuttle) {
+              iconName = "bus";
+            }
+
             return (
               <StepWrapper
                 key={stepKey}
@@ -128,7 +135,7 @@ export function DirectionStepsPanel({
                     ]}
                   >
                     <MaterialCommunityIcons
-                      name={isContinueIndoorsCta ? "door-open" : isShuttle ? "bus" : "walk"}
+                      name={iconName}
                       size={14}
                       color={colors.white}
                     />
