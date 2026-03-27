@@ -50,6 +50,7 @@ export interface IndoorFloorImageAsset {
   width: number;
   height: number;
   coordinateScale: number;
+  showFullImage?: boolean;
 }
 
 type FloorPlanSvgSourceKey =
@@ -105,6 +106,7 @@ function resolveFloorImageAsset(
     width: imageConfig.width,
     height: imageConfig.height,
     coordinateScale: imageConfig.coordinateScale,
+    showFullImage: imageConfig.showFullImage,
   };
 }
 
@@ -161,12 +163,14 @@ const INDOOR_ASSET_LOADERS: Record<string, () => IndoorBuildingAssets> = {
         width: 1024,
         height: 1024,
         coordinateScale: 1,
+        showFullImage: true,
       },
       [-2]: {
         source: require("../assets/maps/FloorPlans/mb_s2.png"),
         width: 1024,
         height: 1024,
         coordinateScale: 1,
+        showFullImage: true,
       },
     },
     buildingPlanAsset: require("../assets/maps/buildingsPlan/mb_floors_combined.json") as BuildingPlanAsset,
@@ -257,7 +261,7 @@ export function getFloorImageMetadata(
 }
 
 export function hasBuildingPlanAsset(buildingCode: string): boolean {
-  return getBuildingPlanAsset(buildingCode) != null;
+  return Boolean(getIndoorAssets(buildingCode)?.buildingPlanAsset);
 }
 
 export function getBuildingPlanAsset(

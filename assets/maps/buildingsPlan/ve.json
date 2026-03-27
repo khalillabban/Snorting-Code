@@ -871,7 +871,11 @@
       "x": 1387,
       "y": 307,
       "label": "",
-      "accessible": true
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.497250,
+        "longitude": -73.579930
+      }
     }
   ],
   "edges": [

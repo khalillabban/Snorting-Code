@@ -171,7 +171,11 @@
       "x": 406,
       "y": 995,
       "label": "",
-      "accessible": true
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.497869,
+        "longitude": -73.578885
+      }
     },
     {
       "id": "CC_F1_doorway_245",
@@ -612,6 +616,20 @@
       "y": 1068,
       "label": "",
       "accessible": true
+    },
+    {
+      "id": "CC_F1_building_entry_exit_1",
+      "type": "building_entry_exit",
+      "buildingId": "CC",
+      "floor": 1,
+      "x": 950,
+      "y": 1100,
+      "label": "CC-entrance1",
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.497758,
+        "longitude": -73.579535
+      }
     }
   ],
   "edges": [
@@ -1208,6 +1226,20 @@
       "target": "CC_F1_doorway_251",
       "type": "door_to_hallway",
       "weight": 817,
+      "accessible": true
+    },
+    {
+      "source": "CC_F1_building_entry_exit_1",
+      "target": "CC_F1_doorway_276",
+      "type": "hallway",
+      "weight": 50,
+      "accessible": true
+    },
+    {
+      "source": "CC_F1_doorway_276",
+      "target": "CC_F1_building_entry_exit_1",
+      "type": "hallway",
+      "weight": 50,
       "accessible": true
     }
   ]

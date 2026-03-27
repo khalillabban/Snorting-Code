@@ -135,6 +135,7 @@ describe("NavigationBar coverage branches", () => {
       expect.objectContaining({ mode: "walking" }),
       expect.objectContaining({ label: "H-110" }),
       expect.objectContaining({ label: "H-220" }),
+      false,
     );
     expect(onClose).toHaveBeenCalledTimes(1);
   }, 15000);
