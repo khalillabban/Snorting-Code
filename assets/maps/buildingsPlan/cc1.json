@@ -171,7 +171,11 @@
       "x": 406,
       "y": 995,
       "label": "",
-      "accessible": true
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.497869,
+        "longitude": -73.578885
+      }
     },
     {
       "id": "CC_F1_doorway_245",
@@ -621,7 +625,11 @@
       "x": 950,
       "y": 1100,
       "label": "CC-entrance1",
-      "accessible": true
+      "accessible": true,
+      "outdoorLatLng": {
+        "latitude": 45.497758,
+        "longitude": -73.579535
+      }
     }
   ],
   "edges": [

@@ -135,6 +135,21 @@ describe("DirectionStepsPanel", () => {
     // The "Neither" step shouldn't render any metadata text block
   });
 
+  it("does not render metadata when distance and duration are empty strings", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Empty meta", distance: "", duration: "" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Empty meta")).toBeTruthy();
+    // With both empty strings, the (step.distance || step.duration) guard is falsy,
+    // so the meta Text should not be rendered.
+    expect(screen.queryByText(" · ")).toBeNull();
+  });
+
   it("renders different strategy label for transit", () => {
     const transitStrategy = { mode: "transit" as const, label: "Transit", icon: "bus" };
     render(
@@ -145,6 +160,31 @@ describe("DirectionStepsPanel", () => {
       />
     );
     expect(screen.getByText("Transit")).toBeTruthy();
+  });
+
+  it("renders a pressable step when onPress is provided and calls it when pressed", () => {
+    const onStepPress = jest.fn();
+
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Tap me",
+            distance: "1 m",
+            duration: "1 sec",
+            onPress: onStepPress,
+          },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />
+    );
+
+    // When onPress exists, the step container becomes Pressable with accessibilityRole="button".
+    // The mock buttons don’t set an accessibilityLabel for the step, so we locate via its text node
+    // and press that (RNTL will fire on the nearest pressable ancestor).
+    fireEvent.press(screen.getByText("Tap me"));
+    expect(onStepPress).toHaveBeenCalledTimes(1);
   });
 
   it("renders the location button and calls onFocusUser when pressed", () => {

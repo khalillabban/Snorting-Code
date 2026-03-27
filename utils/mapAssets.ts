@@ -261,7 +261,7 @@ export function getFloorImageMetadata(
 }
 
 export function hasBuildingPlanAsset(buildingCode: string): boolean {
-  return getBuildingPlanAsset(buildingCode) != null;
+  return Boolean(getIndoorAssets(buildingCode)?.buildingPlanAsset);
 }
 
 export function getBuildingPlanAsset(

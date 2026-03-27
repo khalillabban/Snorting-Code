@@ -1,6 +1,9 @@
 import {
   getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
   getRouteWaypointsForFloor,
+  indoorRouteToSteps,
 } from "../utils/indoorNavigation";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -325,5 +328,357 @@ describe("utils/indoorNavigation", () => {
 
     expect(getRouteWaypointsForFloor(route as any, 9)).toEqual([]);
   });
-  
+
+  it("indoorRouteToSteps filters out empty instructions", () => {
+    const route = {
+      segments: [
+        { description: "Step 1" },
+        { description: "" },
+        { description: undefined },
+        { description: "Step 2" },
+      ],
+    };
+
+    expect(indoorRouteToSteps(route as any)).toEqual([
+      { instruction: "Step 1" },
+      { instruction: "Step 2" },
+    ]);
+  });
+
+  describe("getIndoorNavigationRouteToNode", () => {
+    it("returns NO_GRAPH_DATA when plan is missing", () => {
+      mockedGetNormalizedBuildingPlan.mockReturnValueOnce(null);
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-1");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_GRAPH_DATA" }),
+      );
+    });
+
+    it("returns ORIGIN_NOT_FOUND when origin room match is missing", () => {
+      mockedFindIndoorRoomMatch.mockReturnValueOnce(null);
+      const result = getIndoorNavigationRouteToNode("H", "bad", "exit-1");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "ORIGIN_NOT_FOUND" }),
+      );
+    });
+
+    it("returns NO_GRAPH_DATA when asset nodes are missing", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        meta: { buildingId: "H" },
+        // @ts-ignore - intentionally incomplete asset
+        edges: [{ source: "n1", target: "n2", type: "walk", weight: 1, accessible: true }],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-1");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_GRAPH_DATA" }),
+      );
+    });
+
+    it("returns DESTINATION_NOT_FOUND when destination node id does not exist", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "other", x: 1, y: 2, floor: 1 } as any],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "missing");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "DESTINATION_NOT_FOUND" }),
+      );
+    });
+
+    it("returns NO_PATH_FOUND when origin room cannot be mapped", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce(null);
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-1", x: 1, y: 2, floor: 1 } as any],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-1");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+    });
+
+    it("returns SAME_ROOM when origin node id equals destination node id", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce("exit-1");
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-1", x: 1, y: 2, floor: 1 } as any],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-1");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "SAME_ROOM" }),
+      );
+    });
+
+    it("returns success and uses default destination label 'Exit' when none provided", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-a");
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-1", x: 1, y: 2, floor: 1 } as any],
+      });
+
+      mockedFindShortestPath.mockReturnValueOnce({
+        steps: [
+          {
+            node: {
+              id: "room-a",
+              x: 10,
+              y: 10,
+              floor: 1,
+              type: "room",
+              label: "H-101",
+              accessible: true,
+            },
+            cumulativeDistance: 0,
+          },
+          {
+            node: {
+              id: "exit-1",
+              x: 1,
+              y: 2,
+              floor: 1,
+              type: "doorway",
+              accessible: true,
+            },
+            cumulativeDistance: 0,
+          },
+        ],
+        totalDistance: 0,
+        fullyAccessible: true,
+        floors: [1],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-1");
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.route.destination.label).toBe("Exit");
+    });
+
+    it("returns NO_PATH_FOUND with accessible-specific message when no path in accessible mode", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-a");
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-2", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedFindShortestPath.mockReturnValueOnce(null);
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-2", {
+        accessibleOnly: true,
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+      if (!result.success) {
+        expect(result.message).toMatch(/no accessible route/i);
+      }
+    });
+
+    it("uses provided destination node label when present", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-a");
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-3", x: 1, y: 2, floor: 1, label: "Main Exit" } as any],
+      });
+      mockedFindShortestPath.mockReturnValueOnce({
+        steps: [
+          { node: { id: "room-a", x: 10, y: 10, floor: 1, type: "room", label: "H-101", accessible: true }, cumulativeDistance: 0 },
+          { node: { id: "exit-3", x: 1, y: 2, floor: 1, type: "doorway", accessible: true }, cumulativeDistance: 0 },
+        ],
+        totalDistance: 0,
+        fullyAccessible: true,
+        floors: [1],
+      });
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-3");
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.route.destination.label).toBe("Main Exit");
+    });
+  });
+
+  describe("getIndoorNavigationRouteFromNode", () => {
+    it("returns NO_GRAPH_DATA when plan is missing", () => {
+      mockedGetNormalizedBuildingPlan.mockReturnValueOnce(null);
+      const result = getIndoorNavigationRouteFromNode("H", "entry-1", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_GRAPH_DATA" }),
+      );
+    });
+
+    it("returns DESTINATION_NOT_FOUND when destination room match is missing", () => {
+      mockedFindIndoorRoomMatch.mockReturnValueOnce(null);
+      const result = getIndoorNavigationRouteFromNode("H", "entry-1", "bad");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "DESTINATION_NOT_FOUND" }),
+      );
+    });
+
+    it("returns NO_GRAPH_DATA when asset edges are missing", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        meta: { buildingId: "H" },
+        nodes: [{ id: "entry-1", x: 1, y: 2, floor: 1 } as any],
+        edges: [],
+      });
+      const result = getIndoorNavigationRouteFromNode("H", "entry-1", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_GRAPH_DATA" }),
+      );
+    });
+
+    it("returns ORIGIN_NOT_FOUND when origin node is missing from asset", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "other", x: 1, y: 2, floor: 1 } as any],
+      });
+      const result = getIndoorNavigationRouteFromNode("H", "missing", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "ORIGIN_NOT_FOUND" }),
+      );
+    });
+
+    it("returns NO_PATH_FOUND when destination room cannot be mapped to graph", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "entry-1", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce(null);
+      const result = getIndoorNavigationRouteFromNode("H", "entry-1", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+    });
+
+    it("returns SAME_ROOM when origin node id equals destination node id", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "room-b", x: 1, y: 2, floor: 2 } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+
+      const result = getIndoorNavigationRouteFromNode("H", "room-b", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "SAME_ROOM" }),
+      );
+    });
+
+    it("returns success and uses default origin label 'Entrance' when none provided", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "entry-1", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+      mockedFindShortestPath.mockReturnValueOnce({
+        steps: [
+          {
+            node: {
+              id: "entry-1",
+              x: 1,
+              y: 2,
+              floor: 1,
+              type: "doorway",
+              accessible: true,
+            },
+            cumulativeDistance: 0,
+          },
+          {
+            node: {
+              id: "room-b",
+              x: 80,
+              y: 10,
+              floor: 2,
+              type: "room",
+              label: "H-201",
+              accessible: true,
+            },
+            cumulativeDistance: 0,
+          },
+        ],
+        totalDistance: 0,
+        fullyAccessible: true,
+        floors: [1, 2],
+      });
+
+      const result = getIndoorNavigationRouteFromNode("H", "entry-1", "201");
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.route.origin.label).toBe("Entrance");
+    });
+
+    it("returns NO_PATH_FOUND when shortest path returns null (non-accessible message)", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "entry-2", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+      mockedFindShortestPath.mockReturnValueOnce(null);
+
+      const result = getIndoorNavigationRouteFromNode("H", "entry-2", "201");
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+      if (!result.success) {
+        expect(result.message).toMatch(/no path found/i);
+      }
+    });
+
+    it("uses elevator segment when floor changes and label includes 'elev'", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "entry-3", x: 1, y: 2, floor: 1, label: "Elev Lobby" } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+      mockedFindShortestPath.mockReturnValueOnce({
+        steps: [
+          { node: { id: "entry-3", x: 1, y: 2, floor: 1, type: "hallway", label: "Elev Lobby", accessible: true }, cumulativeDistance: 0 },
+          { node: { id: "entry-3b", x: 1, y: 2, floor: 2, type: "hallway", label: "Elev Lobby", accessible: true }, cumulativeDistance: 0 },
+          { node: { id: "room-b", x: 80, y: 10, floor: 2, type: "room", label: "H-201", accessible: true }, cumulativeDistance: 0 },
+        ],
+        totalDistance: 0,
+        fullyAccessible: true,
+        floors: [1, 2],
+      });
+
+      const result = getIndoorNavigationRouteFromNode("H", "entry-3", "201");
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.route.segments.some((s) => s.kind === "elevator")).toBe(true);
+    });
+  });
+
+  it("buildSegments emits 'Continue ahead' when cumulative distance doesn't increase", () => {
+    mockedGetBuildingPlanAsset.mockReturnValueOnce({
+      ...baseAsset,
+      nodes: [{ id: "entry-1", x: 1, y: 2, floor: 1 } as any],
+    });
+    mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+
+    mockedFindShortestPath.mockReturnValueOnce({
+      steps: [
+        {
+          node: { id: "room-a", x: 10, y: 10, floor: 1, type: "room", label: "H-101", accessible: true },
+          cumulativeDistance: 5,
+        },
+        {
+          node: { id: "x", x: 12, y: 10, floor: 1, type: "hallway", accessible: true },
+          cumulativeDistance: 5,
+        },
+        {
+          node: { id: "room-b", x: 80, y: 10, floor: 2, type: "room", label: "H-201", accessible: true },
+          cumulativeDistance: 5,
+        },
+      ],
+      totalDistance: 5,
+      fullyAccessible: true,
+      floors: [1, 2],
+    });
+
+    const result = getIndoorNavigationRoute("H", "101", "201");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.route.segments.some((s) => s.description === "Continue ahead")).toBe(true);
+  });
+
 });
