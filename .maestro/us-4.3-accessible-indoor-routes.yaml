@@ -1,0 +1,11 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: "SGW Campus"
