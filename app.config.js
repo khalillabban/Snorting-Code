@@ -3,7 +3,10 @@ import "dotenv/config";
 const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "";
 const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
 
-const androidPrefix = androidClientId.replace(".apps.googleusercontent.com", "");
+const androidPrefix = androidClientId.replace(
+  ".apps.googleusercontent.com",
+  "",
+);
 const iosPrefix = iosClientId.replace(".apps.googleusercontent.com", "");
 
 if (!androidPrefix) {
@@ -27,9 +30,11 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.concordia.snortingcode",
+      googleServicesFile: "./GoogleService-Info.plist",
     },
     android: {
       package: "com.concordia.snortingcode",
+      googleServicesFile: "./google-services.json",
       intentFilters: [
         {
           action: "VIEW",
@@ -84,6 +89,7 @@ export default {
       ],
       "expo-web-browser",
       "expo-secure-store",
+      "@react-native-firebase/app",
     ],
     experiments: {
       typedRoutes: true,
