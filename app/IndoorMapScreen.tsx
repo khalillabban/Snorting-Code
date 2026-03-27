@@ -269,6 +269,8 @@ export default function IndoorMapScreen() {
     outdoorStrategy,
     outdoorAccessibleOnly,
     destinationRoomQuery,
+    usabilityTaskId,
+    usabilityTaskStartedAtMs,
     accessibleOnly: accessibleOnlyParam,
   } = useLocalSearchParams<{
     buildingName: string;
@@ -280,6 +282,8 @@ export default function IndoorMapScreen() {
     outdoorStrategy?: string;
     outdoorAccessibleOnly?: string;
     destinationRoomQuery?: string;
+    usabilityTaskId?: string;
+    usabilityTaskStartedAtMs?: string;
     accessibleOnly?: string;
   }>();
 
@@ -356,6 +360,12 @@ export default function IndoorMapScreen() {
         await logUsabilityEvent("task_completed", {
           session_id: sessionId.current,
           task_id: taskId,
+          duration_ms,
+          ...extraParams,
+        });
+        await logUsabilityEvent("task_finished", {
+          session_id: sessionId.current,
+          finished_task_id: taskId,
           duration_ms,
           ...extraParams,
         });
@@ -933,6 +943,14 @@ export default function IndoorMapScreen() {
       accessibleOnly:
         outdoorAccessibleOnly === "true" || accessibleOnly === true,
       exitOutdoor: effectiveExitOutdoor,
+      ...(usabilityTaskId === "task_13" || usabilityTaskId === "task_14"
+        ? { usabilityTaskId }
+        : {}),
+      ...(typeof usabilityTaskStartedAtMs === "string" &&
+      usabilityTaskStartedAtMs.trim() &&
+      Number.isFinite(Number(usabilityTaskStartedAtMs))
+        ? { usabilityTaskStartedAtMs: Number(usabilityTaskStartedAtMs) }
+        : {}),
     };
 
     router.push({
@@ -953,6 +971,8 @@ export default function IndoorMapScreen() {
     outdoorStrategy,
     pendingExitOutdoor,
     router,
+    usabilityTaskId,
+    usabilityTaskStartedAtMs,
   ]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);

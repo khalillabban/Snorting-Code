@@ -54,6 +54,58 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
   return `${prefix}${trimmed}`;
 }
 
+function toBuildingCode(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const code = value.trim().toUpperCase();
+    return code || null;
+  }
+  if (
+    typeof value === "object" &&
+    "name" in value &&
+    typeof (value as { name?: unknown }).name === "string"
+  ) {
+    const code = ((value as { name: string }).name ?? "").trim().toUpperCase();
+    return code || null;
+  }
+  return null;
+}
+
+function getCampusByCode(buildingCode: string | null): CampusKey | null {
+  if (!buildingCode) return null;
+  const found = BUILDINGS.find(
+    (b) => b.name.trim().toUpperCase() === buildingCode,
+  );
+  if (!found?.campusName) return null;
+  return found.campusName === "loyola" ? "loyola" : "sgw";
+}
+
+function classifyIndoorOutdoorTask(
+  start: unknown,
+  dest: unknown,
+): "task_13" | "task_14" | null {
+  const startCode = toBuildingCode(start);
+  const destCode = toBuildingCode(dest);
+  if (!startCode || !destCode || startCode === destCode) return null;
+
+  const startCampus = getCampusByCode(startCode);
+  const destCampus = getCampusByCode(destCode);
+  if (!startCampus || !destCampus) return null;
+
+  return startCampus === destCampus ? "task_13" : "task_14";
+}
+
+function parseStartedAtMs(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
 export default function CampusMapScreen() {
   // Accessibility mode state
   const [accessibleOnly, setAccessibleOnly] = useState(false);
@@ -71,8 +123,6 @@ export default function CampusMapScreen() {
     [transition],
   );
 
-  // If the user planned a cross-building trip with indoor rooms at both ends from the
-  // navigation drawer, immediately jump into the origin building's indoor navigation.
   useEffect(() => {
     if (transitionPayload?.mode !== "cross_building_indoor") return;
 
@@ -89,9 +139,7 @@ export default function CampusMapScreen() {
         buildingName: originCode,
         floors: "1", // IndoorMapScreen will normalize if the building has different floors.
         navOrigin: transitionPayload.originIndoorRoomQuery,
-        // We set navDest to the destination building code to force the origin-building
-        // indoor leg to route to a good exit. (IndoorMapScreen will *not* do cross-building
-        // room navigation.)
+
         navDest: destCode,
         outdoorDestBuilding: destCode,
         outdoorStrategy: transitionPayload.strategy
@@ -100,10 +148,19 @@ export default function CampusMapScreen() {
         outdoorAccessibleOnly: transitionPayload.accessibleOnly
           ? "true"
           : "false",
-        // Carry the final indoor query for later (CampusMapScreen will use it to offer
-        // a "Continue indoors" option near the destination building).
+
         destinationRoomQuery: transitionPayload.destinationIndoorRoomQuery,
         accessibleOnly: String(Boolean(transitionPayload.accessibleOnly)),
+        ...(transitionPayload.usabilityTaskId
+          ? { usabilityTaskId: transitionPayload.usabilityTaskId }
+          : {}),
+        ...(typeof transitionPayload.usabilityTaskStartedAtMs === "number"
+          ? {
+              usabilityTaskStartedAtMs: String(
+                transitionPayload.usabilityTaskStartedAtMs,
+              ),
+            }
+          : {}),
       },
     });
   }, [transitionPayload]);
@@ -112,6 +169,7 @@ export default function CampusMapScreen() {
   const sessionId = useRef(`session_${Date.now()}_${Crypto.randomUUID()}`);
   const mapLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
+  const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
 
   const startTask = (taskId: string) => {
     if (!USABILITY_TESTING_ENABLED) return;
@@ -130,6 +188,13 @@ export default function CampusMapScreen() {
     await logUsabilityEvent("task_completed", {
       session_id: sessionId.current,
       task_id: taskId,
+      duration_ms,
+      ...extraParams,
+    });
+
+    await logUsabilityEvent("task_finished", {
+      session_id: sessionId.current,
+      finished_task_id: taskId,
       duration_ms,
       ...extraParams,
     });
@@ -203,7 +268,6 @@ export default function CampusMapScreen() {
     ) {
       return destinationRoomQuery;
     }
-    // If we arrived via a transition payload (ex: indoor_to_outdoor), prefer the payload field.
     if (
       transitionPayload?.mode === "indoor_to_outdoor" &&
       typeof transitionPayload.destinationIndoorRoomQuery === "string"
@@ -213,8 +277,6 @@ export default function CampusMapScreen() {
     return "";
   }, [destinationRoomQuery, transitionPayload]);
 
-  // If we arrived from indoor navigation, auto-select the outdoor route so the map
-  // immediately renders a path (instead of waiting for the user to pick buildings).
   useEffect(() => {
     if (transitionPayload?.mode !== "indoor_to_outdoor") return;
 
@@ -235,8 +297,6 @@ export default function CampusMapScreen() {
       ? BUILDINGS.find((b) => b.name.trim().toUpperCase() === originCode)
       : null;
 
-    // If we can’t resolve the origin building by code (or if the code is stale),
-    // fall back to the building nearest to the exitOutdoor coordinate.
     const originByExit = transitionPayload.exitOutdoor
       ? findNearestBuilding(
           transitionPayload.exitOutdoor.latitude,
@@ -244,7 +304,6 @@ export default function CampusMapScreen() {
         )
       : null;
 
-    // Force the campus toggle to the destination campus so the user sees the correct map.
     const destCampus =
       destBuilding.campusName === "loyola"
         ? ("loyola" as const)
@@ -252,7 +311,6 @@ export default function CampusMapScreen() {
     setCurrentCampus(destCampus);
     setFocusTarget((prev) => (prev === "user" ? prev : destCampus));
 
-    // Ensure both endpoints are set so CampusMap computes a route immediately.
     setSelectedRoute({
       start: originBuilding ?? originByExit ?? null,
       dest: destBuilding,
@@ -260,12 +318,9 @@ export default function CampusMapScreen() {
     setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
     setRouteFocusTrigger((c) => c + 1);
 
-    // Show the navigation drawer so the user can pick walk/bike/drive/transit/shuttle.
     setIsNavVisible(true);
   }, [transitionPayload, findNearestBuilding]);
 
-  // When we came from indoor navigation and the payload contains a final indoor destination,
-  // we can show a single merged step list (indoor + outdoor + indoor).
   const mergedSteps = useMemo(() => {
     if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
     const destRoom = transitionPayload.destinationIndoorRoomQuery?.trim();
@@ -280,8 +335,6 @@ export default function CampusMapScreen() {
     const destCode = transitionPayload.destinationBuildingCode;
     const asset = getBuildingPlanAsset(destCode);
 
-    // Attempt to compute a real indoor leg inside the destination building.
-    // We pick the closest entry/exit node (by outdoorLatLng) to the building's outdoor coordinate.
     let finalIndoorSteps: RouteStep[] = [];
     try {
       const destBuilding = BUILDINGS.find(
@@ -478,6 +531,8 @@ export default function CampusMapScreen() {
         destinationIndoorRoomQuery: string;
         strategy: RouteStrategy;
         accessibleOnly: boolean;
+        usabilityTaskId?: "task_13" | "task_14";
+        usabilityTaskStartedAtMs?: number;
       };
 
       // Cross-building indoor-to-indoor trip (Option A): plan it from Campus Map.
@@ -499,6 +554,8 @@ export default function CampusMapScreen() {
           destinationIndoorRoomQuery: endRoom.label,
           strategy,
           accessibleOnly: !!accessible,
+          usabilityTaskId: classifyIndoorOutdoorTask(start, dest) ?? undefined,
+          usabilityTaskStartedAtMs: Date.now(),
         };
 
         router.push({
@@ -545,6 +602,25 @@ export default function CampusMapScreen() {
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
+
+      const indoorOutdoorTaskId = classifyIndoorOutdoorTask(start, dest);
+      const startCode = toBuildingCode(start);
+      const destCode = toBuildingCode(dest);
+
+      if (indoorOutdoorTaskId) {
+        completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+        startTask(indoorOutdoorTaskId);
+        await logUsabilityEvent("indoor_outdoor_route_requested", {
+          session_id: sessionId.current,
+          task_id: indoorOutdoorTaskId,
+          start_building_code: startCode ?? "unknown",
+          destination_building_code: destCode ?? "unknown",
+          same_campus: indoorOutdoorTaskId === "task_13",
+          cross_campus: indoorOutdoorTaskId === "task_14",
+          travel_mode: strategy.mode,
+          time_since_map_load_ms: Date.now() - mapLoadTime.current,
+        });
+      }
 
       try {
         const timeSpent = navStartTime.current
@@ -631,6 +707,62 @@ export default function CampusMapScreen() {
   const canOpenNextClassIndoorMap = Boolean(
     nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
   );
+  const activeIndoorOutdoorTask = useMemo(
+    () => classifyIndoorOutdoorTask(selectedRoute.start, selectedRoute.dest),
+    [selectedRoute.dest, selectedRoute.start],
+  );
+
+  const finalizeIndoorOutdoorTask = useCallback(
+    (
+      taskId: "task_13" | "task_14",
+      startBuildingCode: string,
+      destinationBuildingCode: string,
+      startedAtMs: number | null,
+    ) => {
+      const durationMs =
+        typeof startedAtMs === "number" && startedAtMs > 0
+          ? Math.max(Date.now() - startedAtMs, 0)
+          : 0;
+
+      completedIndoorOutdoorTasks.current.add(taskId);
+      delete taskTimers.current[taskId];
+
+      logUsabilityEvent("indoor_outdoor_task_completed", {
+        session_id: sessionId.current,
+        task_id: taskId,
+        start_building_code: startBuildingCode,
+        destination_building_code: destinationBuildingCode,
+        same_campus: taskId === "task_13",
+        cross_campus: taskId === "task_14",
+        duration_ms: durationMs,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      }).catch((error) => {
+        console.error("Firebase Analytics Error: ", error);
+      });
+
+      logUsabilityEvent("task_completed", {
+        session_id: sessionId.current,
+        task_id: taskId,
+        duration_ms: durationMs,
+        start_building_code: startBuildingCode,
+        destination_building_code: destinationBuildingCode,
+      }).catch((error) => {
+        console.error("Firebase Analytics Error: ", error);
+      });
+
+      logUsabilityEvent("task_finished", {
+        session_id: sessionId.current,
+        finished_task_id: taskId,
+        duration_ms: durationMs,
+        start_building_code: startBuildingCode,
+        destination_building_code: destinationBuildingCode,
+      }).catch((error) => {
+        console.error("Firebase Analytics Error: ", error);
+      });
+    },
+    [],
+  );
+
   const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
     setRouteSteps(steps);
     console.log("[Task 6] steps_panel_viewed — step_count:", steps.length);
@@ -669,6 +801,40 @@ export default function CampusMapScreen() {
       steps[lastIndex] = {
         ...steps[lastIndex],
         onPress: () => {
+          const payloadTaskId =
+            transitionPayload?.mode === "indoor_to_outdoor" &&
+            (transitionPayload.usabilityTaskId === "task_13" ||
+              transitionPayload.usabilityTaskId === "task_14")
+              ? transitionPayload.usabilityTaskId
+              : null;
+          const fallbackTaskId = classifyIndoorOutdoorTask(
+            selectedRoute.start,
+            selectedRoute.dest,
+          );
+          const effectiveTaskId = payloadTaskId ?? fallbackTaskId;
+
+          if (effectiveTaskId) {
+            const payloadStartedAtMs =
+              transitionPayload?.mode === "indoor_to_outdoor"
+                ? parseStartedAtMs(transitionPayload.usabilityTaskStartedAtMs)
+                : null;
+            const timerStartedAtMs =
+              taskTimers.current[effectiveTaskId] ?? null;
+            const effectiveStartedAtMs = payloadStartedAtMs ?? timerStartedAtMs;
+            const startCode = toBuildingCode(selectedRoute.start) ?? "unknown";
+            const destCode =
+              built.openArgs.buildingCode ??
+              toBuildingCode(selectedRoute.dest) ??
+              "unknown";
+
+            finalizeIndoorOutdoorTask(
+              effectiveTaskId,
+              startCode,
+              destCode,
+              effectiveStartedAtMs,
+            );
+          }
+
           openIndoorMap(
             built.openArgs.buildingCode,
             undefined,
@@ -686,7 +852,55 @@ export default function CampusMapScreen() {
     canContinueIndoors,
     continueIndoorsBuildingCode,
     destinationRoomQueryText,
+    finalizeIndoorOutdoorTask,
     openIndoorMap,
+    selectedRoute.dest,
+    selectedRoute.start,
+    transitionPayload,
+  ]);
+
+  useEffect(() => {
+    const hasOutdoorSegment = routeSteps.length > 0;
+    const hasIndoorSuffix =
+      routeStepsWithContinueIndoors.length > routeSteps.length;
+    const isCombinedDirectionsVisible =
+      showStepsPanel && hasOutdoorSegment && hasIndoorSuffix;
+
+    if (!activeIndoorOutdoorTask || !isCombinedDirectionsVisible) return;
+    if (completedIndoorOutdoorTasks.current.has(activeIndoorOutdoorTask))
+      return;
+
+    completedIndoorOutdoorTasks.current.add(activeIndoorOutdoorTask);
+
+    const startCode = toBuildingCode(selectedRoute.start) ?? "unknown";
+    const destCode = toBuildingCode(selectedRoute.dest) ?? "unknown";
+
+    const run = async () => {
+      await logUsabilityEvent("indoor_outdoor_combined_directions_viewed", {
+        session_id: sessionId.current,
+        task_id: activeIndoorOutdoorTask,
+        start_building_code: startCode,
+        destination_building_code: destCode,
+        same_campus: activeIndoorOutdoorTask === "task_13",
+        cross_campus: activeIndoorOutdoorTask === "task_14",
+        outdoor_step_count: routeSteps.length,
+        total_step_count: routeStepsWithContinueIndoors.length,
+        indoor_segment_step_count:
+          routeStepsWithContinueIndoors.length - routeSteps.length,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      });
+    };
+
+    run().catch((error) => {
+      console.error("Firebase Analytics Error: ", error);
+    });
+  }, [
+    activeIndoorOutdoorTask,
+    routeSteps,
+    routeStepsWithContinueIndoors,
+    selectedRoute.dest,
+    selectedRoute.start,
+    showStepsPanel,
   ]);
 
   // Render

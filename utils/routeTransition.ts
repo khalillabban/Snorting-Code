@@ -24,12 +24,14 @@ export interface IndoorToOutdoorTransitionPayload {
   destinationCampus?: string;
   strategy?: RouteStrategy;
   accessibleOnly?: boolean;
-  
-    /**
-     * Optional: if provided, the outdoor screen can compute the final indoor leg
-     * and present a single merged step list (indoor + outdoor + indoor).
-     */
-    destinationIndoorRoomQuery?: string;
+  usabilityTaskId?: "task_13" | "task_14";
+  usabilityTaskStartedAtMs?: number;
+
+  /**
+   * Optional: if provided, the outdoor screen can compute the final indoor leg
+   * and present a single merged step list (indoor + outdoor + indoor).
+   */
+  destinationIndoorRoomQuery?: string;
 }
 
 export interface CrossBuildingIndoorTripPayload {
@@ -40,15 +42,15 @@ export interface CrossBuildingIndoorTripPayload {
   destinationIndoorRoomQuery: string;
   strategy?: RouteStrategy;
   accessibleOnly?: boolean;
+  usabilityTaskId?: "task_13" | "task_14";
+  usabilityTaskStartedAtMs?: number;
 }
 
 export type TransitionPayload =
   | IndoorToOutdoorTransitionPayload
   | CrossBuildingIndoorTripPayload;
 
-export function serializeTransitionPayload(
-  payload: TransitionPayload,
-): string {
+export function serializeTransitionPayload(payload: TransitionPayload): string {
   return JSON.stringify(payload);
 }
 
@@ -71,8 +73,10 @@ export function parseTransitionPayload(
     }
 
     if (parsed.mode === "cross_building_indoor") {
-      if (!parsed.originBuildingCode || !parsed.destinationBuildingCode) return null;
-      if (!parsed.originIndoorRoomQuery || !parsed.destinationIndoorRoomQuery) return null;
+      if (!parsed.originBuildingCode || !parsed.destinationBuildingCode)
+        return null;
+      if (!parsed.originIndoorRoomQuery || !parsed.destinationIndoorRoomQuery)
+        return null;
       return parsed as CrossBuildingIndoorTripPayload;
     }
 
