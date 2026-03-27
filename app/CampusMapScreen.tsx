@@ -7,6 +7,8 @@ import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
+import { OutdoorPOIFilter } from "../components/OutdoorPOIFilter";
+import { POIRangeSelector } from "../components/POIRangeSelector";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
@@ -15,6 +17,9 @@ import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
+import type { OutdoorPOICategoryId } from "../constants/outdoorPOI";
+import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
 import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
@@ -130,6 +135,28 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+  const [showPOIFilter, setShowPOIFilter] = useState(false);
+  const [activePOICategories, setActivePOICategories] = useState<Set<OutdoorPOICategoryId>>(new Set());
+  const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const { pois: nearbyPOIs, loading: poisLoading, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
+
+  const canSearchPOIs = userLocation != null && activePOICategories.size > 0;
+
+  const handleSearchPOIs = useCallback(() => {
+    if (!userLocation || activePOICategories.size === 0) return;
+    searchPOIs(userLocation, poiRange.meters, Array.from(activePOICategories));
+  }, [userLocation, poiRange.meters, activePOICategories, searchPOIs]);
+
+  const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
+    setActivePOICategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const destinationRoomQueryText = useMemo(() => {
     if (typeof destinationRoomQuery === "string" && destinationRoomQuery.trim()) {
@@ -549,6 +576,8 @@ export default function CampusMapScreen() {
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
+        onUserLocationResolved={setUserLocation}
+        nearbyPOIs={nearbyPOIs}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -593,6 +622,34 @@ export default function CampusMapScreen() {
 
       {/* Continue indoors is rendered as the final step inside the directions panel. */}
 
+      {showPOIFilter && (
+        <View style={styles.poiPanel}>
+          <OutdoorPOIFilter
+            activeCategories={activePOICategories}
+            onToggle={handleTogglePOICategory}
+          />
+          <POIRangeSelector selected={poiRange} onSelect={setPOIRange} />
+          {canSearchPOIs && (
+            <Pressable
+              testID="poi-search-button"
+              accessibilityRole="button"
+              accessibilityLabel="Search nearby places"
+              onPress={handleSearchPOIs}
+              disabled={poisLoading}
+              style={[
+                styles.poiSearchButton,
+                poisLoading && styles.poiSearchButtonDisabled,
+              ]}
+            >
+              <MaterialIcons name="search" size={18} color={colors.white} />
+              <Text style={styles.poiSearchButtonText}>
+                {poisLoading ? "Searching…" : "Search Nearby"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {/* Left button stack */}
       <View
         style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
@@ -632,6 +689,17 @@ export default function CampusMapScreen() {
 
       {/* Right button stack */}
       <View style={styles.buttonStack}>
+        <Pressable
+          testID="poi-filter-button"
+          accessibilityLabel={showPOIFilter ? "Hide nearby places" : "Show nearby places"}
+          onPress={() => setShowPOIFilter((v) => !v)}
+          style={[
+            styles.actionButton,
+            showPOIFilter && { backgroundColor: colors.secondary, borderColor: colors.secondaryDark },
+          ]}
+        >
+          <MaterialIcons name="place" size={24} color={colors.white} />
+        </Pressable>
         <Pressable
           testID="next-class-button"
           accessibilityLabel="Navigate to next class"

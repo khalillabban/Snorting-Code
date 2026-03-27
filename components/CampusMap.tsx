@@ -30,6 +30,8 @@ import type {
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { RouteStrategy } from "../services/Routing";
+import type { PlacePOI } from "../services/GooglePlacesService";
+import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import { styles } from "../styles/CampusMap.styles";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
@@ -54,6 +56,8 @@ type CampusMapProps = Readonly<{
   onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
   onIndoorFloorsAvailable?: (floors: number[]) => void;
   onViewIndoorMap?: (building: Buildings) => void;
+  onUserLocationResolved?: (coords: { latitude: number; longitude: number } | null) => void;
+  nearbyPOIs?: PlacePOI[];
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -152,6 +156,8 @@ export default function CampusMap({
   onBuildingSelected,
   onIndoorFloorsAvailable,
   onViewIndoorMap,
+  onUserLocationResolved,
+  nearbyPOIs,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -285,16 +291,19 @@ export default function CampusMap({
 
         if (cancelled) return;
 
-        setUserCoords({
+        const resolved = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-        });
+        };
+        setUserCoords(resolved);
+        onUserLocationResolved?.(resolved);
 
         setLocationError(null);
       } catch {
         if (!cancelled) {
           setLocationError("Unable to get your current location.");
           setUserCoords(null);
+          onUserLocationResolved?.(null);
         }
       }
     }
@@ -651,6 +660,32 @@ export default function CampusMap({
             ))}
           </>
         )}
+
+        {/* Nearby POI markers */}
+        {nearbyPOIs?.map((poi) => {
+          const catDef = OUTDOOR_POI_CATEGORY_MAP[poi.categoryId];
+          return (
+            <Marker
+              key={poi.placeId}
+              testID={`poi-marker-${poi.placeId}`}
+              coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
+              title={poi.name}
+              description={poi.vicinity}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.poiPin}>
+                <View style={[styles.poiPinHead, { backgroundColor: catDef?.color ?? colors.gray500 }]}>
+                  <MaterialCommunityIcons
+                    name={catDef?.icon ?? "map-marker"}
+                    size={16}
+                    color="#fff"
+                  />
+                </View>
+                <View style={[styles.poiPinTail, { borderTopColor: catDef?.color ?? colors.gray500 }]} />
+              </View>
+            </Marker>
+          );
+        })}
       </MapView>
 
       {locationError && (
