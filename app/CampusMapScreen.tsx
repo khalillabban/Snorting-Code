@@ -185,14 +185,19 @@ export default function CampusMapScreen() {
       )
       : null;
 
-    // Force the campus toggle to the destination campus so the user sees the correct map.
-    const destCampus =
-      destBuilding.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const);
-    setCurrentCampus(destCampus);
-    // UX: after pressing "Continue outside" we want to start the outdoor leg *from the origin
-    // building/exit*, not immediately zoom into the destination. Keep focusTarget as-is unless
-    // the user explicitly focused "user".
-    setFocusTarget((prev) => (prev === "user" ? prev : prev));
+    // Prefer showing the origin building's campus so the map initially centers on the start
+    // building/exit (the outdoor leg should start from the origin). If the origin can't be
+    // resolved, fall back to showing the destination campus.
+    const effectiveOrigin = originBuilding ?? originByExit ?? null;
+    const originCampus = effectiveOrigin
+      ? (effectiveOrigin.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const))
+      : null;
+
+    const campusToShow = originCampus ?? (destBuilding.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const));
+    setCurrentCampus(campusToShow);
+
+    // Only override focusTarget when the user hasn't explicitly focused on their location.
+    setFocusTarget((prev) => (prev === "user" ? prev : campusToShow));
 
     // Ensure both endpoints are set so CampusMap computes a route immediately.
     setSelectedRoute({
