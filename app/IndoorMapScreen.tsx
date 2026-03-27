@@ -779,22 +779,14 @@ export default function IndoorMapScreen() {
       console.error("Firebase Analytics Error: ", error);
     });
 
-    // Destination-building leg: when arriving from the Campus Map "Continue indoors" step,
-    // we may not know which entrance the user used. In that case, CampusMapScreen passes
-    // navOrigin="ENTRANCE" and navDest=<room query>. We route from the closest
-    // building_entry_exit node to the destination room.
     if (routeDestinationIndoorLegFromEntrance()) return;
 
-    // IndoorMapScreen is building-local only. If the destination looks like a different
-    // building/campus code, tell the user to start cross-building navigation from the Campus Map.
     const typedDest = navDestQuery.trim().toUpperCase();
     const isCampusCode = typedDest === "SGW" || typedDest === "LOYOLA";
     const isDifferentBuildingCode = BUILDINGS.some(
       (b) => b.name.trim().toUpperCase() === typedDest,
     );
-    // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
-    // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
-    // different building code as navDest because it means "route to an exit and continue outside".
+
     const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
     if (
       !isCrossBuildingOriginLeg &&
@@ -808,8 +800,6 @@ export default function IndoorMapScreen() {
       return;
     }
 
-    // Cross-building origin leg: if navDest is a building/campus code (ex: "CC") we
-    // interpret it as "route to the best exit".
     if (routeToBestExitForCrossBuildingOrigin()) return;
 
     const result = getIndoorNavigationRoute(

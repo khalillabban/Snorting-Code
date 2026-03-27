@@ -1862,6 +1862,193 @@ describe("IndoorMapScreen", () => {
     );
   });
 
+  it("handles analytics failures for origin/destination typing and floor change", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1, -2]),
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("From (H-110)")).toBeTruthy();
+      expect(screen.getByPlaceholderText("To (H-920)")).toBeTruthy();
+      expect(screen.getByText("-2")).toBeTruthy();
+    });
+
+    (logUsabilityEvent as jest.Mock).mockRejectedValueOnce(
+      new Error("origin analytics failure"),
+    );
+    fireEvent.changeText(screen.getByPlaceholderText("From (H-110)"), "H");
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    (logUsabilityEvent as jest.Mock).mockRejectedValueOnce(
+      new Error("destination analytics failure"),
+    );
+    fireEvent.changeText(screen.getByPlaceholderText("To (H-920)"), "H");
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    (logUsabilityEvent as jest.Mock).mockRejectedValueOnce(
+      new Error("floor analytics failure"),
+    );
+    fireEvent.press(screen.getByText("-2"));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles analytics failure when route generation event logging rejects", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 9, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [2, 9],
+        totalDistance: 50,
+        fullyAccessible: true,
+        estimatedSeconds: 35,
+      },
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_route_generated") {
+        return Promise.reject(new Error("route generated analytics failure"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles analytics failure when route failure event logging rejects", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: false,
+      error: "NO_PATH_FOUND",
+      message: "Unable to find indoor route",
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_route_failed") {
+        return Promise.reject(new Error("route failed analytics failure"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles analytics failure when closing the directions panel", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 9, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [2, 9],
+        totalDistance: 50,
+        fullyAccessible: true,
+        estimatedSeconds: 35,
+      },
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_directions_panel_closed") {
+        return Promise.reject(new Error("close panel analytics failure"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+    await screen.findByText("H-110 → H-920");
+
+    fireEvent.press(screen.getByText("✕"));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
   // New test for useFloorSync when availableFloors is empty
   it("useFloorSync sets selectedFloor to 1 if availableFloors is empty", async () => {
     let params = {
