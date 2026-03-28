@@ -279,7 +279,7 @@ export default function IndoorMapScreen() {
     return [...DEFAULT_AVAILABLE_FLOORS];
   }, [buildingName, floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
