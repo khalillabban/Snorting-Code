@@ -115,6 +115,12 @@ jest.mock("../components/POIListPanel", () => {
     <View testID="poi-list-panel-mock">
       <Text testID="poi-list-origin">{JSON.stringify(props.origin)}</Text>
       <Text testID="poi-list-length">{String((props.pois ?? []).length)}</Text>
+      <Pressable testID="retry-poi-search" onPress={() => props.onRetry?.()}>
+        <Text>Retry Search</Text>
+      </Pressable>
+      <Pressable testID="close-poi-list" onPress={() => props.onClose?.()}>
+        <Text>Close List</Text>
+      </Pressable>
       <Pressable
         testID="select-first-poi"
         onPress={() =>
@@ -238,6 +244,65 @@ describe("CampusMapScreen POI flow", () => {
         1000,
         ["coffee"],
       );
+    });
+  });
+
+  it("invokes retry search from the POI list when categories are active", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+
+    await waitFor(() => {
+      expect(searchPOIs).toHaveBeenCalledWith(
+        { latitude: 45.497, longitude: -73.579 },
+        500,
+        ["coffee"],
+      );
+    });
+
+    const callsBeforeRetry = searchPOIs.mock.calls.length;
+    fireEvent.press(screen.getByTestId("retry-poi-search"));
+
+    await waitFor(() => {
+      expect(searchPOIs.mock.calls.length).toBeGreaterThan(callsBeforeRetry);
+    });
+  });
+
+  it("does not run retry search when categories are empty", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+
+    await waitFor(() => {
+      expect(searchPOIs).toHaveBeenCalledWith(
+        { latitude: 45.497, longitude: -73.579 },
+        500,
+        ["coffee"],
+      );
+    });
+
+    fireEvent.press(screen.getByTestId("toggle-coffee"));
+    const callsBeforeRetry = searchPOIs.mock.calls.length;
+    fireEvent.press(screen.getByTestId("retry-poi-search"));
+
+    await waitFor(() => {
+      expect(searchPOIs.mock.calls.length).toBe(callsBeforeRetry);
+    });
+  });
+
+  it("closes the POI list when onClose is triggered", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+
+    expect(await screen.findByTestId("poi-list-panel-mock")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("close-poi-list"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("poi-list-panel-mock")).toBeNull();
     });
   });
 });
