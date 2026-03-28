@@ -152,7 +152,7 @@ function formatTime(seconds: number): string {
 export function IndoorDirectionsPanel({
   route,
   onClose,
-}: IndoorDirectionsPanelProps) {
+}: Readonly<IndoorDirectionsPanelProps>) {
   return (
     <View style={styles.container}>
       {/* Header */}
