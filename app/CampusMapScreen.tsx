@@ -14,35 +14,35 @@ import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
+import type { OutdoorPOICategoryId } from "../constants/outdoorPOI";
+import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
-import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
-import type { OutdoorPOICategoryId } from "../constants/outdoorPOI";
-import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
+import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
-import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
-import { getBuildingPlanAsset } from "../utils/mapAssets";
-import {
-  getIndoorNavigationRouteFromNode,
-  indoorRouteToSteps,
-} from "../utils/indoorNavigation";
-import {
-  buildIndoorMapRouteParams,
-  getIndoorAccessState,
-} from "../utils/indoorAccess";
 import {
   buildContinueIndoorsStep,
   getContinueIndoorsBuildingCode,
 } from "../utils/continueIndoors";
+import {
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
+} from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import {
+  getIndoorNavigationRouteFromNode,
+  indoorRouteToSteps,
+} from "../utils/indoorNavigation";
+import { getBuildingPlanAsset } from "../utils/mapAssets";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
+import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
 
 type FocusTarget = CampusKey | "user";
 
@@ -148,11 +148,10 @@ export default function CampusMapScreen() {
 
   // Fall back to the current campus center when GPS is unavailable.
   const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
-  const canSearchPOIs = activePOICategories.size > 0;
 
   // Stable string key for the active categories so we can use it as an effect dep.
   const activePOICategoryKey = useMemo(
-    () => Array.from(activePOICategories).sort().join(","),
+    () => Array.from(activePOICategories).sort((a, b) => a.localeCompare(b)).join(","),
     [activePOICategories],
   );
 
