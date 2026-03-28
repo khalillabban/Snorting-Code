@@ -46,7 +46,7 @@ export function IndoorRouteOverlay({
   stageLayout,
   floorBounds,
   accessibleOnly,
-}: IndoorRouteOverlayProps) {
+}: Readonly<IndoorRouteOverlayProps>) {
   const { points, originPoint, destPoint } = useMemo(() => {
     const waypoints = getRouteWaypointsForFloor(route, floor, coordinateScale);
 
