@@ -299,6 +299,15 @@ export default function IndoorMapScreen() {
   const destinationRoomQueryText =
     typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
 
+  useEffect(() => {
+    if (!availableFloors.length) return;
+
+    // If current floor is no longer valid, reset it
+    if (!availableFloors.includes(selectedFloor)) {
+      setSelectedFloor(availableFloors[0]);
+    }
+  }, [availableFloors, selectedFloor]);
+
   // Cross-building origin leg UX: show the final destination room in the "To" input,
   // even though we route to an exit based on `outdoorDestBuilding`.
   useEffect(() => {
@@ -656,9 +665,12 @@ export default function IndoorMapScreen() {
     // interpret it as "route to the best exit".
     if (routeToBestExitForCrossBuildingOrigin()) return;
 
-    const result = getIndoorNavigationRoute(buildingName, navOriginQuery, navDestQuery, {
-      accessibleOnly: accessibleOnly,
-    });
+    const result = getIndoorNavigationRoute(
+      buildingName,
+      navOriginQuery,
+      navDestQuery,
+      { accessibleOnly },
+    );
 
     applyNavigationResult(result);
   }, [
@@ -666,9 +678,7 @@ export default function IndoorMapScreen() {
     applyNavigationResult,
     buildingName,
     navDestQuery,
-    navOrigin,
     navOriginQuery,
-    navDest,
     outdoorDestBuilding,
     routeDestinationIndoorLegFromEntrance,
     routeToBestExitForCrossBuildingOrigin,

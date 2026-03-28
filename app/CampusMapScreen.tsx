@@ -36,7 +36,32 @@ import {
   getNextClassFromItems,
   loadCachedSchedule,
 } from "../utils/parseCourseEvents";
+
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
+
+const buildCrossBuildingIndoorParams = ({
+  params,
+  startRoom,
+  startBuilding,
+  destBuilding,
+  strategy,
+  accessible,
+}: {
+  params: Record<string, string | undefined>;
+  startRoom: IndoorRoomRecord;
+  startBuilding: Buildings;
+  destBuilding: Buildings;
+  strategy?: RouteStrategy;
+  accessible: boolean;
+}) => ({
+  ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, v ?? ""])),
+  navOrigin: startRoom.label,
+  navDest: startBuilding.name.trim().toUpperCase(),
+  outdoorDestBuilding: destBuilding.name.trim().toUpperCase(),
+  outdoorStrategy: strategy ? JSON.stringify(strategy) : undefined,
+  outdoorAccessibleOnly: accessible ? "true" : "false",
+  accessibleOnly: String(accessible),
+});
 
 type FocusTarget = CampusKey | "user";
 
@@ -151,7 +176,7 @@ export default function CampusMapScreen() {
     if (typeof endRoomLabel === "string" && endRoomLabel.trim()) return endRoomLabel;
 
     return "";
-  }, [destinationRoomQuery, transitionPayload, selectedRouteEndRoom?.label]);
+  }, [destinationRoomQuery, transitionPayload, selectedRouteEndRoom]);
 
   // If we arrived from indoor navigation, auto-select the outdoor route so the map
   // immediately renders a path (instead of waiting for the user to pick buildings).
@@ -431,17 +456,14 @@ export default function CampusMapScreen() {
         if (!params) return;
         router.push({
           pathname: "/IndoorMapScreen",
-          params: {
-            ...params,
-            navOrigin: startRoom.label,
-            // Signal "cross-building origin leg" by setting navDest to the origin building code.
-            // With outdoorDestBuilding present, IndoorMapScreen interprets this as "route to an exit".
-            navDest: start.name.trim().toUpperCase(),
-            outdoorDestBuilding: dest.name.trim().toUpperCase(),
-            outdoorStrategy: strategy ? JSON.stringify(strategy) : undefined,
-            outdoorAccessibleOnly: accessible ? "true" : "false",
-            accessibleOnly: String(Boolean(accessible)),
-          },
+          params: buildCrossBuildingIndoorParams({
+            params,
+            startRoom,
+            startBuilding: start,
+            destBuilding: dest,
+            strategy,
+            accessible: !!accessible,
+          }),
         });
         return;
       }
@@ -537,12 +559,7 @@ export default function CampusMapScreen() {
   // Only show "Continue indoors" when the *final* destination is a room.
   // Accept either the explicit query param (building → room use-case) or a
   // transition payload indoor destination (indoor → outdoor → indoor use-case).
-  const hasIndoorRoomDestination = Boolean(
-    destinationRoomQueryText.trim() ||
-    (transitionPayload?.mode === "indoor_to_outdoor" &&
-      typeof transitionPayload.destinationIndoorRoomQuery === "string" &&
-      transitionPayload.destinationIndoorRoomQuery.trim()),
-  );
+  const hasIndoorRoomDestination = Boolean(destinationRoomQueryText.trim());
 
   // (Outdoor building → outdoor building should not offer an indoor CTA.)
   const canContinueIndoors = Boolean(
