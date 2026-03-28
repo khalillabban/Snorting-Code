@@ -20,9 +20,9 @@ export interface OutdoorPOICategoryDefinition {
 }
 
 export const OUTDOOR_POI_CATEGORIES: OutdoorPOICategoryDefinition[] = [
-  { id: "restaurant", label: "Restaurants", icon: "silverware-fork-knife", color: "#e65100", googlePlacesType: "restaurant" },
+  { id: "restaurant", label: "Food", icon: "silverware-fork-knife", color: "#e65100", googlePlacesType: "restaurant" },
   { id: "coffee", label: "Coffee", icon: "coffee", color: "#6d4c41", googlePlacesType: "cafe" },
-  { id: "study", label: "Study Spots", icon: "book-open-variant", color: "#1565c0", googlePlacesType: "library" },
+  { id: "study", label: "Library", icon: "book-open-variant", color: "#1565c0", googlePlacesType: "library" },
   { id: "grocery", label: "Grocery", icon: "cart", color: "#2e7d32", googlePlacesType: "supermarket" },
   { id: "pharmacy", label: "Pharmacy", icon: "medical-bag", color: "#c62828", googlePlacesType: "pharmacy" },
   { id: "atm", label: "ATMs", icon: "cash-multiple", color: "#0277bd", googlePlacesType: "atm" },

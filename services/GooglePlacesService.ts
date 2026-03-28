@@ -4,7 +4,7 @@ import {
 } from "../constants/outdoorPOI";
 
 const NEARBY_SEARCH_URL =
-  "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
+  "https://places.googleapis.com/v1/places:searchNearby";
 
 function requireGoogleApiKey(): string {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -27,19 +27,20 @@ export interface PlacePOI {
   rating?: number;
 }
 
-interface NearbySearchResult {
-  place_id?: string;
-  name?: string;
-  geometry?: { location?: { lat?: number; lng?: number } };
-  vicinity?: string;
-  opening_hours?: { open_now?: boolean };
+interface NewPlaceResult {
+  id?: string;
+  displayName?: { text?: string };
+  location?: { latitude?: number; longitude?: number };
+  shortFormattedAddress?: string;
+  formattedAddress?: string;
+  currentOpeningHours?: { openNow?: boolean };
+  regularOpeningHours?: { openNow?: boolean };
   rating?: number;
 }
 
-interface NearbySearchResponse {
-  status?: string;
-  error_message?: string;
-  results?: NearbySearchResult[];
+interface NearbySearchNewResponse {
+  places?: NewPlaceResult[];
+  error?: { message?: string; status?: string };
 }
 
 export async function fetchNearbyPOIs(
@@ -51,40 +52,57 @@ export async function fetchNearbyPOIs(
   const category = OUTDOOR_POI_CATEGORY_MAP[categoryId];
   if (!category) return [];
 
-  const params = new URLSearchParams({
-    location: `${latitude},${longitude}`,
-    radius: String(radiusMeters),
-    type: category.googlePlacesType,
-    key: requireGoogleApiKey(),
+  const body = {
+    includedTypes: [category.googlePlacesType],
+    maxResultCount: 20,
+    locationRestriction: {
+      circle: {
+        center: { latitude, longitude },
+        radius: radiusMeters,
+      },
+    },
+  };
+
+  const response = await fetch(NEARBY_SEARCH_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": requireGoogleApiKey(),
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.location,places.shortFormattedAddress,places.formattedAddress,places.currentOpeningHours,places.rating",
+    },
+    body: JSON.stringify(body),
   });
 
-  const response = await fetch(`${NEARBY_SEARCH_URL}?${params}`);
   if (!response.ok) {
     throw new Error(`Places API request failed: HTTP ${response.status}`);
   }
 
-  const data: NearbySearchResponse = await response.json();
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    const msg = data.error_message ? ` (${data.error_message})` : "";
-    throw new Error(`Places API status: ${data.status ?? "UNKNOWN"}${msg}`);
+  const data: NearbySearchNewResponse = await response.json();
+
+  if (data.error) {
+    throw new Error(
+      `Places API error: ${data.error.status ?? "UNKNOWN"} – ${data.error.message ?? ""}`,
+    );
   }
 
-  return (data.results ?? [])
+  return (data.places ?? [])
     .filter(
       (r) =>
-        r.place_id &&
-        r.name &&
-        r.geometry?.location?.lat != null &&
-        r.geometry?.location?.lng != null,
+        r.id &&
+        r.displayName?.text &&
+        r.location?.latitude != null &&
+        r.location?.longitude != null,
     )
     .map((r) => ({
-      placeId: r.place_id!,
-      name: r.name!,
-      latitude: r.geometry!.location!.lat!,
-      longitude: r.geometry!.location!.lng!,
-      vicinity: r.vicinity ?? "",
+      placeId: r.id!,
+      name: r.displayName!.text!,
+      latitude: r.location!.latitude!,
+      longitude: r.location!.longitude!,
+      vicinity:
+        r.shortFormattedAddress ?? r.formattedAddress ?? "",
       categoryId,
-      openNow: r.opening_hours?.open_now,
+      openNow: r.currentOpeningHours?.openNow ?? r.regularOpeningHours?.openNow,
       rating: r.rating,
     }));
 }
@@ -105,7 +123,6 @@ export async function fetchNearbyPOIsForCategories(
     ),
   );
 
-  // Deduplicate by placeId (a place can match multiple types)
   const seen = new Set<string>();
   return results.flat().filter((poi) => {
     if (seen.has(poi.placeId)) return false;

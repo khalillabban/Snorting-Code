@@ -8,6 +8,7 @@ import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
 import { OutdoorPOIFilter } from "../components/OutdoorPOIFilter";
+import { POIListPanel } from "../components/POIListPanel";
 import { POIRangeSelector } from "../components/POIRangeSelector";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
@@ -136,18 +137,42 @@ export default function CampusMapScreen() {
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [showPOIFilter, setShowPOIFilter] = useState(false);
+  const [showPOIList, setShowPOIList] = useState(false);
+  const [focusPOICoord, setFocusPOICoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [focusPOITrigger, setFocusPOITrigger] = useState(0);
   const [activePOICategories, setActivePOICategories] = useState<Set<OutdoorPOICategoryId>>(new Set());
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const { pois: nearbyPOIs, loading: poisLoading, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
+  const { pois: nearbyPOIs, loading: poisLoading, error: poisError, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
 
-  const canSearchPOIs = userLocation != null && activePOICategories.size > 0;
+  // Fall back to the current campus center when GPS is unavailable.
+  const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
+  const canSearchPOIs = activePOICategories.size > 0;
+
+  // Stable string key for the active categories so we can use it as an effect dep.
+  const activePOICategoryKey = useMemo(
+    () => Array.from(activePOICategories).sort().join(","),
+    [activePOICategories],
+  );
+
+  // Auto-search whenever category, range, or location changes while the POI panel is open.
+  useEffect(() => {
+    if (!showPOIFilter) return;
+    if (activePOICategories.size === 0) {
+      clearPOIs();
+      return;
+    }
+    searchPOIs(poiSearchLocation, poiRange.meters, Array.from(activePOICategories));
+    setShowPOIList(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePOICategoryKey, poiRange.meters, poiSearchLocation, showPOIFilter]);
 
   const handleSearchPOIs = useCallback(() => {
-    if (!userLocation || activePOICategories.size === 0) return;
-    searchPOIs(userLocation, poiRange.meters, Array.from(activePOICategories));
-  }, [userLocation, poiRange.meters, activePOICategories, searchPOIs]);
+    if (activePOICategories.size === 0) return;
+    searchPOIs(poiSearchLocation, poiRange.meters, Array.from(activePOICategories));
+    setShowPOIList(true);
+  }, [poiSearchLocation, poiRange.meters, activePOICategories, searchPOIs]);
 
   const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
     setActivePOICategories((prev) => {
@@ -578,6 +603,8 @@ export default function CampusMapScreen() {
         onViewIndoorMap={handleViewBuildingIndoorMap}
         onUserLocationResolved={setUserLocation}
         nearbyPOIs={nearbyPOIs}
+        focusCoordinate={focusPOICoord}
+        focusPOITrigger={focusPOITrigger}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -629,24 +656,6 @@ export default function CampusMapScreen() {
             onToggle={handleTogglePOICategory}
           />
           <POIRangeSelector selected={poiRange} onSelect={setPOIRange} />
-          {canSearchPOIs && (
-            <Pressable
-              testID="poi-search-button"
-              accessibilityRole="button"
-              accessibilityLabel="Search nearby places"
-              onPress={handleSearchPOIs}
-              disabled={poisLoading}
-              style={[
-                styles.poiSearchButton,
-                poisLoading && styles.poiSearchButtonDisabled,
-              ]}
-            >
-              <MaterialIcons name="search" size={18} color={colors.white} />
-              <Text style={styles.poiSearchButtonText}>
-                {poisLoading ? "Searching…" : "Search Nearby"}
-              </Text>
-            </Pressable>
-          )}
         </View>
       )}
 
@@ -692,7 +701,16 @@ export default function CampusMapScreen() {
         <Pressable
           testID="poi-filter-button"
           accessibilityLabel={showPOIFilter ? "Hide nearby places" : "Show nearby places"}
-          onPress={() => setShowPOIFilter((v) => !v)}
+          onPress={() => {
+            setShowPOIFilter((v) => {
+              if (v) {
+                clearPOIs();
+                setShowPOIList(false);
+                setActivePOICategories(new Set());
+              }
+              return !v;
+            });
+          }}
           style={[
             styles.actionButton,
             showPOIFilter && { backgroundColor: colors.secondary, borderColor: colors.secondaryDark },
@@ -738,6 +756,22 @@ export default function CampusMapScreen() {
           <MaterialIcons name="my-location" size={22} color={colors.white} />
         </Pressable>
       </View>
+
+      {showPOIList && (
+        <POIListPanel
+          pois={nearbyPOIs}
+          origin={poiSearchLocation}
+          onClose={() => setShowPOIList(false)}
+          onSelect={(poi) => {
+            setFocusPOICoord({ latitude: poi.latitude, longitude: poi.longitude });
+            setFocusPOITrigger((c) => c + 1);
+          }}
+          loading={poisLoading}
+          error={poisError}
+          locationUnavailable={!userLocation}
+          onRetry={handleSearchPOIs}
+        />
+      )}
 
       {showShuttleSchedulePanel && (
         <ShuttleSchedulePanel

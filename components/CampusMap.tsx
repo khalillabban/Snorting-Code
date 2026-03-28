@@ -19,6 +19,7 @@ import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
+import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
@@ -29,9 +30,8 @@ import type {
   RouteStep,
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
-import type { RouteStrategy } from "../services/Routing";
 import type { PlacePOI } from "../services/GooglePlacesService";
-import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
+import type { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMap.styles";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
@@ -58,6 +58,8 @@ type CampusMapProps = Readonly<{
   onViewIndoorMap?: (building: Buildings) => void;
   onUserLocationResolved?: (coords: { latitude: number; longitude: number } | null) => void;
   nearbyPOIs?: PlacePOI[];
+  focusCoordinate?: { latitude: number; longitude: number } | null;
+  focusPOITrigger?: number;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -158,6 +160,8 @@ export default function CampusMap({
   onViewIndoorMap,
   onUserLocationResolved,
   nearbyPOIs,
+  focusCoordinate,
+  focusPOITrigger = 0,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -424,6 +428,38 @@ export default function CampusMap({
     }
   }, [effectiveOrigin, mapReady, routeFocusTrigger]);
 
+  // Keep refs to POI markers so we can programmatically show their callout.
+  const poiMarkerRefs = useRef<Record<string, Marker | null>>({});
+
+  // Focus on a POI selected from the list and auto-show its callout.
+  useEffect(() => {
+    if (focusCoordinate && mapReady && focusPOITrigger > 0) {
+      // Offset the center upward so the pin appears in the top third of the
+      // visible map area (the bottom half is covered by the list panel).
+      mapRef.current?.animateToRegion(
+        {
+          latitude: focusCoordinate.latitude - 0.0006,
+          longitude: focusCoordinate.longitude,
+          latitudeDelta: 0.004,
+          longitudeDelta: 0.004,
+        },
+        300,
+      );
+
+      // Show the callout after the animation settles.
+      const matched = nearbyPOIs?.find(
+        (p) =>
+          p.latitude === focusCoordinate.latitude &&
+          p.longitude === focusCoordinate.longitude,
+      );
+      if (matched) {
+        setTimeout(() => {
+          poiMarkerRefs.current[matched.placeId]?.showCallout();
+        }, 350);
+      }
+    }
+  }, [focusCoordinate, mapReady, focusPOITrigger, nearbyPOIs]);
+
   // Focus selected building
   useEffect(() => {
     if (selectedBuilding && mapReady) {
@@ -667,6 +703,7 @@ export default function CampusMap({
           return (
             <Marker
               key={poi.placeId}
+              ref={(ref) => { poiMarkerRefs.current[poi.placeId] = ref; }}
               testID={`poi-marker-${poi.placeId}`}
               coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
               title={poi.name}
