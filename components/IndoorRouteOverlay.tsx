@@ -163,9 +163,9 @@ export function IndoorDirectionsPanel({
           </Text>
           <Text style={styles.subtitle}>
             {formatTime(route.estimatedSeconds)} walk
-            {!route.fullyAccessible
-              ? " · some inaccessible sections"
-              : " · fully accessible"}
+            {route.fullyAccessible
+              ? " · fully accessible"
+              : " · some inaccessible sections"}
           </Text>
         </View>
         {onClose && (
