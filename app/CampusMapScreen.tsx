@@ -44,7 +44,6 @@ import {
 import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
 
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
-import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
 
 const buildCrossBuildingIndoorParams = ({
   params,
