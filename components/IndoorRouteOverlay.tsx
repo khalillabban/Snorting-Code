@@ -182,7 +182,11 @@ export function IndoorDirectionsPanel({
         showsVerticalScrollIndicator={false}
       >
         {route.segments.map((seg, index) => (
-          <SegmentRow key={index} segment={seg} index={index} />
+          <SegmentRow
+            key={`${seg.kind}-${seg.floor}-${seg.nodeIds.join(">")}-${seg.description}`}
+            segment={seg}
+            index={index}
+          />
         ))}
       </ScrollView>
     </View>
