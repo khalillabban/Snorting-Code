@@ -196,10 +196,10 @@ export function IndoorDirectionsPanel({
 function SegmentRow({
   segment,
   index,
-}: {
+}: Readonly<{
   segment: NavigationSegment;
   index: number;
-}) {
+}>) {
   const icon = SEGMENT_ICONS[segment.kind] ?? "·";
   const isTransition = segment.kind === "stairs" || segment.kind === "elevator";
 
