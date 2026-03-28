@@ -74,7 +74,7 @@ function buildSearchIndex(): SearchIndex {
 }
 
 function getSearchIndex(): SearchIndex {
-  if (!_cachedIndex) _cachedIndex = buildSearchIndex();
+  _cachedIndex ??= buildSearchIndex();
   return _cachedIndex;
 }
 
