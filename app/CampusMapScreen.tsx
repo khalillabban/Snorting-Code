@@ -611,6 +611,9 @@ export default function CampusMapScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Extracted variable for demoCurrentBuilding ?? autoStartBuilding
+  const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
+
   return (
     <View style={{ flex: 1 }}>
       <CampusMap
@@ -788,13 +791,13 @@ export default function CampusMapScreen() {
           setInitialDestination(null);
         }}
         onConfirm={handleConfirmRoute}
-        autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
+        autoStartBuilding={effectiveCurrentBuilding}
         initialStart={initialStart}
         onInitialStartApplied={() => setInitialStart(null)}
         initialDestination={initialDestination}
         onInitialDestinationApplied={() => setInitialDestination(null)}
         currentCampus={currentCampus}
-        onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        onUseMyLocation={() => effectiveCurrentBuilding ?? null}
         accessibleOnly={accessibleOnly}
         onAccessibleOnlyChange={setAccessibleOnly}
       />
@@ -805,9 +808,9 @@ export default function CampusMapScreen() {
         onConfirm={handleConfirmRoute}
         nextClass={nextClass}
         scheduleItems={scheduleItems}
-        autoStartBuilding={demoCurrentBuilding ?? autoStartBuilding}
+        autoStartBuilding={effectiveCurrentBuilding}
         currentCampus={currentCampus}
-        onUseMyLocation={() => demoCurrentBuilding ?? autoStartBuilding ?? null}
+        onUseMyLocation={() => effectiveCurrentBuilding ?? null}
         canOpenIndoorMap={canOpenNextClassIndoorMap}
         onOpenIndoorMap={handleOpenNextClassIndoorMap}
       />
