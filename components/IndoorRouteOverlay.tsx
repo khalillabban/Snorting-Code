@@ -59,7 +59,7 @@ export function IndoorRouteOverlay({
     const polylineStr = screenPts.map((p) => `${p.x},${p.y}`).join(" ");
 
     const first = screenPts[0] ?? null;
-    const last = screenPts[screenPts.length - 1] ?? null;
+    const last = screenPts.at(-1) ?? null;
 
     return {
       points: polylineStr,
