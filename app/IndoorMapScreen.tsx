@@ -407,7 +407,7 @@ export default function IndoorMapScreen() {
   const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor = useMemo(() => {
-    if (!selectedRoom || selectedRoom.floor !== selectedFloor) return null;
+    if (selectedRoom?.floor !== selectedFloor) return null;
     return {
       ...selectedRoom,
       x: selectedRoom.x * coordinateScale,
