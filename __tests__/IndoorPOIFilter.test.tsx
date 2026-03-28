@@ -3,6 +3,16 @@ import React from "react";
 import { IndoorPOIFilter } from "../components/IndoorPOIFilter";
 import { POI_CATEGORIES, type POICategoryId } from "../constants/indoorPOI";
 
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
+  return {
+    __esModule: true,
+    MaterialCommunityIcons: MockIcon,
+  };
+});
+
 describe("IndoorPOIFilter", () => {
   const mockToggle = jest.fn();
 
