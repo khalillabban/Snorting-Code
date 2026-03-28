@@ -16,13 +16,19 @@ import {
   IndoorDirectionsPanel,
   IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
+import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
+  isDestinationLegOrigin,
+  pickClosestEntryExitNodeId,
+} from "../utils/destinationIndoorLeg";
+import {
   getNormalizedBuildingPlan,
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
+import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
@@ -30,16 +36,10 @@ import {
   NavigationRoute,
   type NavigationResult,
 } from "../utils/indoorNavigation";
-import { selectBestIndoorExit } from "../utils/indoorExit";
-import {
-  isDestinationLegOrigin,
-  pickClosestEntryExitNodeId,
-} from "../utils/destinationIndoorLeg";
 import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getAvailableFloors, getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
-import { BUILDINGS } from "../constants/buildings";
 import {
   serializeTransitionPayload,
   type IndoorToOutdoorTransitionPayload,
@@ -453,7 +453,7 @@ export default function IndoorMapScreen() {
       if (!match) {
         setSelectedRoom(null);
         setSearchError(
-          `Room \"${trimmedQuery}\" was not found in ${buildingName}.`,
+          `Room "${trimmedQuery}" was not found in ${buildingName}.`,
         );
         return;
       }
