@@ -304,6 +304,17 @@ export default function IndoorMapScreen() {
     typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
 
   useEffect(() => {
+    if (!availableFloors.length) return;
+
+    // If current floor is no longer valid, reset it
+    if (!availableFloors.includes(selectedFloor)) {
+      setSelectedFloor(availableFloors[0]);
+    }
+  }, [availableFloors, selectedFloor]);
+
+  // Cross-building origin leg UX: show the final destination room in the "To" input,
+  // even though we route to an exit based on `outdoorDestBuilding`.
+  useEffect(() => {
     const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
     if (!isCrossBuildingOriginLeg) return;
     if (!destinationRoomQueryText) return;
@@ -526,7 +537,7 @@ export default function IndoorMapScreen() {
   const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor = useMemo(() => {
-    if (!selectedRoom || selectedRoom.floor !== selectedFloor) return null;
+    if (selectedRoom?.floor !== selectedFloor) return null;
     return {
       ...selectedRoom,
       x: selectedRoom.x * coordinateScale,
@@ -636,8 +647,15 @@ export default function IndoorMapScreen() {
         return true;
       }
 
-      const entryNodes = (asset.nodes ?? []).filter(
-        (n: any) => n.type === "building_entry_exit",
+      type EntryExitNode = {
+        id: string;
+        type: string;
+        x?: number;
+        y?: number;
+      };
+
+      const entryNodes: EntryExitNode[] = (asset.nodes ?? []).filter(
+        (n: EntryExitNode) => n.type === "building_entry_exit",
       );
       if (entryNodes.length === 0) {
         failNavigation(`No building entrances were found for ${buildingName}.`);
@@ -663,7 +681,7 @@ export default function IndoorMapScreen() {
         { accessibleOnly },
       );
 
-      applyNavigationResult(result as any);
+      applyNavigationResult(result);
       return true;
     } catch {
       failNavigation("Unable to compute indoor directions from the entrance.");

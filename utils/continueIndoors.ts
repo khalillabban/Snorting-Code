@@ -33,9 +33,7 @@ export function buildContinueIndoorsStep(opts: {
   if (!destCode) return null;
 
   const roomQuery = opts.destinationRoomQuery.trim();
-  const instruction = roomQuery
-    ? `Continue indoors to ${roomQuery}`
-    : `Continue indoors in ${destCode}`;
+  const instruction = "Continue indoors";
 
   const openArgs: OpenIndoorNavArgs = {
     buildingCode: destCode,
