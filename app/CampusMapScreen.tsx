@@ -17,25 +17,25 @@ import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
-import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
-import { getBuildingPlanAsset } from "../utils/mapAssets";
-import {
-  getIndoorNavigationRouteFromNode,
-  indoorRouteToSteps,
-} from "../utils/indoorNavigation";
-import {
-  buildIndoorMapRouteParams,
-  getIndoorAccessState,
-} from "../utils/indoorAccess";
 import {
   buildContinueIndoorsStep,
   getContinueIndoorsBuildingCode,
 } from "../utils/continueIndoors";
+import {
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
+} from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import {
+  getIndoorNavigationRouteFromNode,
+  indoorRouteToSteps,
+} from "../utils/indoorNavigation";
+import { getBuildingPlanAsset } from "../utils/mapAssets";
 import {
   getNextClassFromItems,
   loadCachedSchedule,
 } from "../utils/parseCourseEvents";
+import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
 
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -71,6 +71,106 @@ function normalizeRoomQuery(buildingCode: string, room: string): string {
   const prefix = `${buildingCode.toUpperCase()}-`;
   if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
   return `${prefix}${trimmed}`;
+}
+
+type RouteConfirmIntent =
+  | {
+    kind: "cross_building_indoor_to_indoor";
+    originBuildingCode: string;
+    destinationBuildingCode: string;
+    originIndoorRoomQuery: string;
+    destinationIndoorRoomQuery: string;
+    strategy: RouteStrategy;
+    accessibleOnly: boolean;
+    campus: CampusKey;
+  }
+  | {
+    kind: "cross_building_indoor_to_outdoor";
+    startBuilding: Buildings;
+    destBuilding: Buildings;
+    startRoom: IndoorRoomRecord;
+    strategy: RouteStrategy;
+    accessibleOnly: boolean;
+  }
+  | {
+    kind: "same_building_indoor_room_to_room";
+    buildingCode: string;
+    navOrigin: string;
+    navDest: string;
+    accessibleOnly?: boolean;
+  }
+  | {
+    kind: "same_building_indoor_to_room";
+    buildingCode: string;
+    roomQuery: string;
+    accessibleOnly?: boolean;
+  }
+  | { kind: "outdoor_route" };
+
+function buildRouteConfirmIntent({
+  start,
+  dest,
+  strategy,
+  startRoom,
+  endRoom,
+  accessible,
+}: {
+  start: Buildings | null;
+  dest: Buildings | null;
+  strategy: RouteStrategy;
+  startRoom?: IndoorRoomRecord | null;
+  endRoom?: IndoorRoomRecord | null;
+  accessible?: boolean;
+}): RouteConfirmIntent {
+  const hasStartName = Boolean(start?.name);
+  const hasDestName = Boolean(dest?.name);
+  const isCrossBuilding = hasStartName && hasDestName && start?.name !== dest?.name;
+  const isSameBuilding = hasStartName && hasDestName && start?.name === dest?.name;
+
+  if (isCrossBuilding && startRoom && endRoom && start?.name && dest?.name) {
+    return {
+      kind: "cross_building_indoor_to_indoor",
+      originBuildingCode: start.name.trim().toUpperCase(),
+      destinationBuildingCode: dest.name.trim().toUpperCase(),
+      originIndoorRoomQuery: startRoom.label,
+      destinationIndoorRoomQuery: endRoom.label,
+      strategy,
+      accessibleOnly: Boolean(accessible),
+      campus: (start.campusName ?? "sgw") as CampusKey,
+    };
+  }
+
+  if (isCrossBuilding && startRoom && !endRoom && start && dest) {
+    return {
+      kind: "cross_building_indoor_to_outdoor",
+      startBuilding: start,
+      destBuilding: dest,
+      startRoom,
+      strategy,
+      accessibleOnly: Boolean(accessible),
+    };
+  }
+
+  if (isSameBuilding && startRoom && endRoom && start?.name) {
+    return {
+      kind: "same_building_indoor_room_to_room",
+      buildingCode: start.name,
+      navOrigin: startRoom.label,
+      navDest: endRoom.label,
+      accessibleOnly: accessible,
+    };
+  }
+
+  if (isSameBuilding && endRoom && dest?.name) {
+    return {
+      kind: "same_building_indoor_to_room",
+      buildingCode: dest.name,
+      roomQuery: endRoom.label,
+      accessibleOnly: accessible,
+    };
+  }
+
+  return { kind: "outdoor_route" };
 }
 
 export default function CampusMapScreen() {
@@ -422,78 +522,74 @@ export default function CampusMapScreen() {
         accessibleOnly: boolean;
       };
 
-      // Cross-building indoor-to-indoor trip (Option A): plan it from Campus Map.
-      // When both endpoints are rooms but buildings differ, we kick off the origin indoor leg.
-      if (start?.name && dest?.name && startRoom && endRoom && start.name !== dest.name) {
-        const originBuildingCode = start.name.trim().toUpperCase();
-        const destinationBuildingCode = dest.name.trim().toUpperCase();
+      const intent = buildRouteConfirmIntent({
+        start,
+        dest,
+        strategy,
+        startRoom,
+        endRoom,
+        accessible,
+      });
+
+      if (intent.kind === "cross_building_indoor_to_indoor") {
         const payload: CrossBuildingIndoorTransition = {
           mode: "cross_building_indoor",
-          originBuildingCode,
-          originIndoorRoomQuery: startRoom.label,
-          destinationBuildingCode,
-          destinationIndoorRoomQuery: endRoom.label,
-          strategy,
-          accessibleOnly: !!accessible,
+          originBuildingCode: intent.originBuildingCode,
+          originIndoorRoomQuery: intent.originIndoorRoomQuery,
+          destinationBuildingCode: intent.destinationBuildingCode,
+          destinationIndoorRoomQuery: intent.destinationIndoorRoomQuery,
+          strategy: intent.strategy,
+          accessibleOnly: intent.accessibleOnly,
         };
 
         router.push({
           pathname: "/CampusMapScreen",
           params: {
-            campus: (start.campusName ?? "sgw") as CampusKey,
+            campus: intent.campus,
             transition: serializeTransitionPayload(payload),
           },
         });
         return;
       }
 
-      // Cross-building indoor-to-outdoor trip: if the user is starting from an indoor room
-      // (ex: CC-124) but the destination is another building (ex: MB), start the UX indoors.
-      // We enter IndoorMapScreen for the origin building and route to a best exit.
-      if (start?.name && dest?.name && startRoom && !endRoom && start.name !== dest.name) {
+      if (intent.kind === "cross_building_indoor_to_outdoor") {
         setIsNavVisible(false);
-        const params = buildIndoorMapRouteParams(start.name);
+        const params = buildIndoorMapRouteParams(intent.startBuilding.name);
         if (!params) return;
         router.push({
           pathname: "/IndoorMapScreen",
           params: buildCrossBuildingIndoorParams({
             params,
-            startRoom,
-            startBuilding: start,
-            destBuilding: dest,
-            strategy,
-            accessible: !!accessible,
+            startRoom: intent.startRoom,
+            startBuilding: intent.startBuilding,
+            destBuilding: intent.destBuilding,
+            strategy: intent.strategy,
+            accessible: intent.accessibleOnly,
           }),
         });
         return;
       }
 
-      if (
-        start?.name &&
-        dest?.name &&
-        start.name === dest.name &&
-        startRoom &&
-        endRoom
-      ) {
+      if (intent.kind === "same_building_indoor_room_to_room") {
         setIsNavVisible(false);
         openIndoorMap(
-          start.name,
+          intent.buildingCode,
           undefined,
-          startRoom.label,
-          endRoom.label,
-          accessible,
+          intent.navOrigin,
+          intent.navDest,
+          intent.accessibleOnly,
         );
         return;
       }
 
-      if (start?.name && dest?.name && start.name === dest.name && endRoom) {
+      if (intent.kind === "same_building_indoor_to_room") {
         setIsNavVisible(false);
         openIndoorMap(
-          dest.name,
-          endRoom.label,
+          intent.buildingCode,
+          intent.roomQuery,
           undefined,
           undefined,
-          accessible,
+          intent.accessibleOnly,
         );
         return;
       }

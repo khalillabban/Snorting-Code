@@ -46,7 +46,7 @@ export function IndoorRouteOverlay({
   stageLayout,
   floorBounds,
   accessibleOnly,
-}: IndoorRouteOverlayProps) {
+}: Readonly<IndoorRouteOverlayProps>) {
   const { points, originPoint, destPoint } = useMemo(() => {
     const waypoints = getRouteWaypointsForFloor(route, floor, coordinateScale);
 
@@ -59,7 +59,7 @@ export function IndoorRouteOverlay({
     const polylineStr = screenPts.map((p) => `${p.x},${p.y}`).join(" ");
 
     const first = screenPts[0] ?? null;
-    const last = screenPts[screenPts.length - 1] ?? null;
+    const last = screenPts.at(-1) ?? null;
 
     return {
       points: polylineStr,
@@ -152,7 +152,7 @@ function formatTime(seconds: number): string {
 export function IndoorDirectionsPanel({
   route,
   onClose,
-}: IndoorDirectionsPanelProps) {
+}: Readonly<IndoorDirectionsPanelProps>) {
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -163,9 +163,9 @@ export function IndoorDirectionsPanel({
           </Text>
           <Text style={styles.subtitle}>
             {formatTime(route.estimatedSeconds)} walk
-            {!route.fullyAccessible
-              ? " · some inaccessible sections"
-              : " · fully accessible"}
+            {route.fullyAccessible
+              ? " · fully accessible"
+              : " · some inaccessible sections"}
           </Text>
         </View>
         {onClose && (
@@ -182,7 +182,11 @@ export function IndoorDirectionsPanel({
         showsVerticalScrollIndicator={false}
       >
         {route.segments.map((seg, index) => (
-          <SegmentRow key={index} segment={seg} index={index} />
+          <SegmentRow
+            key={`${seg.kind}-${seg.floor}-${seg.nodeIds.join(">")}-${seg.description}`}
+            segment={seg}
+            index={index}
+          />
         ))}
       </ScrollView>
     </View>
@@ -192,10 +196,10 @@ export function IndoorDirectionsPanel({
 function SegmentRow({
   segment,
   index,
-}: {
+}: Readonly<{
   segment: NavigationSegment;
   index: number;
-}) {
+}>) {
   const icon = SEGMENT_ICONS[segment.kind] ?? "·";
   const isTransition = segment.kind === "stairs" || segment.kind === "elevator";
 
