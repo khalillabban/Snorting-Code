@@ -8,19 +8,21 @@ import { styles } from "../styles/DirectionStepsPanel.styles";
 
 type StepWrapperProps = {
   readonly onPress?: () => void;
+  readonly isCallToAction?: boolean;
   readonly children: React.ReactNode;
 };
 
-function StepWrapper({ onPress, children }: StepWrapperProps) {
+function StepWrapper({ onPress, isCallToAction = false, children }: StepWrapperProps) {
   if (!onPress) {
     return <View style={styles.stepRow}>{children}</View>;
   }
 
   return (
     <Pressable
-      style={styles.stepRow}
+      style={[styles.stepRow, isCallToAction && styles.ctaRow]}
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityHint={isCallToAction ? "Opens indoor directions" : undefined}
     >
       {children}
     </Pressable>
@@ -109,17 +111,31 @@ export function DirectionStepsPanel({
 
             const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
+            const isContinueIndoorsCta = Boolean(step.onPress) && index === steps.length - 1;
+
+            let iconName: "door-open" | "bus" | "walk" = "walk";
+            if (isContinueIndoorsCta) {
+              iconName = "door-open";
+            } else if (isShuttle) {
+              iconName = "bus";
+            }
+
             return (
-              <StepWrapper key={stepKey} onPress={step.onPress}>
+              <StepWrapper
+                key={stepKey}
+                onPress={step.onPress}
+                isCallToAction={isContinueIndoorsCta}
+              >
                 <View style={styles.stepLeft}>
                   <View
                     style={[
                       styles.stepIconContainer,
+                      isContinueIndoorsCta && styles.ctaIconContainer,
                       isShuttle && styles.shuttleStepHighlight,
                     ]}
                   >
                     <MaterialCommunityIcons
-                      name={isShuttle ? "bus" : "walk"}
+                      name={iconName}
                       size={14}
                       color={colors.white}
                     />
@@ -132,6 +148,7 @@ export function DirectionStepsPanel({
                   <Text
                     style={[
                       styles.stepInstruction,
+                      isContinueIndoorsCta && styles.ctaInstruction,
                       isShuttle && styles.shuttleTextBold,
                     ]}
                   >
@@ -146,6 +163,12 @@ export function DirectionStepsPanel({
                     </Text>
                   )}
                 </View>
+
+                {isContinueIndoorsCta && (
+                  <View style={styles.ctaChevron}>
+                    <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
+                  </View>
+                )}
               </StepWrapper>
             );
           })}

@@ -26,7 +26,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={[]}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
     expect(queryByText("Walk")).toBeNull();
@@ -38,7 +38,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
     expect(screen.getByText("Walk")).toBeTruthy();
@@ -69,7 +69,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
         onDismiss={onDismiss}
       />
     );
@@ -86,22 +86,22 @@ describe("DirectionStepsPanel", () => {
       { instruction: "Board the Shuttle to Loyola", duration: "15 min" },
       { instruction: "Take the SHUTTLE back", distance: "5 km" },
     ];
-    
+
     render(
       <DirectionStepsPanel
         steps={shuttleSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
-    
+
     expect(screen.getByText("Walk to the stop")).toBeTruthy();
     expect(screen.getByText("Board the Shuttle to Loyola")).toBeTruthy();
     expect(screen.getByText("Take the SHUTTLE back")).toBeTruthy();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map(icon => icon.props.children);
-    
+
     // Total icons should be 4: 
     // 1 for the Header Badge (walk)
     // 1 for Step 0 (walk)
@@ -124,7 +124,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mixedSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
 
@@ -140,7 +140,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={[{ instruction: "Empty meta", distance: "", duration: "" }]}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
 
@@ -156,7 +156,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={transitStrategy}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
     expect(screen.getByText("Transit")).toBeTruthy();
@@ -176,7 +176,7 @@ describe("DirectionStepsPanel", () => {
           },
         ]}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
 
@@ -193,7 +193,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
         onFocusUser={onFocusUser}
       />
     );
@@ -208,7 +208,7 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
     expect(screen.queryByLabelText("Center on my location")).toBeNull();
@@ -219,9 +219,66 @@ describe("DirectionStepsPanel", () => {
       <DirectionStepsPanel
         steps={mockSteps}
         strategy={WALKING_STRATEGY}
-        onChangeRoute={() => {}}
+        onChangeRoute={() => { }}
       />
     );
     expect(screen.queryByLabelText("Close directions")).toBeNull();
+  });
+
+  it("renders the final pressable step as a continue indoors CTA", () => {
+    const onFinalStepPress = jest.fn();
+
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Walk outside", distance: "50 m", duration: "1 min" },
+          {
+            instruction: "Continue indoors to H-920",
+            onPress: onFinalStepPress,
+          },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => { }}
+      />
+    );
+
+    expect(screen.getByText("Continue indoors to H-920")).toBeTruthy();
+
+    // CTA row should expose the accessibility hint from StepWrapper.
+    expect(screen.getByHintText("Opens indoor directions")).toBeTruthy();
+
+    // CTA renders a chevron on the right.
+    expect(screen.getByText("chevron-right")).toBeTruthy();
+
+    // Icons: header walk, first step walk, last step door-open.
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+
+    expect(iconNames).toContain("door-open");
+    expect(iconNames.filter((name) => name === "walk").length).toBe(2);
+
+    fireEvent.press(screen.getByText("Continue indoors to H-920"));
+    expect(onFinalStepPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the final pressable step as a CTA with indoor directions hint", () => {
+    const onPress = jest.fn();
+
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Walk outside", distance: "50 m" },
+          { instruction: "Continue indoors", onPress },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => { }}
+      />
+    );
+
+    expect(screen.getByText("Continue indoors")).toBeTruthy();
+    expect(screen.getByHintText("Opens indoor directions")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Continue indoors"));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

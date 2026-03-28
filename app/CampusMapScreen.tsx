@@ -36,7 +36,32 @@ import {
   getNextClassFromItems,
   loadCachedSchedule,
 } from "../utils/parseCourseEvents";
+
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
+
+const buildCrossBuildingIndoorParams = ({
+  params,
+  startRoom,
+  startBuilding,
+  destBuilding,
+  strategy,
+  accessible,
+}: {
+  params: Record<string, string | undefined>;
+  startRoom: IndoorRoomRecord;
+  startBuilding: Buildings;
+  destBuilding: Buildings;
+  strategy?: RouteStrategy;
+  accessible: boolean;
+}) => ({
+  ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, v ?? ""])),
+  navOrigin: startRoom.label,
+  navDest: startBuilding.name.trim().toUpperCase(),
+  outdoorDestBuilding: destBuilding.name.trim().toUpperCase(),
+  outdoorStrategy: strategy ? JSON.stringify(strategy) : undefined,
+  outdoorAccessibleOnly: accessible ? "true" : "false",
+  accessibleOnly: String(accessible),
+});
 
 type FocusTarget = CampusKey | "user";
 
@@ -127,23 +152,31 @@ export default function CampusMapScreen() {
     start: Buildings | null;
     dest: Buildings | null;
   }>({ start: null, dest: null });
+  const [selectedRouteEndRoom, setSelectedRouteEndRoom] = useState<IndoorRoomRecord | null>(null);
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
 
   const destinationRoomQueryText = useMemo(() => {
+    // Preferred source: an explicit query param (ex: app launched with a room destination).
     if (typeof destinationRoomQuery === "string" && destinationRoomQuery.trim()) {
       return destinationRoomQuery;
     }
-    // If we arrived via a transition payload (ex: indoor_to_outdoor), prefer the payload field.
-    if (
-      transitionPayload?.mode === "indoor_to_outdoor" &&
-      typeof transitionPayload.destinationIndoorRoomQuery === "string"
-    ) {
-      return transitionPayload.destinationIndoorRoomQuery;
+
+    // Next best: when arriving from indoor navigation (indoor -> outdoor -> indoor), the
+    // final indoor room query is carried in the transition payload.
+    if (transitionPayload?.mode === "indoor_to_outdoor") {
+      const payloadRoom = transitionPayload.destinationIndoorRoomQuery;
+      if (typeof payloadRoom === "string" && payloadRoom.trim()) return payloadRoom;
     }
+
+    // Fallback: if the user planned a route from a building to an indoor room on the campus map
+    // itself (without a URL param), `handleConfirmRoute` stores the room record in state.
+    const endRoomLabel = selectedRouteEndRoom?.label;
+    if (typeof endRoomLabel === "string" && endRoomLabel.trim()) return endRoomLabel;
+
     return "";
-  }, [destinationRoomQuery, transitionPayload]);
+  }, [destinationRoomQuery, transitionPayload, selectedRouteEndRoom]);
 
   // If we arrived from indoor navigation, auto-select the outdoor route so the map
   // immediately renders a path (instead of waiting for the user to pick buildings).
@@ -176,11 +209,24 @@ export default function CampusMapScreen() {
       )
       : null;
 
-    // Force the campus toggle to the destination campus so the user sees the correct map.
-    const destCampus =
-      destBuilding.campusName === "loyola" ? ("loyola" as const) : ("sgw" as const);
-    setCurrentCampus(destCampus);
-    setFocusTarget((prev) => (prev === "user" ? prev : destCampus));
+    // Prefer showing the origin building's campus so the map initially centers on the start
+    // building/exit (the outdoor leg should start from the origin). If the origin can't be
+    // resolved, fall back to showing the destination campus.
+    const effectiveOrigin = originBuilding ?? originByExit ?? null;
+
+    let originCampus: CampusKey | null = null;
+    if (effectiveOrigin) {
+      originCampus = effectiveOrigin.campusName === "loyola" ? "loyola" : "sgw";
+    }
+
+    const destinationCampus: CampusKey =
+      destBuilding.campusName === "loyola" ? "loyola" : "sgw";
+
+    const campusToShow = originCampus ?? destinationCampus;
+    setCurrentCampus(campusToShow);
+
+    // Only override focusTarget when the user hasn't explicitly focused on their location.
+    setFocusTarget((prev) => (prev === "user" ? prev : campusToShow));
 
     // Ensure both endpoints are set so CampusMap computes a route immediately.
     setSelectedRoute({
@@ -335,8 +381,18 @@ export default function CampusMapScreen() {
         pathname: "/IndoorMapScreen",
         params: {
           ...params,
+          // If we're routing *to* a room from an implicit entrance ("Continue indoors"),
+          // ensure IndoorMapScreen gets a real navDest even when `params` already contains
+          // a roomQuery (which is only for search / highlight).
           ...(navOrigin ? { navOrigin } : {}),
-          ...(navDest ? { navDest } : {}),
+          ...(navDest
+            ? {
+              navDest,
+              // Keep the "To" input in sync with the final destination room.
+              // (Do not overwrite a roomQuery passed explicitly by callers.)
+              ...(roomQuery ? {} : { roomQuery: navDest }),
+            }
+            : {}),
           accessibleOnly: String(accessibleOnlyOverride ?? accessibleOnly),
         },
       });
@@ -354,6 +410,7 @@ export default function CampusMapScreen() {
       accessible?: boolean,
     ) => {
       setAccessibleOnly(!!accessible);
+      setSelectedRouteEndRoom(endRoom ?? null);
 
       type CrossBuildingIndoorTransition = {
         mode: "cross_building_indoor";
@@ -386,6 +443,27 @@ export default function CampusMapScreen() {
             campus: (start.campusName ?? "sgw") as CampusKey,
             transition: serializeTransitionPayload(payload),
           },
+        });
+        return;
+      }
+
+      // Cross-building indoor-to-outdoor trip: if the user is starting from an indoor room
+      // (ex: CC-124) but the destination is another building (ex: MB), start the UX indoors.
+      // We enter IndoorMapScreen for the origin building and route to a best exit.
+      if (start?.name && dest?.name && startRoom && !endRoom && start.name !== dest.name) {
+        setIsNavVisible(false);
+        const params = buildIndoorMapRouteParams(start.name);
+        if (!params) return;
+        router.push({
+          pathname: "/IndoorMapScreen",
+          params: buildCrossBuildingIndoorParams({
+            params,
+            startRoom,
+            startBuilding: start,
+            destBuilding: dest,
+            strategy,
+            accessible: !!accessible,
+          }),
         });
         return;
       }
@@ -478,7 +556,15 @@ export default function CampusMapScreen() {
     [selectedRoute.dest, transitionPayload],
   );
 
-  const canContinueIndoors = Boolean(continueIndoorsBuildingCode);
+  // Only show "Continue indoors" when the *final* destination is a room.
+  // Accept either the explicit query param (building → room use-case) or a
+  // transition payload indoor destination (indoor → outdoor → indoor use-case).
+  const hasIndoorRoomDestination = Boolean(destinationRoomQueryText.trim());
+
+  // (Outdoor building → outdoor building should not offer an indoor CTA.)
+  const canContinueIndoors = Boolean(
+    continueIndoorsBuildingCode && hasIndoorRoomDestination,
+  );
 
   const nextClassIndoorAccess = useMemo(
     () => getIndoorAccessState(nextClass?.building),
