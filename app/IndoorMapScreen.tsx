@@ -459,16 +459,14 @@ export default function IndoorMapScreen() {
       }
 
       setSelectedRoom(match.room);
-      if (searchQuery !== match.room.label) {
-        setSearchQuery(match.room.label);
-      }
+      setSearchQuery(match.room.label);
       setSearchError(null);
 
       if (match.floor !== currentFloor) {
         setSelectedFloor(match.floor);
       }
     },
-    [buildingName, normalizedBuildingPlan, searchQuery],
+    [buildingName, normalizedBuildingPlan],
   );
 
   useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
