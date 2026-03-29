@@ -82,6 +82,16 @@ export const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: spacing.md,
   },
+  ctaRow: {
+    backgroundColor: colors.primary + "14", // ~8% tint
+    borderWidth: 1,
+    borderColor: colors.primary + "55", // ~33% tint
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginLeft: -spacing.xs,
+    marginRight: -spacing.xs,
+  },
   stepLeft: {
     alignItems: "center",
     marginRight: spacing.sm + 2,
@@ -93,6 +103,9 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primary, // Default walking color (maroon)
     alignItems: "center",
     justifyContent: "center",
+  },
+  ctaIconContainer: {
+    backgroundColor: colors.primary,
   },
   shuttleStepHighlight: {
     backgroundColor: "#800000", // A slightly darker/different red for the bus
@@ -118,10 +131,18 @@ export const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: "500",
   },
+  ctaInstruction: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
   stepMeta: {
     fontSize: typography.caption.fontSize,
     color: colors.gray500,
     marginTop: 4,
     letterSpacing: 0.2,
+  },
+  ctaChevron: {
+    alignSelf: "center",
+    marginLeft: spacing.sm,
   },
 });

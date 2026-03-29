@@ -42,7 +42,7 @@ export type SearchResult =
 
 function resultLabel(result: SearchResult): string {
   if (result.kind === "building") return result.building.displayName;
-  return `${result.room.label}${result.room.roomName ? ` — ${result.room.roomName}` : ""}`;
+  return result.room.roomName ? `${result.room.label} — ${result.room.roomName}` : result.room.label;
 }
 
 function resultSubtitle(result: SearchResult): string {
@@ -74,7 +74,7 @@ function buildSearchIndex(): SearchIndex {
 }
 
 function getSearchIndex(): SearchIndex {
-  if (!_cachedIndex) _cachedIndex = buildSearchIndex();
+  _cachedIndex ??= buildSearchIndex();
   return _cachedIndex;
 }
 
