@@ -7,13 +7,19 @@ import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
+import { OutdoorPOIFilter } from "../components/OutdoorPOIFilter";
+import { POIListPanel } from "../components/POIListPanel";
+import { POIRangeSelector } from "../components/POIRangeSelector";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
+import type { OutdoorPOICategoryId } from "../constants/outdoorPOI";
+import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
+import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
@@ -256,6 +262,53 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+  const [showPOIFilter, setShowPOIFilter] = useState(false);
+  const [showPOIList, setShowPOIList] = useState(false);
+  const [focusPOIId, setFocusPOIId] = useState<string | null>(null);
+  const [focusPOITrigger, setFocusPOITrigger] = useState(0);
+  const [activePOICategories, setActivePOICategories] = useState<Set<OutdoorPOICategoryId>>(new Set());
+  const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
+  const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const { pois: nearbyPOIs, loading: poisLoading, error: poisError, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
+
+  // Fall back to the current campus center when GPS is unavailable.
+  const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
+
+  // Stable string key for the active categories so we can use it as an effect dep.
+  const activePOICategoryKey = useMemo(
+    () => Array.from(activePOICategories).sort((a, b) => a.localeCompare(b)).join(","),
+    [activePOICategories],
+  );
+
+  // Auto-search whenever category, range, or location changes while the POI panel is open.
+  useEffect(() => {
+    if (!showPOIFilter) return;
+    if (activePOICategories.size === 0) {
+      clearPOIs();
+      return;
+    }
+    searchPOIs(poiSearchLocation, poiRange.meters, Array.from(activePOICategories));
+    setShowPOIList(true);
+  // searchPOIs and clearPOIs are refs from useNearbyPOIs. Intentionally excluding them
+  // to avoid re-triggering the search when the hook instance changes. Basically, only the user-facing 
+  // inputs should drive re-fetches. Do not try to 'fix' this please.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePOICategoryKey, poiRange.meters, poiSearchLocation, showPOIFilter, poiSearchTrigger]);
+
+  const retryPOISearch = useCallback(() => {
+    setPoiSearchTrigger((c) => c + 1);
+  }, []);
+
+  const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
+    setActivePOICategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const destinationRoomQueryText = useMemo(() => {
     // Preferred source: an explicit query param (ex: app launched with a room destination).
@@ -734,6 +787,10 @@ export default function CampusMapScreen() {
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
+        onUserLocationResolved={setUserLocation}
+        nearbyPOIs={nearbyPOIs}
+        focusPOIId={focusPOIId}
+        focusPOITrigger={focusPOITrigger}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -778,6 +835,16 @@ export default function CampusMapScreen() {
 
       {/* Continue indoors is rendered as the final step inside the directions panel. */}
 
+      {showPOIFilter && (
+        <View style={styles.poiPanel}>
+          <OutdoorPOIFilter
+            activeCategories={activePOICategories}
+            onToggle={handleTogglePOICategory}
+          />
+          <POIRangeSelector selected={poiRange} onSelect={setPOIRange} />
+        </View>
+      )}
+
       {/* Left button stack */}
       <View
         style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
@@ -818,6 +885,26 @@ export default function CampusMapScreen() {
       {/* Right button stack */}
       <View style={styles.buttonStack}>
         <Pressable
+          testID="poi-filter-button"
+          accessibilityLabel={showPOIFilter ? "Hide nearby places" : "Show nearby places"}
+          onPress={() => {
+            setShowPOIFilter((v) => {
+              if (v) {
+                clearPOIs();
+                setShowPOIList(false);
+                setActivePOICategories(new Set());
+              }
+              return !v;
+            });
+          }}
+          style={[
+            styles.actionButton,
+            showPOIFilter && { backgroundColor: colors.secondary, borderColor: colors.secondaryDark },
+          ]}
+        >
+          <MaterialIcons name="place" size={24} color={colors.white} />
+        </Pressable>
+        <Pressable
           testID="next-class-button"
           accessibilityLabel="Navigate to next class"
           onPress={() => setIsNextClassVisible(true)}
@@ -855,6 +942,22 @@ export default function CampusMapScreen() {
           <MaterialIcons name="my-location" size={22} color={colors.white} />
         </Pressable>
       </View>
+
+      {showPOIList && (
+        <POIListPanel
+          pois={nearbyPOIs}
+          origin={poiSearchLocation}
+          onClose={() => setShowPOIList(false)}
+          onSelect={(poi) => {
+            setFocusPOIId(poi.placeId);
+            setFocusPOITrigger((c) => c + 1);
+          }}
+          loading={poisLoading}
+          error={poisError}
+          locationUnavailable={!userLocation}
+          onRetry={retryPOISearch}
+        />
+      )}
 
       {showShuttleSchedulePanel && (
         <ShuttleSchedulePanel

@@ -19,6 +19,7 @@ import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
+import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
@@ -29,6 +30,7 @@ import type {
   RouteStep,
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
+import type { PlacePOI } from "../services/GooglePlacesService";
 import type { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMap.styles";
 import { getAvailableFloors } from "../utils/mapAssets";
@@ -54,6 +56,10 @@ type CampusMapProps = Readonly<{
   onBuildingSelected?: (building: Buildings | null, hasMap: boolean) => void;
   onIndoorFloorsAvailable?: (floors: number[]) => void;
   onViewIndoorMap?: (building: Buildings) => void;
+  onUserLocationResolved?: (coords: { latitude: number; longitude: number } | null) => void;
+  nearbyPOIs?: PlacePOI[];
+  focusPOIId?: string | null;
+  focusPOITrigger?: number;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -152,6 +158,10 @@ export default function CampusMap({
   onBuildingSelected,
   onIndoorFloorsAvailable,
   onViewIndoorMap,
+  onUserLocationResolved,
+  nearbyPOIs,
+  focusPOIId,
+  focusPOITrigger = 0,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -285,16 +295,19 @@ export default function CampusMap({
 
         if (cancelled) return;
 
-        setUserCoords({
+        const resolved = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-        });
+        };
+        setUserCoords(resolved);
+        onUserLocationResolved?.(resolved);
 
         setLocationError(null);
       } catch {
         if (!cancelled) {
           setLocationError("Unable to get your current location.");
           setUserCoords(null);
+          onUserLocationResolved?.(null);
         }
       }
     }
@@ -414,6 +427,34 @@ export default function CampusMap({
       );
     }
   }, [effectiveOrigin, mapReady, routeFocusTrigger]);
+
+  // Keep refs to POI markers so we can programmatically show their callout.
+  const poiMarkerRefs = useRef<Record<string, Marker | null>>({});
+
+  // Focus on a POI selected from the list and auto-show its callout.
+  useEffect(() => {
+    if (!focusPOIId || !mapReady || focusPOITrigger <= 0) return;
+
+    const matched = nearbyPOIs?.find((p) => p.placeId === focusPOIId);
+    if (!matched) return;
+
+    // Offset the center upward so the pin appears in the top third of the
+    // visible map area (the bottom half is covered by the list panel).
+    mapRef.current?.animateToRegion(
+      {
+        latitude: matched.latitude - 0.0006,
+        longitude: matched.longitude,
+        latitudeDelta: 0.004,
+        longitudeDelta: 0.004,
+      },
+      300,
+    );
+
+    // Show the callout after the animation settles.
+    setTimeout(() => {
+      poiMarkerRefs.current[matched.placeId]?.showCallout();
+    }, 350);
+  }, [focusPOIId, mapReady, focusPOITrigger, nearbyPOIs]);
 
   // Focus selected building
   useEffect(() => {
@@ -651,6 +692,33 @@ export default function CampusMap({
             ))}
           </>
         )}
+
+        {/* Nearby POI markers */}
+        {nearbyPOIs?.map((poi) => {
+          const catDef = OUTDOOR_POI_CATEGORY_MAP[poi.categoryId];
+          return (
+            <Marker
+              key={poi.placeId}
+              ref={(ref) => { poiMarkerRefs.current[poi.placeId] = ref; }}
+              testID={`poi-marker-${poi.placeId}`}
+              coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
+              title={poi.name}
+              description={poi.vicinity}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.poiPin}>
+                <View style={[styles.poiPinHead, { backgroundColor: catDef?.color ?? colors.gray500 }]}>
+                  <MaterialCommunityIcons
+                    name={catDef?.icon ?? "map-marker"}
+                    size={16}
+                    color="#fff"
+                  />
+                </View>
+                <View style={[styles.poiPinTail, { borderTopColor: catDef?.color ?? colors.gray500 }]} />
+              </View>
+            </Marker>
+          );
+        })}
       </MapView>
 
       {locationError && (

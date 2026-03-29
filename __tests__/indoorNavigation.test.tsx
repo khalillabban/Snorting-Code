@@ -1,9 +1,9 @@
 import {
-  getIndoorNavigationRoute,
-  getIndoorNavigationRouteFromNode,
-  getIndoorNavigationRouteToNode,
-  getRouteWaypointsForFloor,
-  indoorRouteToSteps,
+    getIndoorNavigationRoute,
+    getIndoorNavigationRouteFromNode,
+    getIndoorNavigationRouteToNode,
+    getRouteWaypointsForFloor,
+    indoorRouteToSteps,
 } from "../utils/indoorNavigation";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -26,8 +26,8 @@ jest.mock("../utils/indoorPathFinding", () => ({
 
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-  findShortestPath,
-  resolveRoutingNodeId,
+    findShortestPath,
+    resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
@@ -93,9 +93,11 @@ const stairsPath = {
 };
 
 describe("utils/indoorNavigation", () => {
+  let logSpy: jest.SpyInstance;
 
 
   beforeEach(() => {
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     jest.clearAllMocks();
     mockedGetNormalizedBuildingPlan.mockReturnValue({ rooms: [] });
     mockedFindIndoorRoomMatch.mockImplementation((_: unknown, query: string) => {
@@ -114,6 +116,10 @@ describe("utils/indoorNavigation", () => {
       return null;
     });
     mockedFindShortestPath.mockReturnValue(elevatorPath);
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
   });
 
   it("returns NO_GRAPH_DATA when plan is missing", () => {

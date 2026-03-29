@@ -1,15 +1,15 @@
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor
+    fireEvent,
+    render,
+    screen,
+    waitFor
 } from "@testing-library/react-native";
 import {
-  getCurrentPositionAsync,
-  getForegroundPermissionsAsync,
-  hasServicesEnabledAsync,
-  requestForegroundPermissionsAsync,
-  watchPositionAsync,
+    getCurrentPositionAsync,
+    getForegroundPermissionsAsync,
+    hasServicesEnabledAsync,
+    requestForegroundPermissionsAsync,
+    watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
@@ -48,6 +48,7 @@ jest.mock("../utils/mapAssets", () => ({
 jest.mock("react-native-maps", () => {
   const React = require("react");
   const { Text, View, TouchableOpacity } = require("react-native");
+  const showCalloutMocks: Record<string, jest.Mock> = {};
   
   const Polyline = (props: any) => (
     <View testID={props.testID ?? "polyline"}>
@@ -80,9 +81,16 @@ jest.mock("react-native-maps", () => {
     );
   });
 
-  const Marker = (props: any) => {
+  const Marker = React.forwardRef((props: any, ref: any) => {
+    const markerId = props.testID ?? `marker-${props.title ?? "marker"}`;
+    const showCallout = jest.fn();
+    showCalloutMocks[markerId] = showCallout;
+
+    React.useImperativeHandle(ref, () => ({ showCallout }));
+
     return (
-      <View testID={props.testID ?? `marker-${props.title ?? "marker"}`}
+      <View
+        testID={markerId}
         onPress={props.tappable ? props.onPress : undefined}
       >
         <Text testID="marker-props">
@@ -97,7 +105,7 @@ jest.mock("react-native-maps", () => {
         {props.children}
       </View>
     );
-  };
+  });
 
   const Polygon = (props: any) => {
     const handlePress = () => props.onPress?.({ stopPropagation: jest.fn() });
@@ -121,6 +129,7 @@ jest.mock("react-native-maps", () => {
     Polygon,
     Polyline,
     __animateToRegion: animateToRegion,
+    __showCalloutMocks: showCalloutMocks,
   };
 });
 
@@ -217,6 +226,13 @@ describe("CampusMap", () => {
   const coordinates = { latitude: 1, longitude: 2 };
   let warnSpy: jest.SpyInstance;
   let logSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeAll(() => {
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => { });
+    errorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -225,9 +241,6 @@ describe("CampusMap", () => {
       steps: [],
       segments: [], 
     });
-
-    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
-    logSpy = jest.spyOn(console, "log").mockImplementation(() => { });
 
     (hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
     (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
@@ -242,11 +255,13 @@ describe("CampusMap", () => {
     (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) =>
       buildingCode === "A" ? [1, 2] : [],
     );
+    Object.values(getMapsMock().__showCalloutMocks).forEach((mock: jest.Mock) => mock.mockClear());
   });
 
-  afterEach(() => {
+  afterAll(() => {
     warnSpy.mockRestore();
     logSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   // --- Rendering basics ---
@@ -555,6 +570,86 @@ describe("CampusMap", () => {
     render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
     await screen.findByTestId("marker-You are here");
     expect(screen.getByTestId("map-view")).toBeTruthy();
+  });
+
+  it("renders nearby POI markers with category-aware marker ids", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        nearbyPOIs={[
+          {
+            placeId: "poi-1",
+            name: "Coffee Spot",
+            latitude: 10.01,
+            longitude: 20.01,
+            vicinity: "1455 Maisonneuve",
+            categoryId: "coffee",
+          },
+          {
+            placeId: "poi-2",
+            name: "Campus ATM",
+            latitude: 10.02,
+            longitude: 20.02,
+            vicinity: "JMSB",
+            categoryId: "atm",
+          },
+        ]}
+      />,
+    );
+
+    expect(await screen.findByTestId("poi-marker-poi-1")).toBeTruthy();
+    expect(screen.getByTestId("poi-marker-poi-2")).toBeTruthy();
+    expect(screen.getByText("Coffee Spot")).toBeTruthy();
+    expect(screen.getByText("Campus ATM")).toBeTruthy();
+  });
+
+  it("focuses selected POI coordinate and opens marker callout", async () => {
+    const mapsMock = getMapsMock();
+    const setTimeoutSpy = jest
+      .spyOn(global, "setTimeout")
+      .mockImplementation((callback: any) => {
+        callback();
+        return 0 as any;
+      });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        nearbyPOIs={[
+          {
+            placeId: "poi-focus",
+            name: "Focus POI",
+            latitude: 10.1234,
+            longitude: 20.5678,
+            vicinity: "Focus Street",
+            categoryId: "restaurant",
+          },
+        ]}
+        focusPOIId="poi-focus"
+        focusPOITrigger={1}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mapsMock.__animateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: 10.1234 - 0.0006,
+          longitude: 20.5678,
+          latitudeDelta: 0.004,
+          longitudeDelta: 0.004,
+        }),
+        300,
+      );
+    });
+
+    expect(mapsMock.__showCalloutMocks["poi-marker-poi-focus"]).toHaveBeenCalledTimes(1);
+    setTimeoutSpy.mockRestore();
   });
 it("label marker tap and polygon tap both open the same building popup", async () => {
   render(
