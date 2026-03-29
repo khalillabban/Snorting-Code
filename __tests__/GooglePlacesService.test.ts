@@ -141,7 +141,7 @@ describe("GooglePlacesService", () => {
 
   it("returns [] when no categories are provided to multi-category fetch", async () => {
     const result = await fetchNearbyPOIsForCategories(45.5, -73.5, 500, []);
-    expect(result).toEqual([]);
+    expect(result).toEqual({ pois: [], errors: [] });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -192,10 +192,11 @@ describe("GooglePlacesService", () => {
     ]);
 
     expect(global.fetch).toHaveBeenCalledTimes(3);
-    expect(result.map((p) => p.placeId)).toEqual([
+    expect(result.pois.map((p) => p.placeId)).toEqual([
       "dup-1",
       "coffee-only",
       "restaurant-only",
     ]);
+    expect(result.errors).toHaveLength(1);
   });
 });

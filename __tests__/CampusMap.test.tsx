@@ -631,7 +631,7 @@ describe("CampusMap", () => {
             categoryId: "restaurant",
           },
         ]}
-        focusCoordinate={{ latitude: 10.1234, longitude: 20.5678 }}
+        focusPOIId="poi-focus"
         focusPOITrigger={1}
       />,
     );

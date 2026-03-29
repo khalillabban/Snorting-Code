@@ -25,13 +25,16 @@ export function useNearbyPOIs() {
       setError(null);
 
       try {
-        const results = await fetchNearbyPOIsForCategories(
+        const result = await fetchNearbyPOIsForCategories(
           location.latitude,
           location.longitude,
           radiusMeters,
           categories,
         );
-        setPois(results);
+        setPois(result.pois);
+        if (result.errors.length > 0) {
+          setError(result.errors.join("\n"));
+        }
       } catch (err) {
         setPois([]);
         setError(

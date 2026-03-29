@@ -107,26 +107,44 @@ export async function fetchNearbyPOIs(
     }));
 }
 
+export interface NearbyPOIResult {
+  pois: PlacePOI[];
+  errors: string[];
+}
+
 export async function fetchNearbyPOIsForCategories(
   latitude: number,
   longitude: number,
   radiusMeters: number,
   categoryIds: OutdoorPOICategoryId[],
-): Promise<PlacePOI[]> {
-  if (categoryIds.length === 0) return [];
+): Promise<NearbyPOIResult> {
+  if (categoryIds.length === 0) return { pois: [], errors: [] };
 
-  const results = await Promise.all(
+  const settled = await Promise.allSettled(
     categoryIds.map((id) =>
-      fetchNearbyPOIs(latitude, longitude, radiusMeters, id).catch(
-        () => [] as PlacePOI[],
-      ),
+      fetchNearbyPOIs(latitude, longitude, radiusMeters, id),
     ),
   );
 
+  const pois: PlacePOI[] = [];
+  const errors: string[] = [];
+
+  settled.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      pois.push(...result.value);
+    } else {
+      const categoryLabel = OUTDOOR_POI_CATEGORY_MAP[categoryIds[i]]?.label ?? categoryIds[i];
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      errors.push(`${categoryLabel}: ${reason}`);
+    }
+  });
+
   const seen = new Set<string>();
-  return results.flat().filter((poi) => {
+  const deduplicated = pois.filter((poi) => {
     if (seen.has(poi.placeId)) return false;
     seen.add(poi.placeId);
     return true;
   });
+
+  return { pois: deduplicated, errors };
 }

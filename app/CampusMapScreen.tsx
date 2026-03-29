@@ -264,10 +264,11 @@ export default function CampusMapScreen() {
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [showPOIFilter, setShowPOIFilter] = useState(false);
   const [showPOIList, setShowPOIList] = useState(false);
-  const [focusPOICoord, setFocusPOICoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [focusPOIId, setFocusPOIId] = useState<string | null>(null);
   const [focusPOITrigger, setFocusPOITrigger] = useState(0);
   const [activePOICategories, setActivePOICategories] = useState<Set<OutdoorPOICategoryId>>(new Set());
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
+  const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const { pois: nearbyPOIs, loading: poisLoading, error: poisError, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
@@ -290,14 +291,15 @@ export default function CampusMapScreen() {
     }
     searchPOIs(poiSearchLocation, poiRange.meters, Array.from(activePOICategories));
     setShowPOIList(true);
+  // searchPOIs and clearPOIs are refs from useNearbyPOIs. Intentionally excluding them
+  // to avoid re-triggering the search when the hook instance changes. Basically, only the user-facing 
+  // inputs should drive re-fetches. Do not try to 'fix' this please.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePOICategoryKey, poiRange.meters, poiSearchLocation, showPOIFilter]);
+  }, [activePOICategoryKey, poiRange.meters, poiSearchLocation, showPOIFilter, poiSearchTrigger]);
 
-  const handleSearchPOIs = useCallback(() => {
-    if (activePOICategories.size === 0) return;
-    searchPOIs(poiSearchLocation, poiRange.meters, Array.from(activePOICategories));
-    setShowPOIList(true);
-  }, [poiSearchLocation, poiRange.meters, activePOICategories, searchPOIs]);
+  const retryPOISearch = useCallback(() => {
+    setPoiSearchTrigger((c) => c + 1);
+  }, []);
 
   const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
     setActivePOICategories((prev) => {
@@ -787,7 +789,7 @@ export default function CampusMapScreen() {
         onViewIndoorMap={handleViewBuildingIndoorMap}
         onUserLocationResolved={setUserLocation}
         nearbyPOIs={nearbyPOIs}
-        focusCoordinate={focusPOICoord}
+        focusPOIId={focusPOIId}
         focusPOITrigger={focusPOITrigger}
       />
 
@@ -947,13 +949,13 @@ export default function CampusMapScreen() {
           origin={poiSearchLocation}
           onClose={() => setShowPOIList(false)}
           onSelect={(poi) => {
-            setFocusPOICoord({ latitude: poi.latitude, longitude: poi.longitude });
+            setFocusPOIId(poi.placeId);
             setFocusPOITrigger((c) => c + 1);
           }}
           loading={poisLoading}
           error={poisError}
           locationUnavailable={!userLocation}
-          onRetry={handleSearchPOIs}
+          onRetry={retryPOISearch}
         />
       )}
 

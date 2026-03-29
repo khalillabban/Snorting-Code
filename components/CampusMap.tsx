@@ -58,7 +58,7 @@ type CampusMapProps = Readonly<{
   onViewIndoorMap?: (building: Buildings) => void;
   onUserLocationResolved?: (coords: { latitude: number; longitude: number } | null) => void;
   nearbyPOIs?: PlacePOI[];
-  focusCoordinate?: { latitude: number; longitude: number } | null;
+  focusPOIId?: string | null;
   focusPOITrigger?: number;
 }>;
 
@@ -160,7 +160,7 @@ export default function CampusMap({
   onViewIndoorMap,
   onUserLocationResolved,
   nearbyPOIs,
-  focusCoordinate,
+  focusPOIId,
   focusPOITrigger = 0,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
@@ -433,32 +433,28 @@ export default function CampusMap({
 
   // Focus on a POI selected from the list and auto-show its callout.
   useEffect(() => {
-    if (focusCoordinate && mapReady && focusPOITrigger > 0) {
-      // Offset the center upward so the pin appears in the top third of the
-      // visible map area (the bottom half is covered by the list panel).
-      mapRef.current?.animateToRegion(
-        {
-          latitude: focusCoordinate.latitude - 0.0006,
-          longitude: focusCoordinate.longitude,
-          latitudeDelta: 0.004,
-          longitudeDelta: 0.004,
-        },
-        300,
-      );
+    if (!focusPOIId || !mapReady || focusPOITrigger <= 0) return;
 
-      // Show the callout after the animation settles.
-      const matched = nearbyPOIs?.find(
-        (p) =>
-          p.latitude === focusCoordinate.latitude &&
-          p.longitude === focusCoordinate.longitude,
-      );
-      if (matched) {
-        setTimeout(() => {
-          poiMarkerRefs.current[matched.placeId]?.showCallout();
-        }, 350);
-      }
-    }
-  }, [focusCoordinate, mapReady, focusPOITrigger, nearbyPOIs]);
+    const matched = nearbyPOIs?.find((p) => p.placeId === focusPOIId);
+    if (!matched) return;
+
+    // Offset the center upward so the pin appears in the top third of the
+    // visible map area (the bottom half is covered by the list panel).
+    mapRef.current?.animateToRegion(
+      {
+        latitude: matched.latitude - 0.0006,
+        longitude: matched.longitude,
+        latitudeDelta: 0.004,
+        longitudeDelta: 0.004,
+      },
+      300,
+    );
+
+    // Show the callout after the animation settles.
+    setTimeout(() => {
+      poiMarkerRefs.current[matched.placeId]?.showCallout();
+    }, 350);
+  }, [focusPOIId, mapReady, focusPOITrigger, nearbyPOIs]);
 
   // Focus selected building
   useEffect(() => {

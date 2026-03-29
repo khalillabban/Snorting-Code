@@ -33,16 +33,19 @@ describe("useNearbyPOIs", () => {
   });
 
   it("sets loading and stores POI results on successful search", async () => {
-    (fetchNearbyPOIsForCategories as jest.Mock).mockResolvedValue([
-      {
-        placeId: "p1",
-        name: "Cafe One",
-        latitude: 45.501,
-        longitude: -73.601,
-        vicinity: "1455 Maisonneuve",
-        categoryId: "coffee",
-      },
-    ]);
+    (fetchNearbyPOIsForCategories as jest.Mock).mockResolvedValue({
+      pois: [
+        {
+          placeId: "p1",
+          name: "Cafe One",
+          latitude: 45.501,
+          longitude: -73.601,
+          vicinity: "1455 Maisonneuve",
+          categoryId: "coffee",
+        },
+      ],
+      errors: [],
+    });
 
     const { result } = renderHook(() => useNearbyPOIs());
 

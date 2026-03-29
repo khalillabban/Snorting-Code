@@ -45,15 +45,19 @@ jest.mock("../constants/campuses", () => ({
 jest.mock("../components/CampusMap", () => {
   const React = require("react");
   const { Text, View } = require("react-native");
-  const Mock = (props: any) => (
-    <View testID="campus-map-mock">
-      <Text testID="campus-map-focus-coordinate">
-        {props.focusCoordinate ? JSON.stringify(props.focusCoordinate) : "null"}
-      </Text>
-      <Text testID="campus-map-focus-trigger">{String(props.focusPOITrigger)}</Text>
-      <Text testID="campus-map-nearby-count">{String((props.nearbyPOIs ?? []).length)}</Text>
-    </View>
-  );
+  const Mock = (props: any) => {
+    const focusPoi = (props.nearbyPOIs ?? []).find((p: any) => p.placeId === props.focusPOIId);
+    const coord = focusPoi ? { latitude: focusPoi.latitude, longitude: focusPoi.longitude } : null;
+    return (
+      <View testID="campus-map-mock">
+        <Text testID="campus-map-focus-coordinate">
+          {coord ? JSON.stringify(coord) : "null"}
+        </Text>
+        <Text testID="campus-map-focus-trigger">{String(props.focusPOITrigger)}</Text>
+        <Text testID="campus-map-nearby-count">{String((props.nearbyPOIs ?? []).length)}</Text>
+      </View>
+    );
+  };
   return { __esModule: true, default: Mock };
 });
 
