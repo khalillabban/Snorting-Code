@@ -150,6 +150,8 @@ export default function IndoorMapScreen() {
 
   const destinationRoomQueryText =
     typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
+  const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
+  const outdoorDestBuildingCode = trimmedOutdoorDestBuilding.toUpperCase();
 
   useEffect(() => {
     if (!availableFloors.length) return;
@@ -163,11 +165,11 @@ export default function IndoorMapScreen() {
   // Cross-building origin leg UX: show the final destination room in the "To" input,
   // even though we route to an exit based on `outdoorDestBuilding`.
   useEffect(() => {
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (!isCrossBuildingOriginLeg) return;
     if (!destinationRoomQueryText) return;
     setNavDestQuery(destinationRoomQueryText);
-  }, [destinationRoomQueryText, outdoorDestBuilding]);
+  }, [destinationRoomQueryText, trimmedOutdoorDestBuilding]);
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
   const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -414,11 +416,10 @@ export default function IndoorMapScreen() {
   const routeToBestExitForCrossBuildingOrigin = useCallback((): boolean => {
     if (!buildingName) return true;
 
-    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
     const isCrossBuildingSignal =
-      Boolean(destBuildingCode) &&
-      destBuildingCode !== buildingName.trim().toUpperCase();
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+      Boolean(outdoorDestBuildingCode) &&
+      outdoorDestBuildingCode !== buildingName.trim().toUpperCase();
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
 
     if (!(isCrossBuildingOriginLeg && isCrossBuildingSignal)) return false;
 
@@ -476,7 +477,8 @@ export default function IndoorMapScreen() {
     buildingName,
     failNavigation,
     navOriginQuery,
-    outdoorDestBuilding,
+    outdoorDestBuildingCode,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleNavigate = useCallback(() => {
@@ -500,7 +502,7 @@ export default function IndoorMapScreen() {
     // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
     // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
     // different building code as navDest because it means "route to an exit and continue outside".
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (
       !isCrossBuildingOriginLeg &&
       (isCampusCode || isDifferentBuildingCode) &&
@@ -531,14 +533,14 @@ export default function IndoorMapScreen() {
     buildingName,
     navDestQuery,
     navOriginQuery,
-    outdoorDestBuilding,
     routeDestinationIndoorLegFromEntrance,
     routeToBestExitForCrossBuildingOrigin,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleContinueOutside = useCallback(() => {
     if (!buildingName) return;
-    const destCode = trimParam(outdoorDestBuilding).toUpperCase();
+    const destCode = outdoorDestBuildingCode;
     if (!destCode) return;
 
     // Choose a sane outdoor starting point. Prefer the selected exit's outdoorLatLng.
@@ -609,7 +611,7 @@ export default function IndoorMapScreen() {
         ...(destinationRoomQueryText ? { destinationRoomQuery: destinationRoomQueryText } : {}),
       },
     });
-  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuilding, outdoorStrategy, pendingExitOutdoor, router]);
+  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuildingCode, outdoorStrategy, pendingExitOutdoor, router]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
@@ -677,7 +679,7 @@ export default function IndoorMapScreen() {
           </View>
         )}
 
-        {Boolean(activeRoute) && Boolean(trimParam(outdoorDestBuilding)) && (
+        {Boolean(activeRoute) && Boolean(trimmedOutdoorDestBuilding) && (
           <View style={{ marginTop: spacing.sm }}>
             {destinationRoomQueryText ? (
               <Text style={{ color: colors.gray700, marginBottom: spacing.xs }}>
