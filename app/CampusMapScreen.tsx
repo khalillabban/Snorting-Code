@@ -290,6 +290,45 @@ function buildRouteConfirmIntent({
   return { kind: "outdoor_route" };
 }
 
+// ── Task 15 / 16 sub-step tracking helpers ───────────────────────────────────
+
+/**
+ * Snapshot of state captured at the moment Task 15 or Task 16 ends so we can
+ * emit a single, richly-annotated completion event that contains everything
+ * needed for post-analysis without having to join multiple events.
+ */
+type Task15Snapshot = {
+  startedAtMs: number;
+  /** Number of times the user changed the search range while task was active */
+  rangeChangeCount: number;
+  /** Number of distinct POI categories the user toggled on */
+  categoryToggleCount: number;
+  /** Whether the user ever opened the list panel */
+  openedListView: boolean;
+  /** Whether the user interacted with the map pins (tapped a POI on the map) */
+  tappedMapPin: boolean;
+  /** Final search range in metres when the task ended */
+  finalRangeMeters: number;
+  /** Number of POI results visible when the task ended */
+  resultsCount: number;
+};
+
+type Task16Snapshot = {
+  startedAtMs: number;
+  /** Name of the POI the user requested directions to */
+  poiName: string;
+  /** Category id of the POI */
+  poiCategoryId: string;
+  /** Whether the user viewed the steps panel (scrolled / saw it render) */
+  viewedStepsPanel: boolean;
+  /** Number of steps in the route when the panel appeared */
+  stepCount: number;
+  /** Rough estimated distance in metres */
+  estimatedDistanceMeters: number;
+  /** How the task ended: success | change_route | dismissed | abandoned */
+  outcome: "success" | "change_route" | "dismissed" | "abandoned";
+};
+
 export default function CampusMapScreen() {
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus, transition, destinationRoomQuery } = useLocalSearchParams<{
@@ -352,8 +391,8 @@ export default function CampusMapScreen() {
   const taskTimers = useRef<Record<string, number>>({});
   const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
 
-  // FIX: guard against endTask firing without a matching startTask — prevents
-  // bogus 0ms durations for tasks that were never started.
+  // Guard against endTask firing without a matching startTask — prevents
+  // bogus 0 ms durations for tasks that were never started.
   const startTask = (taskId: string) => {
     if (!USABILITY_TESTING_ENABLED) return;
     taskTimers.current[taskId] = Date.now();
@@ -365,7 +404,7 @@ export default function CampusMapScreen() {
   ) => {
     if (!USABILITY_TESTING_ENABLED) return;
     const start = taskTimers.current[taskId];
-    // Skip if no matching startTask — avoids ghost 0ms completions
+    // Skip if no matching startTask — avoids ghost 0 ms completions
     if (!start) return;
     const duration_ms = Date.now() - start;
     delete taskTimers.current[taskId];
@@ -468,6 +507,159 @@ export default function CampusMapScreen() {
     [activePOICategories],
   );
 
+  // ── Task 15 rich snapshot ─────────────────────────────────────────────────
+  /**
+   * A single ref holds the mutable snapshot for Task 15 so we can accumulate
+   * sub-step events (range changes, list opens, map pin taps…) and emit them
+   * all together at the end for easy analysis.
+   */
+  const task15Snapshot = useRef<Task15Snapshot | null>(null);
+
+  /**
+   * Starts Task 15 if not already running. Safe to call multiple times —
+   * subsequent calls are no-ops.
+   */
+  const ensureTask15Started = useCallback(
+    (initialRangeMeters: number, initialResultsCount: number) => {
+      if (task15Snapshot.current) return; // already running
+      task15Snapshot.current = {
+        startedAtMs: Date.now(),
+        rangeChangeCount: 0,
+        categoryToggleCount: 0,
+        openedListView: false,
+        tappedMapPin: false,
+        finalRangeMeters: initialRangeMeters,
+        resultsCount: initialResultsCount,
+      };
+      startTask("task_15");
+    },
+    [],
+  );
+
+  /**
+   * Ends Task 15, emits a single richly-annotated completion event, and clears
+   * the snapshot. `outcome` explains *why* the task ended.
+   */
+  const finalizeTask15 = useCallback(
+    async (
+      outcome:
+        | "poi_selected_from_list"
+        | "poi_selected_from_map"
+        | "dismissed_without_selection"
+        | "filter_closed",
+      overrides: Partial<Task15Snapshot> & {
+        poi_name?: string;
+        poi_category?: string;
+      } = {},
+    ) => {
+      const snap = task15Snapshot.current;
+      if (!snap) return; // never started — nothing to emit
+      task15Snapshot.current = null;
+
+      const duration_ms = Date.now() - snap.startedAtMs;
+
+      // Manually compute duration using our snapshot startedAtMs so the number
+      // is always accurate even if taskTimers got out of sync.
+      delete taskTimers.current["task_15"];
+
+      const payload = {
+        session_id: sessionId.current,
+        task_id: "task_15",
+        duration_ms,
+        outcome,
+        range_change_count: overrides.rangeChangeCount ?? snap.rangeChangeCount,
+        category_toggle_count:
+          overrides.categoryToggleCount ?? snap.categoryToggleCount,
+        opened_list_view: overrides.openedListView ?? snap.openedListView,
+        tapped_map_pin: overrides.tappedMapPin ?? snap.tappedMapPin,
+        final_range_meters: overrides.finalRangeMeters ?? snap.finalRangeMeters,
+        results_count: overrides.resultsCount ?? snap.resultsCount,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+        // Optional POI details when task ends by selection
+        ...(overrides.poi_name ? { poi_name: overrides.poi_name } : {}),
+        ...(overrides.poi_category
+          ? { poi_category: overrides.poi_category }
+          : {}),
+      };
+
+      await logUsabilityEvent("task_completed", payload);
+      await logUsabilityEvent("task_finished", {
+        ...payload,
+        finished_task_id: "task_15",
+      });
+      await logUsabilityEvent("task_15_detail", payload);
+    },
+    [],
+  );
+
+  // ── Task 16 rich snapshot ─────────────────────────────────────────────────
+  const task16Snapshot = useRef<Task16Snapshot | null>(null);
+  const task16EndedRef = useRef(false);
+
+  /**
+   * Starts Task 16 once; subsequent calls are no-ops.
+   */
+  const ensureTask16Started = useCallback(
+    (poiName: string, poiCategoryId: string) => {
+      if (task16Snapshot.current) return;
+      task16Snapshot.current = {
+        startedAtMs: Date.now(),
+        poiName,
+        poiCategoryId,
+        viewedStepsPanel: false,
+        stepCount: 0,
+        estimatedDistanceMeters: 0,
+        outcome: "abandoned",
+      };
+      task16EndedRef.current = false;
+      startTask("task_16");
+    },
+    [],
+  );
+
+  /**
+   * Ends Task 16 with the given outcome. Emits one comprehensive event plus
+   * the standard task_completed / task_finished pair.
+   */
+  const finalizeTask16 = useCallback(
+    async (
+      outcome: Task16Snapshot["outcome"],
+      overrides: Partial<Task16Snapshot> = {},
+    ) => {
+      if (task16EndedRef.current) return; // guard double-fire
+      const snap = task16Snapshot.current;
+      if (!snap) return;
+
+      task16EndedRef.current = true;
+      task16Snapshot.current = null;
+      delete taskTimers.current["task_16"];
+
+      const duration_ms = Date.now() - snap.startedAtMs;
+
+      const payload = {
+        session_id: sessionId.current,
+        task_id: "task_16",
+        duration_ms,
+        outcome,
+        poi_name: overrides.poiName ?? snap.poiName,
+        poi_category_id: overrides.poiCategoryId ?? snap.poiCategoryId,
+        viewed_steps_panel: overrides.viewedStepsPanel ?? snap.viewedStepsPanel,
+        step_count: overrides.stepCount ?? snap.stepCount,
+        estimated_distance_meters:
+          overrides.estimatedDistanceMeters ?? snap.estimatedDistanceMeters,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      };
+
+      await logUsabilityEvent("task_completed", payload);
+      await logUsabilityEvent("task_finished", {
+        ...payload,
+        finished_task_id: "task_16",
+      });
+      await logUsabilityEvent("task_16_detail", payload);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!showPOIFilter) return;
     if (activePOICategories.size === 0) {
@@ -488,18 +680,48 @@ export default function CampusMapScreen() {
     poiSearchTrigger,
   ]);
 
+  useEffect(() => {
+    if (!showPOIList || !task15Snapshot.current) return;
+    task15Snapshot.current.openedListView = true;
+    logUsabilityEvent("task_15_list_opened", {
+      session_id: sessionId.current,
+      results_count: nearbyPOIs.length,
+      active_categories: Array.from(activePOICategories).join(","),
+      range_meters: poiRange.meters,
+      time_since_map_load_ms: Date.now() - mapLoadTime.current,
+    }).catch(console.error);
+  }, [activePOICategories, nearbyPOIs.length, poiRange.meters, showPOIList]);
+
   const retryPOISearch = useCallback(() => {
     setPoiSearchTrigger((c) => c + 1);
   }, []);
 
-  const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
-    setActivePOICategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const handleTogglePOICategory = useCallback(
+    (id: OutdoorPOICategoryId) => {
+      setActivePOICategories((prev) => {
+        const next = new Set(prev);
+        const isFirstCategory = prev.size === 0 && !prev.has(id);
+
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+          // Ensure Task 15 is running when the first category is selected.
+          if (isFirstCategory) {
+            ensureTask15Started(poiRange.meters, nearbyPOIs.length);
+          }
+        }
+
+        // Increment category toggle counter on every change
+        if (task15Snapshot.current) {
+          task15Snapshot.current.categoryToggleCount += 1;
+        }
+
+        return next;
+      });
+    },
+    [ensureTask15Started, nearbyPOIs.length, poiRange.meters],
+  );
 
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
@@ -518,7 +740,6 @@ export default function CampusMapScreen() {
       open_count: navOpenCount.current,
       time_since_map_load_ms: Date.now() - mapLoadTime.current,
     });
-    // task_5 is now started in onSetAsDestination / onSetAsStart so we don't
   };
 
   const destinationRoomQueryText = useMemo(() => {
@@ -731,6 +952,17 @@ export default function CampusMapScreen() {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
 
+    // Abandon Task 15 / 16 if the user switches campus mid-task
+    if (task15Snapshot.current) {
+      await finalizeTask15("filter_closed", {
+        resultsCount: nearbyPOIs.length,
+        finalRangeMeters: poiRange.meters,
+      });
+    }
+    if (task16Snapshot.current && !task16EndedRef.current) {
+      await finalizeTask16("abandoned");
+    }
+
     try {
       await logUsabilityEvent("campus_switch", {
         session_id: sessionId.current,
@@ -739,34 +971,108 @@ export default function CampusMapScreen() {
         time_since_map_load_ms: Date.now() - mapLoadTime.current,
         timestamp: new Date().toISOString(),
       });
-      //task_2: now has a matching startTask so duration is non-zero.
       await endTask("task_2", { campus_switched_to: campusKey });
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
   };
 
-  const handleSelectOutdoorPOI = useCallback((poi: PlacePOI) => {
-    setSelectedOutdoorPOI(poi);
-    setPOIRouteError(null);
-    setFocusPOIId(poi.placeId);
-    setFocusPOITrigger((c) => c + 1);
-    setShowPOIList(false);
+  const handlePOIRangeChange = useCallback(
+    async (option: POIRangeOption) => {
+      const previousMeters = poiRange.meters;
+      setPOIRange(option);
 
-    setActiveOutdoorPOIRoute((previousRoutePOI) => {
-      if (!previousRoutePOI || previousRoutePOI.placeId === poi.placeId)
-        return previousRoutePOI;
-      setRouteFocusTrigger((c) => c + 1);
-      return poi;
-    });
-  }, []);
+      // Ensure task is running (user may change range before selecting a category)
+      ensureTask15Started(option.meters, nearbyPOIs.length);
 
-  const clearOutdoorPOIRouteState = useCallback(() => {
+      if (task15Snapshot.current) {
+        task15Snapshot.current.rangeChangeCount += 1;
+        task15Snapshot.current.finalRangeMeters = option.meters;
+      }
+
+      await logUsabilityEvent("task_15_range_changed", {
+        session_id: sessionId.current,
+        previous_range_meters: previousMeters,
+        new_range_meters: option.meters,
+        active_categories: Array.from(activePOICategories).join(","),
+        results_count: nearbyPOIs.length,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      });
+    },
+    [
+      activePOICategories,
+      ensureTask15Started,
+      nearbyPOIs.length,
+      poiRange.meters,
+    ],
+  );
+
+  const handleSelectOutdoorPOI = useCallback(
+    async (poi: PlacePOI, source: "list" | "map" = "map") => {
+      setSelectedOutdoorPOI(poi);
+      setPOIRouteError(null);
+      setFocusPOIId(poi.placeId);
+      setFocusPOITrigger((c) => c + 1);
+      setShowPOIList(false);
+
+      // Track which interaction surface the user used in the snapshot
+      if (task15Snapshot.current) {
+        if (source === "map") task15Snapshot.current.tappedMapPin = true;
+      }
+
+      // Finalize Task 15 — POI selected
+      const poiCategory = OUTDOOR_POI_CATEGORY_MAP[poi.categoryId];
+      await finalizeTask15(
+        source === "list" ? "poi_selected_from_list" : "poi_selected_from_map",
+        {
+          resultsCount: nearbyPOIs.length,
+          finalRangeMeters: poiRange.meters,
+          poi_name: poi.name,
+          poi_category: poiCategory?.id ?? poi.categoryId ?? "unknown",
+        },
+      );
+
+      // Sub-step: POI detail viewed (what the user sees after tapping a result)
+      await logUsabilityEvent("task_15_poi_detail_viewed", {
+        session_id: sessionId.current,
+        poi_name: poi.name,
+        poi_category: poiCategory?.id ?? poi.categoryId ?? "unknown",
+        source,
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      });
+
+      setActiveOutdoorPOIRoute((previousRoutePOI) => {
+        if (!previousRoutePOI || previousRoutePOI.placeId === poi.placeId)
+          return previousRoutePOI;
+        setRouteFocusTrigger((c) => c + 1);
+        return poi;
+      });
+    },
+    [finalizeTask15, nearbyPOIs.length, poiRange.meters],
+  );
+
+  /**
+   * Thin wrapper so the map can call handleSelectOutdoorPOI with source="map"
+   * without the caller needing to know about our internal signature.
+   */
+  const handleSelectOutdoorPOIFromMap = useCallback(
+    (poi: PlacePOI) => handleSelectOutdoorPOI(poi, "map"),
+    [handleSelectOutdoorPOI],
+  );
+
+  const clearOutdoorPOIRouteState = useCallback(async () => {
+    // Abandon Task 16 if the user clears the POI before completing directions
+    if (task16Snapshot.current && !task16EndedRef.current) {
+      await finalizeTask16("dismissed", {
+        poiName: selectedOutdoorPOI?.name ?? "unknown",
+      });
+    }
+
     setSelectedOutdoorPOI(null);
     setActiveOutdoorPOIRoute(null);
     setPOIRouteError(null);
     setRouteSteps([]);
-  }, []);
+  }, [finalizeTask16, selectedOutdoorPOI]);
 
   const focusUserLocation = useCallback(async () => {
     setFocusTarget("user");
@@ -941,14 +1247,12 @@ export default function CampusMapScreen() {
         });
         navStartTime.current = null;
 
-        // FIX task_5: end here — tester has successfully confirmed a route
         await endTask("task_5", {
           start_location: start?.name ?? "My Location",
           dest_location: dest?.name ?? "Unknown",
           travel_mode: strategy.mode,
         });
 
-        // task_6 starts the moment route is confirmed, ends when steps panel appears
         startTask("task_6");
       } catch (error) {
         console.error("Firebase Analytics Error: ", error);
@@ -1070,22 +1374,54 @@ export default function CampusMapScreen() {
     [],
   );
 
-  const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
-    setRouteSteps(steps);
+  const handleRouteSteps = useCallback(
+    async (steps: RouteStep[]) => {
+      setRouteSteps(steps);
 
-    if (steps.length > 0 && !task6EndedRef.current) {
-      task6EndedRef.current = true;
-      try {
-        await logUsabilityEvent("steps_panel_viewed", {
+      // Task 16: route + steps panel appeared
+      if (steps.length > 0 && activeOutdoorPOIRoute && task16Snapshot.current) {
+        const estimatedDistance = steps.length * 40;
+        task16Snapshot.current.viewedStepsPanel = true;
+        task16Snapshot.current.stepCount = steps.length;
+        task16Snapshot.current.estimatedDistanceMeters = estimatedDistance;
+
+        // Sub-step: steps panel became visible
+        await logUsabilityEvent("task_16_steps_panel_viewed", {
           session_id: sessionId.current,
+          poi_name: activeOutdoorPOIRoute.name,
+          poi_category_id: activeOutdoorPOIRoute.categoryId ?? "unknown",
           step_count: steps.length,
+          estimated_distance_meters: estimatedDistance,
+          time_since_map_load_ms: Date.now() - mapLoadTime.current,
         });
-        await endTask("task_6", { step_count: steps.length });
-      } catch (error) {
-        console.error("Firebase Analytics Error: ", error);
+
+        // Mark Task 16 as successfully completed once route details are visible.
+        await finalizeTask16("success", {
+          poiName: activeOutdoorPOIRoute.name,
+          poiCategoryId: activeOutdoorPOIRoute.categoryId ?? "unknown",
+          viewedStepsPanel: true,
+          stepCount: steps.length,
+          estimatedDistanceMeters: estimatedDistance,
+          outcome: "success",
+        });
       }
-    }
-  }, []);
+
+      // Task 6
+      if (steps.length > 0 && !task6EndedRef.current) {
+        task6EndedRef.current = true;
+        try {
+          await logUsabilityEvent("steps_panel_viewed", {
+            session_id: sessionId.current,
+            step_count: steps.length,
+          });
+          await endTask("task_6", { step_count: steps.length });
+        } catch (error) {
+          console.error("Firebase Analytics Error: ", error);
+        }
+      }
+    },
+    [activeOutdoorPOIRoute, finalizeTask16],
+  );
 
   type InteractiveRouteStep = RouteStep & {
     onPress?: () => void;
@@ -1207,6 +1543,7 @@ export default function CampusMapScreen() {
     selectedRoute.start,
     showStepsPanel,
   ]);
+
   const activeOutdoorPOIDestination = useMemo(
     () =>
       activeOutdoorPOIRoute
@@ -1222,8 +1559,22 @@ export default function CampusMapScreen() {
     ? OUTDOOR_POI_CATEGORY_MAP[selectedOutdoorPOI.categoryId]
     : null;
 
-  const startOutdoorPOIRoute = useCallback(() => {
+  const startOutdoorPOIRoute = useCallback(async () => {
     if (!selectedOutdoorPOI) return;
+
+    // Task 16: user tapped "Get directions"
+    ensureTask16Started(
+      selectedOutdoorPOI.name,
+      selectedOutdoorPOI.categoryId ?? "unknown",
+    );
+
+    // Sub-step: "Get directions" button tapped
+    await logUsabilityEvent("task_16_get_directions_tapped", {
+      session_id: sessionId.current,
+      poi_name: selectedOutdoorPOI.name,
+      poi_category_id: selectedOutdoorPOI.categoryId ?? "unknown",
+      time_since_map_load_ms: Date.now() - mapLoadTime.current,
+    });
 
     const routeStart = userLocation
       ? findNearestBuilding(userLocation.latitude, userLocation.longitude)
@@ -1233,6 +1584,17 @@ export default function CampusMapScreen() {
       setPOIRouteError(
         "Unable to resolve a starting location. Enable location services or set your location on the map.",
       );
+      // Task 16 failed immediately — no starting location
+      await finalizeTask16("abandoned", {
+        poiName: selectedOutdoorPOI.name,
+        poiCategoryId: selectedOutdoorPOI.categoryId ?? "unknown",
+      });
+      await logUsabilityEvent("task_16_error", {
+        session_id: sessionId.current,
+        poi_name: selectedOutdoorPOI.name,
+        error_reason: "no_starting_location",
+        time_since_map_load_ms: Date.now() - mapLoadTime.current,
+      });
       return;
     }
 
@@ -1241,10 +1603,12 @@ export default function CampusMapScreen() {
     setSelectedRoute({ start: routeStart, dest: null });
     setRouteFocusTrigger((c) => c + 1);
   }, [
+    effectiveCurrentBuilding,
+    ensureTask16Started,
+    finalizeTask16,
+    findNearestBuilding,
     selectedOutdoorPOI,
     userLocation,
-    findNearestBuilding,
-    effectiveCurrentBuilding,
   ]);
 
   return (
@@ -1310,7 +1674,8 @@ export default function CampusMapScreen() {
         nearbyPOIs={nearbyPOIs}
         focusPOIId={focusPOIId}
         focusPOITrigger={focusPOITrigger}
-        onSelectPOI={handleSelectOutdoorPOI}
+        // Use the map-source wrapper so tapping a map pin is correctly attributed
+        onSelectPOI={handleSelectOutdoorPOIFromMap}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -1353,15 +1718,20 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
-      {/* Continue indoors is rendered as the final step inside the directions panel. */}
-
       {showPOIFilter && (
         <View style={styles.poiPanel}>
           <OutdoorPOIFilter
             activeCategories={activePOICategories}
             onToggle={handleTogglePOICategory}
           />
-          <POIRangeSelector selected={poiRange} onSelect={setPOIRange} />
+          {/*
+           * Route the range selector through handlePOIRangeChange so every
+           * range adjustment is captured in the Task 15 snapshot.
+           */}
+          <POIRangeSelector
+            selected={poiRange}
+            onSelect={handlePOIRangeChange}
+          />
         </View>
       )}
 
@@ -1430,12 +1800,28 @@ export default function CampusMapScreen() {
           accessibilityLabel={
             showPOIFilter ? "Hide nearby places" : "Show nearby places"
           }
-          onPress={() => {
+          onPress={async () => {
             setShowPOIFilter((v) => {
-              if (v) {
+              const closing = v; // if currently open, we are closing it
+              if (closing) {
                 clearPOIs();
                 setShowPOIList(false);
                 setActivePOICategories(new Set());
+
+                // Finalize Task 15 when the filter panel is closed without
+                // selecting a POI — fire async outside the setState callback.
+                if (task15Snapshot.current) {
+                  finalizeTask15("filter_closed", {
+                    resultsCount: nearbyPOIs.length,
+                    finalRangeMeters: poiRange.meters,
+                    openedListView: task15Snapshot.current.openedListView,
+                  }).catch(console.error);
+                }
+              } else {
+                logUsabilityEvent("task_15_filter_opened", {
+                  session_id: sessionId.current,
+                  time_since_map_load_ms: Date.now() - mapLoadTime.current,
+                }).catch(console.error);
               }
               return !v;
             });
@@ -1478,7 +1864,6 @@ export default function CampusMapScreen() {
           accessibilityLabel="directions-button"
           onPress={() => {
             openNavigationBar("directions_button");
-
             startTask("task_5");
           }}
           style={styles.actionButton}
@@ -1507,8 +1892,18 @@ export default function CampusMapScreen() {
         <POIListPanel
           pois={nearbyPOIs}
           origin={poiSearchLocation}
-          onClose={() => setShowPOIList(false)}
-          onSelect={handleSelectOutdoorPOI}
+          onClose={() => {
+            setShowPOIList(false);
+            // Sub-step: user closed the list panel without selecting
+            if (task15Snapshot.current) {
+              logUsabilityEvent("task_15_list_closed_without_selection", {
+                session_id: sessionId.current,
+                results_shown: nearbyPOIs.length,
+                time_since_map_load_ms: Date.now() - mapLoadTime.current,
+              }).catch(console.error);
+            }
+          }}
+          onSelect={(poi) => handleSelectOutdoorPOI(poi, "list")}
           loading={poisLoading}
           error={poisError}
           locationUnavailable={!userLocation}
@@ -1574,7 +1969,20 @@ export default function CampusMapScreen() {
         <DirectionStepsPanel
           steps={routeStepsWithContinueIndoors}
           strategy={selectedStrategy}
-          onChangeRoute={() => {
+          onChangeRoute={async () => {
+            //  Task 16: user tapped "Change route"
+            if (task16Snapshot.current && !task16EndedRef.current) {
+              await logUsabilityEvent("task_16_change_route_tapped", {
+                session_id: sessionId.current,
+                poi_name: task16Snapshot.current.poiName,
+                poi_category_id: task16Snapshot.current.poiCategoryId,
+                step_count: task16Snapshot.current.stepCount,
+                viewed_steps_panel: task16Snapshot.current.viewedStepsPanel,
+                time_since_map_load_ms: Date.now() - mapLoadTime.current,
+              });
+              await finalizeTask16("change_route");
+            }
+
             setInitialStart(selectedRoute.start);
             setInitialDestination(selectedRoute.dest);
             openNavigationBar("change_route").catch(console.error);
@@ -1585,6 +1993,14 @@ export default function CampusMapScreen() {
             }).catch(console.error);
           }}
           onDismiss={async () => {
+            // ── Task 16: user dismissed the steps panel ───────────────────
+            if (task16Snapshot.current && !task16EndedRef.current) {
+              await finalizeTask16("dismissed", {
+                poiName:
+                  selectedOutdoorPOI?.name ?? task16Snapshot.current.poiName,
+              });
+            }
+
             setSelectedRoute({ start: null, dest: null });
             setActiveOutdoorPOIRoute(null);
             setRouteSteps([]);
