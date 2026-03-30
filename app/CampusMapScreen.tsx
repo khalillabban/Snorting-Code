@@ -34,6 +34,7 @@ import {
 import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
+  normalizeRoomQuery,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
@@ -75,14 +76,6 @@ const buildCrossBuildingIndoorParams = ({
 
 type FocusTarget = CampusKey | "user";
 
-function normalizeRoomQuery(buildingCode: string, room: string): string {
-  const trimmed = room.trim();
-  if (!trimmed) return "";
-  const prefix = `${buildingCode.toUpperCase()}-`;
-  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
-  return `${prefix}${trimmed}`;
-}
-
 type RouteConfirmIntent =
   | {
     kind: "cross_building_indoor_to_indoor";
@@ -116,6 +109,60 @@ type RouteConfirmIntent =
     accessibleOnly?: boolean;
   }
   | { kind: "outdoor_route" };
+
+type IndoorRouteIntent =
+  | {
+    kind: "same_building_indoor_room_to_room";
+    buildingCode: string;
+    navOrigin: string;
+    navDest: string;
+    accessibleOnly?: boolean;
+  }
+  | {
+    kind: "same_building_indoor_to_room";
+    buildingCode: string;
+    roomQuery: string;
+    accessibleOnly?: boolean;
+  };
+
+type OpenIndoorMapFn = (
+  buildingCode?: string | null,
+  roomQuery?: string,
+  navOrigin?: string,
+  navDest?: string,
+  accessibleOnlyOverride?: boolean,
+) => void;
+
+export function handleIndoorRouteIntent({
+  intent,
+  openIndoorMap,
+  setIsNavVisible,
+}: {
+  intent: IndoorRouteIntent;
+  openIndoorMap: OpenIndoorMapFn;
+  setIsNavVisible: (visible: boolean) => void;
+}): void {
+  setIsNavVisible(false);
+
+  if (intent.kind === "same_building_indoor_room_to_room") {
+    openIndoorMap(
+      intent.buildingCode,
+      undefined,
+      intent.navOrigin,
+      intent.navDest,
+      intent.accessibleOnly,
+    );
+    return;
+  }
+
+  openIndoorMap(
+    intent.buildingCode,
+    intent.roomQuery,
+    undefined,
+    undefined,
+    intent.accessibleOnly,
+  );
+}
 
 function buildRouteConfirmIntent({
   start,
@@ -277,8 +324,12 @@ export default function CampusMapScreen() {
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
   const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showShuttle, setShowShuttle] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
+    useState(false);
 
   const { pois: nearbyPOIs, loading: poisLoading, error: poisError, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
+  const shuttleStatus = useShuttleAvailability(currentCampus);
 
   // Fall back to the current campus center when GPS is unavailable.
   const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
@@ -515,6 +566,10 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
+  useEffect(() => {
+    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  }, [shuttleStatus.available, showShuttle]);
+
   const selectCampus = (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
@@ -649,27 +704,15 @@ export default function CampusMapScreen() {
         return;
       }
 
-      if (intent.kind === "same_building_indoor_room_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          undefined,
-          intent.navOrigin,
-          intent.navDest,
-          intent.accessibleOnly,
-        );
-        return;
-      }
-
-      if (intent.kind === "same_building_indoor_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          intent.roomQuery,
-          undefined,
-          undefined,
-          intent.accessibleOnly,
-        );
+      if (
+        intent.kind === "same_building_indoor_room_to_room" ||
+        intent.kind === "same_building_indoor_to_room"
+      ) {
+        handleIndoorRouteIntent({
+          intent,
+          openIndoorMap,
+          setIsNavVisible,
+        });
         return;
       }
 
@@ -697,22 +740,10 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  const [showShuttle, setShowShuttle] = useState(false);
-  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
-    useState(false);
-  const shuttleStatus = useShuttleAvailability(currentCampus);
-
-  let accessibilityLabel: string;
-  if (!shuttleStatus.available) {
-    accessibilityLabel = "Shuttle not available";
-  } else if (showShuttle) {
-    accessibilityLabel = "Hide shuttle";
-  } else {
-    accessibilityLabel = "Show shuttle";
-  }
-
-  useEffect(() => {
-    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  const accessibilityLabel = useMemo(() => {
+    if (!shuttleStatus.available) return "Shuttle not available";
+    if (showShuttle) return "Hide shuttle";
+    return "Show shuttle";
   }, [shuttleStatus.available, showShuttle]);
 
   const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
@@ -829,7 +860,7 @@ export default function CampusMapScreen() {
   }, [selectedOutdoorPOI, userLocation, findNearestBuilding, effectiveCurrentBuilding]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.rootContainer}>
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}

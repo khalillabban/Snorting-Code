@@ -1,13 +1,13 @@
 import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import CampusMapScreen from "../app/CampusMapScreen";
+import CampusMapScreen, { handleIndoorRouteIntent } from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { buildContinueIndoorsStep } from "../utils/continueIndoors";
@@ -562,6 +562,57 @@ const renderScreen = async () => {
 };
 
 describe("CampusMapScreen", () => {
+  it("handleIndoorRouteIntent routes room-to-room indoor intent", () => {
+    const openIndoorMap = jest.fn();
+    const setIsNavVisible = jest.fn();
+
+    handleIndoorRouteIntent({
+      intent: {
+        kind: "same_building_indoor_room_to_room",
+        buildingCode: "H",
+        navOrigin: "H-110",
+        navDest: "H-920",
+        accessibleOnly: true,
+      },
+      openIndoorMap,
+      setIsNavVisible,
+    });
+
+    expect(setIsNavVisible).toHaveBeenCalledWith(false);
+    expect(openIndoorMap).toHaveBeenCalledWith(
+      "H",
+      undefined,
+      "H-110",
+      "H-920",
+      true,
+    );
+  });
+
+  it("handleIndoorRouteIntent routes building-to-room indoor intent", () => {
+    const openIndoorMap = jest.fn();
+    const setIsNavVisible = jest.fn();
+
+    handleIndoorRouteIntent({
+      intent: {
+        kind: "same_building_indoor_to_room",
+        buildingCode: "MB",
+        roomQuery: "MB-1.210",
+        accessibleOnly: false,
+      },
+      openIndoorMap,
+      setIsNavVisible,
+    });
+
+    expect(setIsNavVisible).toHaveBeenCalledWith(false);
+    expect(openIndoorMap).toHaveBeenCalledWith(
+      "MB",
+      "MB-1.210",
+      undefined,
+      undefined,
+      false,
+    );
+  });
+
   beforeEach(() => {
     (buildContinueIndoorsStep as jest.Mock).mockImplementation(
       jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
