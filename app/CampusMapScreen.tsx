@@ -34,6 +34,7 @@ import {
 import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
+  normalizeRoomQuery,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
@@ -74,14 +75,6 @@ const buildCrossBuildingIndoorParams = ({
 });
 
 type FocusTarget = CampusKey | "user";
-
-function normalizeRoomQuery(buildingCode: string, room: string): string {
-  const trimmed = room.trim();
-  if (!trimmed) return "";
-  const prefix = `${buildingCode.toUpperCase()}-`;
-  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
-  return `${prefix}${trimmed}`;
-}
 
 type RouteConfirmIntent =
   | {

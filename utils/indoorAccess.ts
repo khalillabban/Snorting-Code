@@ -1,7 +1,7 @@
 import {
-  getAvailableFloors,
-  hasBuildingPlanAsset,
-  normalizeIndoorBuildingCode,
+    getAvailableFloors,
+    hasBuildingPlanAsset,
+    normalizeIndoorBuildingCode,
 } from "./mapAssets";
 
 export interface IndoorAccessState {
@@ -16,6 +16,14 @@ export interface IndoorMapRouteParams {
   buildingName: string;
   floors: string;
   roomQuery?: string;
+}
+
+export function normalizeRoomQuery(buildingCode: string, room: string): string {
+  const trimmed = room.trim();
+  if (!trimmed) return "";
+  const prefix = `${buildingCode.toUpperCase()}-`;
+  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
+  return `${prefix}${trimmed}`;
 }
 
 export function getIndoorAccessState(
