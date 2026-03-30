@@ -1,18 +1,18 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
-  Accuracy,
-  getCurrentPositionAsync,
-  getForegroundPermissionsAsync,
-  hasServicesEnabledAsync,
-  requestForegroundPermissionsAsync,
+    Accuracy,
+    getCurrentPositionAsync,
+    getForegroundPermissionsAsync,
+    hasServicesEnabledAsync,
+    requestForegroundPermissionsAsync,
 } from "expo-location";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import type { LatLng, Region } from "react-native-maps";
@@ -24,10 +24,10 @@ import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
 import type {
-  Buildings,
-  Location,
-  RouteSegment,
-  RouteStep,
+    Buildings,
+    Location,
+    RouteSegment,
+    RouteStep,
 } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { PlacePOI } from "../services/GooglePlacesService";
@@ -46,10 +46,12 @@ type CampusMapProps = Readonly<{
   startPoint?: Buildings | null;
   startOverride?: LatLng | null;
   destinationPoint?: Buildings | null;
+  destinationOverride?: LatLng | null;
   showShuttle: boolean;
   strategy: RouteStrategy;
   demoCurrentBuilding?: Buildings | null;
   onRouteSteps?: (steps: RouteStep[]) => void;
+  onRouteError?: (message: string | null) => void;
   onSetAsStart?: (building: Buildings) => void;
   onSetAsDestination?: (building: Buildings) => void;
   onSetAsMyLocation?: (building: Buildings) => void;
@@ -60,6 +62,7 @@ type CampusMapProps = Readonly<{
   nearbyPOIs?: PlacePOI[];
   focusPOIId?: string | null;
   focusPOITrigger?: number;
+  onSelectPOI?: (poi: PlacePOI) => void;
 }>;
 
 const HIGHLIGHT_STROKE_WIDTH = 3;
@@ -148,10 +151,12 @@ export default function CampusMap({
   startPoint,
   startOverride,
   destinationPoint,
+  destinationOverride,
   showShuttle,
   strategy,
   demoCurrentBuilding,
   onRouteSteps,
+  onRouteError,
   onSetAsStart,
   onSetAsDestination,
   onSetAsMyLocation,
@@ -162,6 +167,7 @@ export default function CampusMap({
   nearbyPOIs,
   focusPOIId,
   focusPOITrigger = 0,
+  onSelectPOI,
 }: CampusMapProps) {
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
@@ -211,6 +217,11 @@ export default function CampusMap({
   const effectiveOrigin = useMemo(
     () => startOverride ?? startPoint?.coordinates ?? null,
     [startOverride, startPoint],
+  );
+
+  const effectiveDestination = useMemo(
+    () => destinationOverride ?? destinationPoint?.coordinates ?? null,
+    [destinationOverride, destinationPoint],
   );
 
   // Sync region center when campus changes
@@ -324,9 +335,10 @@ export default function CampusMap({
     let cancelled = false;
 
     async function fetchRoute() {
-      if (!effectiveOrigin || !destinationPoint) {
+      if (!effectiveOrigin || !effectiveDestination) {
         setRouteSegments([]);
         onRouteSteps?.([]);
+        onRouteError?.(null);
         return;
       }
 
@@ -334,22 +346,35 @@ export default function CampusMap({
       // This avoids briefly showing an out-of-date path when only the origin override changes.
       setRouteSegments([]);
       onRouteSteps?.([]);
+      onRouteError?.(null);
 
       try {
         const { steps, segments } = await getOutdoorRouteWithSteps(
           effectiveOrigin,
-          destinationPoint.coordinates,
+          effectiveDestination,
           strategy,
         );
 
         if (cancelled) return;
 
+        if (segments.length === 0) {
+          setRouteSegments([]);
+          onRouteSteps?.([]);
+          onRouteError?.("No route found for the selected destination.");
+          return;
+        }
+
         setRouteSegments(segments);
         onRouteSteps?.(steps);
-      } catch {
+        onRouteError?.(null);
+      } catch (error) {
         if (!cancelled) {
           onRouteSteps?.([]);
           setRouteSegments([]);
+          const message = error instanceof Error
+            ? error.message
+            : "Unable to generate route right now.";
+          onRouteError?.(message);
         }
       }
     }
@@ -359,7 +384,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, [destinationPoint, effectiveOrigin, strategy, onRouteSteps]);
+  }, [effectiveDestination, effectiveOrigin, strategy, onRouteError, onRouteSteps]);
 
   // Fetch shuttle route (campus to campus) via Google Directions when showShuttle is true
   useEffect(() => {
@@ -429,7 +454,7 @@ export default function CampusMap({
   }, [effectiveOrigin, mapReady, routeFocusTrigger]);
 
   // Keep refs to POI markers so we can programmatically show their callout.
-  const poiMarkerRefs = useRef<Record<string, Marker | null>>({});
+  const poiMarkerRefs = useRef<Record<string, { showCallout: () => void } | null>>({});
 
   // Focus on a POI selected from the list and auto-show its callout.
   useEffect(() => {
@@ -508,10 +533,10 @@ export default function CampusMap({
           </Marker>
         )}
 
-        {destinationPoint && (
+        {effectiveDestination && (
           <Marker
             testID="marker-destination"
-            coordinate={destinationPoint.coordinates}
+            coordinate={effectiveDestination}
             anchor={{ x: 0.5, y: 1 }}
             tracksViewChanges={Platform.OS === "android"}
           >
@@ -705,6 +730,7 @@ export default function CampusMap({
               title={poi.name}
               description={poi.vicinity}
               anchor={{ x: 0.5, y: 1 }}
+              onPress={() => onSelectPOI?.(poi)}
             >
               <View style={styles.poiPin}>
                 <View style={[styles.poiPinHead, { backgroundColor: catDef?.color ?? colors.gray500 }]}>

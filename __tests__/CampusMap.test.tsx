@@ -91,7 +91,7 @@ jest.mock("react-native-maps", () => {
     return (
       <View
         testID={markerId}
-        onPress={props.tappable ? props.onPress : undefined}
+        onPress={props.onPress}
       >
         <Text testID="marker-props">
           {JSON.stringify({
@@ -255,7 +255,7 @@ describe("CampusMap", () => {
     (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) =>
       buildingCode === "A" ? [1, 2] : [],
     );
-    Object.values(getMapsMock().__showCalloutMocks).forEach((mock: jest.Mock) => mock.mockClear());
+    (Object.values(getMapsMock().__showCalloutMocks) as jest.Mock[]).forEach((mock) => mock.mockClear());
   });
 
   afterAll(() => {
@@ -441,6 +441,19 @@ describe("CampusMap", () => {
 
   it("renders destination point marker when destinationPoint is provided", async () => {
     render(<CampusMap coordinates={coordinates} focusTarget="sgw" destinationPoint={BUILDINGS[1]} strategy={WALKING_STRATEGY} showShuttle={false} />);
+    expect(await screen.findByTestId("marker-destination")).toBeTruthy();
+  });
+
+  it("renders destination marker when destinationOverride is provided", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        destinationOverride={{ latitude: 99.5, longitude: 88.5 }}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     expect(await screen.findByTestId("marker-destination")).toBeTruthy();
   });
 
@@ -650,6 +663,101 @@ describe("CampusMap", () => {
 
     expect(mapsMock.__showCalloutMocks["poi-marker-poi-focus"]).toHaveBeenCalledTimes(1);
     setTimeoutSpy.mockRestore();
+  });
+
+  it("calls onSelectPOI when a nearby POI marker is pressed", async () => {
+    const onSelectPOI = jest.fn();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onSelectPOI={onSelectPOI}
+        nearbyPOIs={[
+          {
+            placeId: "poi-select",
+            name: "Select POI",
+            latitude: 10.4,
+            longitude: 20.4,
+            vicinity: "Selected Street",
+            categoryId: "coffee",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.press(await screen.findByTestId("poi-marker-poi-select"));
+    expect(onSelectPOI).toHaveBeenCalledWith(
+      expect.objectContaining({ placeId: "poi-select" }),
+    );
+  });
+
+  it("reports route-unavailable error when route service returns empty segments", async () => {
+    const onRouteError = jest.fn();
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [],
+      steps: [],
+      segments: [],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        onRouteError={onRouteError}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onRouteError).toHaveBeenCalledWith("No route found for the selected destination.");
+    });
+  });
+
+  it("reports route service failure message through onRouteError", async () => {
+    const onRouteError = jest.fn();
+    (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValue(
+      new Error("Directions API status: REQUEST_DENIED"),
+    );
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        onRouteError={onRouteError}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onRouteError).toHaveBeenCalledWith("Directions API status: REQUEST_DENIED");
+    });
+  });
+
+  it("clears route error when origin or destination is missing", async () => {
+    const onRouteError = jest.fn();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        onRouteError={onRouteError}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onRouteError).toHaveBeenCalledWith(null);
+    });
   });
 it("label marker tap and polygon tap both open the same building popup", async () => {
   render(
