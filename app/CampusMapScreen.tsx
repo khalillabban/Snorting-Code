@@ -82,7 +82,7 @@ const buildCrossBuildingIndoorParams = ({
 
 type FocusTarget = CampusKey | "user";
 
-function toBuildingCode(value: unknown): string | null {
+export function toBuildingCode(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") {
     const code = value.trim().toUpperCase();
@@ -99,7 +99,7 @@ function toBuildingCode(value: unknown): string | null {
   return null;
 }
 
-function getCampusByCode(buildingCode: string | null): CampusKey | null {
+export function getCampusByCode(buildingCode: string | null): CampusKey | null {
   if (!buildingCode) return null;
   const found = BUILDINGS.find(
     (b) => b.name.trim().toUpperCase() === buildingCode,
@@ -108,7 +108,7 @@ function getCampusByCode(buildingCode: string | null): CampusKey | null {
   return found.campusName === "loyola" ? "loyola" : "sgw";
 }
 
-function classifyIndoorOutdoorTask(
+export function classifyIndoorOutdoorTask(
   start: unknown,
   dest: unknown,
 ): "task_13" | "task_14" | null {
@@ -123,7 +123,7 @@ function classifyIndoorOutdoorTask(
   return startCampus === destCampus ? "task_13" : "task_14";
 }
 
-function parseStartedAtMs(value: unknown): number | null {
+export function parseStartedAtMs(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return value;
   }
@@ -222,7 +222,7 @@ export function handleIndoorRouteIntent({
   );
 }
 
-function buildRouteConfirmIntent({
+export function buildRouteConfirmIntent({
   start,
   dest,
   strategy,

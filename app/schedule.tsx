@@ -67,7 +67,7 @@ function getSemesterRange(): { start: Date; end: Date } {
   return { start: SEMESTER_START, end: SEMESTER_END };
 }
 
-function parseCalendarDate(value?: {
+export function parseCalendarDate(value?: {
   date?: string;
   dateTime?: string;
 }): Date | null {
@@ -78,7 +78,7 @@ function parseCalendarDate(value?: {
   return parsed;
 }
 
-function eventOverlapsRange(
+export function eventOverlapsRange(
   event: GoogleCalendarEvent,
   rangeStart: Date,
   rangeEnd: Date,
@@ -89,7 +89,7 @@ function eventOverlapsRange(
   return end > rangeStart && start < rangeEnd;
 }
 
-function getEventDedupKey(event: GoogleCalendarEvent): string | null {
+export function getEventDedupKey(event: GoogleCalendarEvent): string | null {
   if (!event.id) return null;
   const occurrenceKey =
     event.originalStartTime?.dateTime ??
@@ -100,7 +100,7 @@ function getEventDedupKey(event: GoogleCalendarEvent): string | null {
   return occurrenceKey ? `${event.id}::${occurrenceKey}` : event.id;
 }
 
-function buildScheduleItems(
+export function buildScheduleItems(
   events: GoogleCalendarEvent[],
   rangeStart: Date,
   rangeEnd: Date,
@@ -116,17 +116,19 @@ function buildScheduleItems(
   return parseCourseEvents(Array.from(deduped.values()));
 }
 
-function getUiStateForItems(items: ScheduleItem[]): UiState {
+export function getUiStateForItems(items: ScheduleItem[]): UiState {
   return items.length > 0 ? { status: "ready", items } : { status: "empty" };
 }
 
-function pickDefaultCalendarIds(calendars: GoogleCalendarListItem[]): string[] {
+export function pickDefaultCalendarIds(
+  calendars: GoogleCalendarListItem[],
+): string[] {
   if (calendars.length === 0) return [];
   const primaryIds = calendars.filter((c) => c.primary).map((c) => c.id);
   return primaryIds.length > 0 ? primaryIds : [calendars[0].id];
 }
 
-function applyCachedSchedule(
+export function applyCachedSchedule(
   cancelledRef: { current: boolean },
   cachedSchedule: ScheduleItem[] | null,
   setUi: React.Dispatch<React.SetStateAction<UiState>>,
@@ -135,7 +137,7 @@ function applyCachedSchedule(
   setUi(getUiStateForItems(cachedSchedule));
 }
 
-async function resolveAccessToken(
+export async function resolveAccessToken(
   saved: Awaited<ReturnType<typeof getGoogleAccessToken>>,
 ): Promise<string | null> {
   if (!saved.accessToken || !isTokenLikelyExpired(saved.meta))
@@ -144,7 +146,7 @@ async function resolveAccessToken(
   return null;
 }
 
-async function loadCalendarsAndMaybeAutoSelect(
+export async function loadCalendarsAndMaybeAutoSelect(
   cancelledRef: { current: boolean },
   accessToken: string | null,
   shouldAutoSelectDefaultRef: { current: boolean },
@@ -177,7 +179,7 @@ async function loadCalendarsAndMaybeAutoSelect(
   shouldAutoSelectDefaultRef.current = false;
 }
 
-function setIdleIfNoData(
+export function setIdleIfNoData(
   accessToken: string | null,
   cachedSchedule: ScheduleItem[] | null,
   setUi: React.Dispatch<React.SetStateAction<UiState>>,
@@ -185,7 +187,7 @@ function setIdleIfNoData(
   if (!accessToken && !cachedSchedule) setUi({ status: "idle" });
 }
 
-function handleScheduleInitError(
+export function handleScheduleInitError(
   cancelledRef: { current: boolean },
   error: unknown,
   setUi: React.Dispatch<React.SetStateAction<UiState>>,

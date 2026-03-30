@@ -1,14 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import React from "react";
 import { AppState } from "react-native";
-import ScheduleScreen from "../app/schedule";
+import ScheduleScreen, {
+    applyCachedSchedule,
+    buildScheduleItems,
+    eventOverlapsRange,
+    getEventDedupKey,
+    handleScheduleInitError,
+    loadCalendarsAndMaybeAutoSelect,
+    parseCalendarDate,
+    pickDefaultCalendarIds,
+    resolveAccessToken,
+} from "../app/schedule";
 import { GoogleCalendarApiError } from "../services/GoogleCalendarService";
 
 const mockLogUsabilityEvent = jest.fn();
@@ -1160,82 +1170,283 @@ describe("ScheduleScreen additional coverage", () => {
     mockGetInitialURL.mockResolvedValue(null);
   });
 
-  it("parseCalendarDate returns null for invalid date string", () => {
-    const { rerender } = render(<ScheduleScreen />);
-    // This is an internal utility, so we need to trigger it via an event.
-    // The `filter` function in `buildScheduleItems` calls `parseCalendarDate`.
-    // We can mock `cachedEventsByCalendar` with an invalid date.
-    cachedCalendarList = {
-      items: [{ id: "primary", summary: "Primary", primary: true }],
-      lastSyncedAt: Date.now(),
-      syncToken: "calendar-list-sync",
-    };
-    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
-      {
-        ...makeEvent("event-invalid", "Broken Event"),
-        start: { dateTime: "not-a-date" },
-      },
-    ]);
-
-    rerender(<ScheduleScreen />);
-    // Expect no crash, and the invalid event should be filtered out.
-    // This is already covered by an existing test: "filters cached events with invalid dates before building the schedule".
+  it("parseCalendarDate returns parsed date or null", () => {
+    expect(
+      parseCalendarDate({ dateTime: "2026-01-06T09:00:00.000Z" }),
+    ).toBeInstanceOf(Date);
+    expect(parseCalendarDate({ date: "2026-01-06" })).toBeInstanceOf(Date);
+    expect(parseCalendarDate({ dateTime: "not-a-date" })).toBeNull();
+    expect(parseCalendarDate(undefined)).toBeNull();
   });
 
-  it("getEventDedupKey returns null for event without id", () => {
-    const eventWithoutId = { summary: "No ID Event" };
-    const key = dedupeKey(eventWithoutId); // Directly call the helper from the test file
-    expect(key).toBeUndefined(); // dedupeKey returns undefined if id is missing
+  it("getEventDedupKey handles missing id and occurrence variants", () => {
+    expect(getEventDedupKey({ summary: "No ID" } as any)).toBeNull();
+    expect(
+      getEventDedupKey({
+        id: "evt-1",
+        originalStartTime: { dateTime: "2026-01-06T09:00:00.000Z" },
+      } as any),
+    ).toBe("evt-1::2026-01-06T09:00:00.000Z");
+    expect(
+      getEventDedupKey({
+        id: "evt-1b",
+        originalStartTime: { date: "2026-01-07" },
+      } as any),
+    ).toBe("evt-1b::2026-01-07");
+    expect(
+      getEventDedupKey({
+        id: "evt-1c",
+        start: { dateTime: "2026-01-08T09:00:00.000Z" },
+      } as any),
+    ).toBe("evt-1c::2026-01-08T09:00:00.000Z");
+    expect(
+      getEventDedupKey({
+        id: "evt-1d",
+        start: { date: "2026-01-09" },
+      } as any),
+    ).toBe("evt-1d::2026-01-09");
+    expect(getEventDedupKey({ id: "evt-2" } as any)).toBe("evt-2");
   });
 
-  it("eventOverlapsRange returns false if start date is null", async () => {
-    cachedCalendarList = {
-      items: [{ id: "primary", summary: "Primary", primary: true }],
-      lastSyncedAt: Date.now(),
-      syncToken: "calendar-list-sync",
-    };
-    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
-      { ...makeEvent("event-null-start", "Null Start Event"), start: null },
-    ]);
+  it("eventOverlapsRange returns false when no start and true for overlap", () => {
+    const rangeStart = new Date("2026-01-06T08:00:00.000Z");
+    const rangeEnd = new Date("2026-01-06T12:00:00.000Z");
 
-    render(<ScheduleScreen />);
-    await waitFor(() => {
-      expect(
-        screen.getByText("No events found in this semester window."),
-      ).toBeTruthy();
+    expect(
+      eventOverlapsRange(
+        { start: undefined, end: undefined } as any,
+        rangeStart,
+        rangeEnd,
+      ),
+    ).toBe(false);
+    expect(
+      eventOverlapsRange(
+        {
+          start: { dateTime: "2026-01-06T09:00:00.000Z" },
+          end: { dateTime: "2026-01-06T10:00:00.000Z" },
+        } as any,
+        rangeStart,
+        rangeEnd,
+      ),
+    ).toBe(true);
+
+    // No explicit end date should fallback to start and still overlap.
+    expect(
+      eventOverlapsRange(
+        {
+          start: { dateTime: "2026-01-06T09:00:00.000Z" },
+          end: undefined,
+        } as any,
+        rangeStart,
+        rangeEnd,
+      ),
+    ).toBe(true);
+
+    // Starts after range end should not overlap.
+    expect(
+      eventOverlapsRange(
+        {
+          start: { dateTime: "2026-01-06T13:00:00.000Z" },
+          end: { dateTime: "2026-01-06T14:00:00.000Z" },
+        } as any,
+        rangeStart,
+        rangeEnd,
+      ),
+    ).toBe(false);
+  });
+
+  it("pickDefaultCalendarIds prefers primary calendar and falls back correctly", () => {
+    expect(pickDefaultCalendarIds([] as any)).toEqual([]);
+    expect(
+      pickDefaultCalendarIds([
+        { id: "c1", primary: false },
+        { id: "c2", primary: false },
+      ] as any),
+    ).toEqual(["c1"]);
+    expect(
+      pickDefaultCalendarIds([
+        { id: "c1", primary: false },
+        { id: "c2", primary: true },
+      ] as any),
+    ).toEqual(["c2"]);
+  });
+
+  it("buildScheduleItems filters cancelled, out-of-range, and deduplicates occurrences", () => {
+    const rangeStart = new Date("2026-01-01T00:00:00.000Z");
+    const rangeEnd = new Date("2026-02-01T00:00:00.000Z");
+
+    const keptA = makeEvent("evt-a", "COMP 346 LEC");
+    const duplicateA = {
+      ...makeEvent("evt-a", "COMP 346 LEC"),
+      originalStartTime: { dateTime: "2026-01-06T09:00:00.000Z" },
+    };
+    const cancelled = {
+      ...makeEvent("evt-b", "Cancelled"),
+      status: "cancelled",
+    };
+    const outOfRange = makeEvent(
+      "evt-c",
+      "Out",
+      "2026-03-01T09:00:00.000Z",
+      "2026-03-01T10:00:00.000Z",
+    );
+    const noId = { ...makeEvent("evt-d", "No Id"), id: undefined };
+
+    const items = buildScheduleItems(
+      [
+        keptA as any,
+        duplicateA as any,
+        cancelled as any,
+        outOfRange as any,
+        noId as any,
+      ],
+      rangeStart,
+      rangeEnd,
+    );
+
+    expect(items.length).toBe(1);
+    expect(mockParseCourseEvents).toHaveBeenCalled();
+  });
+
+  it("applyCachedSchedule returns early when cancelled or no cache", () => {
+    const setUi = jest.fn();
+    applyCachedSchedule(
+      { current: true },
+      [makeScheduleItem()] as any,
+      setUi as any,
+    );
+    applyCachedSchedule({ current: false }, null, setUi as any);
+    expect(setUi).not.toHaveBeenCalled();
+
+    applyCachedSchedule(
+      { current: false },
+      [makeScheduleItem()] as any,
+      setUi as any,
+    );
+    expect(setUi).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolveAccessToken handles unexpired and expired tokens", async () => {
+    mockIsTokenLikelyExpired
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    const valid = await resolveAccessToken({
+      accessToken: "TOKEN",
+      meta: { issuedAt: 1, expiresIn: 3600 },
+    } as any);
+    expect(valid).toBe("TOKEN");
+
+    const expired = await resolveAccessToken({
+      accessToken: "EXPIRED",
+      meta: { issuedAt: 1, expiresIn: 1 },
+    } as any);
+    expect(expired).toBeNull();
+    expect(mockDeleteGoogleAccessToken).toHaveBeenCalled();
+  });
+
+  it("loadCalendarsAndMaybeAutoSelect exits early when cancelled", async () => {
+    const setSelectedCalendarIds = jest.fn();
+    const setAvailableCalendars = jest.fn();
+    const shouldAutoSelectDefaultRef = { current: true };
+
+    mockGetSelectedCalendarIds.mockResolvedValueOnce(["primary"]);
+
+    await loadCalendarsAndMaybeAutoSelect(
+      { current: true },
+      "TOKEN",
+      shouldAutoSelectDefaultRef,
+      setSelectedCalendarIds,
+      setAvailableCalendars,
+    );
+
+    expect(setSelectedCalendarIds).not.toHaveBeenCalled();
+    expect(setAvailableCalendars).not.toHaveBeenCalled();
+  });
+
+  it("loadCalendarsAndMaybeAutoSelect exits if cancelled after loading cached list", async () => {
+    const setSelectedCalendarIds = jest.fn();
+    const setAvailableCalendars = jest.fn();
+    const shouldAutoSelectDefaultRef = { current: true };
+    const cancelledRef = { current: false };
+
+    mockGetSelectedCalendarIds.mockResolvedValueOnce([]);
+    mockLoadCachedGoogleCalendarList.mockImplementationOnce(async () => {
+      cancelledRef.current = true;
+      return {
+        items: [{ id: "primary", summary: "Primary", primary: true }],
+        lastSyncedAt: Date.now(),
+        syncToken: "calendar-list-sync",
+      } as any;
     });
+
+    await loadCalendarsAndMaybeAutoSelect(
+      cancelledRef,
+      "TOKEN",
+      shouldAutoSelectDefaultRef,
+      setSelectedCalendarIds,
+      setAvailableCalendars,
+    );
+
+    expect(setSelectedCalendarIds).toHaveBeenCalledWith([]);
+    expect(setAvailableCalendars).not.toHaveBeenCalled();
   });
 
-  it("buildScheduleItems filters cancelled events", () => {
-    // This is already covered by "merges incremental event updates and removes cancelled entries" test in GoogleCalendarCacheStore.test.tsx
-    // and implicitly by `mockMergeCachedCalendarEvents` in this file.
+  it("loadCalendarsAndMaybeAutoSelect does not auto-select when saved ids already exist", async () => {
+    const setSelectedCalendarIds = jest.fn();
+    const setAvailableCalendars = jest.fn();
+    const shouldAutoSelectDefaultRef = { current: true };
+
+    mockGetSelectedCalendarIds.mockResolvedValueOnce(["holidays"]);
+    mockLoadCachedGoogleCalendarList.mockResolvedValueOnce({
+      items: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "holidays", summary: "Holidays", primary: false },
+      ],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    } as any);
+
+    await loadCalendarsAndMaybeAutoSelect(
+      { current: false },
+      "TOKEN",
+      shouldAutoSelectDefaultRef,
+      setSelectedCalendarIds,
+      setAvailableCalendars,
+    );
+
+    expect(setSelectedCalendarIds).toHaveBeenCalledWith(["holidays"]);
+    expect(mockSaveSelectedCalendarIds).not.toHaveBeenCalled();
+    expect(shouldAutoSelectDefaultRef.current).toBe(false);
   });
 
-  it("buildScheduleItems skips events with null dedup key", () => {
-    // This is implicitly covered by the `dedupeKey` mock and the `mergeCachedCalendarEvents` mock.
-    // If `dedupeKey` returns null, `merged.set(key, ...)` will not be called.
-  });
+  it("loadCalendarsAndMaybeAutoSelect auto-selects defaults when allowed", async () => {
+    const setSelectedCalendarIds = jest.fn();
+    const setAvailableCalendars = jest.fn();
+    const shouldAutoSelectDefaultRef = { current: true };
 
-  it("applyCachedSchedule returns early if cancelledRef.current is true", async () => {
-    const { unmount } = render(<ScheduleScreen />);
-    unmount(); // This will set cancelledRef.current to true
-    // The initial render will call `initializeSchedule` which sets up `cancelledRef`.
-    // If we unmount immediately, the subsequent async operations should be cancelled.
-    // We can't directly assert `applyCachedSchedule`'s internal `if` condition,
-    // but we can ensure no UI updates happen if it returns early.
-    // However, the `useEffect` cleanup function sets `cancelledRef.current = true`,
-    // so unmounting the component before async operations complete would trigger this.
-    // The existing tests for `AppState` changes and `syncAndRefresh` already handle cancellation.
-  });
+    mockGetSelectedCalendarIds.mockResolvedValueOnce([]);
+    mockLoadCachedGoogleCalendarList.mockResolvedValueOnce({
+      items: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "holidays", summary: "Holidays", primary: false },
+      ],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    } as any);
 
-  it("resolveAccessToken deletes token if expired", async () => {
-    // This is already covered by "deletes expired saved tokens during initialization"
-  });
+    await loadCalendarsAndMaybeAutoSelect(
+      { current: false },
+      "TOKEN",
+      shouldAutoSelectDefaultRef,
+      setSelectedCalendarIds,
+      setAvailableCalendars,
+    );
 
-  it("loadCalendarsAndMaybeAutoSelect returns early if cancelledRef.current is true", async () => {
-    const { unmount } = render(<ScheduleScreen />);
-    unmount();
-    // Similar to `applyCachedSchedule`, this is implicitly covered by unmounting.
+    expect(setAvailableCalendars).toHaveBeenCalled();
+    expect(setSelectedCalendarIds).toHaveBeenCalledWith(["primary"]);
+    expect(mockSaveSelectedCalendarIds).toHaveBeenCalledWith(["primary"]);
+    expect(shouldAutoSelectDefaultRef.current).toBe(false);
   });
 
   it("setIdleIfNoData sets idle when no token and no cached schedule", async () => {
@@ -1250,10 +1461,26 @@ describe("ScheduleScreen additional coverage", () => {
     });
   });
 
-  it("handleScheduleInitError returns early if cancelledRef.current is true", async () => {
-    const { unmount } = render(<ScheduleScreen />);
-    unmount();
-    // Similar to `applyCachedSchedule`, this is implicitly covered by unmounting.
+  it("handleScheduleInitError returns early when cancelled and sets message otherwise", async () => {
+    const setUi = jest.fn();
+    handleScheduleInitError({ current: true }, new Error("x"), setUi as any);
+    expect(setUi).not.toHaveBeenCalled();
+
+    handleScheduleInitError(
+      { current: false },
+      new Error("boom"),
+      setUi as any,
+    );
+    expect(setUi).toHaveBeenCalledWith({
+      status: "error",
+      message: "boom",
+    });
+
+    handleScheduleInitError({ current: false }, "oops", setUi as any);
+    expect(setUi).toHaveBeenCalledWith({
+      status: "error",
+      message: "Failed to load schedule",
+    });
   });
 
   it("syncAndRefresh returns early if scheduleSyncRequestRef.current !== requestId", async () => {
@@ -1361,7 +1588,10 @@ describe("ScheduleScreen additional coverage", () => {
     render(<ScheduleScreen />);
 
     await waitFor(() => {
-      expect(mockAddEventListener).toHaveBeenCalledWith("url", expect.any(Function));
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        "url",
+        expect.any(Function),
+      );
     });
 
     act(() => {

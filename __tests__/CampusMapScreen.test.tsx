@@ -9,7 +9,11 @@ import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen, {
+  buildRouteConfirmIntent,
+  classifyIndoorOutdoorTask,
   handleIndoorRouteIntent,
+  parseStartedAtMs,
+  toBuildingCode,
 } from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
@@ -504,12 +508,23 @@ jest.mock("../hooks/useShuttleAvailability", () => ({
 jest.mock("../constants/buildings", () => ({
   BUILDINGS: [
     // invalid bbox -> should be skipped
-    { name: "BAD", displayName: "Bad", boundingBox: [] },
+    { name: "BAD", displayName: "Bad", boundingBox: [], campusName: "sgw" },
+
+    // campus classification fixtures (bbox intentionally invalid so nearest-building tests are unchanged)
+    { name: "H", displayName: "Hall", boundingBox: [], campusName: "sgw" },
+    { name: "MB", displayName: "MB", boundingBox: [], campusName: "sgw" },
+    {
+      name: "VL",
+      displayName: "Vanier",
+      boundingBox: [],
+      campusName: "loyola",
+    },
 
     // valid polygon A (distance will be 10)
     {
       name: "A",
       displayName: "A Building",
+      campusName: "sgw",
       boundingBox: [
         { latitude: 10, longitude: 0 },
         { latitude: 10, longitude: 1 },
@@ -521,6 +536,7 @@ jest.mock("../constants/buildings", () => ({
     {
       name: "B",
       displayName: "B Building",
+      campusName: "sgw",
       boundingBox: [
         { latitude: 5, longitude: 0 },
         { latitude: 5, longitude: 1 },
@@ -690,6 +706,107 @@ describe("CampusMapScreen", () => {
       undefined,
       false,
     );
+  });
+
+  it("toBuildingCode normalizes string/object inputs and rejects invalid values", () => {
+    expect(toBuildingCode(" mb ")).toBe("MB");
+    expect(toBuildingCode({ name: " h " })).toBe("H");
+    expect(toBuildingCode({})).toBeNull();
+    expect(toBuildingCode(null)).toBeNull();
+  });
+
+  it("classifyIndoorOutdoorTask resolves same-campus and cross-campus tasks", () => {
+    expect(classifyIndoorOutdoorTask("H", "MB")).toBe("task_13");
+    expect(classifyIndoorOutdoorTask("H", "VL")).toBe("task_14");
+    expect(classifyIndoorOutdoorTask("H", "H")).toBeNull();
+    expect(classifyIndoorOutdoorTask("UNKNOWN", "MB")).toBeNull();
+  });
+
+  it("parseStartedAtMs accepts positive finite values and rejects invalid ones", () => {
+    expect(parseStartedAtMs(1234)).toBe(1234);
+    expect(parseStartedAtMs("5678")).toBe(5678);
+    expect(parseStartedAtMs("0")).toBeNull();
+    expect(parseStartedAtMs(-1)).toBeNull();
+    expect(parseStartedAtMs(Number.NaN)).toBeNull();
+    expect(parseStartedAtMs(0)).toBeNull();
+    expect(parseStartedAtMs("not-a-number")).toBeNull();
+    expect(parseStartedAtMs(Infinity)).toBeNull();
+  });
+
+  it("buildRouteConfirmIntent chooses each intent branch", () => {
+    const start = {
+      name: "H",
+      campusName: "sgw",
+      displayName: "Hall",
+      address: "1455 De Maisonneuve",
+      coordinates: { latitude: 45.497, longitude: -73.579 },
+      boundingBox: [
+        { latitude: 45.496, longitude: -73.58 },
+        { latitude: 45.497, longitude: -73.579 },
+        { latitude: 45.498, longitude: -73.578 },
+      ],
+    } as any;
+    const dest = { ...start, name: "MB" } as any;
+    const same = { ...start } as any;
+    const strategy = {
+      mode: "walking",
+      label: "Walk",
+      icon: "walk",
+    } as any;
+    const startRoom = { label: "H-867" } as any;
+    const endRoom = { label: "MB-1.210" } as any;
+
+    expect(
+      buildRouteConfirmIntent({
+        start,
+        dest,
+        strategy,
+        startRoom,
+        endRoom,
+        accessible: true,
+      }).kind,
+    ).toBe("cross_building_indoor_to_indoor");
+
+    expect(
+      buildRouteConfirmIntent({
+        start,
+        dest,
+        strategy,
+        startRoom,
+        endRoom: null,
+        accessible: false,
+      }).kind,
+    ).toBe("cross_building_indoor_to_outdoor");
+
+    expect(
+      buildRouteConfirmIntent({
+        start: same,
+        dest: same,
+        strategy,
+        startRoom,
+        endRoom: { label: "H-920" } as any,
+        accessible: false,
+      }).kind,
+    ).toBe("same_building_indoor_room_to_room");
+
+    expect(
+      buildRouteConfirmIntent({
+        start: same,
+        dest: same,
+        strategy,
+        startRoom: null,
+        endRoom: { label: "H-920" } as any,
+        accessible: false,
+      }).kind,
+    ).toBe("same_building_indoor_to_room");
+
+    expect(
+      buildRouteConfirmIntent({
+        start: null,
+        dest: null,
+        strategy,
+      }).kind,
+    ).toBe("outdoor_route");
   });
 
   beforeEach(() => {
@@ -870,6 +987,40 @@ describe("CampusMapScreen", () => {
     expect(args.params.outdoorDestBuilding).toBe("MB");
     expect(args.params.destinationRoomQuery).toBe("MB-1.210");
     expect(args.params.outdoorAccessibleOnly).toBe("true");
+  });
+
+  it("includes usability transition metadata when auto-pushing cross_building_indoor", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "cross_building_indoor",
+      originBuildingCode: "h",
+      originIndoorRoomQuery: "H-867",
+      destinationBuildingCode: "mb",
+      destinationIndoorRoomQuery: "MB-1.210",
+      accessibleOnly: false,
+      usabilityTaskId: "task_14",
+      usabilityTaskStartedAtMs: 123456,
+    });
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(getRouterPushMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/IndoorMapScreen" }),
+      );
+    });
+
+    const args = getRouterPushMock().mock.calls[0][0];
+    expect(args.params.buildingName).toBe("H");
+    expect(args.params.navDest).toBe("MB");
+    expect(args.params.outdoorAccessibleOnly).toBe("false");
+    expect(args.params.usabilityTaskId).toBe("task_14");
+    expect(args.params.usabilityTaskStartedAtMs).toBe("123456");
+    expect(args.params.outdoorStrategy).toBeUndefined();
   });
 
   it("auto-selects outdoor route when arriving via indoor_to_outdoor transition and falls back to originByExit when originBuildingCode is unknown", async () => {
@@ -2168,6 +2319,121 @@ describe("CampusMapScreen", () => {
           "task_completed",
           (payload) =>
             payload?.task_id === "task_16" && payload?.outcome === "dismissed",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("tracks task 16 success when POI directions produce route steps", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("campus-map-route-focus-trigger").props.children,
+      ).toBeGreaterThan(0);
+    });
+
+    // Inject outdoor steps from the map mock to trigger Task 16 "success" completion.
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_16_steps_panel_viewed",
+          (payload) =>
+            payload?.poi_name === "Cafe One" && payload?.step_count === 1,
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" && payload?.outcome === "success",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("finalizes indoor-outdoor task from fallback route task id when continue indoors is pressed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+      // No usabilityTaskId/usabilityTaskStartedAtMs on purpose to force fallback.
+    });
+
+    (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
+      steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
+      openArgs: {
+        buildingCode: "MB",
+        navOrigin: "ENTRANCE",
+        navDest: "MB-1.210",
+      },
+    });
+
+    (buildIndoorMapRouteParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: "1",
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const continueButtons = screen.getAllByTestId("step-pressable-1");
+    fireEvent.press(continueButtons[continueButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "indoor_outdoor_task_completed",
+          (payload) =>
+            payload?.task_id === "task_13" &&
+            payload?.start_building_code === "H" &&
+            payload?.destination_building_code === "MB",
         ),
       ).toBe(true);
     });

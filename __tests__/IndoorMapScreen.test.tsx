@@ -1324,6 +1324,35 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("logs accessible_only false when toggled back off", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    render(<IndoorMapScreen />);
+    await screen.findByTestId("indoor-accessible-mode-toggle");
+
+    const toggle = screen.getByTestId("indoor-accessible-mode-toggle");
+    fireEvent.press(toggle); // false -> true
+    fireEvent.press(toggle); // true -> false
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_accessible_mode_toggled",
+        expect.objectContaining({ accessible_only: true }),
+      );
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_accessible_mode_toggled",
+        expect.objectContaining({ accessible_only: false }),
+      );
+      expect(
+        screen.getByTestId("indoor-accessible-mode-toggle").props
+          .accessibilityState,
+      ).toEqual({ checked: false });
+    });
+  });
+
   it("passes accessibleOnly=true to getIndoorNavigationRoute when toggle is on", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -2096,6 +2125,43 @@ describe("IndoorMapScreen", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("uses building_name fallback 'unknown' in typing and floor analytics when buildingName is missing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: undefined,
+      floors: JSON.stringify([1, 2]),
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("From (H-110)")).toBeTruthy();
+      expect(screen.getByPlaceholderText("To (H-920)")).toBeTruthy();
+      expect(screen.getByText("2")).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText("From (H-110)"), "A");
+    fireEvent.changeText(screen.getByPlaceholderText("To (H-920)"), "B");
+    fireEvent.press(screen.getByText("2"));
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_nav_origin_started",
+        expect.objectContaining({ building_name: "unknown" }),
+      );
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_nav_dest_started",
+        expect.objectContaining({ building_name: "unknown" }),
+      );
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_floor_changed",
+        expect.objectContaining({
+          building_name: "unknown",
+          floor_selected: 2,
+        }),
+      );
+    });
+  });
+
   it("handles analytics failure when route generation event logging rejects", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -2139,6 +2205,107 @@ describe("IndoorMapScreen", () => {
     });
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("logs task_9 for successful same-floor non-accessible route", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 8, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 8, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [8],
+        totalDistance: 20,
+        fullyAccessible: true,
+        estimatedSeconds: 20,
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_route_generated",
+        expect.objectContaining({ task_id: "task_9", cross_floor: false }),
+      );
+    });
+  });
+
+  it("logs task_12 and floor transition for successful cross-floor non-accessible route", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 2, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 9, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [2, 9],
+        totalDistance: 50,
+        fullyAccessible: true,
+        estimatedSeconds: 35,
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_route_generated",
+        expect.objectContaining({ task_id: "task_12", cross_floor: true }),
+      );
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_floor_transition_in_route",
+        expect.objectContaining({ from_floor: 2, to_floor: 9 }),
+      );
+    });
+  });
+
+  it("logs task_10 for successful accessible route", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+      accessibleOnly: "true",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 8, label: "H-110" },
+        destination: { ...mockHallRoom, floor: 8, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [8],
+        totalDistance: 20,
+        fullyAccessible: true,
+        estimatedSeconds: 20,
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_route_generated",
+        expect.objectContaining({ task_id: "task_10" }),
+      );
+    });
   });
 
   it("handles analytics failure when indoor map screen load logging rejects", async () => {
