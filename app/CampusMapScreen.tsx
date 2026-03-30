@@ -14,13 +14,17 @@ import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
-import type { OutdoorPOICategoryId } from "../constants/outdoorPOI";
+import {
+  OUTDOOR_POI_CATEGORY_MAP,
+  type OutdoorPOICategoryId,
+} from "../constants/outdoorPOI";
 import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import type { PlacePOI } from "../services/GooglePlacesService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
 import {
@@ -266,6 +270,9 @@ export default function CampusMapScreen() {
   const [showPOIList, setShowPOIList] = useState(false);
   const [focusPOIId, setFocusPOIId] = useState<string | null>(null);
   const [focusPOITrigger, setFocusPOITrigger] = useState(0);
+  const [selectedOutdoorPOI, setSelectedOutdoorPOI] = useState<PlacePOI | null>(null);
+  const [activeOutdoorPOIRoute, setActiveOutdoorPOIRoute] = useState<PlacePOI | null>(null);
+  const [poiRouteError, setPOIRouteError] = useState<string | null>(null);
   const [activePOICategories, setActivePOICategories] = useState<Set<OutdoorPOICategoryId>>(new Set());
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
   const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
@@ -513,12 +520,31 @@ export default function CampusMapScreen() {
     setFocusTarget(campusKey);
   };
 
+  const handleSelectOutdoorPOI = useCallback((poi: PlacePOI) => {
+    setSelectedOutdoorPOI(poi);
+    setPOIRouteError(null);
+    setFocusPOIId(poi.placeId);
+    setFocusPOITrigger((c) => c + 1);
+    setShowPOIList(false);
+
+    setActiveOutdoorPOIRoute((previousRoutePOI) => {
+      if (!previousRoutePOI || previousRoutePOI.placeId === poi.placeId) return previousRoutePOI;
+      setRouteFocusTrigger((c) => c + 1);
+      return poi;
+    });
+  }, []);
+
+  const clearOutdoorPOIRouteState = useCallback(() => {
+    setSelectedOutdoorPOI(null);
+    setActiveOutdoorPOIRoute(null);
+    setPOIRouteError(null);
+    setRouteSteps([]);
+  }, []);
+
   const focusUserLocation = () => {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
   };
-
-  // ── Indoor map ─────────────────────────────────────────────────────────────
 
   const openIndoorMap = useCallback(
     (
@@ -647,6 +673,8 @@ export default function CampusMapScreen() {
         return;
       }
 
+      setActiveOutdoorPOIRoute(null);
+      setPOIRouteError(null);
       setSelectedRoute({ start, dest });
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
@@ -669,8 +697,6 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  // ── Shuttle ────────────────────────────────────────────────────────────────
-
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
     useState(false);
@@ -689,8 +715,19 @@ export default function CampusMapScreen() {
     if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
   }, [shuttleStatus.available, showShuttle]);
 
+  const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
+
+  const outdoorPOIRouteStart = useMemo(() => {
+    if (!activeOutdoorPOIRoute) return null;
+    if (userLocation) {
+      return findNearestBuilding(userLocation.latitude, userLocation.longitude);
+    }
+    return effectiveCurrentBuilding;
+  }, [activeOutdoorPOIRoute, userLocation, findNearestBuilding, effectiveCurrentBuilding]);
+
   const hasActiveRoute =
-    selectedRoute.start != null && selectedRoute.dest != null;
+    (selectedRoute.start != null && selectedRoute.dest != null) ||
+    (activeOutdoorPOIRoute != null && outdoorPOIRouteStart != null);
   const showStepsPanel = hasActiveRoute && (mergedSteps?.length || routeSteps.length) > 0;
 
   // Destination building code for the "Continue indoors" affordance.
@@ -758,10 +795,38 @@ export default function CampusMapScreen() {
     return steps;
   }, [mergedSteps, routeSteps, canContinueIndoors, continueIndoorsBuildingCode, destinationRoomQueryText, openIndoorMap]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const activeOutdoorPOIDestination = useMemo(
+    () =>
+      activeOutdoorPOIRoute
+        ? {
+          latitude: activeOutdoorPOIRoute.latitude,
+          longitude: activeOutdoorPOIRoute.longitude,
+        }
+        : null,
+    [activeOutdoorPOIRoute],
+  );
 
-  // Extracted variable for demoCurrentBuilding ?? autoStartBuilding
-  const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
+  const selectedOutdoorPOICategory = selectedOutdoorPOI
+    ? OUTDOOR_POI_CATEGORY_MAP[selectedOutdoorPOI.categoryId]
+    : null;
+
+  const startOutdoorPOIRoute = useCallback(() => {
+    if (!selectedOutdoorPOI) return;
+
+    const routeStart = userLocation
+      ? findNearestBuilding(userLocation.latitude, userLocation.longitude)
+      : effectiveCurrentBuilding;
+
+    if (!routeStart) {
+      setPOIRouteError("Unable to resolve a starting location. Enable location services or set your location on the map.");
+      return;
+    }
+
+    setPOIRouteError(null);
+    setActiveOutdoorPOIRoute(selectedOutdoorPOI);
+    setSelectedRoute({ start: routeStart, dest: null });
+    setRouteFocusTrigger((c) => c + 1);
+  }, [selectedOutdoorPOI, userLocation, findNearestBuilding, effectiveCurrentBuilding]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -770,13 +835,15 @@ export default function CampusMapScreen() {
         focusTarget={focusTarget}
         userFocusCounter={userFocusCounter}
         routeFocusTrigger={routeFocusTrigger}
-        startPoint={selectedRoute.start}
-        startOverride={startOverride}
-        destinationPoint={selectedRoute.dest}
+        startPoint={activeOutdoorPOIRoute ? outdoorPOIRouteStart : selectedRoute.start}
+        startOverride={activeOutdoorPOIRoute && userLocation ? userLocation : startOverride}
+        destinationPoint={activeOutdoorPOIRoute ? null : selectedRoute.dest}
+        destinationOverride={activeOutdoorPOIDestination}
         showShuttle={showShuttle}
         strategy={selectedStrategy}
         demoCurrentBuilding={demoCurrentBuilding}
         onRouteSteps={setRouteSteps}
+        onRouteError={setPOIRouteError}
         onSetAsStart={(building) => {
           setInitialStart(building);
           setIsNavVisible(true);
@@ -791,6 +858,7 @@ export default function CampusMapScreen() {
         nearbyPOIs={nearbyPOIs}
         focusPOIId={focusPOIId}
         focusPOITrigger={focusPOITrigger}
+        onSelectPOI={handleSelectOutdoorPOI}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -948,15 +1016,49 @@ export default function CampusMapScreen() {
           pois={nearbyPOIs}
           origin={poiSearchLocation}
           onClose={() => setShowPOIList(false)}
-          onSelect={(poi) => {
-            setFocusPOIId(poi.placeId);
-            setFocusPOITrigger((c) => c + 1);
-          }}
+          onSelect={handleSelectOutdoorPOI}
           loading={poisLoading}
           error={poisError}
           locationUnavailable={!userLocation}
           onRetry={retryPOISearch}
         />
+      )}
+
+      {selectedOutdoorPOI && (
+        <View style={styles.selectedPOIPanel}>
+          <View style={styles.selectedPOITextWrap}>
+            <Text style={styles.selectedPOITitle} numberOfLines={1}>
+              {selectedOutdoorPOI.name}
+            </Text>
+            <Text style={styles.selectedPOISubtitle} numberOfLines={1}>
+              {selectedOutdoorPOICategory?.label ?? "Point of interest"}
+            </Text>
+          </View>
+          <View style={styles.selectedPOIActions}>
+            <Pressable
+              testID="clear-selected-poi-button"
+              onPress={clearOutdoorPOIRouteState}
+              style={[styles.selectedPOIButton, styles.selectedPOIButtonSecondary]}
+            >
+              <Text style={[styles.selectedPOIButtonText, styles.selectedPOIButtonTextSecondary]}>
+                Clear
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="poi-get-directions-button"
+              onPress={startOutdoorPOIRoute}
+              style={styles.selectedPOIButton}
+            >
+              <Text style={styles.selectedPOIButtonText}>Get directions</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {poiRouteError && (
+        <View style={styles.poiRouteErrorBanner}>
+          <Text style={styles.poiRouteErrorText}>{poiRouteError}</Text>
+        </View>
       )}
 
       {showShuttleSchedulePanel && (
@@ -976,7 +1078,9 @@ export default function CampusMapScreen() {
           }}
           onDismiss={() => {
             setSelectedRoute({ start: null, dest: null });
+            setActiveOutdoorPOIRoute(null);
             setRouteSteps([]);
+            setPOIRouteError(null);
           }}
           onFocusUser={focusUserLocation}
         />

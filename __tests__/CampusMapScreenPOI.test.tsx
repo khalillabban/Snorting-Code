@@ -5,6 +5,8 @@ import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 
+let mockShouldResolveUserLocation = true;
+
 jest.mock("@expo/vector-icons", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -44,8 +46,14 @@ jest.mock("../constants/campuses", () => ({
 
 jest.mock("../components/CampusMap", () => {
   const React = require("react");
-  const { Text, View } = require("react-native");
+  const { Pressable, Text, View } = require("react-native");
   const Mock = (props: any) => {
+    React.useEffect(() => {
+      if (mockShouldResolveUserLocation) {
+        props.onUserLocationResolved?.({ latitude: 45.497, longitude: -73.579 });
+      }
+    }, []);
+
     const focusPoi = (props.nearbyPOIs ?? []).find((p: any) => p.placeId === props.focusPOIId);
     const coord = focusPoi ? { latitude: focusPoi.latitude, longitude: focusPoi.longitude } : null;
     return (
@@ -55,6 +63,48 @@ jest.mock("../components/CampusMap", () => {
         </Text>
         <Text testID="campus-map-focus-trigger">{String(props.focusPOITrigger)}</Text>
         <Text testID="campus-map-nearby-count">{String((props.nearbyPOIs ?? []).length)}</Text>
+        <Text testID="campus-map-destination-override">
+          {props.destinationOverride ? JSON.stringify(props.destinationOverride) : "null"}
+        </Text>
+        <Text testID="campus-map-start-override">
+          {props.startOverride ? JSON.stringify(props.startOverride) : "null"}
+        </Text>
+        <Pressable
+          testID="map-select-first-poi"
+          onPress={() =>
+            props.onSelectPOI?.({
+              placeId: "p1",
+              name: "Coffee Spot",
+              latitude: 45.501,
+              longitude: -73.581,
+              vicinity: "1455 Maisonneuve",
+              categoryId: "coffee",
+            })
+          }
+        >
+          <Text>Select Map POI</Text>
+        </Pressable>
+        <Pressable
+          testID="map-select-second-poi"
+          onPress={() =>
+            props.onSelectPOI?.({
+              placeId: "p2",
+              name: "Library Cafe",
+              latitude: 45.502,
+              longitude: -73.582,
+              vicinity: "Hall Building",
+              categoryId: "coffee",
+            })
+          }
+        >
+          <Text>Select Second Map POI</Text>
+        </Pressable>
+        <Pressable
+          testID="trigger-route-error"
+          onPress={() => props.onRouteError?.("Mock route error")}
+        >
+          <Text>Trigger Route Error</Text>
+        </Pressable>
       </View>
     );
   };
@@ -151,6 +201,7 @@ describe("CampusMapScreen POI flow", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockShouldResolveUserLocation = true;
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
       status: "denied",
@@ -223,6 +274,40 @@ describe("CampusMapScreen POI flow", () => {
         JSON.stringify({ latitude: 45.501, longitude: -73.581 }),
       );
       expect(screen.getByTestId("campus-map-focus-trigger").props.children).toBe("1");
+    });
+
+    expect(screen.getByText("Coffee Spot")).toBeTruthy();
+    expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+  });
+
+  it("starts routing to selected outdoor POI from the details panel", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+    fireEvent.press(await screen.findByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("campus-map-destination-override").props.children).toBe(
+        JSON.stringify({ latitude: 45.501, longitude: -73.581 }),
+      );
+      expect(screen.getByTestId("campus-map-start-override").props.children).toBe(
+        JSON.stringify({ latitude: 45.497, longitude: -73.579 }),
+      );
+    });
+  });
+
+  it("allows selecting a POI directly from map pins", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("map-select-first-poi"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Coffee Spot")).toBeTruthy();
+      expect(screen.getByTestId("campus-map-focus-coordinate").props.children).toBe(
+        JSON.stringify({ latitude: 45.501, longitude: -73.581 }),
+      );
     });
   });
 
@@ -307,6 +392,92 @@ describe("CampusMapScreen POI flow", () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId("poi-list-panel-mock")).toBeNull();
+    });
+  });
+
+  it("clears selected POI panel when Clear is pressed", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+
+    expect(screen.getByText("Coffee Spot")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("clear-selected-poi-button"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Coffee Spot")).toBeNull();
+    });
+  });
+
+  it("shows route error banner from map and clears it on POI selection", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("trigger-route-error"));
+    expect(screen.getByText("Mock route error")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Mock route error")).toBeNull();
+    });
+  });
+
+  it("uses nearest-building fallback for POI route when GPS callback is unavailable", async () => {
+    mockShouldResolveUserLocation = false;
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "granted",
+    });
+
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+    fireEvent.press(await screen.findByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("campus-map-destination-override").props.children).toBe(
+        JSON.stringify({ latitude: 45.501, longitude: -73.581 }),
+      );
+    });
+  });
+
+  it("shows missing start-location error when GPS and fallback start are unavailable", async () => {
+    mockShouldResolveUserLocation = false;
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "denied",
+    });
+
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+    fireEvent.press(await screen.findByTestId("poi-get-directions-button"));
+
+    expect(
+      await screen.findByText("Unable to resolve a starting location. Enable location services or set your location on the map."),
+    ).toBeTruthy();
+  });
+
+  it("recalculates an active POI route when a different POI is selected", async () => {
+    render(<CampusMapScreen />);
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(await screen.findByTestId("toggle-coffee"));
+    fireEvent.press(await screen.findByTestId("select-first-poi"));
+    fireEvent.press(await screen.findByTestId("poi-get-directions-button"));
+
+    fireEvent.press(screen.getByTestId("map-select-second-poi"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Library Cafe")).toBeTruthy();
+      expect(screen.getByTestId("campus-map-destination-override").props.children).toBe(
+        JSON.stringify({ latitude: 45.502, longitude: -73.582 }),
+      );
     });
   });
 });
