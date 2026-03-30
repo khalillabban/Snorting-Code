@@ -144,14 +144,13 @@ export default function IndoorMapScreen() {
   });
 
   const [navOriginQuery, setNavOriginQuery] = useState(
-    typeof navOrigin === "string" ? navOrigin.trim() : "",
+    trimParam(navOrigin),
   );
   const [navDestQuery, setNavDestQuery] = useState(
-    typeof navDest === "string" ? navDest.trim() : "",
+    trimParam(navDest),
   );
 
-  const destinationRoomQueryText =
-    typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
+  const destinationRoomQueryText = trimParam(destinationRoomQuery);
   const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
   const outdoorDestBuildingCode = trimmedOutdoorDestBuilding.toUpperCase();
 
