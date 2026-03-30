@@ -317,7 +317,7 @@ export default function CampusMap({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onUserLocationResolved]);
 
   // Fetch route (and steps) when start/destination/strategy changes
   useEffect(() => {
