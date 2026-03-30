@@ -1,0 +1,36 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 20000
+
+- tapOn: SGW Campus
+
+- tapOn:
+    id: "next-class-button"
+
+- tapOn:
+    id: next-class-start-input
+- eraseText
+- inputText: "MB"
+- tapOn:
+    id: nc-suggestion-MB
+
+- tapOn:
+    id: next-class-dest-input
+#rest to be done after next class indoor navigation is implemented
+
+- tapOn: Get Directions
+
+
+- swipe:
+    direction: UP
+- tapOn: 󰠜, Continue indoors, 
+- tapOn:
+    id: floor-button-9
+
+

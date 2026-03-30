@@ -1,0 +1,43 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 20000
+
+- tapOn: SGW Campus
+
+
+- tapOn: "directions-button"
+
+- tapOn:
+    id: "start-location-input"
+- eraseText
+- inputText: "H-110"
+- tapOn:
+    id: suggestion-room-H-110
+    index: 1
+
+- tapOn:
+    id: dest-location-input
+- inputText: MB-S2.210
+- tapOn:
+    id: suggestion-room-MB-S2.210
+
+- tapOn: Get Directions
+
+- tapOn:
+    id: continue-outside
+
+
+
+- swipe:
+    direction: UP
+- tapOn: 󰠜, Continue indoors, 
+- tapOn:
+    id: floor-button--2
+
+
