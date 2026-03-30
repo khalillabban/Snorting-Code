@@ -551,11 +551,10 @@ export default function IndoorMapScreen() {
       (b) => b.name.trim().toUpperCase() === originCode,
     );
 
-    const candidateExitOutdoor = pendingExitOutdoor;
     const effectiveExitOutdoor =
-      candidateExitOutdoor &&
-      isLikelyNearOriginBuilding(candidateExitOutdoor, originBuilding?.coordinates)
-        ? candidateExitOutdoor
+      pendingExitOutdoor &&
+      isLikelyNearOriginBuilding(pendingExitOutdoor, originBuilding?.coordinates)
+        ? pendingExitOutdoor
         : originBuilding?.coordinates ?? null;
     if (!effectiveExitOutdoor) {
       setNavError(
