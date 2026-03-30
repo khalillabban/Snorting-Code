@@ -34,7 +34,7 @@ WHERE task_id IS NOT NULL
     AND session_id IS NOT NULL
 GROUP BY task_id
 ORDER BY task_id;
--- Query 3: Task Completion Matrix (1 = Success, NULL = Not Done)
+-- Query 3: Task Completion Matrix 
 SELECT session_id,
     MAX(IF(task_id = 'task_1', 1, NULL)) AS task_1,
     MAX(IF(task_id = 'task_2', 1, NULL)) AS task_2,
