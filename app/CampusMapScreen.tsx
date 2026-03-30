@@ -277,8 +277,12 @@ export default function CampusMapScreen() {
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
   const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showShuttle, setShowShuttle] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
+    useState(false);
 
   const { pois: nearbyPOIs, loading: poisLoading, error: poisError, search: searchPOIs, clear: clearPOIs } = useNearbyPOIs();
+  const shuttleStatus = useShuttleAvailability(currentCampus);
 
   // Fall back to the current campus center when GPS is unavailable.
   const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
@@ -515,6 +519,10 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
+  useEffect(() => {
+    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  }, [shuttleStatus.available, showShuttle]);
+
   const selectCampus = (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
@@ -697,22 +705,10 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  const [showShuttle, setShowShuttle] = useState(false);
-  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
-    useState(false);
-  const shuttleStatus = useShuttleAvailability(currentCampus);
-
-  let accessibilityLabel: string;
-  if (!shuttleStatus.available) {
-    accessibilityLabel = "Shuttle not available";
-  } else if (showShuttle) {
-    accessibilityLabel = "Hide shuttle";
-  } else {
-    accessibilityLabel = "Show shuttle";
-  }
-
-  useEffect(() => {
-    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  const accessibilityLabel = useMemo(() => {
+    if (!shuttleStatus.available) return "Shuttle not available";
+    if (showShuttle) return "Hide shuttle";
+    return "Show shuttle";
   }, [shuttleStatus.available, showShuttle]);
 
   const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
