@@ -860,7 +860,7 @@ export default function CampusMapScreen() {
   }, [selectedOutdoorPOI, userLocation, findNearestBuilding, effectiveCurrentBuilding]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.rootContainer}>
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}

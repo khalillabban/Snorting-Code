@@ -2,6 +2,9 @@ import { StyleSheet } from "react-native";
 import { colors, spacing, typography } from "../constants/theme";
 
 export const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   campusToggleContainer: {
     position: "absolute",
     top: 30,
