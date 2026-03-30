@@ -260,7 +260,6 @@ export default function IndoorMapScreen() {
   );
 
   const showFloorImageMap = floorImageAsset != null;
-  const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor = useMemo(() => {
     if (selectedRoom?.floor !== selectedFloor) return null;
@@ -802,7 +801,7 @@ export default function IndoorMapScreen() {
             )}
           </View>
         ) : (
-          showNoMapMessage && (
+          !showFloorImageMap && (
             <View style={styles.emptyState}>
               <Text>No map available for {mapKey}</Text>
             </View>
