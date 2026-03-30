@@ -528,8 +528,7 @@ export default function CampusMapScreen() {
     setShowPOIList(false);
 
     setActiveOutdoorPOIRoute((previousRoutePOI) => {
-      if (!previousRoutePOI) return previousRoutePOI;
-      if (previousRoutePOI.placeId === poi.placeId) return previousRoutePOI;
+      if (!previousRoutePOI || previousRoutePOI.placeId === poi.placeId) return previousRoutePOI;
       setRouteFocusTrigger((c) => c + 1);
       return poi;
     });
@@ -546,8 +545,6 @@ export default function CampusMapScreen() {
     setFocusTarget("user");
     setUserFocusCounter((c) => c + 1);
   };
-
-  // ── Indoor map ─────────────────────────────────────────────────────────────
 
   const openIndoorMap = useCallback(
     (
@@ -700,8 +697,6 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  // ── Shuttle ────────────────────────────────────────────────────────────────
-
   const [showShuttle, setShowShuttle] = useState(false);
   const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
     useState(false);
@@ -720,7 +715,6 @@ export default function CampusMapScreen() {
     if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
   }, [shuttleStatus.available, showShuttle]);
 
-  // Extracted variable for demoCurrentBuilding ?? autoStartBuilding
   const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
 
   const outdoorPOIRouteStart = useMemo(() => {
@@ -801,7 +795,6 @@ export default function CampusMapScreen() {
     return steps;
   }, [mergedSteps, routeSteps, canContinueIndoors, continueIndoorsBuildingCode, destinationRoomQueryText, openIndoorMap]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   const activeOutdoorPOIDestination = useMemo(
     () =>
       activeOutdoorPOIRoute
