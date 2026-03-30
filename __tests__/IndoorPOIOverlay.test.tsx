@@ -4,6 +4,16 @@ import { IndoorPOIOverlay } from "../components/IndoorPOIOverlay";
 import type { POICategoryId } from "../constants/indoorPOI";
 import type { IndoorPOI } from "../utils/indoorPOI";
 
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
+  return {
+    __esModule: true,
+    MaterialCommunityIcons: MockIcon,
+  };
+});
+
 const mockPOIs: IndoorPOI[] = [
   { id: "stair1", category: "stairs", buildingCode: "H", floor: 1, x: 100, y: 200 },
   { id: "stair2", category: "stairs", buildingCode: "H", floor: 2, x: 150, y: 250 },

@@ -121,4 +121,27 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.white,
   },
+  poiPin: {
+    alignItems: "center",
+  },
+  poiPinHead: {
+    borderRadius: 12,
+    padding: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  poiPinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+  },
 });

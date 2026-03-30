@@ -1,5 +1,5 @@
 import {
-  getIndoorNavigationRouteToNode,
+    getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 
 jest.mock("../utils/indoorBuildingPlan", () => {
@@ -28,13 +28,20 @@ jest.mock("../utils/indoorPathFinding", () => {
 });
 
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { findShortestPath, resolveRoutingNodeId } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
-import { resolveRoutingNodeId, findShortestPath } from "../utils/indoorPathFinding";
 
 describe("getIndoorNavigationRouteToNode", () => {
+  let logSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
   });
 
   it("routes from an origin room to a destination nodeId", () => {

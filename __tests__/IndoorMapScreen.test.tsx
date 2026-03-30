@@ -53,7 +53,9 @@ jest.mock("../utils/indoorPOI", () => ({
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
+import { BUILDINGS } from "../constants/buildings";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
@@ -61,8 +63,6 @@ import {
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
-import { selectBestIndoorExit } from "../utils/indoorExit";
-import { BUILDINGS } from "../constants/buildings";
 
 jest.mock("../utils/destinationIndoorLeg", () => ({
   // Keep the real sentinel logic, but expose the pick fn so we can force the fallback branch.
@@ -125,7 +125,10 @@ const mockMBPlan = {
 };
 
 describe("IndoorMapScreen", () => {
+  let warnSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     jest.clearAllMocks();
 
     (getFloorImageMetadata as jest.Mock).mockImplementation(
@@ -166,6 +169,10 @@ describe("IndoorMapScreen", () => {
       error: "NO_PATH_FOUND",
       message: "No indoor route found.",
     });
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   it("renders with building name and floor selector", async () => {
