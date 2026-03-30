@@ -8,11 +8,13 @@ import {
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import CampusMapScreen from "../app/CampusMapScreen";
+import CampusMapScreen, {
+  handleIndoorRouteIntent,
+} from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import { buildContinueIndoorsStep } from "../utils/continueIndoors";
-<<<<<<< HEAD
+import { buildIndoorMapRouteParams } from "../utils/indoorAccess";
 import { getIndoorNavigationRouteFromNode } from "../utils/indoorNavigation";
 import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import {
@@ -25,11 +27,8 @@ jest.mock("@/utils/usabilityAnalytics", () => ({
   __esModule: true,
   logUsabilityEvent: jest.fn(),
 }));
-=======
-import { buildIndoorMapRouteParams } from "../utils/indoorAccess";
 
-const getRouterPushMock = () => (require("expo-router").router.push as jest.Mock);
->>>>>>> origin/main
+const getRouterPushMock = () => require("expo-router").router.push as jest.Mock;
 
 jest.mock("../utils/routeTransition", () => ({
   __esModule: true,
@@ -428,7 +427,6 @@ jest.mock("../components/DirectionStepsPanel", () => {
   const React = require("react");
   const { View, Button, Text, Pressable } = require("react-native");
 
-<<<<<<< HEAD
   const MockDirectionStepsPanel = (props: any) => (
     <View testID="steps-panel">
       <Button
@@ -464,43 +462,6 @@ jest.mock("../components/DirectionStepsPanel", () => {
       )}
     </View>
   );
-=======
-  const MockDirectionStepsPanel = (props: any) => {
-    const steps = props.steps ?? [];
-    return (
-      <View testID="steps-panel">
-        <Button testID="steps-dismiss" title="Dismiss" onPress={props.onDismiss} />
-        <Button testID="steps-change" title="Change" onPress={props.onChangeRoute} />
-        <Text testID="steps-serialized">
-          {steps.map((s: any) => s?.instruction).join("\n")}
-        </Text>
-        {steps.map((s: any, idx: number) =>
-          s?.onPress ? (
-            <Pressable
-              key={`step-${idx}`}
-              testID={`step-pressable-${idx}`}
-              onPress={s.onPress}
-            >
-              <Text>{s.instruction}</Text>
-            </Pressable>
-          ) : null,
-        )}
-        {/* Always render a pressable for the last step as CTA for test coverage */}
-        {/* Always render a pressable for the CTA step for test coverage */}
-        <Pressable
-          key="step-pressable-1"
-          testID="step-pressable-1"
-          onPress={steps[1]?.onPress || (() => {})}
-        >
-          <Text>{steps[1]?.instruction || "Continue indoors"}</Text>
-        </Pressable>
-        {props.onFocusUser && (
-          <Button testID="steps-focus-user" title="Focus User" onPress={props.onFocusUser} />
-        )}
-      </View>
-    );
-  };
->>>>>>> origin/main
 
   return {
     __esModule: true,
@@ -649,6 +610,57 @@ const renderScreen = async () => {
 };
 
 describe("CampusMapScreen", () => {
+  it("handleIndoorRouteIntent routes room-to-room indoor intent", () => {
+    const openIndoorMap = jest.fn();
+    const setIsNavVisible = jest.fn();
+
+    handleIndoorRouteIntent({
+      intent: {
+        kind: "same_building_indoor_room_to_room",
+        buildingCode: "H",
+        navOrigin: "H-110",
+        navDest: "H-920",
+        accessibleOnly: true,
+      },
+      openIndoorMap,
+      setIsNavVisible,
+    });
+
+    expect(setIsNavVisible).toHaveBeenCalledWith(false);
+    expect(openIndoorMap).toHaveBeenCalledWith(
+      "H",
+      undefined,
+      "H-110",
+      "H-920",
+      true,
+    );
+  });
+
+  it("handleIndoorRouteIntent routes building-to-room indoor intent", () => {
+    const openIndoorMap = jest.fn();
+    const setIsNavVisible = jest.fn();
+
+    handleIndoorRouteIntent({
+      intent: {
+        kind: "same_building_indoor_to_room",
+        buildingCode: "MB",
+        roomQuery: "MB-1.210",
+        accessibleOnly: false,
+      },
+      openIndoorMap,
+      setIsNavVisible,
+    });
+
+    expect(setIsNavVisible).toHaveBeenCalledWith(false);
+    expect(openIndoorMap).toHaveBeenCalledWith(
+      "MB",
+      "MB-1.210",
+      undefined,
+      undefined,
+      false,
+    );
+  });
+
   beforeEach(() => {
     (buildContinueIndoorsStep as jest.Mock).mockImplementation(
       jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
@@ -731,6 +743,23 @@ describe("CampusMapScreen", () => {
     expect(getMapProps()).toEqual({
       coordinates: { latitude: 3, longitude: 4 },
       focusTarget: "loyola",
+      startOverride: null,
+      startPoint: null,
+      destinationPoint: null,
+      strategy: WALKING_STRATEGY,
+    });
+  });
+
+  it("switches campus back to SGW when SGW toggle is pressed from Loyola", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "loyola" });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("campus-toggle-sgw"));
+
+    expect(getMapProps()).toEqual({
+      coordinates: { latitude: 1, longitude: 2 },
+      focusTarget: "sgw",
       startOverride: null,
       startPoint: null,
       destinationPoint: null,
@@ -884,7 +913,7 @@ describe("CampusMapScreen", () => {
     // If both a destinationRoomQuery param and a transition payload exist, the explicit
     // param should win.
     (useLocalSearchParams as jest.Mock).mockReturnValue({
-      transition: "{\"mode\":\"indoor_to_outdoor\"}",
+      transition: '{"mode":"indoor_to_outdoor"}',
       destinationRoomQuery: "MB-1.999",
     });
 
@@ -898,7 +927,6 @@ describe("CampusMapScreen", () => {
       destinationIndoorRoomQuery: "MB-1.210",
     });
 
-<<<<<<< HEAD
     // Force the helper to build a final continue-indoors step.
     (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
       steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
@@ -907,37 +935,24 @@ describe("CampusMapScreen", () => {
         navOrigin: "ENTRANCE",
         navDest: "MB-1.210",
       },
-=======
-    // We don't have a direct UI surface for destinationRoomQueryText, but the "Continue indoors"
-    // builder receives it. Make it return a step so we know the value passed.
-    (buildContinueIndoorsStep as jest.Mock).mockImplementation((opts: any) => {
-      return {
-        steps: [...opts.baseSteps, { instruction: "Continue indoors" }],
-        openArgs: { buildingCode: opts.destinationBuildingCode, navOrigin: "ENTRANCE", navDest: opts.destinationRoomQuery },
-      };
->>>>>>> origin/main
     });
 
     render(<CampusMapScreen />);
 
-<<<<<<< HEAD
-    // Make route active (hasActiveRoute) and ensure route steps are set so the steps panel renders.
     fireEvent.press(screen.getByTestId("trigger-get-directions"));
     fireEvent.press(screen.getByTestId("trigger-set-as-start"));
     fireEvent.press(screen.getByTestId("nav-confirm"));
-=======
-    // Trigger route steps so we have a baseSteps list.
->>>>>>> origin/main
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    // Open the directions panel.
     fireEvent.press(screen.getByTestId("directions-button"));
 
     await waitFor(() => {
       expect(buildContinueIndoorsStep).toHaveBeenCalled();
     });
 
-    const lastCall = (buildContinueIndoorsStep as jest.Mock).mock.calls.at(-1)?.[0];
+    const lastCall = (buildContinueIndoorsStep as jest.Mock).mock.calls.at(
+      -1,
+    )?.[0];
     expect(lastCall.destinationRoomQuery).toBe("MB-1.999");
   });
 
@@ -955,10 +970,12 @@ describe("CampusMapScreen", () => {
     // Open nav then confirm a route.
     fireEvent.press(screen.getByTestId("directions-button"));
 
-  // Use a NavigationBar mock action that includes a startRoom but no endRoom.
-  const confirmButton = screen.getByTestId("nav-confirm-indoor-start-outdoor-dest");
+    // Use a NavigationBar mock action that includes a startRoom but no endRoom.
+    const confirmButton = screen.getByTestId(
+      "nav-confirm-indoor-start-outdoor-dest",
+    );
 
-  // Start indoors: CC-124. Destination outdoors: MB.
+    // Start indoors: CC-124. Destination outdoors: MB.
     fireEvent.press(confirmButton);
 
     await waitFor(() => {
@@ -982,6 +999,32 @@ describe("CampusMapScreen", () => {
     );
   });
 
+  it("normalizes undefined indoor route params to empty strings for cross-building indoor-to-outdoor navigation", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+
+    (buildIndoorMapRouteParams as jest.Mock).mockReturnValue({
+      buildingName: "CC",
+      floors: undefined,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(
+      screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"),
+    );
+
+    await waitFor(() => {
+      expect(getRouterPushMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/IndoorMapScreen" }),
+      );
+    });
+
+    const pushArg = getRouterPushMock().mock.calls.at(-1)?.[0];
+    expect(pushArg.params.floors).toBe("");
+  });
+
   it("does not navigate for indoor-to-outdoor start when buildIndoorMapRouteParams returns null", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
     (parseTransitionPayload as jest.Mock).mockReturnValue(null);
@@ -991,7 +1034,9 @@ describe("CampusMapScreen", () => {
     render(<CampusMapScreen />);
     fireEvent.press(screen.getByTestId("directions-button"));
 
-  fireEvent.press(screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"));
+    fireEvent.press(
+      screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"),
+    );
 
     await waitFor(() => {
       expect(getRouterPushMock()).not.toHaveBeenCalledWith(
@@ -1001,16 +1046,18 @@ describe("CampusMapScreen", () => {
   });
 
   it("attaches an onPress to the final continue-indoors step and pressing it navigates to IndoorMapScreen (mocked panel direct)", () => {
-    const { default: DirectionStepsPanel } = require("../components/DirectionStepsPanel");
+    const {
+      default: DirectionStepsPanel,
+    } = require("../components/DirectionStepsPanel");
     const onPress = jest.fn();
     const steps = [
       { instruction: "Walk", onPress: jest.fn() },
       { instruction: "Continue indoors", onPress },
     ];
-  const { getAllByTestId } = render(<DirectionStepsPanel steps={steps} />);
-  const ctaButtons = getAllByTestId("step-pressable-1");
-  fireEvent.press(ctaButtons[ctaButtons.length - 1]);
-  expect(onPress).toHaveBeenCalled();
+    const { getAllByTestId } = render(<DirectionStepsPanel steps={steps} />);
+    const ctaButtons = getAllByTestId("step-pressable-1");
+    fireEvent.press(ctaButtons[ctaButtons.length - 1]);
+    expect(onPress).toHaveBeenCalled();
   });
 
   it("mergedSteps returns null (no merged list) when destinationIndoorRoomQuery is empty/whitespace", async () => {
@@ -1107,15 +1154,32 @@ describe("CampusMapScreen", () => {
       exitNodeId: "H_EXIT_1",
       exitIndoor: { buildingCode: "H", floor: 1, x: 0, y: 0 },
       exitOutdoor: { latitude: 45, longitude: -73 },
-      destinationBuildingCode: "A",
+      destinationBuildingCode: "H",
       destinationCampus: "sgw",
-      destinationIndoorRoomQuery: "A-110",
+      destinationIndoorRoomQuery: "H-110",
       accessibleOnly: false,
+    });
+
+    const buildingsMod = require("../constants/buildings");
+    buildingsMod.BUILDINGS.push({
+      name: "H",
+      displayName: "Hall",
+      coordinates: { latitude: 45.497, longitude: -73.579 },
+      boundingBox: [
+        { latitude: 45.496, longitude: -73.58 },
+        { latitude: 45.497, longitude: -73.579 },
+        { latitude: 45.498, longitude: -73.578 },
+      ],
     });
 
     const { getBuildingPlanAsset } = require("../utils/mapAssets");
     (getBuildingPlanAsset as jest.Mock).mockReturnValue({
       nodes: [
+        {
+          id: "entry-2",
+          type: "building_entry_exit",
+          outdoorLatLng: { latitude: 45.9, longitude: -73.9 },
+        },
         {
           id: "entry-1",
           type: "building_entry_exit",
@@ -1145,13 +1209,123 @@ describe("CampusMapScreen", () => {
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
     const serialized = screen.getByTestId("steps-serialized").props.children;
-    expect(serialized).toContain("Enter A");
+    expect(serialized).toContain("Enter H");
     // Depending on BUILDINGS metadata and entry-node filtering, CampusMapScreen may either derive
     // an actual indoor steps list or fall back to a single hint line.
     expect(
       serialized.includes("Walk inside") ||
-        serialized.includes("Enter A and continue to A-110"),
+        serialized.includes("Enter H and continue to H-110"),
     ).toBe(true);
+  });
+
+  it("falls back to a single hint when destination indoor leg computation throws", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "H",
+      destinationIndoorRoomQuery: "H-110",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+      accessibleOnly: false,
+    });
+
+    const buildingsMod = require("../constants/buildings");
+    buildingsMod.BUILDINGS.push({
+      name: "H",
+      displayName: "Hall",
+      coordinates: { latitude: 45.497, longitude: -73.579 },
+      boundingBox: [
+        { latitude: 45.496, longitude: -73.58 },
+        { latitude: 45.497, longitude: -73.579 },
+        { latitude: 45.498, longitude: -73.578 },
+      ],
+    });
+
+    const { getBuildingPlanAsset } = require("../utils/mapAssets");
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [
+        {
+          id: "entry-1",
+          type: "building_entry_exit",
+          outdoorLatLng: { latitude: 45.497, longitude: -73.579 },
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockImplementationOnce(
+      () => {
+        throw new Error("indoor-leg-failure");
+      },
+    );
+
+    await renderScreen();
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const serialized = screen.getByTestId("steps-serialized").props.children;
+    expect(serialized).toContain("Enter H and continue to H-110");
+  });
+
+  it("pressing continue indoors step opens IndoorMapScreen with nav destination", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+    });
+
+    (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
+      steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
+      openArgs: {
+        buildingCode: "MB",
+        navOrigin: "ENTRANCE",
+        navDest: "MB-1.210",
+      },
+    });
+
+    (buildIndoorMapRouteParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: "1",
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    (router.push as jest.Mock).mockClear();
+    const continueButtons = screen.getAllByTestId("step-pressable-1");
+    fireEvent.press(continueButtons[continueButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pathname: "/IndoorMapScreen",
+          params: expect.objectContaining({
+            buildingName: "MB",
+            floors: "1",
+            navOrigin: "ENTRANCE",
+            navDest: "MB-1.210",
+            roomQuery: "MB-1.210",
+          }),
+        }),
+      );
+    });
   });
 
   it("falls back to a single 'Enter <code> and continue to <room>' hint when entry nodes exist but indoor routing is not successful", async () => {

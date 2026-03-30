@@ -9,15 +9,25 @@ import CampusMap from "../components/CampusMap";
 import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
 import NavigationBar from "../components/NavigationBar";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
+import { OutdoorPOIFilter } from "../components/OutdoorPOIFilter";
+import { POIListPanel } from "../components/POIListPanel";
+import { POIRangeSelector } from "../components/POIRangeSelector";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
+import {
+  OUTDOOR_POI_CATEGORY_MAP,
+  type OutdoorPOICategoryId,
+} from "../constants/outdoorPOI";
+import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
+import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
+import type { PlacePOI } from "../services/GooglePlacesService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/CampusMapScreen.styles";
 import {
@@ -27,6 +37,7 @@ import {
 import {
   buildIndoorMapRouteParams,
   getIndoorAccessState,
+  normalizeRoomQuery,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
@@ -70,14 +81,6 @@ const buildCrossBuildingIndoorParams = ({
 });
 
 type FocusTarget = CampusKey | "user";
-
-function normalizeRoomQuery(buildingCode: string, room: string): string {
-  const trimmed = room.trim();
-  if (!trimmed) return "";
-  const prefix = `${buildingCode.toUpperCase()}-`;
-  if (trimmed.toUpperCase().startsWith(prefix)) return trimmed;
-  return `${prefix}${trimmed}`;
-}
 
 function toBuildingCode(value: unknown): string | null {
   if (!value) return null;
@@ -164,6 +167,60 @@ type RouteConfirmIntent =
       accessibleOnly?: boolean;
     }
   | { kind: "outdoor_route" };
+
+type IndoorRouteIntent =
+  | {
+      kind: "same_building_indoor_room_to_room";
+      buildingCode: string;
+      navOrigin: string;
+      navDest: string;
+      accessibleOnly?: boolean;
+    }
+  | {
+      kind: "same_building_indoor_to_room";
+      buildingCode: string;
+      roomQuery: string;
+      accessibleOnly?: boolean;
+    };
+
+type OpenIndoorMapFn = (
+  buildingCode?: string | null,
+  roomQuery?: string,
+  navOrigin?: string,
+  navDest?: string,
+  accessibleOnlyOverride?: boolean,
+) => void;
+
+export function handleIndoorRouteIntent({
+  intent,
+  openIndoorMap,
+  setIsNavVisible,
+}: {
+  intent: IndoorRouteIntent;
+  openIndoorMap: OpenIndoorMapFn;
+  setIsNavVisible: (visible: boolean) => void;
+}): void {
+  setIsNavVisible(false);
+
+  if (intent.kind === "same_building_indoor_room_to_room") {
+    openIndoorMap(
+      intent.buildingCode,
+      undefined,
+      intent.navOrigin,
+      intent.navDest,
+      intent.accessibleOnly,
+    );
+    return;
+  }
+
+  openIndoorMap(
+    intent.buildingCode,
+    intent.roomQuery,
+    undefined,
+    undefined,
+    intent.accessibleOnly,
+  );
+}
 
 function buildRouteConfirmIntent({
   start,
@@ -369,6 +426,80 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+  const [showPOIFilter, setShowPOIFilter] = useState(false);
+  const [showPOIList, setShowPOIList] = useState(false);
+  const [focusPOIId, setFocusPOIId] = useState<string | null>(null);
+  const [focusPOITrigger, setFocusPOITrigger] = useState(0);
+  const [selectedOutdoorPOI, setSelectedOutdoorPOI] = useState<PlacePOI | null>(
+    null,
+  );
+  const [activeOutdoorPOIRoute, setActiveOutdoorPOIRoute] =
+    useState<PlacePOI | null>(null);
+  const [poiRouteError, setPOIRouteError] = useState<string | null>(null);
+  const [activePOICategories, setActivePOICategories] = useState<
+    Set<OutdoorPOICategoryId>
+  >(new Set());
+  const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
+  const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [showShuttle, setShowShuttle] = useState(false);
+  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
+    useState(false);
+
+  const {
+    pois: nearbyPOIs,
+    loading: poisLoading,
+    error: poisError,
+    search: searchPOIs,
+    clear: clearPOIs,
+  } = useNearbyPOIs();
+  const shuttleStatus = useShuttleAvailability(currentCampus);
+
+  const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
+
+  const activePOICategoryKey = useMemo(
+    () =>
+      Array.from(activePOICategories)
+        .sort((a, b) => a.localeCompare(b))
+        .join(","),
+    [activePOICategories],
+  );
+
+  useEffect(() => {
+    if (!showPOIFilter) return;
+    if (activePOICategories.size === 0) {
+      clearPOIs();
+      return;
+    }
+    searchPOIs(
+      poiSearchLocation,
+      poiRange.meters,
+      Array.from(activePOICategories),
+    );
+    setShowPOIList(true);
+  }, [
+    activePOICategoryKey,
+    poiRange.meters,
+    poiSearchLocation,
+    showPOIFilter,
+    poiSearchTrigger,
+  ]);
+
+  const retryPOISearch = useCallback(() => {
+    setPoiSearchTrigger((c) => c + 1);
+  }, []);
+
+  const handleTogglePOICategory = useCallback((id: OutdoorPOICategoryId) => {
+    setActivePOICategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
@@ -388,11 +519,9 @@ export default function CampusMapScreen() {
       time_since_map_load_ms: Date.now() - mapLoadTime.current,
     });
     // task_5 is now started in onSetAsDestination / onSetAsStart so we don't
-    // double-start it here.
   };
 
   const destinationRoomQueryText = useMemo(() => {
-    // Preferred source: an explicit query param (ex: app launched with a room destination).
     if (
       typeof destinationRoomQuery === "string" &&
       destinationRoomQuery.trim()
@@ -400,16 +529,12 @@ export default function CampusMapScreen() {
       return destinationRoomQuery;
     }
 
-    // Next best: when arriving from indoor navigation (indoor -> outdoor -> indoor), the
-    // final indoor room query is carried in the transition payload.
     if (transitionPayload?.mode === "indoor_to_outdoor") {
       const payloadRoom = transitionPayload.destinationIndoorRoomQuery;
       if (typeof payloadRoom === "string" && payloadRoom.trim())
         return payloadRoom;
     }
 
-    // Fallback: if the user planned a route from a building to an indoor room on the campus map
-    // itself (without a URL param), `handleConfirmRoute` stores the room record in state.
     const endRoomLabel = selectedRouteEndRoom?.label;
     if (typeof endRoomLabel === "string" && endRoomLabel.trim())
       return endRoomLabel;
@@ -444,9 +569,6 @@ export default function CampusMapScreen() {
         )
       : null;
 
-    // Prefer showing the origin building's campus so the map initially centers on the start
-    // building/exit (the outdoor leg should start from the origin). If the origin can't be
-    // resolved, fall back to showing the destination campus.
     const effectiveOrigin = originBuilding ?? originByExit ?? null;
 
     let originCampus: CampusKey | null = null;
@@ -460,7 +582,6 @@ export default function CampusMapScreen() {
     const campusToShow = originCampus ?? destinationCampus;
     setCurrentCampus(campusToShow);
 
-    // Only override focusTarget when the user hasn't explicitly focused on their location.
     setFocusTarget((prev) => (prev === "user" ? prev : campusToShow));
 
     setSelectedRoute({
@@ -586,14 +707,12 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  // ── Map load: start timers for task_1, task_2, task_3 ───────────────────
-  // FIX task_2: startTask was missing — duration was always 0
-  // FIX task_3: startTask was missing entirely — task had no instrumentation
+  // Map load: start timers for task_1, task_2, task_3
   useEffect(() => {
     mapLoadTime.current = Date.now();
-    startTask("task_1"); // ends on current_location_pressed
-    startTask("task_2"); // FIX: was missing — ends on first campus_switch
-    startTask("task_3"); // FIX: was missing entirely — ends on building label tap
+    startTask("task_1");
+    startTask("task_2");
+    startTask("task_3");
     const run = async () => {
       await logUsabilityEvent("map_screen_loaded", {
         session_id: sessionId.current,
@@ -603,6 +722,10 @@ export default function CampusMapScreen() {
     };
     run();
   }, []);
+
+  useEffect(() => {
+    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  }, [shuttleStatus.available, showShuttle]);
 
   const selectCampus = async (campusKey: CampusKey) => {
     setCurrentCampus(campusKey);
@@ -616,13 +739,34 @@ export default function CampusMapScreen() {
         time_since_map_load_ms: Date.now() - mapLoadTime.current,
         timestamp: new Date().toISOString(),
       });
-      // FIX task_2: now has a matching startTask so duration is non-zero.
-      // endTask guard prevents double-firing if user switches campus again.
+      //task_2: now has a matching startTask so duration is non-zero.
       await endTask("task_2", { campus_switched_to: campusKey });
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
   };
+
+  const handleSelectOutdoorPOI = useCallback((poi: PlacePOI) => {
+    setSelectedOutdoorPOI(poi);
+    setPOIRouteError(null);
+    setFocusPOIId(poi.placeId);
+    setFocusPOITrigger((c) => c + 1);
+    setShowPOIList(false);
+
+    setActiveOutdoorPOIRoute((previousRoutePOI) => {
+      if (!previousRoutePOI || previousRoutePOI.placeId === poi.placeId)
+        return previousRoutePOI;
+      setRouteFocusTrigger((c) => c + 1);
+      return poi;
+    });
+  }, []);
+
+  const clearOutdoorPOIRouteState = useCallback(() => {
+    setSelectedOutdoorPOI(null);
+    setActiveOutdoorPOIRoute(null);
+    setPOIRouteError(null);
+    setRouteSteps([]);
+  }, []);
 
   const focusUserLocation = useCallback(async () => {
     setFocusTarget("user");
@@ -654,15 +798,11 @@ export default function CampusMapScreen() {
         pathname: "/IndoorMapScreen",
         params: {
           ...params,
-          // If we're routing *to* a room from an implicit entrance ("Continue indoors"),
-          // ensure IndoorMapScreen gets a real navDest even when `params` already contains
-          // a roomQuery (which is only for search / highlight).
+
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest
             ? {
                 navDest,
-                // Keep the "To" input in sync with the final destination room.
-                // (Do not overwrite a roomQuery passed explicitly by callers.)
                 ...(roomQuery ? {} : { roomQuery: navDest }),
               }
             : {}),
@@ -747,36 +887,25 @@ export default function CampusMapScreen() {
         return;
       }
 
-      if (intent.kind === "same_building_indoor_room_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          undefined,
-          intent.navOrigin,
-          intent.navDest,
-          intent.accessibleOnly,
-        );
+      if (
+        intent.kind === "same_building_indoor_room_to_room" ||
+        intent.kind === "same_building_indoor_to_room"
+      ) {
+        handleIndoorRouteIntent({
+          intent,
+          openIndoorMap,
+          setIsNavVisible,
+        });
         return;
       }
 
-      if (intent.kind === "same_building_indoor_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          intent.roomQuery,
-          undefined,
-          undefined,
-          intent.accessibleOnly,
-        );
-        return;
-      }
-
+      setActiveOutdoorPOIRoute(null);
+      setPOIRouteError(null);
       setSelectedRoute({ start, dest });
       setSelectedStrategy(strategy);
       setIsNavVisible(false);
       setRouteFocusTrigger((c) => (start ? c + 1 : c));
 
-      // FIX task_6: reset guard so the next steps arrival ends task_6 exactly once
       task6EndedRef.current = false;
 
       const indoorOutdoorTaskId = classifyIndoorOutdoorTask(start, dest);
@@ -842,26 +971,30 @@ export default function CampusMapScreen() {
     [openIndoorMap],
   );
 
-  const [showShuttle, setShowShuttle] = useState(false);
-  const [showShuttleSchedulePanel, setShowShuttleSchedulePanel] =
-    useState(false);
-  const shuttleStatus = useShuttleAvailability(currentCampus);
-
-  let accessibilityLabel: string;
-  if (!shuttleStatus.available) {
-    accessibilityLabel = "Shuttle not available";
-  } else if (showShuttle) {
-    accessibilityLabel = "Hide shuttle";
-  } else {
-    accessibilityLabel = "Show shuttle";
-  }
-
-  useEffect(() => {
-    if (!shuttleStatus.available && showShuttle) setShowShuttle(false);
+  const accessibilityLabel = useMemo(() => {
+    if (!shuttleStatus.available) return "Shuttle not available";
+    if (showShuttle) return "Hide shuttle";
+    return "Show shuttle";
   }, [shuttleStatus.available, showShuttle]);
 
+  const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
+
+  const outdoorPOIRouteStart = useMemo(() => {
+    if (!activeOutdoorPOIRoute) return null;
+    if (userLocation) {
+      return findNearestBuilding(userLocation.latitude, userLocation.longitude);
+    }
+    return effectiveCurrentBuilding;
+  }, [
+    activeOutdoorPOIRoute,
+    userLocation,
+    findNearestBuilding,
+    effectiveCurrentBuilding,
+  ]);
+
   const hasActiveRoute =
-    selectedRoute.start != null && selectedRoute.dest != null;
+    (selectedRoute.start != null && selectedRoute.dest != null) ||
+    (activeOutdoorPOIRoute != null && outdoorPOIRouteStart != null);
   const showStepsPanel =
     hasActiveRoute && (mergedSteps?.length || routeSteps.length) > 0;
 
@@ -874,12 +1007,8 @@ export default function CampusMapScreen() {
     [selectedRoute.dest, transitionPayload],
   );
 
-  // Only show "Continue indoors" when the *final* destination is a room.
-  // Accept either the explicit query param (building → room use-case) or a
-  // transition payload indoor destination (indoor → outdoor → indoor use-case).
   const hasIndoorRoomDestination = Boolean(destinationRoomQueryText.trim());
 
-  // (Outdoor building → outdoor building should not offer an indoor CTA.)
   const canContinueIndoors = Boolean(
     continueIndoorsBuildingCode && hasIndoorRoomDestination,
   );
@@ -941,8 +1070,6 @@ export default function CampusMapScreen() {
     [],
   );
 
-  // FIX task_6: guard with task6EndedRef so this fires exactly once per route.
-  // Previously it fired on every map re-render causing the 18-minute ghost session.
   const handleRouteSteps = useCallback(async (steps: RouteStep[]) => {
     setRouteSteps(steps);
 
@@ -1080,27 +1207,65 @@ export default function CampusMapScreen() {
     selectedRoute.start,
     showStepsPanel,
   ]);
+  const activeOutdoorPOIDestination = useMemo(
+    () =>
+      activeOutdoorPOIRoute
+        ? {
+            latitude: activeOutdoorPOIRoute.latitude,
+            longitude: activeOutdoorPOIRoute.longitude,
+          }
+        : null,
+    [activeOutdoorPOIRoute],
+  );
 
-  // Extracted variable for demoCurrentBuilding ?? autoStartBuilding
-  const effectiveCurrentBuilding = demoCurrentBuilding ?? autoStartBuilding;
+  const selectedOutdoorPOICategory = selectedOutdoorPOI
+    ? OUTDOOR_POI_CATEGORY_MAP[selectedOutdoorPOI.categoryId]
+    : null;
+
+  const startOutdoorPOIRoute = useCallback(() => {
+    if (!selectedOutdoorPOI) return;
+
+    const routeStart = userLocation
+      ? findNearestBuilding(userLocation.latitude, userLocation.longitude)
+      : effectiveCurrentBuilding;
+
+    if (!routeStart) {
+      setPOIRouteError(
+        "Unable to resolve a starting location. Enable location services or set your location on the map.",
+      );
+      return;
+    }
+
+    setPOIRouteError(null);
+    setActiveOutdoorPOIRoute(selectedOutdoorPOI);
+    setSelectedRoute({ start: routeStart, dest: null });
+    setRouteFocusTrigger((c) => c + 1);
+  }, [
+    selectedOutdoorPOI,
+    userLocation,
+    findNearestBuilding,
+    effectiveCurrentBuilding,
+  ]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.rootContainer}>
       <CampusMap
         coordinates={CAMPUSES[currentCampus].coordinates}
         focusTarget={focusTarget}
         userFocusCounter={userFocusCounter}
         routeFocusTrigger={routeFocusTrigger}
-        startPoint={selectedRoute.start}
-        startOverride={startOverride}
-        destinationPoint={selectedRoute.dest}
+        startPoint={
+          activeOutdoorPOIRoute ? outdoorPOIRouteStart : selectedRoute.start
+        }
+        startOverride={
+          activeOutdoorPOIRoute && userLocation ? userLocation : startOverride
+        }
+        destinationPoint={activeOutdoorPOIRoute ? null : selectedRoute.dest}
+        destinationOverride={activeOutdoorPOIDestination}
         showShuttle={showShuttle}
         strategy={selectedStrategy}
         demoCurrentBuilding={demoCurrentBuilding}
         onRouteSteps={handleRouteSteps}
-        // ── Task 3: building label tapped → end task_3, start task_4 ────────
-        // FIX task_3: was not instrumented at all — building tap now ends task_3
-        // FIX task_4: startTask was missing — popup open now starts task_4
         onBuildingSelected={async (building) => {
           if (!building) return;
           await endTask("task_3", { building_name: building.name });
@@ -1111,6 +1276,7 @@ export default function CampusMapScreen() {
             time_since_map_load_ms: Date.now() - mapLoadTime.current,
           });
         }}
+        onRouteError={setPOIRouteError}
         onSetAsStart={(building) => {
           setInitialStart(building);
           setIsNavVisible(true);
@@ -1118,8 +1284,7 @@ export default function CampusMapScreen() {
             session_id: sessionId.current,
             building_name: building?.name ?? "unknown",
           }).catch(console.error);
-          // FIX task_4: end task_4 when tester uses the popup
-          // FIX task_5: start task_5 from here — tester is now in nav bar flow
+
           endTask("task_4", {
             building_name: building?.name ?? "unknown",
             action: "set_as_start",
@@ -1133,8 +1298,6 @@ export default function CampusMapScreen() {
             session_id: sessionId.current,
             building_name: building?.name ?? "unknown",
           }).catch(console.error);
-          // FIX task_4: end task_4 — tester successfully used popup action
-          // FIX task_5: start task_5 — tester is now setting up a route
           endTask("task_4", {
             building_name: building?.name ?? "unknown",
             action: "set_as_destination",
@@ -1143,6 +1306,11 @@ export default function CampusMapScreen() {
         }}
         onSetAsMyLocation={(building) => setDemoCurrentBuilding(building)}
         onViewIndoorMap={handleViewBuildingIndoorMap}
+        onUserLocationResolved={setUserLocation}
+        nearbyPOIs={nearbyPOIs}
+        focusPOIId={focusPOIId}
+        focusPOITrigger={focusPOITrigger}
+        onSelectPOI={handleSelectOutdoorPOI}
       />
 
       <View style={styles.campusToggleContainer} pointerEvents="box-none">
@@ -1184,6 +1352,18 @@ export default function CampusMapScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Continue indoors is rendered as the final step inside the directions panel. */}
+
+      {showPOIFilter && (
+        <View style={styles.poiPanel}>
+          <OutdoorPOIFilter
+            activeCategories={activePOICategories}
+            onToggle={handleTogglePOICategory}
+          />
+          <POIRangeSelector selected={poiRange} onSelect={setPOIRange} />
+        </View>
+      )}
 
       {/* Left button stack */}
       <View
@@ -1246,12 +1426,36 @@ export default function CampusMapScreen() {
       {/* Right button stack */}
       <View style={styles.buttonStack}>
         <Pressable
+          testID="poi-filter-button"
+          accessibilityLabel={
+            showPOIFilter ? "Hide nearby places" : "Show nearby places"
+          }
+          onPress={() => {
+            setShowPOIFilter((v) => {
+              if (v) {
+                clearPOIs();
+                setShowPOIList(false);
+                setActivePOICategories(new Set());
+              }
+              return !v;
+            });
+          }}
+          style={[
+            styles.actionButton,
+            showPOIFilter && {
+              backgroundColor: colors.secondary,
+              borderColor: colors.secondaryDark,
+            },
+          ]}
+        >
+          <MaterialIcons name="place" size={24} color={colors.white} />
+        </Pressable>
+        <Pressable
           testID="next-class-button"
           accessibilityLabel="Navigate to next class"
           onPress={async () => {
             setIsNextClassVisible(true);
-            // FIX task_8: start sub-timer for the next class directions part
-            // of task_8 which happens back on the map after connecting calendar
+
             startTask("task_8_next_class");
             await logUsabilityEvent("next_class_directions_requested", {
               session_id: sessionId.current,
@@ -1274,9 +1478,7 @@ export default function CampusMapScreen() {
           accessibilityLabel="directions-button"
           onPress={() => {
             openNavigationBar("directions_button");
-            // Start task_5 here too for testers who go directly to directions
-            // without using the building popup first. The endTask guard in
-            // endTask prevents double-completion if task_5 was already started.
+
             startTask("task_5");
           }}
           style={styles.actionButton}
@@ -1300,6 +1502,64 @@ export default function CampusMapScreen() {
           <MaterialIcons name="my-location" size={22} color={colors.white} />
         </Pressable>
       </View>
+
+      {showPOIList && (
+        <POIListPanel
+          pois={nearbyPOIs}
+          origin={poiSearchLocation}
+          onClose={() => setShowPOIList(false)}
+          onSelect={handleSelectOutdoorPOI}
+          loading={poisLoading}
+          error={poisError}
+          locationUnavailable={!userLocation}
+          onRetry={retryPOISearch}
+        />
+      )}
+
+      {selectedOutdoorPOI && (
+        <View style={styles.selectedPOIPanel}>
+          <View style={styles.selectedPOITextWrap}>
+            <Text style={styles.selectedPOITitle} numberOfLines={1}>
+              {selectedOutdoorPOI.name}
+            </Text>
+            <Text style={styles.selectedPOISubtitle} numberOfLines={1}>
+              {selectedOutdoorPOICategory?.label ?? "Point of interest"}
+            </Text>
+          </View>
+          <View style={styles.selectedPOIActions}>
+            <Pressable
+              testID="clear-selected-poi-button"
+              onPress={clearOutdoorPOIRouteState}
+              style={[
+                styles.selectedPOIButton,
+                styles.selectedPOIButtonSecondary,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.selectedPOIButtonText,
+                  styles.selectedPOIButtonTextSecondary,
+                ]}
+              >
+                Clear
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="poi-get-directions-button"
+              onPress={startOutdoorPOIRoute}
+              style={styles.selectedPOIButton}
+            >
+              <Text style={styles.selectedPOIButtonText}>Get directions</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {poiRouteError && (
+        <View style={styles.poiRouteErrorBanner}>
+          <Text style={styles.poiRouteErrorText}>{poiRouteError}</Text>
+        </View>
+      )}
 
       {showShuttleSchedulePanel && (
         <ShuttleSchedulePanel
@@ -1326,6 +1586,7 @@ export default function CampusMapScreen() {
           }}
           onDismiss={async () => {
             setSelectedRoute({ start: null, dest: null });
+            setActiveOutdoorPOIRoute(null);
             setRouteSteps([]);
             try {
               await logUsabilityEvent("steps_panel_dismissed", {
@@ -1334,6 +1595,7 @@ export default function CampusMapScreen() {
             } catch (error) {
               console.error("Firebase Analytics Error: ", error);
             }
+            setPOIRouteError(null);
           }}
           onFocusUser={focusUserLocation}
         />
@@ -1378,14 +1640,12 @@ export default function CampusMapScreen() {
 
       <NextClassDirectionsPanel
         visible={isNextClassVisible}
-        // FIX task_8: end sub-timer when panel is dismissed
         onClose={() => {
           setIsNextClassVisible(false);
           endTask("task_8_next_class", { outcome: "dismissed" }).catch(
             console.error,
           );
         }}
-        // FIX task_8: end sub-timer when tester confirms next class route
         onConfirm={async (...args) => {
           await endTask("task_8_next_class", { outcome: "confirmed" }).catch(
             console.error,

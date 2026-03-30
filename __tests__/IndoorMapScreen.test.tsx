@@ -56,10 +56,10 @@ jest.mock("../utils/indoorPOI", () => ({
 }));
 
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
@@ -67,14 +67,14 @@ import { BUILDINGS } from "../constants/buildings";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
-  getIndoorNavigationRoute,
-  getIndoorNavigationRouteFromNode,
-  getIndoorNavigationRouteToNode,
+    getIndoorNavigationRoute,
+    getIndoorNavigationRouteFromNode,
+    getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-  getBuildingPlanAsset,
-  getFloorImageMetadata,
+    getBuildingPlanAsset,
+    getFloorImageMetadata,
 } from "../utils/mapAssets";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
@@ -142,7 +142,10 @@ const mockMBPlan = {
 };
 
 describe("IndoorMapScreen", () => {
+  let warnSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
 
@@ -185,6 +188,10 @@ describe("IndoorMapScreen", () => {
       message: "No indoor route found.",
       route: null, // Ensure route is null for failure cases
     });
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   it("renders with building name and floor selector", async () => {

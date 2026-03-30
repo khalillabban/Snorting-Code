@@ -25,7 +25,10 @@ import {
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
-import { getSessionId, USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
+import {
+  getSessionId,
+  USABILITY_TESTING_ENABLED,
+} from "../constants/usabilityConfig";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   isDestinationLegOrigin,
@@ -36,6 +39,7 @@ import {
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
+import { isLikelyNearOriginBuilding } from "../utils/indoorMapScreenHelpers";
 import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
@@ -292,15 +296,12 @@ export default function IndoorMapScreen() {
     width: 0,
     height: 0,
   });
-  const [navOriginQuery, setNavOriginQuery] = useState(
-    typeof navOrigin === "string" ? navOrigin.trim() : "",
-  );
-  const [navDestQuery, setNavDestQuery] = useState(
-    typeof navDest === "string" ? navDest.trim() : "",
-  );
+  const [navOriginQuery, setNavOriginQuery] = useState(trimParam(navOrigin));
+  const [navDestQuery, setNavDestQuery] = useState(trimParam(navDest));
 
-  const destinationRoomQueryText =
-    typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
+  const destinationRoomQueryText = trimParam(destinationRoomQuery);
+  const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
+  const outdoorDestBuildingCode = trimmedOutdoorDestBuilding.toUpperCase();
 
   useEffect(() => {
     if (!availableFloors.length) return;
@@ -312,12 +313,11 @@ export default function IndoorMapScreen() {
   }, [availableFloors, selectedFloor]);
 
   useEffect(() => {
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (!isCrossBuildingOriginLeg) return;
     if (!destinationRoomQueryText) return;
     setNavDestQuery(destinationRoomQueryText);
-  }, [destinationRoomQueryText, outdoorDestBuilding]);
-
+  }, [destinationRoomQueryText, trimmedOutdoorDestBuilding]);
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
   const [activePOICategories, setActivePOICategories] = useState<
@@ -531,7 +531,6 @@ export default function IndoorMapScreen() {
   );
 
   const showFloorImageMap = floorImageAsset != null;
-  const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor = useMemo(() => {
     if (selectedRoom?.floor !== selectedFloor) return null;
@@ -696,11 +695,10 @@ export default function IndoorMapScreen() {
   const routeToBestExitForCrossBuildingOrigin = useCallback((): boolean => {
     if (!buildingName) return true;
 
-    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
     const isCrossBuildingSignal =
-      Boolean(destBuildingCode) &&
-      destBuildingCode !== buildingName.trim().toUpperCase();
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+      Boolean(outdoorDestBuildingCode) &&
+      outdoorDestBuildingCode !== buildingName.trim().toUpperCase();
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
 
     if (!(isCrossBuildingOriginLeg && isCrossBuildingSignal)) return false;
 
@@ -756,7 +754,8 @@ export default function IndoorMapScreen() {
     buildingName,
     failNavigation,
     navOriginQuery,
-    outdoorDestBuilding,
+    outdoorDestBuildingCode,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleNavigate = useCallback(async () => {
@@ -784,7 +783,7 @@ export default function IndoorMapScreen() {
       (b) => b.name.trim().toUpperCase() === typedDest,
     );
 
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (
       !isCrossBuildingOriginLeg &&
       (isCampusCode || isDifferentBuildingCode) &&
@@ -809,15 +808,11 @@ export default function IndoorMapScreen() {
     applyNavigationResult(result);
 
     if (result.success) {
-      // ── FIX task_12: detect cross-floor route and end task_12 ─────────────
-      // Previously task_12 had no instrumentation at all.
+      // task_12: detect cross-floor route and end task_12
       const isCrossFloor =
         result.route.origin.floor !==
         (result.route.destination?.floor ?? result.route.origin.floor);
 
-      // task_10 = accessible route (any floor)
-      // task_12 = cross-floor route (non-accessible)
-      // task_9  = same-floor route (non-accessible)
       const taskId = accessibleOnly
         ? "task_10"
         : isCrossFloor
@@ -840,7 +835,7 @@ export default function IndoorMapScreen() {
         time_since_screen_load_ms: Date.now() - screenLoadTime.current,
       }).catch(console.error);
 
-      // FIX task_12: log floor transition details for cross-floor routes
+      // task_12: log floor transition details for cross-floor routes
       if (isCrossFloor) {
         await logUsabilityEvent("indoor_floor_transition_in_route", {
           session_id: sessionId.current,
@@ -876,14 +871,14 @@ export default function IndoorMapScreen() {
     endTask,
     navDestQuery,
     navOriginQuery,
-    outdoorDestBuilding,
     routeDestinationIndoorLegFromEntrance,
     routeToBestExitForCrossBuildingOrigin,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleContinueOutside = useCallback(() => {
     if (!buildingName) return;
-    const destCode = trimParam(outdoorDestBuilding).toUpperCase();
+    const destCode = outdoorDestBuildingCode;
     if (!destCode) return;
 
     const originCode = buildingName.trim().toUpperCase();
@@ -891,24 +886,14 @@ export default function IndoorMapScreen() {
       (b) => b.name.trim().toUpperCase() === originCode,
     );
 
-    const isLikelyNearOriginBuilding = (candidate: {
-      latitude: number;
-      longitude: number;
-    }) => {
-      const origin = originBuilding?.coordinates;
-      if (!origin) return true;
-      const dLat = candidate.latitude - origin.latitude;
-      const dLng = candidate.longitude - origin.longitude;
-      const distSq = dLat * dLat + dLng * dLng;
-      return distSq < 0.003 * 0.003;
-    };
-
-    const candidateExitOutdoor = pendingExitOutdoor;
     const effectiveExitOutdoor =
-      candidateExitOutdoor && isLikelyNearOriginBuilding(candidateExitOutdoor)
-        ? candidateExitOutdoor
+      pendingExitOutdoor &&
+      isLikelyNearOriginBuilding(
+        pendingExitOutdoor,
+        originBuilding?.coordinates,
+      )
+        ? pendingExitOutdoor
         : (originBuilding?.coordinates ?? null);
-
     if (!effectiveExitOutdoor) {
       setNavError(
         "Couldn't determine an outdoor start point for this building exit. Please try a different exit.",
@@ -1088,7 +1073,7 @@ export default function IndoorMapScreen() {
           </View>
         )}
 
-        {Boolean(activeRoute) && Boolean(trimParam(outdoorDestBuilding)) && (
+        {Boolean(activeRoute) && Boolean(trimmedOutdoorDestBuilding) && (
           <View style={{ marginTop: spacing.sm }}>
             {destinationRoomQueryText ? (
               <Text style={{ color: colors.gray700, marginBottom: spacing.xs }}>
@@ -1241,7 +1226,7 @@ export default function IndoorMapScreen() {
             )}
           </View>
         ) : (
-          showNoMapMessage && (
+          !showFloorImageMap && (
             <View style={styles.emptyState}>
               <Text>No map available for {mapKey}</Text>
             </View>
