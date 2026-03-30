@@ -33,6 +33,7 @@ import {
   getFloorContentBounds,
   getFloorImageDimensions,
   getFloorStageLayout,
+  isLikelyNearOriginBuilding,
   parseOutdoorStrategyParam,
   trimParam,
   type FloorViewport
@@ -551,22 +552,10 @@ export default function IndoorMapScreen() {
       (b) => b.name.trim().toUpperCase() === originCode,
     );
 
-    // Guardrail: never start the outdoor leg from a coordinate that is clearly not near
-    // the current building (stale state, bad exit metadata, etc.).
-    const isLikelyNearOriginBuilding = (candidate: { latitude: number; longitude: number }) => {
-      const origin = originBuilding?.coordinates;
-      if (!origin) return true; // can’t validate; accept
-      const dLat = candidate.latitude - origin.latitude;
-      const dLng = candidate.longitude - origin.longitude;
-      // Rough distance check in degrees. For Concordia SGW buildings this should be very small.
-      const distSq = dLat * dLat + dLng * dLng;
-      // ~0.003 degrees is on the order of a few hundred meters; different campuses will be far larger.
-      return distSq < 0.003 * 0.003;
-    };
-
     const candidateExitOutdoor = pendingExitOutdoor;
     const effectiveExitOutdoor =
-      candidateExitOutdoor && isLikelyNearOriginBuilding(candidateExitOutdoor)
+      candidateExitOutdoor &&
+      isLikelyNearOriginBuilding(candidateExitOutdoor, originBuilding?.coordinates)
         ? candidateExitOutdoor
         : originBuilding?.coordinates ?? null;
     if (!effectiveExitOutdoor) {

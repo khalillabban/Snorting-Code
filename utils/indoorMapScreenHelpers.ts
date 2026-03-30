@@ -1,10 +1,14 @@
 import { spacing } from "../constants/theme";
+import { type LatLng } from "../constants/type";
 import { type IndoorRoomRecord } from "./indoorBuildingPlan";
 import { type IndoorToOutdoorTransitionPayload } from "./routeTransition";
 
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
+const ORIGIN_DISTANCE_THRESHOLD_DEGREES = 0.003;
+const ORIGIN_DISTANCE_THRESHOLD_SQUARED =
+  ORIGIN_DISTANCE_THRESHOLD_DEGREES * ORIGIN_DISTANCE_THRESHOLD_DEGREES;
 
 export type FloorViewport = {
   width: number;
@@ -159,4 +163,15 @@ export function parseOutdoorStrategyParam(
     console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
     return undefined;
   }
+}
+
+export function isLikelyNearOriginBuilding(
+  candidate: LatLng,
+  origin: LatLng | undefined,
+): boolean {
+  if (!origin) return true;
+  const dLat = candidate.latitude - origin.latitude;
+  const dLng = candidate.longitude - origin.longitude;
+  const distSq = dLat * dLat + dLng * dLng;
+  return distSq < ORIGIN_DISTANCE_THRESHOLD_SQUARED;
 }
