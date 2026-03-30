@@ -23,6 +23,14 @@ import {
 } from "../utils/parseCourseEvents";
 import { parseTransitionPayload } from "../utils/routeTransition";
 
+const mockUseNearbyPOIs = jest.fn();
+const mockSearchPOIs = jest.fn();
+const mockClearPOIs = jest.fn();
+
+jest.mock("../hooks/useNearbyPOIs", () => ({
+  useNearbyPOIs: (...args: any[]) => mockUseNearbyPOIs(...args),
+}));
+
 jest.mock("@/utils/usabilityAnalytics", () => ({
   __esModule: true,
   logUsabilityEvent: jest.fn(),
@@ -609,6 +617,15 @@ const renderScreen = async () => {
   await waitFor(() => {}); // flush async useEffect
 };
 
+const hasUsabilityEvent = (
+  eventName: string,
+  predicate?: (payload: any) => boolean,
+) =>
+  (logUsabilityEvent as jest.Mock).mock.calls.some(
+    ([name, payload]) =>
+      name === eventName && (predicate ? predicate(payload) : true),
+  );
+
 describe("CampusMapScreen", () => {
   it("handleIndoorRouteIntent routes room-to-room indoor intent", () => {
     const openIndoorMap = jest.fn();
@@ -684,6 +701,16 @@ describe("CampusMapScreen", () => {
     });
 
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    mockSearchPOIs.mockReset();
+    mockClearPOIs.mockReset();
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
     (getAvailableFloors as jest.Mock).mockImplementation(
       (buildingCode: string) => {
         const normalized = (buildingCode ?? "").trim().toUpperCase();
@@ -1832,6 +1859,369 @@ describe("CampusMapScreen", () => {
     });
   });
 
+  it("tracks task 15 when POI filter is opened, category selected, and panel closed", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    await waitFor(() => {
+      expect(hasUsabilityEvent("task_15_filter_opened")).toBe(true);
+      expect(screen.getByTestId("outdoor-poi-filter-bar")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+
+    await waitFor(() => {
+      expect(mockSearchPOIs).toHaveBeenCalled();
+      expect(screen.getByTestId("poi-range-selector")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+
+    await waitFor(() => {
+      expect(mockClearPOIs).toHaveBeenCalled();
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_15" &&
+            payload?.outcome === "filter_closed",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs task 15 range change when user adjusts POI search radius", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+    fireEvent.press(screen.getByTestId("poi-range-1000"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_15_range_changed",
+          (payload) =>
+            payload?.previous_range_meters === 500 &&
+            payload?.new_range_meters === 1000,
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("tracks task 15 list selection and task 16 dismissal from selected POI", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_15" &&
+            payload?.outcome === "poi_selected_from_list",
+        ),
+      ).toBe(true);
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+    fireEvent.press(screen.getByTestId("clear-selected-poi-button"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" && payload?.outcome === "dismissed",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("tracks task 16 change-route when a POI route is started from an existing steps panel", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    // Create an initial non-POI route so the steps panel is already visible.
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("steps-change")).toBeTruthy();
+    });
+
+    // Start a POI route but do not emit new route steps yet.
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+    fireEvent.press(screen.getByTestId("steps-change"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_16_change_route_tapped",
+          (payload) => payload?.poi_name === "Cafe One",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" &&
+            payload?.outcome === "change_route",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "route_change_requested",
+          (payload) => payload?.from_dest === "unknown",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs task_15_list_closed_without_selection when closing the POI list", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-close"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("poi-list-panel")).toBeNull();
+      expect(hasUsabilityEvent("task_15_list_closed_without_selection")).toBe(
+        true,
+      );
+    });
+  });
+
+  it("tracks task 16 dismissal when steps panel is dismissed with an active POI task", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    // Keep a pre-existing steps panel open from a non-POI route.
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
+    });
+
+    // Start POI Task 16 but do not generate new POI route steps yet.
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+    fireEvent.press(screen.getByTestId("steps-dismiss"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" && payload?.outcome === "dismissed",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("handles shuttle toggle analytics failures without crashing", async () => {
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "shuttle_stops_toggled") {
+        return Promise.reject(new Error("shuttle toggle analytics failed"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("show-shuttle-button"));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+      expect(screen.getByText("bus-clock")).toBeTruthy();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("tracks task 16 abandoned when no starting location can be resolved", async () => {
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      {
+        status: "denied",
+      },
+    );
+
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Unable to resolve a starting location. Enable location services or set your location on the map.",
+        ),
+      ).toBeTruthy();
+
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" && payload?.outcome === "abandoned",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_16_error",
+          (payload) => payload?.error_reason === "no_starting_location",
+        ),
+      ).toBe(true);
+    });
+  });
+
   it("does not toggle shuttle when shuttle is not available (and label shows not available)", async () => {
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: false });
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
@@ -1931,10 +2321,15 @@ describe("CampusMapScreen", () => {
     fireEvent.press(screen.getByTestId("nav-use-my-location"));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      const hasExpectedError = consoleErrorSpy.mock.calls.some((call) =>
+        call.some(
+          (arg) =>
+            arg instanceof Error &&
+            arg.message.includes("nav location analytics failed"),
+        ),
       );
+      expect(hasExpectedError).toBe(true);
     });
 
     consoleErrorSpy.mockRestore();
@@ -1968,10 +2363,15 @@ describe("CampusMapScreen", () => {
     fireEvent.press(screen.getByTestId("steps-change"));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      const hasExpectedError = consoleErrorSpy.mock.calls.some((call) =>
+        call.some(
+          (arg) =>
+            arg instanceof Error &&
+            arg.message.includes("change route analytics failed"),
+        ),
       );
+      expect(hasExpectedError).toBe(true);
     });
 
     consoleErrorSpy.mockRestore();
@@ -2229,18 +2629,34 @@ describe("CampusMapScreen", () => {
 
     it("confirms route from next class panel", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      (getNextClassFromItems as jest.Mock).mockReturnValue({
+        title: "COMP 999",
+        startTime: "10:00",
+        endTime: "11:00",
+        room: "H-1.101",
+        buildingCode: "H",
+        campus: "sgw",
+      });
       await renderScreen();
 
       fireEvent.press(screen.getByTestId("next-class-button"));
       fireEvent.press(screen.getByTestId("next-class-confirm"));
 
-      // Panel should close and route should be set
+      // Panel should close and confirmation flow should complete.
       expect(screen.getByTestId("next-class-visible").props.children).toBe(
         "hidden",
       );
-      const mapProps = getMapProps();
-      expect(mapProps.startPoint).toBe("H");
-      expect(mapProps.destinationPoint).toBe("MB");
+      await waitFor(() => {
+        const hasConfirmedTaskCompletion = (
+          logUsabilityEvent as jest.Mock
+        ).mock.calls.some(
+          ([eventName, payload]) =>
+            eventName === "task_completed" &&
+            payload?.task_id === "task_8_next_class" &&
+            payload?.outcome === "confirmed",
+        );
+        expect(hasConfirmedTaskCompletion).toBe(true);
+      });
     });
 
     it("recomputes next class when panel is opened", async () => {

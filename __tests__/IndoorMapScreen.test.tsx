@@ -56,10 +56,10 @@ jest.mock("../utils/indoorPOI", () => ({
 }));
 
 import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
@@ -67,15 +67,16 @@ import { BUILDINGS } from "../constants/buildings";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
-    getIndoorNavigationRoute,
-    getIndoorNavigationRouteFromNode,
-    getIndoorNavigationRouteToNode,
+  getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-    getBuildingPlanAsset,
-    getFloorImageMetadata,
+  getBuildingPlanAsset,
+  getFloorImageMetadata,
 } from "../utils/mapAssets";
+import { parseTransitionPayload } from "../utils/routeTransition";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 jest.mock("../utils/destinationIndoorLeg", () => ({
@@ -140,6 +141,21 @@ const mockMBPlan = {
     1: [mockMBRoom],
   },
 };
+
+function expectConsoleErrorWithMessage(
+  consoleErrorSpy: jest.SpyInstance,
+  expectedMessage: string,
+) {
+  const hasExpectedError = consoleErrorSpy.mock.calls.some((call) =>
+    call.some(
+      (arg: unknown) =>
+        arg instanceof Error &&
+        typeof arg.message === "string" &&
+        arg.message.includes(expectedMessage),
+    ),
+  );
+  expect(hasExpectedError).toBe(true);
+}
 
 describe("IndoorMapScreen", () => {
   let warnSpy: jest.SpyInstance;
@@ -1049,6 +1065,163 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("blocks building-to-campus navigation from indoor map and shows cross-building guidance", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "SGW",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation(
+      (_plan: any, query: string) => {
+        if (query === "H-867") return { room: mockHallRoom };
+        return null;
+      },
+    );
+
+    render(<IndoorMapScreen />);
+
+    fireEvent.press(screen.getByText("Go"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Cross-building directions start from the Campus Map/i,
+        ),
+      ).toBeTruthy();
+    });
+    expect(getIndoorNavigationRoute).not.toHaveBeenCalled();
+  });
+
+  it("Continue outside includes usability task metadata when params are valid", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+      usabilityTaskId: "task_13",
+      usabilityTaskStartedAtMs: "12345",
+      destinationRoomQuery: "MB-1.210",
+    });
+
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === "H",
+    );
+    const near = originBuilding?.coordinates ?? {
+      latitude: 45.4971,
+      longitude: -73.5791,
+    };
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation(
+      (_plan: any, query: string) => {
+        if (query === "H-867") return { room: mockHallRoom };
+        return null;
+      },
+    );
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: near,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("continue-outside")).toBeTruthy(),
+    );
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+
+    const pushArg = mockPush.mock.calls.at(-1)?.[0];
+    const transition = parseTransitionPayload(pushArg?.params?.transition);
+    expect(transition?.usabilityTaskId).toBe("task_13");
+    expect(transition?.usabilityTaskStartedAtMs).toBe(12345);
+    expect(pushArg?.params?.destinationRoomQuery).toBe("MB-1.210");
+  });
+
+  it("Continue outside omits usability task metadata when params are invalid", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "MB",
+      usabilityTaskId: "task_999",
+      usabilityTaskStartedAtMs: "not-a-number",
+    });
+
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === "H",
+    );
+    const near = originBuilding?.coordinates ?? {
+      latitude: 45.4971,
+      longitude: -73.5791,
+    };
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation(
+      (_plan: any, query: string) => {
+        if (query === "H-867") return { room: mockHallRoom };
+        return null;
+      },
+    );
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: near,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("continue-outside")).toBeTruthy(),
+    );
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+
+    const pushArg = mockPush.mock.calls.at(-1)?.[0];
+    const transition = parseTransitionPayload(pushArg?.params?.transition);
+    expect(transition?.usabilityTaskId).toBeUndefined();
+    expect(transition?.usabilityTaskStartedAtMs).toBeUndefined();
+  });
+
   it("shows no map when buildingName is undefined", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: undefined,
@@ -1893,9 +2066,9 @@ describe("IndoorMapScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("From (H-110)"), "H");
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "origin analytics failure",
       );
     });
 
@@ -1905,9 +2078,9 @@ describe("IndoorMapScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("To (H-920)"), "H");
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "destination analytics failure",
       );
     });
 
@@ -1917,10 +2090,7 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByText("-2"));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
-      );
+      expectConsoleErrorWithMessage(consoleErrorSpy, "floor analytics failure");
     });
 
     consoleErrorSpy.mockRestore();
@@ -1962,9 +2132,9 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "route generated analytics failure",
       );
     });
 
@@ -1999,9 +2169,9 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "route failed analytics failure",
       );
     });
 
@@ -2047,9 +2217,9 @@ describe("IndoorMapScreen", () => {
     fireEvent.press(screen.getByText("✕"));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Firebase Analytics Error: ",
-        expect.any(Error),
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "close panel analytics failure",
       );
     });
 
