@@ -158,6 +158,20 @@ jest.mock("../components/CampusMap", () => {
           props.onViewIndoorMap?.({ name: "H", displayName: "Hall" })
         }
       />
+      <Button
+        testID="trigger-select-poi-map"
+        title="Select POI From Map"
+        onPress={() =>
+          props.onSelectPOI?.({
+            placeId: "poi-map-1",
+            name: "Map Cafe",
+            latitude: 45.4971,
+            longitude: -73.5791,
+            vicinity: "Map Street",
+            categoryId: "coffee",
+          })
+        }
+      />
     </View>
   );
 
@@ -1961,6 +1975,35 @@ describe("CampusMapScreen", () => {
             payload?.task_id === "task_16" && payload?.outcome === "dismissed",
         ),
       ).toBe(true);
+    });
+  });
+
+  it("tracks task 15 map selection with poi_selected_from_map outcome", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+    fireEvent.press(screen.getByTestId("trigger-select-poi-map"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_15" &&
+            payload?.outcome === "poi_selected_from_map",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_15_poi_detail_viewed",
+          (payload) =>
+            payload?.source === "map" && payload?.poi_name === "Map Cafe",
+        ),
+      ).toBe(true);
+
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
     });
   });
 

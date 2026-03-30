@@ -2141,6 +2141,105 @@ describe("IndoorMapScreen", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("handles analytics failure when indoor map screen load logging rejects", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_map_screen_loaded") {
+        return Promise.reject(new Error("screen load analytics failure"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() => {
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "screen load analytics failure",
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles analytics failure when task_11 completion logging rejects", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1]),
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "task_completed") {
+        return Promise.reject(
+          new Error("task_11 completion analytics failure"),
+        );
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    const washroomChip = await waitFor(() =>
+      screen.getByTestId("poi-filter-chip-washroom"),
+    );
+    fireEvent.press(washroomChip);
+
+    await waitFor(() => {
+      expectConsoleErrorWithMessage(
+        consoleErrorSpy,
+        "task_11 completion analytics failure",
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles synchronous analytics exceptions during POI toggles", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1]),
+    });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_poi_category_toggled") {
+        throw new Error("poi toggle sync analytics failure");
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    render(<IndoorMapScreen />);
+
+    const washroomChip = await waitFor(() =>
+      screen.getByTestId("poi-filter-chip-washroom"),
+    );
+    fireEvent.press(washroomChip);
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it("handles analytics failure when route failure event logging rejects", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",

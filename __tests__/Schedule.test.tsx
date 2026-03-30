@@ -1331,6 +1331,46 @@ describe("ScheduleScreen additional coverage", () => {
     });
   });
 
+  it("completes auth session when initial URL includes oauthredirect", async () => {
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: null,
+      meta: null,
+    });
+    mockLoadCachedSchedule.mockResolvedValueOnce(null);
+    mockGetInitialURL.mockResolvedValueOnce(
+      "snortingcode://oauthredirect?code=abc",
+    );
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockMaybeCompleteAuthSession).toHaveBeenCalled();
+    });
+  });
+
+  it("completes auth session when a url event contains oauthredirect", async () => {
+    let urlHandler: ((event: { url: string }) => void) | undefined;
+    mockAddEventListener.mockImplementationOnce(
+      (_event: string, handler: (event: { url: string }) => void) => {
+        urlHandler = handler;
+        return { remove: jest.fn() };
+      },
+    );
+    mockGetInitialURL.mockResolvedValueOnce(null);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockAddEventListener).toHaveBeenCalledWith("url", expect.any(Function));
+    });
+
+    act(() => {
+      urlHandler?.({ url: "snortingcode://oauthredirect?state=1" });
+    });
+
+    expect(mockMaybeCompleteAuthSession).toHaveBeenCalled();
+  });
+
   it("AppState listener does not sync if accessTokenRef.current is null", async () => {
     (AppState as any).currentState = "background";
     mockGetGoogleAccessToken.mockResolvedValueOnce({
