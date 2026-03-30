@@ -110,6 +110,60 @@ type RouteConfirmIntent =
   }
   | { kind: "outdoor_route" };
 
+type IndoorRouteIntent =
+  | {
+    kind: "same_building_indoor_room_to_room";
+    buildingCode: string;
+    navOrigin: string;
+    navDest: string;
+    accessibleOnly?: boolean;
+  }
+  | {
+    kind: "same_building_indoor_to_room";
+    buildingCode: string;
+    roomQuery: string;
+    accessibleOnly?: boolean;
+  };
+
+type OpenIndoorMapFn = (
+  buildingCode?: string | null,
+  roomQuery?: string,
+  navOrigin?: string,
+  navDest?: string,
+  accessibleOnlyOverride?: boolean,
+) => void;
+
+export function handleIndoorRouteIntent({
+  intent,
+  openIndoorMap,
+  setIsNavVisible,
+}: {
+  intent: IndoorRouteIntent;
+  openIndoorMap: OpenIndoorMapFn;
+  setIsNavVisible: (visible: boolean) => void;
+}): void {
+  setIsNavVisible(false);
+
+  if (intent.kind === "same_building_indoor_room_to_room") {
+    openIndoorMap(
+      intent.buildingCode,
+      undefined,
+      intent.navOrigin,
+      intent.navDest,
+      intent.accessibleOnly,
+    );
+    return;
+  }
+
+  openIndoorMap(
+    intent.buildingCode,
+    intent.roomQuery,
+    undefined,
+    undefined,
+    intent.accessibleOnly,
+  );
+}
+
 function buildRouteConfirmIntent({
   start,
   dest,
@@ -650,27 +704,15 @@ export default function CampusMapScreen() {
         return;
       }
 
-      if (intent.kind === "same_building_indoor_room_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          undefined,
-          intent.navOrigin,
-          intent.navDest,
-          intent.accessibleOnly,
-        );
-        return;
-      }
-
-      if (intent.kind === "same_building_indoor_to_room") {
-        setIsNavVisible(false);
-        openIndoorMap(
-          intent.buildingCode,
-          intent.roomQuery,
-          undefined,
-          undefined,
-          intent.accessibleOnly,
-        );
+      if (
+        intent.kind === "same_building_indoor_room_to_room" ||
+        intent.kind === "same_building_indoor_to_room"
+      ) {
+        handleIndoorRouteIntent({
+          intent,
+          openIndoorMap,
+          setIsNavVisible,
+        });
         return;
       }
 
