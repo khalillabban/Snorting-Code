@@ -30,6 +30,15 @@ import {
 } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
+  getFloorContentBounds,
+  getFloorImageDimensions,
+  getFloorStageLayout,
+  isLikelyNearOriginBuilding,
+  parseOutdoorStrategyParam,
+  trimParam,
+  type FloorViewport
+} from "../utils/indoorMapScreenHelpers";
+import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
@@ -44,164 +53,9 @@ import {
   serializeTransitionPayload,
   type IndoorToOutdoorTransitionPayload,
 } from "../utils/routeTransition";
-const FLOOR_FRAME_PADDING = spacing.md;
-const FLOOR_CONTENT_PADDING = 120;
-const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
 const DEFAULT_VIEWPORT_HEIGHT = 420;
 const DEFAULT_AVAILABLE_FLOORS = [1] as const;
-type FloorViewport = {
-  width: number;
-  height: number;
-};
-
-type FloorBounds = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-};
-
-type FloorStageLayout = {
-  frameLeft: number;
-  frameTop: number;
-  frameWidth: number;
-  frameHeight: number;
-  imageLeft: number;
-  imageTop: number;
-  imageWidth: number;
-  imageHeight: number;
-  scale: number;
-};
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
-}
-
-function getFloorImageDimensions(
-  floorImageMetadata:
-    | {
-      width: number;
-      height: number;
-    }
-    | undefined,
-  currentFloorRooms: IndoorRoomRecord[],
-) {
-  return {
-    width:
-      floorImageMetadata?.width ??
-      Math.max(1200, ...currentFloorRooms.map((room) => room.x + 80)),
-    height:
-      floorImageMetadata?.height ??
-      Math.max(900, ...currentFloorRooms.map((room) => room.y + 80)),
-  };
-}
-
-function getFloorContentBounds(
-  floorImageDimensions: { width: number; height: number },
-  currentFloorRooms: IndoorRoomRecord[],
-): FloorBounds {
-  if (currentFloorRooms.length === 0) {
-    return {
-      minX: 0,
-      minY: 0,
-      maxX: floorImageDimensions.width,
-      maxY: floorImageDimensions.height,
-    };
-  }
-
-  const rawMinX = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.x)) -
-    FLOOR_CONTENT_PADDING,
-    0,
-    floorImageDimensions.width,
-  );
-  const rawMaxX = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.x)) +
-    FLOOR_CONTENT_PADDING,
-    0,
-    floorImageDimensions.width,
-  );
-  const rawMinY = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.y)) -
-    FLOOR_CONTENT_PADDING,
-    0,
-    floorImageDimensions.height,
-  );
-  const rawMaxY = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.y)) +
-    FLOOR_CONTENT_PADDING,
-    0,
-    floorImageDimensions.height,
-  );
-
-  const centerX = (rawMinX + rawMaxX) / 2;
-  const centerY = (rawMinY + rawMaxY) / 2;
-  const targetWidth = Math.min(
-    floorImageDimensions.width,
-    Math.max(rawMaxX - rawMinX, MIN_CONTENT_SPAN),
-  );
-  const targetHeight = Math.min(
-    floorImageDimensions.height,
-    Math.max(rawMaxY - rawMinY, MIN_CONTENT_SPAN),
-  );
-  const minX = clamp(
-    centerX - targetWidth / 2,
-    0,
-    Math.max(floorImageDimensions.width - targetWidth, 0),
-  );
-  const minY = clamp(
-    centerY - targetHeight / 2,
-    0,
-    Math.max(floorImageDimensions.height - targetHeight, 0),
-  );
-
-  return {
-    minX,
-    minY,
-    maxX: minX + targetWidth,
-    maxY: minY + targetHeight,
-  };
-}
-
-function getFloorStageLayout(
-  viewport: FloorViewport,
-  floorImageDimensions: { width: number; height: number },
-  floorBounds: FloorBounds,
-): FloorStageLayout {
-  const availableWidth = Math.max(viewport.width - FLOOR_FRAME_PADDING * 2, 1);
-  const availableHeight = Math.max(
-    viewport.height - FLOOR_FRAME_PADDING * 2,
-    1,
-  );
-  const contentWidth = Math.max(floorBounds.maxX - floorBounds.minX, 1);
-  const contentHeight = Math.max(floorBounds.maxY - floorBounds.minY, 1);
-  const scale = Math.min(
-    availableWidth / contentWidth,
-    availableHeight / contentHeight,
-  );
-  const frameWidth = contentWidth * scale;
-  const frameHeight = contentHeight * scale;
-  const frameLeft = (viewport.width - frameWidth) / 2;
-  const frameTop = (viewport.height - frameHeight) / 2;
-
-  return {
-    frameLeft,
-    frameTop,
-    frameWidth,
-    frameHeight,
-    imageLeft: -floorBounds.minX * scale,
-    imageTop: -floorBounds.minY * scale,
-    imageWidth: floorImageDimensions.width * scale,
-    imageHeight: floorImageDimensions.height * scale,
-    scale,
-  };
-}
-
-function trimParam(val: unknown): string {
-  return typeof val === "string" ? val.trim() : "";
-}
-
 function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
   useEffect(() => {
     if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
@@ -290,14 +144,15 @@ export default function IndoorMapScreen() {
   });
 
   const [navOriginQuery, setNavOriginQuery] = useState(
-    typeof navOrigin === "string" ? navOrigin.trim() : "",
+    trimParam(navOrigin),
   );
   const [navDestQuery, setNavDestQuery] = useState(
-    typeof navDest === "string" ? navDest.trim() : "",
+    trimParam(navDest),
   );
 
-  const destinationRoomQueryText =
-    typeof destinationRoomQuery === "string" ? destinationRoomQuery.trim() : "";
+  const destinationRoomQueryText = trimParam(destinationRoomQuery);
+  const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
+  const outdoorDestBuildingCode = trimmedOutdoorDestBuilding.toUpperCase();
 
   useEffect(() => {
     if (!availableFloors.length) return;
@@ -311,11 +166,11 @@ export default function IndoorMapScreen() {
   // Cross-building origin leg UX: show the final destination room in the "To" input,
   // even though we route to an exit based on `outdoorDestBuilding`.
   useEffect(() => {
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (!isCrossBuildingOriginLeg) return;
     if (!destinationRoomQueryText) return;
     setNavDestQuery(destinationRoomQueryText);
-  }, [destinationRoomQueryText, outdoorDestBuilding]);
+  }, [destinationRoomQueryText, trimmedOutdoorDestBuilding]);
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
   const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -404,7 +259,6 @@ export default function IndoorMapScreen() {
   );
 
   const showFloorImageMap = floorImageAsset != null;
-  const showNoMapMessage = !showFloorImageMap;
 
   const selectedRoomOnCurrentFloor = useMemo(() => {
     if (selectedRoom?.floor !== selectedFloor) return null;
@@ -562,11 +416,10 @@ export default function IndoorMapScreen() {
   const routeToBestExitForCrossBuildingOrigin = useCallback((): boolean => {
     if (!buildingName) return true;
 
-    const destBuildingCode = trimParam(outdoorDestBuilding).toUpperCase();
     const isCrossBuildingSignal =
-      Boolean(destBuildingCode) &&
-      destBuildingCode !== buildingName.trim().toUpperCase();
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+      Boolean(outdoorDestBuildingCode) &&
+      outdoorDestBuildingCode !== buildingName.trim().toUpperCase();
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
 
     if (!(isCrossBuildingOriginLeg && isCrossBuildingSignal)) return false;
 
@@ -624,7 +477,8 @@ export default function IndoorMapScreen() {
     buildingName,
     failNavigation,
     navOriginQuery,
-    outdoorDestBuilding,
+    outdoorDestBuildingCode,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleNavigate = useCallback(() => {
@@ -648,7 +502,7 @@ export default function IndoorMapScreen() {
     // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
     // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
     // different building code as navDest because it means "route to an exit and continue outside".
-    const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
+    const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (
       !isCrossBuildingOriginLeg &&
       (isCampusCode || isDifferentBuildingCode) &&
@@ -679,14 +533,14 @@ export default function IndoorMapScreen() {
     buildingName,
     navDestQuery,
     navOriginQuery,
-    outdoorDestBuilding,
     routeDestinationIndoorLegFromEntrance,
     routeToBestExitForCrossBuildingOrigin,
+    trimmedOutdoorDestBuilding,
   ]);
 
   const handleContinueOutside = useCallback(() => {
     if (!buildingName) return;
-    const destCode = trimParam(outdoorDestBuilding).toUpperCase();
+    const destCode = outdoorDestBuildingCode;
     if (!destCode) return;
 
     // Choose a sane outdoor starting point. Prefer the selected exit's outdoorLatLng.
@@ -696,23 +550,10 @@ export default function IndoorMapScreen() {
       (b) => b.name.trim().toUpperCase() === originCode,
     );
 
-    // Guardrail: never start the outdoor leg from a coordinate that is clearly not near
-    // the current building (stale state, bad exit metadata, etc.).
-    const isLikelyNearOriginBuilding = (candidate: { latitude: number; longitude: number }) => {
-      const origin = originBuilding?.coordinates;
-      if (!origin) return true; // can’t validate; accept
-      const dLat = candidate.latitude - origin.latitude;
-      const dLng = candidate.longitude - origin.longitude;
-      // Rough distance check in degrees. For Concordia SGW buildings this should be very small.
-      const distSq = dLat * dLat + dLng * dLng;
-      // ~0.003 degrees is on the order of a few hundred meters; different campuses will be far larger.
-      return distSq < 0.003 * 0.003;
-    };
-
-    const candidateExitOutdoor = pendingExitOutdoor;
     const effectiveExitOutdoor =
-      candidateExitOutdoor && isLikelyNearOriginBuilding(candidateExitOutdoor)
-        ? candidateExitOutdoor
+      pendingExitOutdoor &&
+      isLikelyNearOriginBuilding(pendingExitOutdoor, originBuilding?.coordinates)
+        ? pendingExitOutdoor
         : originBuilding?.coordinates ?? null;
     if (!effectiveExitOutdoor) {
       setNavError(
@@ -734,17 +575,7 @@ export default function IndoorMapScreen() {
         y: 0,
       },
       destinationBuildingCode: destCode,
-      strategy: (() => {
-        if (typeof outdoorStrategy !== "string" || !outdoorStrategy) return undefined;
-        try {
-          return JSON.parse(outdoorStrategy);
-        } catch (e) {
-          // If the strategy param is malformed, ignore it and continue with defaults.
-          // Sonar: don't swallow exceptions silently.
-          console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
-          return undefined;
-        }
-      })(),
+      strategy: parseOutdoorStrategyParam(outdoorStrategy),
       accessibleOnly:
         outdoorAccessibleOnly === "true" || accessibleOnly === true,
       exitOutdoor: effectiveExitOutdoor,
@@ -757,7 +588,7 @@ export default function IndoorMapScreen() {
         ...(destinationRoomQueryText ? { destinationRoomQuery: destinationRoomQueryText } : {}),
       },
     });
-  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuilding, outdoorStrategy, pendingExitOutdoor, router]);
+  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuildingCode, outdoorStrategy, pendingExitOutdoor, router]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
@@ -825,7 +656,7 @@ export default function IndoorMapScreen() {
           </View>
         )}
 
-        {Boolean(activeRoute) && Boolean(trimParam(outdoorDestBuilding)) && (
+        {Boolean(activeRoute) && Boolean(trimmedOutdoorDestBuilding) && (
           <View style={{ marginTop: spacing.sm }}>
             {destinationRoomQueryText ? (
               <Text style={{ color: colors.gray700, marginBottom: spacing.xs }}>
@@ -968,7 +799,7 @@ export default function IndoorMapScreen() {
             )}
           </View>
         ) : (
-          showNoMapMessage && (
+          !showFloorImageMap && (
             <View style={styles.emptyState}>
               <Text>No map available for {mapKey}</Text>
             </View>
