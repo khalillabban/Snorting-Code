@@ -1,3 +1,4 @@
+import { getSessionId } from "@/constants/usabilityConfig";
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
@@ -198,6 +199,8 @@ function handleScheduleInitError(
 }
 
 export default function ScheduleScreen() {
+  const sessionId = useRef(getSessionId());
+
   const { request, promptAsync, getResultFromResponse, response } =
     useGoogleCalendarAuth({ useProxy: false });
 
@@ -219,12 +222,11 @@ export default function ScheduleScreen() {
   //  Usability Testing: Task 8 timers
   const scheduleScreenLoadTime = useRef<number>(Date.now());
   const connectStartTime = useRef<number | null>(null);
-
-  // Task 8: Log when Schedule screen loads
   useEffect(() => {
     scheduleScreenLoadTime.current = Date.now();
     const run = async () => {
       await logUsabilityEvent("schedule_screen_loaded", {
+        session_id: sessionId.current,
         timestamp: new Date().toISOString(),
       });
     };

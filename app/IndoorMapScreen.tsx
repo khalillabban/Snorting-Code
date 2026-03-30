@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Crypto from "expo-crypto";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -26,7 +25,7 @@ import {
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
-import { USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
+import { getSessionId, USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   isDestinationLegOrigin,
@@ -312,8 +311,6 @@ export default function IndoorMapScreen() {
     }
   }, [availableFloors, selectedFloor]);
 
-  // Cross-building origin leg UX: show the final destination room in the "To" input,
-  // even though we route to an exit based on `outdoorDestBuilding`.
   useEffect(() => {
     const isCrossBuildingOriginLeg = Boolean(trimParam(outdoorDestBuilding));
     if (!isCrossBuildingOriginLeg) return;
@@ -328,7 +325,7 @@ export default function IndoorMapScreen() {
   >(new Set());
 
   // ── Usability Testing ────────────────────────────────────────────────────
-  const sessionId = useRef(`session_${Date.now()}_${Crypto.randomUUID()}`);
+  const sessionId = useRef(getSessionId());
   const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});

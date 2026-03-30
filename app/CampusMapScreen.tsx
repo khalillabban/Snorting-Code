@@ -1,6 +1,6 @@
+import { getSessionId } from "@/constants/usabilityConfig";
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,7 +38,10 @@ import {
   getNextClassFromItems,
   loadCachedSchedule,
 } from "../utils/parseCourseEvents";
-import { parseTransitionPayload, serializeTransitionPayload } from "../utils/routeTransition";
+import {
+  parseTransitionPayload,
+  serializeTransitionPayload,
+} from "../utils/routeTransition";
 
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -130,36 +133,36 @@ function parseStartedAtMs(value: unknown): number | null {
 
 type RouteConfirmIntent =
   | {
-    kind: "cross_building_indoor_to_indoor";
-    originBuildingCode: string;
-    destinationBuildingCode: string;
-    originIndoorRoomQuery: string;
-    destinationIndoorRoomQuery: string;
-    strategy: RouteStrategy;
-    accessibleOnly: boolean;
-    campus: CampusKey;
-  }
+      kind: "cross_building_indoor_to_indoor";
+      originBuildingCode: string;
+      destinationBuildingCode: string;
+      originIndoorRoomQuery: string;
+      destinationIndoorRoomQuery: string;
+      strategy: RouteStrategy;
+      accessibleOnly: boolean;
+      campus: CampusKey;
+    }
   | {
-    kind: "cross_building_indoor_to_outdoor";
-    startBuilding: Buildings;
-    destBuilding: Buildings;
-    startRoom: IndoorRoomRecord;
-    strategy: RouteStrategy;
-    accessibleOnly: boolean;
-  }
+      kind: "cross_building_indoor_to_outdoor";
+      startBuilding: Buildings;
+      destBuilding: Buildings;
+      startRoom: IndoorRoomRecord;
+      strategy: RouteStrategy;
+      accessibleOnly: boolean;
+    }
   | {
-    kind: "same_building_indoor_room_to_room";
-    buildingCode: string;
-    navOrigin: string;
-    navDest: string;
-    accessibleOnly?: boolean;
-  }
+      kind: "same_building_indoor_room_to_room";
+      buildingCode: string;
+      navOrigin: string;
+      navDest: string;
+      accessibleOnly?: boolean;
+    }
   | {
-    kind: "same_building_indoor_to_room";
-    buildingCode: string;
-    roomQuery: string;
-    accessibleOnly?: boolean;
-  }
+      kind: "same_building_indoor_to_room";
+      buildingCode: string;
+      roomQuery: string;
+      accessibleOnly?: boolean;
+    }
   | { kind: "outdoor_route" };
 
 function buildRouteConfirmIntent({
@@ -179,8 +182,10 @@ function buildRouteConfirmIntent({
 }): RouteConfirmIntent {
   const hasStartName = Boolean(start?.name);
   const hasDestName = Boolean(dest?.name);
-  const isCrossBuilding = hasStartName && hasDestName && start?.name !== dest?.name;
-  const isSameBuilding = hasStartName && hasDestName && start?.name === dest?.name;
+  const isCrossBuilding =
+    hasStartName && hasDestName && start?.name !== dest?.name;
+  const isSameBuilding =
+    hasStartName && hasDestName && start?.name === dest?.name;
 
   if (isCrossBuilding && startRoom && endRoom && start?.name && dest?.name) {
     return {
@@ -285,7 +290,7 @@ export default function CampusMapScreen() {
   }, [transitionPayload]);
 
   // ── Usability Testing ────────────────────────────────────────────────────
-  const sessionId = useRef(`session_${Date.now()}_${Crypto.randomUUID()}`);
+  const sessionId = useRef(getSessionId());
   const mapLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
   const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
@@ -359,7 +364,8 @@ export default function CampusMapScreen() {
     start: Buildings | null;
     dest: Buildings | null;
   }>({ start: null, dest: null });
-  const [selectedRouteEndRoom, setSelectedRouteEndRoom] = useState<IndoorRoomRecord | null>(null);
+  const [selectedRouteEndRoom, setSelectedRouteEndRoom] =
+    useState<IndoorRoomRecord | null>(null);
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
@@ -387,7 +393,10 @@ export default function CampusMapScreen() {
 
   const destinationRoomQueryText = useMemo(() => {
     // Preferred source: an explicit query param (ex: app launched with a room destination).
-    if (typeof destinationRoomQuery === "string" && destinationRoomQuery.trim()) {
+    if (
+      typeof destinationRoomQuery === "string" &&
+      destinationRoomQuery.trim()
+    ) {
       return destinationRoomQuery;
     }
 
@@ -395,13 +404,15 @@ export default function CampusMapScreen() {
     // final indoor room query is carried in the transition payload.
     if (transitionPayload?.mode === "indoor_to_outdoor") {
       const payloadRoom = transitionPayload.destinationIndoorRoomQuery;
-      if (typeof payloadRoom === "string" && payloadRoom.trim()) return payloadRoom;
+      if (typeof payloadRoom === "string" && payloadRoom.trim())
+        return payloadRoom;
     }
 
     // Fallback: if the user planned a route from a building to an indoor room on the campus map
     // itself (without a URL param), `handleConfirmRoute` stores the room record in state.
     const endRoomLabel = selectedRouteEndRoom?.label;
-    if (typeof endRoomLabel === "string" && endRoomLabel.trim()) return endRoomLabel;
+    if (typeof endRoomLabel === "string" && endRoomLabel.trim())
+      return endRoomLabel;
 
     return "";
   }, [destinationRoomQuery, transitionPayload, selectedRouteEndRoom]);
@@ -649,11 +660,11 @@ export default function CampusMapScreen() {
           ...(navOrigin ? { navOrigin } : {}),
           ...(navDest
             ? {
-              navDest,
-              // Keep the "To" input in sync with the final destination room.
-              // (Do not overwrite a roomQuery passed explicitly by callers.)
-              ...(roomQuery ? {} : { roomQuery: navDest }),
-            }
+                navDest,
+                // Keep the "To" input in sync with the final destination room.
+                // (Do not overwrite a roomQuery passed explicitly by callers.)
+                ...(roomQuery ? {} : { roomQuery: navDest }),
+              }
             : {}),
           accessibleOnly: String(accessibleOnlyOverride ?? accessibleOnly),
         },
