@@ -813,11 +813,14 @@ export default function IndoorMapScreen() {
         result.route.origin.floor !==
         (result.route.destination?.floor ?? result.route.origin.floor);
 
-      const taskId = accessibleOnly
-        ? "task_10"
-        : isCrossFloor
-          ? "task_12"
-          : "task_9";
+      let taskId: "task_9" | "task_10" | "task_12";
+      if (accessibleOnly) {
+        taskId = "task_10";
+      } else if (isCrossFloor) {
+        taskId = "task_12";
+      } else {
+        taskId = "task_9";
+      }
 
       await logUsabilityEvent("indoor_route_generated", {
         session_id: sessionId.current,
