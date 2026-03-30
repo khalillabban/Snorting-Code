@@ -33,6 +33,7 @@ import {
   getFloorContentBounds,
   getFloorImageDimensions,
   getFloorStageLayout,
+  parseOutdoorStrategyParam,
   trimParam,
   type FloorViewport
 } from "../utils/indoorMapScreenHelpers";
@@ -588,17 +589,7 @@ export default function IndoorMapScreen() {
         y: 0,
       },
       destinationBuildingCode: destCode,
-      strategy: (() => {
-        if (typeof outdoorStrategy !== "string" || !outdoorStrategy) return undefined;
-        try {
-          return JSON.parse(outdoorStrategy);
-        } catch (e) {
-          // If the strategy param is malformed, ignore it and continue with defaults.
-          // Sonar: don't swallow exceptions silently.
-          console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
-          return undefined;
-        }
-      })(),
+      strategy: parseOutdoorStrategyParam(outdoorStrategy),
       accessibleOnly:
         outdoorAccessibleOnly === "true" || accessibleOnly === true,
       exitOutdoor: effectiveExitOutdoor,

@@ -1,5 +1,6 @@
 import { spacing } from "../constants/theme";
 import { type IndoorRoomRecord } from "./indoorBuildingPlan";
+import { type IndoorToOutdoorTransitionPayload } from "./routeTransition";
 
 const FLOOR_FRAME_PADDING = spacing.md;
 const FLOOR_CONTENT_PADDING = 120;
@@ -145,4 +146,17 @@ export function getFloorStageLayout(
 
 export function trimParam(val: unknown): string {
   return typeof val === "string" ? val.trim() : "";
+}
+
+export function parseOutdoorStrategyParam(
+  outdoorStrategy: string | undefined,
+): IndoorToOutdoorTransitionPayload["strategy"] | undefined {
+  if (typeof outdoorStrategy !== "string" || !outdoorStrategy) return undefined;
+
+  try {
+    return JSON.parse(outdoorStrategy) as IndoorToOutdoorTransitionPayload["strategy"];
+  } catch (e) {
+    console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
+    return undefined;
+  }
 }
