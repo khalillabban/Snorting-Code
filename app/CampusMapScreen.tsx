@@ -397,6 +397,8 @@ export default function CampusMapScreen() {
     });
   }, [transitionPayload]);
 
+  const handledTransitionRef = useRef<string | null>(null);
+
   // Usability Testing
   const sessionId = useRef(getSessionId());
   const mapLoadTime = useRef<number>(Date.now());
@@ -755,6 +757,9 @@ export default function CampusMapScreen() {
   useEffect(() => {
     if (transitionPayload?.mode !== "indoor_to_outdoor") return;
 
+    const transitionKey = transition ?? "";
+    if (handledTransitionRef.current === transitionKey) return;
+
     const destCode = transitionPayload.destinationBuildingCode
       ?.trim()
       .toUpperCase();
@@ -764,6 +769,8 @@ export default function CampusMapScreen() {
       (b) => b.name.trim().toUpperCase() === destCode,
     );
     if (!destBuilding) return;
+
+    handledTransitionRef.current = transitionKey;
 
     const originCode = transitionPayload.originBuildingCode
       ?.trim()
@@ -800,8 +807,7 @@ export default function CampusMapScreen() {
     });
     setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
     setRouteFocusTrigger((c) => c + 1);
-    setIsNavVisible(true);
-  }, [transitionPayload, findNearestBuilding]);
+  }, [transitionPayload, findNearestBuilding, transition]);
 
   const mergedSteps = useMemo(() => {
     if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
@@ -2024,7 +2030,6 @@ export default function CampusMapScreen() {
           onDismiss={async () => {
             finalizeActiveIndoorOutdoorTask();
 
-            // ── Task 16: user dismissed the steps panel ───────────────────
             if (task16Snapshot.current && !task16EndedRef.current) {
               await finalizeTask16("dismissed", {
                 poiName:
@@ -2032,6 +2037,7 @@ export default function CampusMapScreen() {
               });
             }
 
+            handledTransitionRef.current = null;
             setSelectedRoute({ start: null, dest: null });
             setActiveOutdoorPOIRoute(null);
             setRouteSteps([]);
