@@ -67,14 +67,12 @@ function useFloorSync(availableFloors: number[], selectedFloor: number, setSelec
 function useInitialRoomQuery(
   initialRoomQuery: string,
   availableFloors: number[],
-  setSearchQuery: (q: string) => void,
   performRoomSearch: (q: string, floor: number) => void,
 ) {
   useEffect(() => {
     if (!initialRoomQuery) return;
-    setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch, setSearchQuery]);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
 }
 
 function useNavAutoTrigger(
@@ -133,7 +131,6 @@ export default function IndoorMapScreen() {
     return [...DEFAULT_AVAILABLE_FLOORS];
   }, [buildingName, floors]);
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
@@ -209,7 +206,6 @@ export default function IndoorMapScreen() {
   }, []);
 
   useEffect(() => {
-    setSearchQuery("");
     setSearchError(null);
     setSelectedRoom(null);
   }, [buildingName]);
@@ -313,7 +309,6 @@ export default function IndoorMapScreen() {
       }
 
       setSelectedRoom(match.room);
-      setSearchQuery(match.room.label);
       setSearchError(null);
 
       if (match.floor !== currentFloor) {
@@ -323,7 +318,7 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
+  useInitialRoomQuery(initialRoomQuery, availableFloors, performRoomSearch);
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
