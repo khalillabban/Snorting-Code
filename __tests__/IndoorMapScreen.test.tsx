@@ -1159,6 +1159,71 @@ describe("IndoorMapScreen", () => {
     expect(pushArg?.params?.destinationRoomQuery).toBe("MB-1.210");
   });
 
+  it("Continue outside preserves task_14 usability metadata when params are valid", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([8, 9]),
+      navOrigin: "H-867",
+      navDest: "H",
+      outdoorDestBuilding: "VL",
+      usabilityTaskId: "task_14",
+      usabilityTaskStartedAtMs: "67890",
+      destinationRoomQuery: "VL-202-30",
+    });
+
+    const originBuilding = BUILDINGS.find(
+      (b) => b.name.trim().toUpperCase() === "H",
+    );
+    const near = originBuilding?.coordinates ?? {
+      latitude: 45.4971,
+      longitude: -73.5791,
+    };
+
+    (findIndoorRoomMatch as jest.Mock).mockImplementation(
+      (_plan: any, query: string) => {
+        if (query === "H-867") return { room: mockHallRoom };
+        return null;
+      },
+    );
+
+    (selectBestIndoorExit as jest.Mock).mockReturnValue({
+      success: true,
+      exit: {
+        nodeId: "exit-node-1",
+        outdoorLatLng: near,
+      },
+    });
+
+    (getIndoorNavigationRouteToNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 8, x: 0, y: 0 },
+        destination: { floor: 8, x: 1, y: 1 },
+        waypoints: [],
+        segments: [],
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("continue-outside")).toBeTruthy(),
+    );
+    fireEvent.press(screen.getByTestId("continue-outside"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/CampusMapScreen" }),
+      );
+    });
+
+    const pushArg = mockPush.mock.calls.at(-1)?.[0];
+    const transition = parseTransitionPayload(pushArg?.params?.transition);
+    expect(transition?.usabilityTaskId).toBe("task_14");
+    expect(transition?.usabilityTaskStartedAtMs).toBe(67890);
+    expect(pushArg?.params?.destinationRoomQuery).toBe("VL-202-30");
+  });
+
   it("Continue outside omits usability task metadata when params are invalid", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -2158,6 +2223,27 @@ describe("IndoorMapScreen", () => {
           building_name: "unknown",
           floor_selected: 2,
         }),
+      );
+    });
+  });
+
+  it("uses building_name fallback 'unknown' in accessible toggle analytics when buildingName is missing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: undefined,
+      floors: JSON.stringify([1]),
+    });
+
+    render(<IndoorMapScreen />);
+
+    const toggle = await waitFor(() =>
+      screen.getByTestId("indoor-accessible-mode-toggle"),
+    );
+    fireEvent.press(toggle);
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_accessible_mode_toggled",
+        expect.objectContaining({ building_name: "unknown" }),
       );
     });
   });

@@ -2526,6 +2526,44 @@ describe("CampusMapScreen", () => {
     });
   });
 
+  it("finalizes cross-campus indoor-outdoor task_14 when outdoor directions are dismissed", async () => {
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+
+    const buildingsMod = require("../constants/buildings");
+    const mb = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
+    const previousCampus = mb?.campusName;
+    if (mb) mb.campusName = "loyola";
+
+    try {
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+
+      await waitFor(() => {
+        expect(
+          hasUsabilityEvent(
+            "indoor_outdoor_task_completed",
+            (payload) =>
+              payload?.task_id === "task_14" &&
+              payload?.start_building_code === "H" &&
+              payload?.destination_building_code === "MB" &&
+              payload?.cross_campus === true,
+          ),
+        ).toBe(true);
+      });
+    } finally {
+      if (mb) mb.campusName = previousCampus;
+    }
+  });
+
   it("handles shuttle toggle analytics failures without crashing", async () => {
     (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
       if (eventName === "shuttle_stops_toggled") {
@@ -2551,6 +2589,64 @@ describe("CampusMapScreen", () => {
     });
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("logs a Firebase error when steps_panel_viewed analytics fails", async () => {
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "steps_panel_viewed") {
+        return Promise.reject(new Error("steps panel analytics failed"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("logs indoor_outdoor_combined_directions_viewed only once for the same active route", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      const count = (logUsabilityEvent as jest.Mock).mock.calls.filter(
+        ([name]) => name === "indoor_outdoor_combined_directions_viewed",
+      ).length;
+      expect(count).toBe(1);
+    });
   });
 
   it("tracks task 16 abandoned when no starting location can be resolved", async () => {

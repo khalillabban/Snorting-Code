@@ -409,6 +409,31 @@ describe("ScheduleScreen caching flow", () => {
     expect(screen.getByText("Disconnect")).toBeTruthy();
   });
 
+  it("includes session_id in schedule_displayed analytics payload", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
+      makeEvent("event-1", "COMP 346 LEC"),
+    ]);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("calendar-items-count").props.children).toBe(1);
+    });
+
+    const scheduleDisplayedCall = mockLogUsabilityEvent.mock.calls.find(
+      ([name]) => name === "schedule_displayed",
+    );
+    expect(scheduleDisplayedCall).toBeTruthy();
+    expect(scheduleDisplayedCall?.[1]).toEqual(
+      expect.objectContaining({ session_id: expect.any(String) }),
+    );
+  });
+
   it("filters cached events with invalid dates before building the schedule", async () => {
     cachedCalendarList = {
       items: [{ id: "primary", summary: "Primary", primary: true }],
@@ -971,6 +996,64 @@ describe("ScheduleScreen caching flow", () => {
       "google_connect_tapped",
       expect.any(Object),
     );
+  });
+
+  it("refreshes calendars and events when Refresh is pressed with an access token", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    // Empty events yields empty state, which shows the Refresh button.
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", []);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Refresh")).toBeTruthy();
+    });
+
+    const listCallsBefore = mockSyncCalendarList.mock.calls.length;
+    const eventCallsBefore = mockSyncCalendarEvents.mock.calls.length;
+
+    fireEvent.press(screen.getByText("Refresh"));
+
+    await waitFor(() => {
+      expect(mockSyncCalendarList.mock.calls.length).toBeGreaterThan(
+        listCallsBefore,
+      );
+      expect(mockSyncCalendarEvents.mock.calls.length).toBeGreaterThan(
+        eventCallsBefore,
+      );
+    });
+  });
+
+  it("logs non-410 calendar list sync errors during refresh without crashing", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", []);
+
+    mockSyncCalendarList.mockRejectedValueOnce(new Error("list sync failed"));
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Refresh")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Refresh"));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 
   it("disconnect clears token, schedule cache, selection cache, and Google cache", async () => {
