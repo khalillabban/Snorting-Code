@@ -46,8 +46,9 @@ app-example
 /ios
 /android
 
-# But keep the Firebase config files
-!android/app/google-services.json
+# Firebase / Google Configuration Files
+google-services.json
+GoogleService-Info.plist
 
 # test coverage
 coverage/

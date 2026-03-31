@@ -290,42 +290,25 @@ export function buildRouteConfirmIntent({
   return { kind: "outdoor_route" };
 }
 
-// ── Task 15 / 16 sub-step tracking helpers ───────────────────────────────────
+// Task 15 / 16 sub-step tracking helpers
 
-/**
- * Snapshot of state captured at the moment Task 15 or Task 16 ends so we can
- * emit a single, richly-annotated completion event that contains everything
- * needed for post-analysis without having to join multiple events.
- */
 type Task15Snapshot = {
   startedAtMs: number;
-  /** Number of times the user changed the search range while task was active */
   rangeChangeCount: number;
-  /** Number of distinct POI categories the user toggled on */
   categoryToggleCount: number;
-  /** Whether the user ever opened the list panel */
   openedListView: boolean;
-  /** Whether the user interacted with the map pins (tapped a POI on the map) */
   tappedMapPin: boolean;
-  /** Final search range in metres when the task ended */
   finalRangeMeters: number;
-  /** Number of POI results visible when the task ended */
   resultsCount: number;
 };
 
 type Task16Snapshot = {
   startedAtMs: number;
-  /** Name of the POI the user requested directions to */
   poiName: string;
-  /** Category id of the POI */
   poiCategoryId: string;
-  /** Whether the user viewed the steps panel (scrolled / saw it render) */
   viewedStepsPanel: boolean;
-  /** Number of steps in the route when the panel appeared */
   stepCount: number;
-  /** Rough estimated distance in metres */
   estimatedDistanceMeters: number;
-  /** How the task ended: success | change_route | dismissed | abandoned */
   outcome: "success" | "change_route" | "dismissed" | "abandoned";
 };
 

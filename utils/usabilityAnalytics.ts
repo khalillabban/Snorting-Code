@@ -8,5 +8,7 @@ export async function logUsabilityEvent(
   try {
     const analytics = require("@react-native-firebase/analytics").default;
     await analytics().logEvent(eventName, params);
-  } catch (e) {}
+  } catch (error) {
+    console.error("Firebase Analytics Error:", eventName, error);
+  }
 }
