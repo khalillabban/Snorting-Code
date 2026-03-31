@@ -489,6 +489,7 @@ export default function ScheduleScreen() {
 
         // Task 8: Calendars loaded successfully
         await logUsabilityEvent("calendar_list_loaded", {
+          session_id: sessionId.current,
           calendar_count: nextItems.length,
           time_since_screen_load_ms:
             Date.now() - scheduleScreenLoadTime.current,
@@ -571,6 +572,7 @@ export default function ScheduleScreen() {
         if (res.reason === "cancelled") {
           // Task 8: User cancelled Google sign-in
           void logUsabilityEvent("google_signin_cancelled", {
+            session_id: sessionId.current,
             time_spent_ms: connectStartTime.current
               ? Date.now() - connectStartTime.current
               : 0,
@@ -583,6 +585,7 @@ export default function ScheduleScreen() {
 
         // Task 8: Sign-in failed
         void logUsabilityEvent("google_signin_failed", {
+          session_id: sessionId.current,
           reason: res.message ?? "unknown",
         });
 
@@ -590,8 +593,9 @@ export default function ScheduleScreen() {
         return;
       }
 
-      // ── Task 8: Sign-in succeeded ────────────────────────────────────────
+      // Task 8: Sign-in succeeded
       void logUsabilityEvent("google_signin_success", {
+        session_id: sessionId.current,
         time_to_connect_ms: connectStartTime.current
           ? Date.now() - connectStartTime.current
           : 0,
@@ -612,6 +616,7 @@ export default function ScheduleScreen() {
     //  Task 8: Connect button tapped
     connectStartTime.current = Date.now();
     void logUsabilityEvent("google_connect_tapped", {
+      session_id: sessionId.current,
       time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
     });
     try {
@@ -640,7 +645,9 @@ export default function ScheduleScreen() {
 
   const disconnect = useCallback(async () => {
     //Task 8: Disconnect tapped
-    await logUsabilityEvent("google_calendar_disconnected", {});
+    await logUsabilityEvent("google_calendar_disconnected", {
+      session_id: sessionId.current,
+    });
 
     try {
       await deleteGoogleAccessToken();
@@ -714,6 +721,7 @@ export default function ScheduleScreen() {
 
       // Task 8: Calendar toggled
       await logUsabilityEvent("calendar_toggled", {
+        session_id: sessionId.current,
         calendar_name: calendarName,
         action: isCurrentlySelected ? "deselected" : "selected",
         selected_count: nextSelected.length,
@@ -731,13 +739,14 @@ export default function ScheduleScreen() {
     if (ui.status !== "ready" && ui.status !== "empty") return;
     const run = async () => {
       await logUsabilityEvent("schedule_displayed", {
+        session_id: sessionId.current,
         item_count: ui.status === "ready" ? ui.items.length : 0,
         status: ui.status,
         time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
       });
     };
     run();
-  }, [ui.status]);
+  }, [ui.status, ui.status === "ready" ? ui.items.length : 0]);
 
   const header = (
     <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>

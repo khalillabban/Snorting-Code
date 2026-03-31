@@ -2,9 +2,17 @@ import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { colors } from "../constants/theme";
+import {
+  resetSession,
+  USABILITY_TESTING_ENABLED,
+} from "../constants/usabilityConfig";
 
 export default function RootLayout() {
   useEffect(() => {
+    if (USABILITY_TESTING_ENABLED) {
+      resetSession();
+    }
+
     const projectKey = process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY;
 
     if (!projectKey) {

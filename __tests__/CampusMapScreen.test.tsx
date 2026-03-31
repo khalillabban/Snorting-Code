@@ -656,6 +656,15 @@ const hasUsabilityEvent = (
       name === eventName && (predicate ? predicate(payload) : true),
   );
 
+const countUsabilityEvents = (
+  eventName: string,
+  predicate?: (payload: any) => boolean,
+) =>
+  (logUsabilityEvent as jest.Mock).mock.calls.filter(
+    ([name, payload]) =>
+      name === eventName && (predicate ? predicate(payload) : true),
+  ).length;
+
 describe("CampusMapScreen", () => {
   it("handleIndoorRouteIntent routes room-to-room indoor intent", () => {
     const openIndoorMap = jest.fn();
@@ -1187,8 +1196,22 @@ describe("CampusMapScreen", () => {
         outdoorStrategy: expect.any(String),
         outdoorAccessibleOnly: expect.any(String),
         accessibleOnly: expect.any(String),
+        usabilityTaskId: "task_13",
+        usabilityTaskStartedAtMs: expect.any(String),
       }),
     );
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "indoor_outdoor_route_requested",
+          (payload) =>
+            payload?.task_id === "task_13" &&
+            payload?.start_building_code === "CC" &&
+            payload?.destination_building_code === "MB",
+        ),
+      ).toBe(true);
+    });
   });
 
   it("normalizes undefined indoor route params to empty strings for cross-building indoor-to-outdoor navigation", async () => {
@@ -2074,6 +2097,28 @@ describe("CampusMapScreen", () => {
     });
   });
 
+  it("logs task_15_list_opened once per actual POI list open", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+      expect(countUsabilityEvents("task_15_list_opened")).toBe(1);
+    });
+
+    // Keep the list open while changing controls that refresh/re-filter results.
+    fireEvent.press(screen.getByTestId("poi-range-1000"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
+    });
+
+    expect(countUsabilityEvents("task_15_list_opened")).toBe(1);
+  });
+
   it("tracks task 15 list selection and task 16 dismissal from selected POI", async () => {
     mockUseNearbyPOIs.mockReturnValue({
       pois: [
@@ -2434,6 +2479,48 @@ describe("CampusMapScreen", () => {
             payload?.task_id === "task_13" &&
             payload?.start_building_code === "H" &&
             payload?.destination_building_code === "MB",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("finalizes indoor-outdoor task when outdoor directions are dismissed without continue indoors step", async () => {
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("steps-dismiss"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "indoor_outdoor_task_completed",
+          (payload) =>
+            payload?.task_id === "task_13" &&
+            payload?.start_building_code === "H" &&
+            payload?.destination_building_code === "MB",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) => payload?.task_id === "task_13",
+        ),
+      ).toBe(true);
+
+      expect(
+        hasUsabilityEvent(
+          "task_finished",
+          (payload) => payload?.finished_task_id === "task_13",
         ),
       ).toBe(true);
     });

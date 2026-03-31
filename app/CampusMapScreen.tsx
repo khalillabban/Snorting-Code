@@ -63,6 +63,8 @@ const buildCrossBuildingIndoorParams = ({
   destBuilding,
   strategy,
   accessible,
+  usabilityTaskId,
+  usabilityTaskStartedAtMs,
 }: {
   params: Record<string, string | undefined>;
   startRoom: IndoorRoomRecord;
@@ -70,6 +72,8 @@ const buildCrossBuildingIndoorParams = ({
   destBuilding: Buildings;
   strategy?: RouteStrategy;
   accessible: boolean;
+  usabilityTaskId?: "task_13" | "task_14";
+  usabilityTaskStartedAtMs?: number;
 }) => ({
   ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, v ?? ""])),
   navOrigin: startRoom.label,
@@ -78,6 +82,10 @@ const buildCrossBuildingIndoorParams = ({
   outdoorStrategy: strategy ? JSON.stringify(strategy) : undefined,
   outdoorAccessibleOnly: accessible ? "true" : "false",
   accessibleOnly: String(accessible),
+  ...(usabilityTaskId ? { usabilityTaskId } : {}),
+  ...(typeof usabilityTaskStartedAtMs === "number"
+    ? { usabilityTaskStartedAtMs: String(usabilityTaskStartedAtMs) }
+    : {}),
 });
 
 type FocusTarget = CampusKey | "user";
@@ -112,12 +120,33 @@ export function classifyIndoorOutdoorTask(
   start: unknown,
   dest: unknown,
 ): "task_13" | "task_14" | null {
+  const campusFromValue = (value: unknown): CampusKey | null => {
+    const code = toBuildingCode(value);
+    const fromCode = getCampusByCode(code);
+    if (fromCode) return fromCode;
+
+    if (
+      value &&
+      typeof value === "object" &&
+      "campusName" in value &&
+      typeof (value as { campusName?: unknown }).campusName === "string"
+    ) {
+      const campusName = ((value as { campusName: string }).campusName ?? "")
+        .trim()
+        .toLowerCase();
+      if (campusName === "sgw") return "sgw";
+      if (campusName === "loyola") return "loyola";
+    }
+
+    return null;
+  };
+
   const startCode = toBuildingCode(start);
   const destCode = toBuildingCode(dest);
   if (!startCode || !destCode || startCode === destCode) return null;
 
-  const startCampus = getCampusByCode(startCode);
-  const destCampus = getCampusByCode(destCode);
+  const startCampus = campusFromValue(start);
+  const destCampus = campusFromValue(dest);
   if (!startCampus || !destCampus) return null;
 
   return startCampus === destCampus ? "task_13" : "task_14";
@@ -368,14 +397,13 @@ export default function CampusMapScreen() {
     });
   }, [transitionPayload]);
 
-  // ── Usability Testing ────────────────────────────────────────────────────
+  // Usability Testing
   const sessionId = useRef(getSessionId());
   const mapLoadTime = useRef<number>(Date.now());
   const taskTimers = useRef<Record<string, number>>({});
   const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
+  const finalizedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
 
-  // Guard against endTask firing without a matching startTask — prevents
-  // bogus 0 ms durations for tasks that were never started.
   const startTask = (taskId: string) => {
     if (!USABILITY_TESTING_ENABLED) return;
     taskTimers.current[taskId] = Date.now();
@@ -387,7 +415,6 @@ export default function CampusMapScreen() {
   ) => {
     if (!USABILITY_TESTING_ENABLED) return;
     const start = taskTimers.current[taskId];
-    // Skip if no matching startTask — avoids ghost 0 ms completions
     if (!start) return;
     const duration_ms = Date.now() - start;
     delete taskTimers.current[taskId];
@@ -490,18 +517,9 @@ export default function CampusMapScreen() {
     [activePOICategories],
   );
 
-  // ── Task 15 rich snapshot ─────────────────────────────────────────────────
-  /**
-   * A single ref holds the mutable snapshot for Task 15 so we can accumulate
-   * sub-step events (range changes, list opens, map pin taps…) and emit them
-   * all together at the end for easy analysis.
-   */
   const task15Snapshot = useRef<Task15Snapshot | null>(null);
+  const wasPOIListOpenRef = useRef(false);
 
-  /**
-   * Starts Task 15 if not already running. Safe to call multiple times —
-   * subsequent calls are no-ops.
-   */
   const ensureTask15Started = useCallback(
     (initialRangeMeters: number, initialResultsCount: number) => {
       if (task15Snapshot.current) return; // already running
@@ -519,10 +537,6 @@ export default function CampusMapScreen() {
     [],
   );
 
-  /**
-   * Ends Task 15, emits a single richly-annotated completion event, and clears
-   * the snapshot. `outcome` explains *why* the task ended.
-   */
   const finalizeTask15 = useCallback(
     async (
       outcome:
@@ -536,13 +550,11 @@ export default function CampusMapScreen() {
       } = {},
     ) => {
       const snap = task15Snapshot.current;
-      if (!snap) return; // never started — nothing to emit
+      if (!snap) return;
       task15Snapshot.current = null;
 
       const duration_ms = Date.now() - snap.startedAtMs;
 
-      // Manually compute duration using our snapshot startedAtMs so the number
-      // is always accurate even if taskTimers got out of sync.
       delete taskTimers.current["task_15"];
 
       const payload = {
@@ -558,7 +570,6 @@ export default function CampusMapScreen() {
         final_range_meters: overrides.finalRangeMeters ?? snap.finalRangeMeters,
         results_count: overrides.resultsCount ?? snap.resultsCount,
         time_since_map_load_ms: Date.now() - mapLoadTime.current,
-        // Optional POI details when task ends by selection
         ...(overrides.poi_name ? { poi_name: overrides.poi_name } : {}),
         ...(overrides.poi_category
           ? { poi_category: overrides.poi_category }
@@ -575,13 +586,9 @@ export default function CampusMapScreen() {
     [],
   );
 
-  // ── Task 16 rich snapshot ─────────────────────────────────────────────────
   const task16Snapshot = useRef<Task16Snapshot | null>(null);
   const task16EndedRef = useRef(false);
 
-  /**
-   * Starts Task 16 once; subsequent calls are no-ops.
-   */
   const ensureTask16Started = useCallback(
     (poiName: string, poiCategoryId: string) => {
       if (task16Snapshot.current) return;
@@ -600,16 +607,12 @@ export default function CampusMapScreen() {
     [],
   );
 
-  /**
-   * Ends Task 16 with the given outcome. Emits one comprehensive event plus
-   * the standard task_completed / task_finished pair.
-   */
   const finalizeTask16 = useCallback(
     async (
       outcome: Task16Snapshot["outcome"],
       overrides: Partial<Task16Snapshot> = {},
     ) => {
-      if (task16EndedRef.current) return; // guard double-fire
+      if (task16EndedRef.current) return;
       const snap = task16Snapshot.current;
       if (!snap) return;
 
@@ -664,7 +667,14 @@ export default function CampusMapScreen() {
   ]);
 
   useEffect(() => {
-    if (!showPOIList || !task15Snapshot.current) return;
+    if (!showPOIList) {
+      wasPOIListOpenRef.current = false;
+      return;
+    }
+
+    if (wasPOIListOpenRef.current || !task15Snapshot.current) return;
+
+    wasPOIListOpenRef.current = true;
     task15Snapshot.current.openedListView = true;
     logUsabilityEvent("task_15_list_opened", {
       session_id: sessionId.current,
@@ -673,7 +683,7 @@ export default function CampusMapScreen() {
       range_meters: poiRange.meters,
       time_since_map_load_ms: Date.now() - mapLoadTime.current,
     }).catch(console.error);
-  }, [activePOICategories, nearbyPOIs.length, poiRange.meters, showPOIList]);
+  }, [showPOIList, activePOICategories, nearbyPOIs.length, poiRange.meters]);
 
   const retryPOISearch = useCallback(() => {
     setPoiSearchTrigger((c) => c + 1);
@@ -689,13 +699,11 @@ export default function CampusMapScreen() {
           next.delete(id);
         } else {
           next.add(id);
-          // Ensure Task 15 is running when the first category is selected.
           if (isFirstCategory) {
             ensureTask15Started(poiRange.meters, nearbyPOIs.length);
           }
         }
 
-        // Increment category toggle counter on every change
         if (task15Snapshot.current) {
           task15Snapshot.current.categoryToggleCount += 1;
         }
@@ -709,8 +717,6 @@ export default function CampusMapScreen() {
   const navStartTime = useRef<number | null>(null);
   const navOpenCount = useRef<number>(0);
 
-  // FIX task_6: guard so endTask fires only once per confirmed route,
-  // not on every map re-render that produces steps.
   const task6EndedRef = useRef(false);
 
   const openNavigationBar = async (trigger: string = "directions_button") => {
@@ -911,7 +917,6 @@ export default function CampusMapScreen() {
     getUserBuilding();
   }, [findNearestBuilding]);
 
-  // Map load: start timers for task_1, task_2, task_3
   useEffect(() => {
     mapLoadTime.current = Date.now();
     startTask("task_1");
@@ -935,7 +940,6 @@ export default function CampusMapScreen() {
     setCurrentCampus(campusKey);
     setFocusTarget(campusKey);
 
-    // Abandon Task 15 / 16 if the user switches campus mid-task
     if (task15Snapshot.current) {
       await finalizeTask15("filter_closed", {
         resultsCount: nearbyPOIs.length,
@@ -965,7 +969,6 @@ export default function CampusMapScreen() {
       const previousMeters = poiRange.meters;
       setPOIRange(option);
 
-      // Ensure task is running (user may change range before selecting a category)
       ensureTask15Started(option.meters, nearbyPOIs.length);
 
       if (task15Snapshot.current) {
@@ -998,12 +1001,10 @@ export default function CampusMapScreen() {
       setFocusPOITrigger((c) => c + 1);
       setShowPOIList(false);
 
-      // Track which interaction surface the user used in the snapshot
       if (task15Snapshot.current) {
         if (source === "map") task15Snapshot.current.tappedMapPin = true;
       }
 
-      // Finalize Task 15 — POI selected
       const poiCategory = OUTDOOR_POI_CATEGORY_MAP[poi.categoryId];
       await finalizeTask15(
         source === "list" ? "poi_selected_from_list" : "poi_selected_from_map",
@@ -1015,7 +1016,6 @@ export default function CampusMapScreen() {
         },
       );
 
-      // Sub-step: POI detail viewed (what the user sees after tapping a result)
       await logUsabilityEvent("task_15_poi_detail_viewed", {
         session_id: sessionId.current,
         poi_name: poi.name,
@@ -1034,17 +1034,12 @@ export default function CampusMapScreen() {
     [finalizeTask15, nearbyPOIs.length, poiRange.meters],
   );
 
-  /**
-   * Thin wrapper so the map can call handleSelectOutdoorPOI with source="map"
-   * without the caller needing to know about our internal signature.
-   */
   const handleSelectOutdoorPOIFromMap = useCallback(
     (poi: PlacePOI) => handleSelectOutdoorPOI(poi, "map"),
     [handleSelectOutdoorPOI],
   );
 
   const clearOutdoorPOIRouteState = useCallback(async () => {
-    // Abandon Task 16 if the user clears the POI before completing directions
     if (task16Snapshot.current && !task16EndedRef.current) {
       await finalizeTask16("dismissed", {
         poiName: selectedOutdoorPOI?.name ?? "unknown",
@@ -1162,6 +1157,35 @@ export default function CampusMapScreen() {
         setIsNavVisible(false);
         const params = buildIndoorMapRouteParams(intent.startBuilding.name);
         if (!params) return;
+
+        const indoorOutdoorTaskId = classifyIndoorOutdoorTask(
+          intent.startBuilding,
+          intent.destBuilding,
+        );
+        const taskStartedAtMs = indoorOutdoorTaskId ? Date.now() : undefined;
+        const startCode = toBuildingCode(intent.startBuilding);
+        const destCode = toBuildingCode(intent.destBuilding);
+
+        if (indoorOutdoorTaskId) {
+          completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+          finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+          startTask(indoorOutdoorTaskId);
+          try {
+            await logUsabilityEvent("indoor_outdoor_route_requested", {
+              session_id: sessionId.current,
+              task_id: indoorOutdoorTaskId,
+              start_building_code: startCode ?? "unknown",
+              destination_building_code: destCode ?? "unknown",
+              same_campus: indoorOutdoorTaskId === "task_13",
+              cross_campus: indoorOutdoorTaskId === "task_14",
+              travel_mode: intent.strategy.mode,
+              time_since_map_load_ms: Date.now() - mapLoadTime.current,
+            });
+          } catch (error) {
+            console.error("Firebase Analytics Error: ", error);
+          }
+        }
+
         router.push({
           pathname: "/IndoorMapScreen",
           params: buildCrossBuildingIndoorParams({
@@ -1171,6 +1195,8 @@ export default function CampusMapScreen() {
             destBuilding: intent.destBuilding,
             strategy: intent.strategy,
             accessible: intent.accessibleOnly,
+            usabilityTaskId: indoorOutdoorTaskId ?? undefined,
+            usabilityTaskStartedAtMs: taskStartedAtMs,
           }),
         });
         return;
@@ -1203,6 +1229,7 @@ export default function CampusMapScreen() {
 
       if (indoorOutdoorTaskId) {
         completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+        finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
         startTask(indoorOutdoorTaskId);
         await logUsabilityEvent("indoor_outdoor_route_requested", {
           session_id: sessionId.current,
@@ -1357,6 +1384,59 @@ export default function CampusMapScreen() {
     [],
   );
 
+  const resolveActiveIndoorOutdoorTaskContext = useCallback(
+    (destinationOverride?: string) => {
+      const payloadTaskId =
+        transitionPayload?.mode === "indoor_to_outdoor" &&
+        (transitionPayload.usabilityTaskId === "task_13" ||
+          transitionPayload.usabilityTaskId === "task_14")
+          ? transitionPayload.usabilityTaskId
+          : null;
+
+      const fallbackTaskId = classifyIndoorOutdoorTask(
+        selectedRoute.start,
+        selectedRoute.dest,
+      );
+      const taskId = payloadTaskId ?? fallbackTaskId;
+      if (!taskId) return null;
+
+      const payloadStartedAtMs =
+        transitionPayload?.mode === "indoor_to_outdoor"
+          ? parseStartedAtMs(transitionPayload.usabilityTaskStartedAtMs)
+          : null;
+      const timerStartedAtMs = taskTimers.current[taskId] ?? null;
+
+      return {
+        taskId,
+        startedAtMs: payloadStartedAtMs ?? timerStartedAtMs,
+        startCode: toBuildingCode(selectedRoute.start) ?? "unknown",
+        destinationCode:
+          destinationOverride ??
+          toBuildingCode(selectedRoute.dest) ??
+          "unknown",
+      };
+    },
+    [selectedRoute.dest, selectedRoute.start, transitionPayload],
+  );
+
+  const finalizeActiveIndoorOutdoorTask = useCallback(
+    (destinationOverride?: string) => {
+      const context =
+        resolveActiveIndoorOutdoorTaskContext(destinationOverride);
+      if (!context) return;
+      if (finalizedIndoorOutdoorTasks.current.has(context.taskId)) return;
+
+      finalizedIndoorOutdoorTasks.current.add(context.taskId);
+      finalizeIndoorOutdoorTask(
+        context.taskId,
+        context.startCode,
+        context.destinationCode,
+        context.startedAtMs,
+      );
+    },
+    [finalizeIndoorOutdoorTask, resolveActiveIndoorOutdoorTaskContext],
+  );
+
   const handleRouteSteps = useCallback(
     async (steps: RouteStep[]) => {
       setRouteSteps(steps);
@@ -1427,39 +1507,7 @@ export default function CampusMapScreen() {
       steps[lastIndex] = {
         ...steps[lastIndex],
         onPress: () => {
-          const payloadTaskId =
-            transitionPayload?.mode === "indoor_to_outdoor" &&
-            (transitionPayload.usabilityTaskId === "task_13" ||
-              transitionPayload.usabilityTaskId === "task_14")
-              ? transitionPayload.usabilityTaskId
-              : null;
-          const fallbackTaskId = classifyIndoorOutdoorTask(
-            selectedRoute.start,
-            selectedRoute.dest,
-          );
-          const effectiveTaskId = payloadTaskId ?? fallbackTaskId;
-
-          if (effectiveTaskId) {
-            const payloadStartedAtMs =
-              transitionPayload?.mode === "indoor_to_outdoor"
-                ? parseStartedAtMs(transitionPayload.usabilityTaskStartedAtMs)
-                : null;
-            const timerStartedAtMs =
-              taskTimers.current[effectiveTaskId] ?? null;
-            const effectiveStartedAtMs = payloadStartedAtMs ?? timerStartedAtMs;
-            const startCode = toBuildingCode(selectedRoute.start) ?? "unknown";
-            const destCode =
-              built.openArgs.buildingCode ??
-              toBuildingCode(selectedRoute.dest) ??
-              "unknown";
-
-            finalizeIndoorOutdoorTask(
-              effectiveTaskId,
-              startCode,
-              destCode,
-              effectiveStartedAtMs,
-            );
-          }
+          finalizeActiveIndoorOutdoorTask(built.openArgs.buildingCode);
 
           openIndoorMap(
             built.openArgs.buildingCode,
@@ -1478,11 +1526,9 @@ export default function CampusMapScreen() {
     canContinueIndoors,
     continueIndoorsBuildingCode,
     destinationRoomQueryText,
-    finalizeIndoorOutdoorTask,
+    finalizeActiveIndoorOutdoorTask,
     openIndoorMap,
     selectedRoute.dest,
-    selectedRoute.start,
-    transitionPayload,
   ]);
 
   useEffect(() => {
@@ -1976,6 +2022,8 @@ export default function CampusMapScreen() {
             }).catch(console.error);
           }}
           onDismiss={async () => {
+            finalizeActiveIndoorOutdoorTask();
+
             // ── Task 16: user dismissed the steps panel ───────────────────
             if (task16Snapshot.current && !task16EndedRef.current) {
               await finalizeTask16("dismissed", {
