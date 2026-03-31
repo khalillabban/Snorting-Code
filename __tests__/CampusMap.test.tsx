@@ -1,15 +1,15 @@
 import {
-    fireEvent,
-    render,
-    screen,
-    waitFor
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import {
-    getCurrentPositionAsync,
-    getForegroundPermissionsAsync,
-    hasServicesEnabledAsync,
-    requestForegroundPermissionsAsync,
-    watchPositionAsync,
+  getCurrentPositionAsync,
+  getForegroundPermissionsAsync,
+  hasServicesEnabledAsync,
+  requestForegroundPermissionsAsync,
+  watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
@@ -22,9 +22,7 @@ import { getBuildingContainingPoint } from "../utils/pointInPolygon";
 
 jest.mock("../components/ShuttleBusTracker", () => ({
   useShuttleBus: () => ({
-    activeBuses: [
-      { ID: "bus-1", Latitude: 45.497, Longitude: -73.578 }
-    ],
+    activeBuses: [{ ID: "bus-1", Latitude: 45.497, Longitude: -73.578 }],
   }),
 }));
 
@@ -49,7 +47,7 @@ jest.mock("react-native-maps", () => {
   const React = require("react");
   const { Text, View, TouchableOpacity } = require("react-native");
   const showCalloutMocks: Record<string, jest.Mock> = {};
-  
+
   const Polyline = (props: any) => (
     <View testID={props.testID ?? "polyline"}>
       <Text testID={`${props.testID ?? "polyline"}-props`}>
@@ -89,10 +87,7 @@ jest.mock("react-native-maps", () => {
     React.useImperativeHandle(ref, () => ({ showCallout }));
 
     return (
-      <View
-        testID={markerId}
-        onPress={props.onPress}
-      >
+      <View testID={markerId} onPress={props.onPress}>
         <Text testID="marker-props">
           {JSON.stringify({
             coordinate: props.coordinate,
@@ -141,7 +136,11 @@ jest.mock("../constants/buildings", () => ({
       displayName: "Building A",
       address: "Address A",
       coordinates: { latitude: 10, longitude: 20 },
-      boundingBox: [{ latitude: 10, longitude: 20 }, { latitude: 10.001, longitude: 20.001 }, { latitude: 10.002, longitude: 20.002 }],
+      boundingBox: [
+        { latitude: 10, longitude: 20 },
+        { latitude: 10.001, longitude: 20.001 },
+        { latitude: 10.002, longitude: 20.002 },
+      ],
     },
     {
       name: "B",
@@ -149,7 +148,11 @@ jest.mock("../constants/buildings", () => ({
       displayName: "Building B",
       address: "Address B",
       coordinates: { latitude: 11, longitude: 21 },
-      boundingBox: [{ latitude: 11, longitude: 21 }, { latitude: 11.001, longitude: 21.001 }, { latitude: 11.002, longitude: 21.002 }],
+      boundingBox: [
+        { latitude: 11, longitude: 21 },
+        { latitude: 11.001, longitude: 21.001 },
+        { latitude: 11.002, longitude: 21.002 },
+      ],
     },
     {
       name: "C",
@@ -157,7 +160,11 @@ jest.mock("../constants/buildings", () => ({
       displayName: "Building C",
       address: "Address C",
       coordinates: { latitude: 12, longitude: 22 },
-      boundingBox: [{ latitude: 12, longitude: 22 }, { latitude: 12.001, longitude: 22.001 }, { latitude: 12.002, longitude: 22.002 }],
+      boundingBox: [
+        { latitude: 12, longitude: 22 },
+        { latitude: 12.001, longitude: 22.001 },
+        { latitude: 12.002, longitude: 22.002 },
+      ],
     },
     {
       name: "EMPTY",
@@ -193,14 +200,23 @@ jest.mock("../components/BuildingInfoPopup", () => {
           <Text testID="building-info-building-name">
             {building.displayName ?? building.name}
           </Text>
-          <Pressable testID="building-info-set-start" onPress={() => onSetAsStart?.(building)}>
+          <Pressable
+            testID="building-info-set-start"
+            onPress={() => onSetAsStart?.(building)}
+          >
             <Text>Set as start</Text>
           </Pressable>
-          <Pressable testID="building-info-set-dest" onPress={() => onSetAsDestination?.(building)}>
+          <Pressable
+            testID="building-info-set-dest"
+            onPress={() => onSetAsDestination?.(building)}
+          >
             <Text>Set as destination</Text>
           </Pressable>
           {/* ADD THE MOCK BUTTON HERE */}
-          <Pressable testID="building-info-set-my-loc" onPress={() => onSetAsMyLocation?.(building)}>
+          <Pressable
+            testID="building-info-set-my-loc"
+            onPress={() => onSetAsMyLocation?.(building)}
+          >
             <Text>Set as my location</Text>
           </Pressable>
           {hasIndoorMap && onViewIndoorMap ? (
@@ -229,9 +245,9 @@ describe("CampusMap", () => {
   let errorSpy: jest.SpyInstance;
 
   beforeAll(() => {
-    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
-    logSpy = jest.spyOn(console, "log").mockImplementation(() => { });
-    errorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   beforeEach(() => {
@@ -239,12 +255,16 @@ describe("CampusMap", () => {
     (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
       coordinates: [],
       steps: [],
-      segments: [], 
+      segments: [],
     });
 
     (hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
-    (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
-    (requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "granted",
+    });
+    (requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "granted",
+    });
     (getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 50.0, longitude: -70.0 },
     });
@@ -252,10 +272,12 @@ describe("CampusMap", () => {
       remove: jest.fn(),
     });
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(null);
-    (getAvailableFloors as jest.Mock).mockImplementation((buildingCode: string) =>
-      buildingCode === "A" ? [1, 2] : [],
+    (getAvailableFloors as jest.Mock).mockImplementation(
+      (buildingCode: string) => (buildingCode === "A" ? [1, 2] : []),
     );
-    (Object.values(getMapsMock().__showCalloutMocks) as jest.Mock[]).forEach((mock) => mock.mockClear());
+    (Object.values(getMapsMock().__showCalloutMocks) as jest.Mock[]).forEach(
+      (mock) => mock.mockClear(),
+    );
   });
 
   afterAll(() => {
@@ -268,12 +290,12 @@ describe("CampusMap", () => {
 
   it("renders the map and polygons (and warns on empty boundingBox)", async () => {
     render(
-      <CampusMap 
-        coordinates={coordinates} 
-        focusTarget="sgw" 
-        strategy={WALKING_STRATEGY} 
-        showShuttle={false} 
-      />
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
     );
     expect(screen.getByTestId("map-view")).toBeTruthy();
     expect(screen.getAllByTestId("polygon")).toHaveLength(3);
@@ -290,22 +312,51 @@ describe("CampusMap", () => {
   it("shows an error when location services are disabled", async () => {
     (hasServicesEnabledAsync as jest.Mock).mockResolvedValue(false);
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
-    expect(await screen.findByText("Location services are disabled.")).toBeTruthy();
+    expect(
+      await screen.findByText("Location services are disabled."),
+    ).toBeTruthy();
   });
 
   it("requests permissions and shows an error when permission is denied", async () => {
-    (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
-    (requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "denied",
+    });
+    (requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "denied",
+    });
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
-    expect(await screen.findByText("Permission to access location was denied.")).toBeTruthy();
+    expect(
+      await screen.findByText("Permission to access location was denied."),
+    ).toBeTruthy();
   });
 
   it("sets user coords and renders the current location marker on success", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
     expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
   });
@@ -313,16 +364,32 @@ describe("CampusMap", () => {
   it("shows an error when current location cannot be retrieved", async () => {
     (getCurrentPositionAsync as jest.Mock).mockRejectedValue(new Error("boom"));
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
-    expect(await screen.findByText("Unable to get your current location.")).toBeTruthy();
+    expect(
+      await screen.findByText("Unable to get your current location."),
+    ).toBeTruthy();
   });
 
   // --- Region effect (animateToRegion) ---
 
   it("animates to campus coordinates when focusTarget is not user", async () => {
     const mapsMock = getMapsMock();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
     // Wait for the location effect to finish so we avoid 'act' warnings
     await screen.findByTestId("marker-You are here");
@@ -332,12 +399,21 @@ describe("CampusMap", () => {
     });
 
     const lastCall = mapsMock.__animateToRegion.mock.calls.at(-1);
-    expect(lastCall[0]).toEqual(expect.objectContaining({ latitude: 1, longitude: 2 }));
+    expect(lastCall[0]).toEqual(
+      expect.objectContaining({ latitude: 1, longitude: 2 }),
+    );
   });
 
   it("animates to user coordinates when focusTarget is user", async () => {
     const mapsMock = getMapsMock();
-    render(<CampusMap coordinates={coordinates} focusTarget="user" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="user"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
     await screen.findByTestId("marker-You are here");
 
@@ -346,13 +422,22 @@ describe("CampusMap", () => {
     });
 
     const lastCall = mapsMock.__animateToRegion.mock.calls.at(-1);
-    expect(lastCall[0]).toEqual(expect.objectContaining({ latitude: 50.0, longitude: -70.0 }));
+    expect(lastCall[0]).toEqual(
+      expect.objectContaining({ latitude: 50.0, longitude: -70.0 }),
+    );
   });
 
   it("animates to building location when a building is selected", async () => {
     const mapsMock = getMapsMock();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
-    
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
     await screen.findByTestId("marker-You are here"); // Wait for mount
 
     const polygons = await screen.findAllByTestId("polygon");
@@ -361,15 +446,52 @@ describe("CampusMap", () => {
     await waitFor(() => {
       expect(mapsMock.__animateToRegion).toHaveBeenCalledWith(
         expect.objectContaining({ latitude: 10 - 0.0011 }),
-        300
+        300,
+      );
+    });
+  });
+
+  it("animates to route origin when routeFocusTrigger is incremented", async () => {
+    const mapsMock = getMapsMock();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[1]}
+        routeFocusTrigger={1}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    await screen.findByTestId("marker-You are here");
+
+    await waitFor(() => {
+      expect(mapsMock.__animateToRegion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: BUILDINGS[1].coordinates.latitude,
+          longitude: BUILDINGS[1].coordinates.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }),
+        500,
       );
     });
   });
 
   it("calls onSetAsDestination and clears selected building when Set as destination is pressed", async () => {
     const onSetAsDestination = jest.fn();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} onSetAsDestination={onSetAsDestination} showShuttle={false} />);
-    
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        onSetAsDestination={onSetAsDestination}
+        showShuttle={false}
+      />,
+    );
+
     await screen.findByTestId("marker-You are here");
 
     const polygons = await screen.findAllByTestId("polygon");
@@ -377,13 +499,46 @@ describe("CampusMap", () => {
 
     fireEvent.press(screen.getByTestId("building-info-set-dest"));
 
-    expect(onSetAsDestination).toHaveBeenCalledWith(expect.objectContaining({ name: "A" }));
+    expect(onSetAsDestination).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "A" }),
+    );
+  });
+
+  it("calls onSetAsStart and clears selected building when Set as start is pressed", async () => {
+    const onSetAsStart = jest.fn();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        onSetAsStart={onSetAsStart}
+        showShuttle={false}
+      />,
+    );
+
+    await screen.findByTestId("marker-You are here");
+
+    fireEvent.press((await screen.findAllByTestId("polygon"))[0]);
+    fireEvent.press(screen.getByTestId("building-info-set-start"));
+
+    expect(onSetAsStart).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "A" }),
+    );
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
   });
 
   // --- Map/building interaction ---
 
   it("selects a building on polygon press and clears it on map press", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     await screen.findByTestId("marker-You are here");
 
     const polygons = await screen.findAllByTestId("polygon");
@@ -398,15 +553,73 @@ describe("CampusMap", () => {
 
     // Press the close button to dismiss the popup
     fireEvent.press(screen.getByTestId("building-info-close"));
-    
+
     // After closing, the building should be deselected
     await waitFor(() => {
       expect(screen.queryByText(/displayName/)).not.toBeTruthy();
     });
   });
 
+  it("clears selected building when map background is pressed", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
+
+    fireEvent.press(screen.getAllByTestId("polygon")[0]);
+    expect(screen.getByTestId("building-info-popup")).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("map-view"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("building-info-popup")).toBeNull();
+    });
+  });
+
+  it("updates labels visibility thresholds on region change events", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
+
+    const map = screen.getByTestId("map-view");
+
+    fireEvent(map, "onRegionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0.009,
+      longitudeDelta: 0.009,
+    });
+
+    fireEvent(map, "onRegionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0.013,
+      longitudeDelta: 0.013,
+    });
+
+    expect(screen.getByTestId("label-pill-A")).toBeTruthy();
+  });
+
   it("clears selection when the popup close is pressed", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     await screen.findByTestId("marker-You are here");
 
     const polygons = await screen.findAllByTestId("polygon");
@@ -418,14 +631,23 @@ describe("CampusMap", () => {
 
   it("applies current, selected, and default polygon styles", async () => {
     (getBuildingContainingPoint as jest.Mock).mockReturnValue(BUILDINGS[0]);
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     await screen.findByTestId("marker-You are here");
 
     const polygons = await screen.findAllByTestId("polygon");
     fireEvent.press(polygons[1]);
 
     await waitFor(() => {
-      const styles = screen.getAllByTestId("polygon-style").map((el) => JSON.parse(el.props.children));
+      const styles = screen
+        .getAllByTestId("polygon-style")
+        .map((el) => JSON.parse(el.props.children));
       expect(styles[0].fillColor).toBe(colors.secondaryTransparent); // A is current
       expect(styles[1].fillColor).toBe(colors.primaryLight); // B is selected
       expect(styles[2].fillColor).toBe(colors.primaryTransparent); // C is default
@@ -435,12 +657,28 @@ describe("CampusMap", () => {
   // --- Start point and destination point markers ---
 
   it("renders start point marker when startPoint is provided", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" startPoint={BUILDINGS[0]} strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     expect(await screen.findByTestId("marker-start")).toBeTruthy();
   });
 
   it("renders destination point marker when destinationPoint is provided", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" destinationPoint={BUILDINGS[1]} strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     expect(await screen.findByTestId("marker-destination")).toBeTruthy();
   });
 
@@ -493,7 +731,13 @@ describe("CampusMap", () => {
   // --- Polyline coverage ---
   it("renders multi-segment polylines correctly", async () => {
     const mockSegments = [
-      { mode: "walking", coordinates: [{ latitude: 1, longitude: 1 }, { latitude: 1.1, longitude: 1.1 }] }
+      {
+        mode: "walking",
+        coordinates: [
+          { latitude: 1, longitude: 1 },
+          { latitude: 1.1, longitude: 1.1 },
+        ],
+      },
     ];
 
     (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
@@ -502,13 +746,24 @@ describe("CampusMap", () => {
       segments: mockSegments,
     });
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" startPoint={BUILDINGS[0]} destinationPoint={BUILDINGS[1]} strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
 
     // Now uses the correct testIDs defined in CampusMap.tsx
     const border = await screen.findByTestId("polyline-border");
     expect(border).toBeTruthy();
-    
-    const props = JSON.parse(screen.getByTestId("polyline-main-props").props.children);
+
+    const props = JSON.parse(
+      screen.getByTestId("polyline-main-props").props.children,
+    );
     expect(props.strokeColor).toBe(colors.routeWalk);
   });
 
@@ -517,35 +772,135 @@ describe("CampusMap", () => {
     (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
       coordinates: [{ latitude: 1, longitude: 1 }],
       steps: [],
-      segments: [{ mode: "transit", coordinates: [{ latitude: 1, longitude: 1 }] }]
+      segments: [
+        { mode: "transit", coordinates: [{ latitude: 1, longitude: 1 }] },
+      ],
     });
 
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" startPoint={BUILDINGS[0]} destinationPoint={BUILDINGS[1]} strategy={transitStrategy as any} showShuttle={false} />);
-    
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={transitStrategy as any}
+        showShuttle={false}
+      />,
+    );
+
     const polyline = await screen.findByTestId("polyline-main-props");
     const props = JSON.parse(polyline.props.children);
     expect(props.lineDashPattern).toEqual([8, 6]);
   });
 
+  it("applies dash pattern for bicycling mode polyline", async () => {
+    const bicyclingStrategy = {
+      mode: "bicycling",
+      icon: "bike",
+      label: "Bike",
+    };
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [{ latitude: 1, longitude: 1 }],
+      steps: [],
+      segments: [
+        { mode: "bicycling", coordinates: [{ latitude: 1, longitude: 1 }] },
+      ],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={bicyclingStrategy as any}
+        showShuttle={false}
+      />,
+    );
+
+    const polyline = await screen.findByTestId("polyline-main-props");
+    const props = JSON.parse(polyline.props.children);
+    expect(props.lineDashPattern).toEqual([4, 4]);
+  });
+
   // --- Shuttle coverage ---
   it("renders shuttle markers and stops when showShuttle is true", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={true} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={true}
+      />,
+    );
 
-    // Because we added `{props.title && <Text>{props.title}</Text>}` to the Marker mock, 
+    // Because we added `{props.title && <Text>{props.title}</Text>}` to the Marker mock,
     // we can find the shuttle markers by their text.
     expect(await screen.findByText("Shuttle Bus")).toBeTruthy();
-    
+
     // We can also find the stops by text, assuming your BUSSTOP array has these titles:
     const markers = screen.getAllByTestId(/marker-/);
     expect(markers.length).toBeGreaterThan(0);
     // Alternatively, if you know the exact titles of the stops in BUSSTOP constant:
-    // expect(screen.getByText("Concordia SGW Shuttle Stop")).toBeTruthy(); 
+    // expect(screen.getByText("Concordia SGW Shuttle Stop")).toBeTruthy();
+  });
+
+  it("falls back to empty shuttle route when shuttle route fetch fails", async () => {
+    (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(
+      new Error("shuttle fetch failed"),
+    );
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={true}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Shuttle route fetch failed:",
+        expect.any(Error),
+      );
+    });
+  });
+
+  it("applies outer shuttle-route catch fallback when logger throws", async () => {
+    (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(
+      new Error("shuttle fetch failed"),
+    );
+    errorSpy.mockImplementationOnce(() => {
+      throw new Error("logger failed");
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={true}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getOutdoorRouteWithSteps).toHaveBeenCalled();
+    });
   });
 
   // --- Popup Button coverage ---
   it("triggers onSetAsMyLocation when button in popup is pressed", async () => {
     const onSetAsMyLocation = jest.fn();
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} onSetAsMyLocation={onSetAsMyLocation} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onSetAsMyLocation={onSetAsMyLocation}
+      />,
+    );
     await screen.findByTestId("marker-You are here");
 
     const polygon = screen.getAllByTestId("polygon")[0];
@@ -580,7 +935,14 @@ describe("CampusMap", () => {
   });
 
   it("does not crash when no route is available", async () => {
-    render(<CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />);
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
     await screen.findByTestId("marker-You are here");
     expect(screen.getByTestId("map-view")).toBeTruthy();
   });
@@ -661,7 +1023,9 @@ describe("CampusMap", () => {
       );
     });
 
-    expect(mapsMock.__showCalloutMocks["poi-marker-poi-focus"]).toHaveBeenCalledTimes(1);
+    expect(
+      mapsMock.__showCalloutMocks["poi-marker-poi-focus"],
+    ).toHaveBeenCalledTimes(1);
     setTimeoutSpy.mockRestore();
   });
 
@@ -715,7 +1079,9 @@ describe("CampusMap", () => {
     );
 
     await waitFor(() => {
-      expect(onRouteError).toHaveBeenCalledWith("No route found for the selected destination.");
+      expect(onRouteError).toHaveBeenCalledWith(
+        "No route found for the selected destination.",
+      );
     });
   });
 
@@ -738,7 +1104,9 @@ describe("CampusMap", () => {
     );
 
     await waitFor(() => {
-      expect(onRouteError).toHaveBeenCalledWith("Directions API status: REQUEST_DENIED");
+      expect(onRouteError).toHaveBeenCalledWith(
+        "Directions API status: REQUEST_DENIED",
+      );
     });
   });
 
@@ -759,35 +1127,48 @@ describe("CampusMap", () => {
       expect(onRouteError).toHaveBeenCalledWith(null);
     });
   });
-it("label marker tap and polygon tap both open the same building popup", async () => {
-  render(
-    <CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />
-  );
-  await screen.findByTestId("marker-You are here");
+  it("label marker tap and polygon tap both open the same building popup", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
 
-  // Via polygon
-  const polygons = screen.getAllByTestId("polygon");
-  fireEvent.press(polygons[0]);
-  expect(screen.getByTestId("building-info-building-name").props.children).toBe("Building A");
+    // Via polygon
+    const polygons = screen.getAllByTestId("polygon");
+    fireEvent.press(polygons[0]);
+    expect(
+      screen.getByTestId("building-info-building-name").props.children,
+    ).toBe("Building A");
 
-  // Close it
-  fireEvent.press(screen.getByTestId("building-info-close"));
-  expect(screen.queryByTestId("building-info-popup")).toBeNull();
+    // Close it
+    fireEvent.press(screen.getByTestId("building-info-close"));
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
 
-  // Via label marker
-  fireEvent.press(screen.getByTestId("label-marker-A"));
-  expect(screen.getByTestId("building-info-building-name").props.children).toBe("Building A");
-});
+    // Via label marker
+    fireEvent.press(screen.getByTestId("label-marker-A"));
+    expect(
+      screen.getByTestId("building-info-building-name").props.children,
+    ).toBe("Building A");
+  });
 
-it("label pill exists for each building with a boundingBox", async () => {
-  render(
-    <CampusMap coordinates={coordinates} focusTarget="sgw" strategy={WALKING_STRATEGY} showShuttle={false} />
-  );
-  await screen.findByTestId("marker-You are here");
+  it("label pill exists for each building with a boundingBox", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+    await screen.findByTestId("marker-You are here");
 
-  expect(screen.getByTestId("label-pill-A")).toBeTruthy();
-  expect(screen.getByTestId("label-pill-B")).toBeTruthy();
-  expect(screen.getByTestId("label-pill-C")).toBeTruthy();
-});
-
+    expect(screen.getByTestId("label-pill-A")).toBeTruthy();
+    expect(screen.getByTestId("label-pill-B")).toBeTruthy();
+    expect(screen.getByTestId("label-pill-C")).toBeTruthy();
+  });
 });

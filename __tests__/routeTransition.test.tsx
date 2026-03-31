@@ -1,8 +1,8 @@
 import {
-  parseTransitionPayload,
-  serializeTransitionPayload,
-  type IndoorToOutdoorTransitionPayload,
-  type CrossBuildingIndoorTripPayload,
+    parseTransitionPayload,
+    serializeTransitionPayload,
+    type CrossBuildingIndoorTripPayload,
+    type IndoorToOutdoorTransitionPayload,
 } from "../utils/routeTransition";
 
 describe("routeTransition", () => {
@@ -97,7 +97,10 @@ describe("routeTransition", () => {
   it("returns null for cross_building_indoor missing required fields", () => {
     expect(
       parseTransitionPayload(
-        JSON.stringify({ mode: "cross_building_indoor", originBuildingCode: "MB" }),
+        JSON.stringify({
+          mode: "cross_building_indoor",
+          originBuildingCode: "MB",
+        }),
       ),
     ).toBeNull();
   });
@@ -123,6 +126,44 @@ describe("routeTransition", () => {
           originIndoorRoomQuery: "MB-1.210",
           destinationBuildingCode: "",
           destinationIndoorRoomQuery: "CC-124",
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for unsupported mode values", () => {
+    expect(
+      parseTransitionPayload(
+        JSON.stringify({
+          mode: "outdoor_to_indoor",
+          originBuildingCode: "H",
+          destinationBuildingCode: "MB",
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for cross_building_indoor when room queries are empty", () => {
+    expect(
+      parseTransitionPayload(
+        JSON.stringify({
+          mode: "cross_building_indoor",
+          originBuildingCode: "H",
+          originIndoorRoomQuery: "",
+          destinationBuildingCode: "MB",
+          destinationIndoorRoomQuery: "MB-1.210",
+        }),
+      ),
+    ).toBeNull();
+
+    expect(
+      parseTransitionPayload(
+        JSON.stringify({
+          mode: "cross_building_indoor",
+          originBuildingCode: "H",
+          originIndoorRoomQuery: "H-110",
+          destinationBuildingCode: "MB",
+          destinationIndoorRoomQuery: "",
         }),
       ),
     ).toBeNull();

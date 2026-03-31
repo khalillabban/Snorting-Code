@@ -1,7 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Pressable,
   ScrollView,
@@ -19,6 +25,10 @@ import {
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
+import {
+  getSessionId,
+  USABILITY_TESTING_ENABLED,
+} from "../constants/usabilityConfig";
 import { styles } from "../styles/IndoorMapScreen.styles";
 import {
   isDestinationLegOrigin,
@@ -29,15 +39,7 @@ import {
   type IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
-import {
-  getFloorContentBounds,
-  getFloorImageDimensions,
-  getFloorStageLayout,
-  isLikelyNearOriginBuilding,
-  parseOutdoorStrategyParam,
-  trimParam,
-  type FloorViewport
-} from "../utils/indoorMapScreenHelpers";
+import { isLikelyNearOriginBuilding } from "../utils/indoorMapScreenHelpers";
 import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
@@ -47,18 +49,167 @@ import {
 } from "../utils/indoorNavigation";
 import { getIndoorPOIs } from "../utils/indoorPOI";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getAvailableFloors, getBuildingPlanAsset, getFloorImageMetadata } from "../utils/mapAssets";
+import {
+  getAvailableFloors,
+  getBuildingPlanAsset,
+  getFloorImageMetadata,
+} from "../utils/mapAssets";
 import { parseFloors } from "../utils/routeParams";
 import {
   serializeTransitionPayload,
   type IndoorToOutdoorTransitionPayload,
 } from "../utils/routeTransition";
+import { logUsabilityEvent } from "../utils/usabilityAnalytics";
+
+const FLOOR_FRAME_PADDING = spacing.md;
+const DEFAULT_VIEWPORT_HEIGHT = 280;
+const FLOOR_CONTENT_PADDING = 120;
+const MIN_CONTENT_SPAN = 260;
 const MARKER_SIZE = 28;
-const DEFAULT_VIEWPORT_HEIGHT = 420;
 const DEFAULT_AVAILABLE_FLOORS = [1] as const;
-function useFloorSync(availableFloors: number[], selectedFloor: number, setSelectedFloor: (f: number) => void) {
+
+type FloorViewport = { width: number; height: number };
+type FloorBounds = { minX: number; minY: number; maxX: number; maxY: number };
+type FloorStageLayout = {
+  frameLeft: number;
+  frameTop: number;
+  frameWidth: number;
+  frameHeight: number;
+  imageLeft: number;
+  imageTop: number;
+  imageWidth: number;
+  imageHeight: number;
+  scale: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
+
+function getFloorImageDimensions(
+  floorImageMetadata: { width: number; height: number } | undefined,
+  currentFloorRooms: IndoorRoomRecord[],
+) {
+  return {
+    width:
+      floorImageMetadata?.width ??
+      Math.max(1200, ...currentFloorRooms.map((room) => room.x + 80)),
+    height:
+      floorImageMetadata?.height ??
+      Math.max(900, ...currentFloorRooms.map((room) => room.y + 80)),
+  };
+}
+
+function getFloorContentBounds(
+  floorImageDimensions: { width: number; height: number },
+  currentFloorRooms: IndoorRoomRecord[],
+): FloorBounds {
+  if (currentFloorRooms.length === 0) {
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: floorImageDimensions.width,
+      maxY: floorImageDimensions.height,
+    };
+  }
+
+  const rawMinX = clamp(
+    Math.min(...currentFloorRooms.map((room) => room.x)) -
+      FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.width,
+  );
+  const rawMaxX = clamp(
+    Math.max(...currentFloorRooms.map((room) => room.x)) +
+      FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.width,
+  );
+  const rawMinY = clamp(
+    Math.min(...currentFloorRooms.map((room) => room.y)) -
+      FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.height,
+  );
+  const rawMaxY = clamp(
+    Math.max(...currentFloorRooms.map((room) => room.y)) +
+      FLOOR_CONTENT_PADDING,
+    0,
+    floorImageDimensions.height,
+  );
+
+  const centerX = (rawMinX + rawMaxX) / 2;
+  const centerY = (rawMinY + rawMaxY) / 2;
+  const targetWidth = Math.min(
+    floorImageDimensions.width,
+    Math.max(rawMaxX - rawMinX, MIN_CONTENT_SPAN),
+  );
+  const targetHeight = Math.min(
+    floorImageDimensions.height,
+    Math.max(rawMaxY - rawMinY, MIN_CONTENT_SPAN),
+  );
+  const minX = clamp(
+    centerX - targetWidth / 2,
+    0,
+    Math.max(floorImageDimensions.width - targetWidth, 0),
+  );
+  const minY = clamp(
+    centerY - targetHeight / 2,
+    0,
+    Math.max(floorImageDimensions.height - targetHeight, 0),
+  );
+
+  return { minX, minY, maxX: minX + targetWidth, maxY: minY + targetHeight };
+}
+
+function getFloorStageLayout(
+  viewport: FloorViewport,
+  floorImageDimensions: { width: number; height: number },
+  floorBounds: FloorBounds,
+): FloorStageLayout {
+  const availableWidth = Math.max(viewport.width - FLOOR_FRAME_PADDING * 2, 1);
+  const availableHeight = Math.max(
+    viewport.height - FLOOR_FRAME_PADDING * 2,
+    1,
+  );
+  const contentWidth = Math.max(floorBounds.maxX - floorBounds.minX, 1);
+  const contentHeight = Math.max(floorBounds.maxY - floorBounds.minY, 1);
+  const scale = Math.min(
+    availableWidth / contentWidth,
+    availableHeight / contentHeight,
+  );
+  const frameWidth = contentWidth * scale;
+  const frameHeight = contentHeight * scale;
+  const frameLeft = (viewport.width - frameWidth) / 2;
+  const frameTop = (viewport.height - frameHeight) / 2;
+
+  return {
+    frameLeft,
+    frameTop,
+    frameWidth,
+    frameHeight,
+    imageLeft: -floorBounds.minX * scale,
+    imageTop: -floorBounds.minY * scale,
+    imageWidth: floorImageDimensions.width * scale,
+    imageHeight: floorImageDimensions.height * scale,
+    scale,
+  };
+}
+
+function trimParam(val: unknown): string {
+  return typeof val === "string" ? val.trim() : "";
+}
+
+function useFloorSync(
+  availableFloors: number[],
+  selectedFloor: number,
+  setSelectedFloor: (f: number) => void,
+) {
   useEffect(() => {
-    if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
+    if (
+      availableFloors.length > 0 &&
+      !availableFloors.includes(selectedFloor)
+    ) {
       setSelectedFloor(availableFloors[0] || 1);
     }
   }, [availableFloors, selectedFloor, setSelectedFloor]);
@@ -87,7 +238,7 @@ function useNavAutoTrigger(
     if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
       handleNavigate();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 }
 
 export default function IndoorMapScreen() {
@@ -102,6 +253,8 @@ export default function IndoorMapScreen() {
     outdoorStrategy,
     outdoorAccessibleOnly,
     destinationRoomQuery,
+    usabilityTaskId,
+    usabilityTaskStartedAtMs,
     accessibleOnly: accessibleOnlyParam,
   } = useLocalSearchParams<{
     buildingName: string;
@@ -113,25 +266,26 @@ export default function IndoorMapScreen() {
     outdoorStrategy?: string;
     outdoorAccessibleOnly?: string;
     destinationRoomQuery?: string;
+    usabilityTaskId?: string;
+    usabilityTaskStartedAtMs?: string;
     accessibleOnly?: string;
   }>();
-  // Accessibility mode state
+
   const [accessibleOnly, setAccessibleOnly] = useState(
     accessibleOnlyParam === "true",
   );
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
   const availableFloors = useMemo(() => {
     const parsed = parseFloors(floors);
     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-
-    // Defensive fallback: some navigation flows may omit/garble `floors`.
-    // Prefer using the building's real floors when available.
     if (typeof buildingName === "string" && buildingName.trim()) {
       const fallback = getAvailableFloors(buildingName);
       if (Array.isArray(fallback) && fallback.length > 0) return fallback;
     }
     return [...DEFAULT_AVAILABLE_FLOORS];
   }, [buildingName, floors]);
+
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -142,13 +296,8 @@ export default function IndoorMapScreen() {
     width: 0,
     height: 0,
   });
-
-  const [navOriginQuery, setNavOriginQuery] = useState(
-    trimParam(navOrigin),
-  );
-  const [navDestQuery, setNavDestQuery] = useState(
-    trimParam(navDest),
-  );
+  const [navOriginQuery, setNavOriginQuery] = useState(trimParam(navOrigin));
+  const [navDestQuery, setNavDestQuery] = useState(trimParam(navDest));
 
   const destinationRoomQueryText = trimParam(destinationRoomQuery);
   const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
@@ -163,8 +312,6 @@ export default function IndoorMapScreen() {
     }
   }, [availableFloors, selectedFloor]);
 
-  // Cross-building origin leg UX: show the final destination room in the "To" input,
-  // even though we route to an exit based on `outdoorDestBuilding`.
   useEffect(() => {
     const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (!isCrossBuildingOriginLeg) return;
@@ -173,14 +320,86 @@ export default function IndoorMapScreen() {
   }, [destinationRoomQueryText, trimmedOutdoorDestBuilding]);
   const [navError, setNavError] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<NavigationRoute | null>(null);
-  const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [activePOICategories, setActivePOICategories] = useState<
+    Set<POICategoryId>
+  >(new Set());
 
-  // Safety: if the user switches buildings, never reuse a previous building's selected exit
-  // coordinate when transitioning outside.
+  // ── Usability Testing ────────────────────────────────────────────────────
+  const sessionId = useRef(getSessionId());
+  const task11Completed = useRef(false);
+  const screenLoadTime = useRef<number>(Date.now());
+  const taskTimers = useRef<Record<string, number>>({});
+
+  const startTask = useCallback((taskId: string) => {
+    if (!USABILITY_TESTING_ENABLED) return;
+    taskTimers.current[taskId] = Date.now();
+  }, []);
+
+  const endTask = useCallback(
+    async (taskId: string, extraParams: Record<string, unknown> = {}) => {
+      const start = taskTimers.current[taskId];
+      // Guard: skip if no matching startTask — prevents 0ms ghost completions
+      if (!start) return;
+      const duration_ms = Date.now() - start;
+      delete taskTimers.current[taskId];
+      try {
+        if (!USABILITY_TESTING_ENABLED) return;
+        await logUsabilityEvent("task_completed", {
+          session_id: sessionId.current,
+          task_id: taskId,
+          duration_ms,
+          ...extraParams,
+        });
+        await logUsabilityEvent("task_finished", {
+          session_id: sessionId.current,
+          finished_task_id: taskId,
+          duration_ms,
+          ...extraParams,
+        });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    },
+    [],
+  );
+
+  const navAttemptCount = useRef(0);
+  const accessibleToggledDuringNav = useRef(false);
+
+  // ── Screen load: start task timers ──────────────────────────────────────
+  // FIX task_11: startTask("task_11") was completely missing — duration was 0
+  // FIX task_12: entirely new task — start timer alongside task_9
+  // task_9 and task_10 timers start here, end on successful route generation
+  useEffect(() => {
+    const run = async () => {
+      screenLoadTime.current = Date.now();
+      startTask("task_9"); // ends on first successful indoor route (same floor)
+      startTask("task_11"); // FIX: was missing — ends on first POI toggle
+      startTask("task_12"); // FIX: new task — ends on successful cross-floor route
+      try {
+        await logUsabilityEvent("indoor_map_screen_loaded", {
+          session_id: sessionId.current,
+          building_name: buildingName ?? "unknown",
+          has_nav_origin: !!trimParam(navOrigin),
+          has_nav_dest: !!trimParam(navDest),
+          accessible_only_param: accessibleOnlyParam === "true",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    };
+    run();
+  }, []);
+
+  const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
   useEffect(() => {
     setPendingExitOutdoor(null);
   }, [buildingName]);
-  const [activePOICategories, setActivePOICategories] = useState<Set<POICategoryId>>(new Set());
 
   const initialRoomQuery = trimParam(roomQuery);
   const mapKey = `${buildingName}-${selectedFloor}`;
@@ -196,26 +415,68 @@ export default function IndoorMapScreen() {
 
   const allPOIs = buildingName ? getIndoorPOIs(buildingName) : [];
 
-  const handlePOIToggle = useCallback((categoryId: POICategoryId) => {
-    setActivePOICategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) {
-        next.delete(categoryId);
-      } else {
-        next.add(categoryId);
-      }
-      return next;
-    });
-  }, []);
+  const handlePOIToggle = useCallback(
+    (categoryId: POICategoryId) => {
+      const willBeActive = !activePOICategories.has(categoryId);
+      const newCount = activePOICategories.size + (willBeActive ? 1 : -1);
 
-  useEffect(() => {
-    setSearchQuery("");
-    setSearchError(null);
-    setSelectedRoom(null);
-  }, [buildingName]);
+      setActivePOICategories((prev) => {
+        const next = new Set(prev);
+        if (next.has(categoryId)) {
+          next.delete(categoryId);
+        } else {
+          next.add(categoryId);
+        }
+        return next;
+      });
+
+      try {
+        logUsabilityEvent("indoor_poi_category_toggled", {
+          session_id: sessionId.current,
+          building_name: buildingName ?? "unknown",
+          category_id: categoryId,
+          is_now_active: willBeActive,
+          active_category_count: newCount,
+          active_categories: Array.from(
+            willBeActive
+              ? new Set([...activePOICategories, categoryId])
+              : new Set(
+                  [...activePOICategories].filter((c) => c !== categoryId),
+                ),
+          )
+            .sort((a, b) => a.localeCompare(b))
+            .join(","),
+          floor: selectedFloor,
+          time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+        }).catch(console.error);
+
+        // FIX task_11: now has a matching startTask so duration is non-zero
+        if (willBeActive && !task11Completed.current) {
+          task11Completed.current = true;
+          endTask("task_11", {
+            building_name: buildingName ?? "unknown",
+            first_category_activated: categoryId,
+            floor: selectedFloor,
+            time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+          }).catch(console.error);
+        }
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    },
+    [buildingName, endTask, selectedFloor, activePOICategories],
+  );
+
+  const handlePOIFilterFirstInteraction = useCallback(async () => {
+    await logUsabilityEvent("indoor_poi_filter_bar_first_tap", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      floor: selectedFloor,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    });
+  }, [buildingName, selectedFloor]);
 
   useFloorSync(availableFloors, selectedFloor, setSelectedFloor);
-
 
   const currentFloorRooms = useMemo(
     () => normalizedBuildingPlan?.roomsByFloor[selectedFloor] ?? [],
@@ -239,15 +500,26 @@ export default function IndoorMapScreen() {
   const floorBounds = useMemo(
     () =>
       floorImageMetadata?.showFullImage
-        ? { minX: 0, minY: 0, maxX: floorImageDimensions.width, maxY: floorImageDimensions.height }
+        ? {
+            minX: 0,
+            minY: 0,
+            maxX: floorImageDimensions.width,
+            maxY: floorImageDimensions.height,
+          }
         : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
-    [floorImageDimensions, floorImageMetadata?.showFullImage, scaledCurrentFloorRooms],
+    [
+      floorImageDimensions,
+      floorImageMetadata?.showFullImage,
+      scaledCurrentFloorRooms,
+    ],
   );
 
   const effectiveViewport = useMemo<FloorViewport>(
     () => ({
       width: mapViewport.width || Math.max(windowWidth, 320),
-      height: mapViewport.height || Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
+      height:
+        mapViewport.height ||
+        Math.max(windowHeight * 0.44, DEFAULT_VIEWPORT_HEIGHT),
     }),
     [mapViewport, windowHeight, windowWidth],
   );
@@ -275,12 +547,12 @@ export default function IndoorMapScreen() {
       left:
         floorStageLayout.frameLeft +
         (selectedRoomOnCurrentFloor.x - floorBounds.minX) *
-        floorStageLayout.scale -
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
       top:
         floorStageLayout.frameTop +
         (selectedRoomOnCurrentFloor.y - floorBounds.minY) *
-        floorStageLayout.scale -
+          floorStageLayout.scale -
         MARKER_SIZE / 2,
     };
   }, [
@@ -323,7 +595,12 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useInitialRoomQuery(initialRoomQuery, availableFloors, setSearchQuery, performRoomSearch);
+  useInitialRoomQuery(
+    initialRoomQuery,
+    availableFloors,
+    setSearchQuery,
+    performRoomSearch,
+  );
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
@@ -387,7 +664,9 @@ export default function IndoorMapScreen() {
           destinationRoom: destMatch.room,
         }) ?? entryNodes[0]?.id;
       if (!entryNodeId) {
-        failNavigation(`No usable entrance node was found for ${buildingName}.`);
+        failNavigation(
+          `No usable entrance node was found for ${buildingName}.`,
+        );
         return true;
       }
 
@@ -454,8 +733,6 @@ export default function IndoorMapScreen() {
         return true;
       }
 
-      // Always prefer an explicit per-exit outdoor coordinate.
-      // If it's missing, fall back to the building centroid later when continuing outside.
       setPendingExitOutdoor(exitPick.exit.outdoorLatLng ?? null);
 
       const result = getIndoorNavigationRouteToNode(
@@ -481,27 +758,31 @@ export default function IndoorMapScreen() {
     trimmedOutdoorDestBuilding,
   ]);
 
-  const handleNavigate = useCallback(() => {
+  const handleNavigate = useCallback(async () => {
     if (!buildingName) return;
     setNavError(null);
     setPendingExitOutdoor(null);
 
-    // Destination-building leg: when arriving from the Campus Map "Continue indoors" step,
-    // we may not know which entrance the user used. In that case, CampusMapScreen passes
-    // navOrigin="ENTRANCE" and navDest=<room query>. We route from the closest
-    // building_entry_exit node to the destination room.
+    navAttemptCount.current += 1;
+
+    await logUsabilityEvent("indoor_nav_attempted", {
+      session_id: sessionId.current,
+      building_name: buildingName,
+      origin_query: navOriginQuery,
+      dest_query: navDestQuery,
+      accessible_only: accessibleOnly,
+      attempt_number: navAttemptCount.current,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    }).catch(console.error);
+
     if (routeDestinationIndoorLegFromEntrance()) return;
 
-    // IndoorMapScreen is building-local only. If the destination looks like a different
-    // building/campus code, tell the user to start cross-building navigation from the Campus Map.
     const typedDest = navDestQuery.trim().toUpperCase();
     const isCampusCode = typedDest === "SGW" || typedDest === "LOYOLA";
     const isDifferentBuildingCode = BUILDINGS.some(
       (b) => b.name.trim().toUpperCase() === typedDest,
     );
-    // If IndoorMapScreen was opened as the *origin-building* leg of a cross-building trip,
-    // CampusMapScreen will pass `outdoorDestBuilding`. In that case we *do* allow typing a
-    // different building code as navDest because it means "route to an exit and continue outside".
+
     const isCrossBuildingOriginLeg = Boolean(trimmedOutdoorDestBuilding);
     if (
       !isCrossBuildingOriginLeg &&
@@ -515,8 +796,6 @@ export default function IndoorMapScreen() {
       return;
     }
 
-    // Cross-building origin leg: if navDest is a building/campus code (ex: "CC") we
-    // interpret it as "route to the best exit".
     if (routeToBestExitForCrossBuildingOrigin()) return;
 
     const result = getIndoorNavigationRoute(
@@ -527,10 +806,72 @@ export default function IndoorMapScreen() {
     );
 
     applyNavigationResult(result);
+
+    if (result.success) {
+      // task_12: detect cross-floor route and end task_12
+      const isCrossFloor =
+        result.route.origin.floor !==
+        (result.route.destination?.floor ?? result.route.origin.floor);
+
+      let taskId: "task_9" | "task_10" | "task_12";
+      if (accessibleOnly) {
+        taskId = "task_10";
+      } else if (isCrossFloor) {
+        taskId = "task_12";
+      } else {
+        taskId = "task_9";
+      }
+
+      await logUsabilityEvent("indoor_route_generated", {
+        session_id: sessionId.current,
+        building_name: buildingName,
+        origin: navOriginQuery,
+        destination: navDestQuery,
+        accessible_only: accessibleOnly,
+        accessible_toggled_during_nav: accessibleToggledDuringNav.current,
+        attempt_count: navAttemptCount.current,
+        origin_floor: result.route.origin.floor,
+        dest_floor:
+          result.route.destination?.floor ?? result.route.origin.floor,
+        cross_floor: isCrossFloor,
+        task_id: taskId,
+        time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+      }).catch(console.error);
+
+      // task_12: log floor transition details for cross-floor routes
+      if (isCrossFloor) {
+        await logUsabilityEvent("indoor_floor_transition_in_route", {
+          session_id: sessionId.current,
+          building_name: buildingName,
+          from_floor: result.route.origin.floor,
+          to_floor: result.route.destination?.floor,
+          accessible_only: accessibleOnly,
+          attempt_count: navAttemptCount.current,
+        }).catch(console.error);
+      }
+
+      endTask(taskId, {
+        building_name: buildingName,
+        accessible_only: accessibleOnly,
+        cross_floor: isCrossFloor,
+        attempt_count: navAttemptCount.current,
+      }).catch(console.error);
+    } else {
+      await logUsabilityEvent("indoor_route_failed", {
+        session_id: sessionId.current,
+        building_name: buildingName,
+        origin_query: navOriginQuery,
+        dest_query: navDestQuery,
+        accessible_only: accessibleOnly,
+        attempt_number: navAttemptCount.current,
+        error_message: result.message,
+      }).catch(console.error);
+    }
   }, [
     accessibleOnly,
     applyNavigationResult,
     buildingName,
+    endTask,
     navDestQuery,
     navOriginQuery,
     routeDestinationIndoorLegFromEntrance,
@@ -543,8 +884,6 @@ export default function IndoorMapScreen() {
     const destCode = outdoorDestBuildingCode;
     if (!destCode) return;
 
-    // Choose a sane outdoor starting point. Prefer the selected exit's outdoorLatLng.
-    // If it's missing, fall back to the building centroid (never (0,0)).
     const originCode = buildingName.trim().toUpperCase();
     const originBuilding = BUILDINGS.find(
       (b) => b.name.trim().toUpperCase() === originCode,
@@ -552,9 +891,12 @@ export default function IndoorMapScreen() {
 
     const effectiveExitOutdoor =
       pendingExitOutdoor &&
-      isLikelyNearOriginBuilding(pendingExitOutdoor, originBuilding?.coordinates)
+      isLikelyNearOriginBuilding(
+        pendingExitOutdoor,
+        originBuilding?.coordinates,
+      )
         ? pendingExitOutdoor
-        : originBuilding?.coordinates ?? null;
+        : (originBuilding?.coordinates ?? null);
     if (!effectiveExitOutdoor) {
       setNavError(
         "Couldn't determine an outdoor start point for this building exit. Please try a different exit.",
@@ -565,33 +907,93 @@ export default function IndoorMapScreen() {
     const payload: IndoorToOutdoorTransitionPayload = {
       mode: "indoor_to_outdoor",
       originBuildingCode: originCode,
-      // These are not used by CampusMapScreen for the outdoor leg start override.
-      // Provide safe placeholders (exitOutdoor is the important piece for startOverride).
       exitNodeId: "",
-      exitIndoor: {
-        buildingCode: originCode,
-        floor: 1,
-        x: 0,
-        y: 0,
-      },
+      exitIndoor: { buildingCode: originCode, floor: 1, x: 0, y: 0 },
       destinationBuildingCode: destCode,
-      strategy: parseOutdoorStrategyParam(outdoorStrategy),
+      strategy: (() => {
+        if (typeof outdoorStrategy !== "string" || !outdoorStrategy)
+          return undefined;
+        try {
+          return JSON.parse(outdoorStrategy);
+        } catch (e) {
+          console.warn("IndoorMapScreen: invalid outdoorStrategy param", e);
+          return undefined;
+        }
+      })(),
       accessibleOnly:
         outdoorAccessibleOnly === "true" || accessibleOnly === true,
       exitOutdoor: effectiveExitOutdoor,
+      ...(usabilityTaskId === "task_13" || usabilityTaskId === "task_14"
+        ? { usabilityTaskId }
+        : {}),
+      ...(typeof usabilityTaskStartedAtMs === "string" &&
+      usabilityTaskStartedAtMs.trim() &&
+      Number.isFinite(Number(usabilityTaskStartedAtMs))
+        ? { usabilityTaskStartedAtMs: Number(usabilityTaskStartedAtMs) }
+        : {}),
     };
 
     router.push({
       pathname: "/CampusMapScreen",
       params: {
         transition: serializeTransitionPayload(payload),
-        ...(destinationRoomQueryText ? { destinationRoomQuery: destinationRoomQueryText } : {}),
+        ...(destinationRoomQueryText
+          ? { destinationRoomQuery: destinationRoomQueryText }
+          : {}),
       },
     });
-  }, [accessibleOnly, buildingName, destinationRoomQueryText, outdoorAccessibleOnly, outdoorDestBuildingCode, outdoorStrategy, pendingExitOutdoor, router]);
+  }, [
+    accessibleOnly,
+    buildingName,
+    destinationRoomQueryText,
+    outdoorAccessibleOnly,
+    outdoorDestBuilding,
+    outdoorStrategy,
+    pendingExitOutdoor,
+    router,
+    usabilityTaskId,
+    usabilityTaskStartedAtMs,
+  ]);
 
   useNavAutoTrigger(buildingName, navOrigin, navDest, handleNavigate);
 
+  const handleAccessibleToggle = useCallback(async () => {
+    const newValue = !accessibleOnly;
+    setAccessibleOnly(newValue);
+    accessibleToggledDuringNav.current = true;
+
+    if (newValue) {
+      navAttemptCount.current = 0;
+      startTask("task_10");
+    }
+
+    await logUsabilityEvent("indoor_accessible_mode_toggled", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      accessible_only: newValue,
+      has_active_route: activeRoute !== null,
+      origin_query: navOriginQuery,
+      dest_query: navDestQuery,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    });
+  }, [
+    accessibleOnly,
+    activeRoute,
+    buildingName,
+    navDestQuery,
+    navOriginQuery,
+    startTask,
+  ]);
+
+  const handleCloseDirectionsPanel = useCallback(() => {
+    setActiveRoute(null);
+    logUsabilityEvent("indoor_directions_panel_closed", {
+      session_id: sessionId.current,
+      building_name: buildingName ?? "unknown",
+      accessible_only: accessibleOnly,
+      time_since_screen_load_ms: Date.now() - screenLoadTime.current,
+    }).catch(console.error);
+  }, [accessibleOnly, activeRoute, buildingName]);
 
   return (
     <View style={styles.container}>
@@ -603,7 +1005,7 @@ export default function IndoorMapScreen() {
             accessibilityRole="switch"
             accessibilityState={{ checked: accessibleOnly }}
             accessibilityLabel="Toggle accessible route"
-            onPress={() => setAccessibleOnly((prev) => !prev)}
+            onPress={handleAccessibleToggle}
             style={[
               styles.accessibleToggle,
               accessibleOnly && styles.accessibleToggleActive,
@@ -631,7 +1033,17 @@ export default function IndoorMapScreen() {
             placeholder="From (H-110)"
             placeholderTextColor={colors.gray500}
             value={navOriginQuery}
-            onChangeText={setNavOriginQuery}
+            onChangeText={(text) => {
+              setNavOriginQuery(text);
+              if (text.length === 1) {
+                logUsabilityEvent("indoor_nav_origin_started", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  time_since_screen_load_ms:
+                    Date.now() - screenLoadTime.current,
+                }).catch(console.error);
+              }
+            }}
             returnKeyType="next"
           />
           <TextInput
@@ -639,7 +1051,17 @@ export default function IndoorMapScreen() {
             placeholder="To (H-920)"
             placeholderTextColor={colors.gray500}
             value={navDestQuery}
-            onChangeText={setNavDestQuery}
+            onChangeText={(text) => {
+              setNavDestQuery(text);
+              if (text.length === 1) {
+                logUsabilityEvent("indoor_nav_dest_started", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  time_since_screen_load_ms:
+                    Date.now() - screenLoadTime.current,
+                }).catch(console.error);
+              }
+            }}
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
@@ -647,8 +1069,6 @@ export default function IndoorMapScreen() {
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
-
-
 
         {navError && (
           <View style={styles.errorBanner}>
@@ -699,7 +1119,16 @@ export default function IndoorMapScreen() {
             <Pressable
               key={floor}
               testID={`floor-button-${floor}`}
-              onPress={() => setSelectedFloor(floor)}
+              onPress={() => {
+                setSelectedFloor(floor);
+                logUsabilityEvent("indoor_floor_changed", {
+                  session_id: sessionId.current,
+                  building_name: buildingName ?? "unknown",
+                  floor_selected: floor,
+                  previous_floor: selectedFloor,
+                  has_active_route: activeRoute !== null,
+                }).catch(console.error);
+              }}
               style={[
                 styles.floorButton,
                 selectedFloor === floor && styles.floorButtonActive,
@@ -723,6 +1152,7 @@ export default function IndoorMapScreen() {
       <IndoorPOIFilter
         activeCategories={activePOICategories}
         onToggle={handlePOIToggle}
+        onFirstInteraction={handlePOIFilterFirstInteraction}
       />
 
       <View
@@ -810,13 +1240,9 @@ export default function IndoorMapScreen() {
       {activeRoute && (
         <IndoorDirectionsPanel
           route={activeRoute}
-          onClose={() => {
-            setActiveRoute(null);
-          }}
+          onClose={handleCloseDirectionsPanel}
         />
       )}
-
-
     </View>
   );
 }

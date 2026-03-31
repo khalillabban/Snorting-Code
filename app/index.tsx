@@ -1,4 +1,6 @@
+import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { useRouter } from "expo-router";
+import { useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CampusKey } from "../constants/campuses";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
@@ -6,7 +8,15 @@ import { borderRadius, colors, spacing, typography } from "../constants/theme";
 export default function Index() {
   const router = useRouter();
 
+  // ── Usability Testing: Task 8 timing ─────────────────────────────────────
+  const homeLoadTime = useRef<number>(Date.now());
+
   const goToCampus = (campus: CampusKey) => {
+    // ── Task 8 (last step): User went back to Home and tapped SGW ───────────
+    void logUsabilityEvent("home_campus_button_tapped", {
+      campus,
+      time_since_home_load_ms: Date.now() - homeLoadTime.current,
+    });
     router.push({
       pathname: "/CampusMapScreen",
       params: { campus },
@@ -26,7 +36,16 @@ export default function Index() {
         <Text style={styles.buttonText}>Loyola Campus</Text>
       </Pressable>
 
-      <Pressable style={styles.button} onPress={() => router.push("/schedule" as any)}>
+      <Pressable
+        style={styles.button}
+        onPress={() => {
+          // Task 8: My Schedule button tapped
+          void logUsabilityEvent("my_schedule_button_tapped", {
+            time_since_home_load_ms: Date.now() - homeLoadTime.current,
+          });
+          router.push("/schedule" as any);
+        }}
+      >
         <Text style={styles.buttonText}>My Schedule</Text>
       </Pressable>
     </View>
