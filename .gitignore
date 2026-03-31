@@ -46,5 +46,9 @@ app-example
 /ios
 /android
 
+# Firebase / Google Configuration Files
+google-services.json
+GoogleService-Info.plist
+
 # test coverage
 coverage/

@@ -52,7 +52,11 @@ export const BuildingInfoPopup = ({
   }
 
   return (
-    <View style={styles.overlayWrapper} pointerEvents="box-none" testID="building-info-popup">
+    <View
+      style={styles.overlayWrapper}
+      pointerEvents="box-none"
+      testID="building-info-popup"
+    >
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
@@ -77,7 +81,9 @@ export const BuildingInfoPopup = ({
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
             <Text style={styles.label}>Campus:</Text>
-            <Text style={styles.value}>{building.campusName.toUpperCase()}</Text>
+            <Text style={styles.value}>
+              {building.campusName.toUpperCase()}
+            </Text>
           </View>
           {building.icons && building.icons.length > 0 && (
             <BuildingIcons icons={building.icons} />
@@ -181,20 +187,7 @@ export const BuildingInfoPopup = ({
             <Text style={styles.indoorButtonText}>Open indoor map</Text>
           </TouchableOpacity>
         )}
-
-        {onSetAsMyLocation && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.actionButton, styles.demoButton]}
-            onPress={() => onSetAsMyLocation(building)}
-            accessibilityRole="button"
-            accessibilityLabel={`Use ${building.displayName} as my location (demo)`}
-          >
-            <Text style={styles.demoButtonText}>Set as my location (demo)</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
 };
-

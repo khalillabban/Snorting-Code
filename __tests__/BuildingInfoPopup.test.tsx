@@ -9,9 +9,7 @@ jest.mock("../components/AccessibilityIcons", () => {
   const { Text } = require("react-native");
   return {
     BuildingIcons: ({ icons, size }: any) => (
-      <Text testID="building-icons">
-        {JSON.stringify({ icons, size })}
-      </Text>
+      <Text testID="building-icons">{JSON.stringify({ icons, size })}</Text>
     ),
   };
 });
@@ -70,7 +68,7 @@ describe("BuildingInfoPopup", () => {
 
   it("returns null when building is null", () => {
     const { queryByText } = render(
-      <BuildingInfoPopup building={null} onClose={onClose} />
+      <BuildingInfoPopup building={null} onClose={onClose} />,
     );
     expect(queryByText("Set as start")).toBeNull();
   });
@@ -116,7 +114,7 @@ describe("BuildingInfoPopup", () => {
 
   it("does not render BuildingIcons when icons is undefined", () => {
     render(
-      <BuildingInfoPopup building={buildingNoTabsNoIcons} onClose={onClose} />
+      <BuildingInfoPopup building={buildingNoTabsNoIcons} onClose={onClose} />,
     );
     expect(screen.queryByTestId("building-icons")).toBeNull();
   });
@@ -136,14 +134,16 @@ describe("BuildingInfoPopup", () => {
   });
 
   it("renders only Departments tab when building has no services", () => {
-    render(<BuildingInfoPopup building={buildingNoServices} onClose={onClose} />);
+    render(
+      <BuildingInfoPopup building={buildingNoServices} onClose={onClose} />,
+    );
     expect(screen.getByText("Departments")).toBeTruthy();
     expect(screen.queryByText("Services")).toBeNull();
   });
 
   it("renders no tabs when building has neither departments nor services", () => {
     render(
-      <BuildingInfoPopup building={buildingNoTabsNoIcons} onClose={onClose} />
+      <BuildingInfoPopup building={buildingNoTabsNoIcons} onClose={onClose} />,
     );
     expect(screen.queryByText("Departments")).toBeNull();
     expect(screen.queryByText("Services")).toBeNull();
@@ -219,7 +219,7 @@ describe("BuildingInfoPopup", () => {
 
   it("resets the active tab when building prop changes", () => {
     const { rerender } = render(
-      <BuildingInfoPopup building={fullBuilding} onClose={onClose} />
+      <BuildingInfoPopup building={fullBuilding} onClose={onClose} />,
     );
 
     // open departments
@@ -228,7 +228,7 @@ describe("BuildingInfoPopup", () => {
 
     // switch to a different building
     rerender(
-      <BuildingInfoPopup building={buildingNoServices} onClose={onClose} />
+      <BuildingInfoPopup building={buildingNoServices} onClose={onClose} />,
     );
 
     // the tab content should be gone - activeTab reset to null
@@ -243,7 +243,7 @@ describe("BuildingInfoPopup", () => {
         building={fullBuilding}
         onClose={onClose}
         onSetAsStart={onSetAsStart}
-      />
+      />,
     );
     fireEvent.press(screen.getByText("Set as start"));
     expect(onSetAsStart).toHaveBeenCalledTimes(1);
@@ -257,7 +257,7 @@ describe("BuildingInfoPopup", () => {
         building={fullBuilding}
         onClose={onClose}
         onSetAsDestination={onSetAsDestination}
-      />
+      />,
     );
     fireEvent.press(screen.getByText("Set as destination"));
     expect(onSetAsDestination).toHaveBeenCalledTimes(1);
@@ -266,30 +266,17 @@ describe("BuildingInfoPopup", () => {
 
   // --- Navigation button: Set as my location (demo) ---
 
-  it("calls onSetAsMyLocation when Set as my location button is pressed", () => {
+  it("does not render Set as my location button even when onSetAsMyLocation is provided", () => {
     const onSetAsMyLocation = jest.fn();
     render(
       <BuildingInfoPopup
         building={fullBuilding}
         onClose={onClose}
         onSetAsMyLocation={onSetAsMyLocation}
-      />
+      />,
     );
-    fireEvent.press(screen.getByText("Set as my location (demo)"));
-    expect(onSetAsMyLocation).toHaveBeenCalledTimes(1);
-    expect(onSetAsMyLocation).toHaveBeenCalledWith(fullBuilding);
-  });
 
-  it("renders Set as my location button only when onSetAsMyLocation is provided", () => {
-    const onSetAsMyLocation = jest.fn();
-    render(
-      <BuildingInfoPopup
-        building={fullBuilding}
-        onClose={onClose}
-        onSetAsMyLocation={onSetAsMyLocation}
-      />
-    );
-    expect(screen.getByText("Set as my location (demo)")).toBeTruthy();
+    expect(screen.queryByText("Set as my location (demo)")).toBeNull();
   });
 
   it("does not render Set as my location button when onSetAsMyLocation is not provided", () => {
@@ -300,20 +287,20 @@ describe("BuildingInfoPopup", () => {
   it("does not call callbacks when they are not provided", () => {
     // This test ensures the component doesn't crash when optional callbacks are undefined
     render(<BuildingInfoPopup building={fullBuilding} onClose={onClose} />);
-    
+
     // Should not crash when pressed
     fireEvent.press(screen.getByText("Set as start"));
     fireEvent.press(screen.getByText("Set as destination"));
-    
+
     // No errors means success
     expect(screen.getByText("Hall Building")).toBeTruthy();
   });
 
-  it("renders all three navigation buttons when all callbacks are provided", () => {
+  it("renders start and destination navigation buttons when callbacks are provided", () => {
     const onSetAsStart = jest.fn();
     const onSetAsDestination = jest.fn();
     const onSetAsMyLocation = jest.fn();
-    
+
     render(
       <BuildingInfoPopup
         building={fullBuilding}
@@ -321,12 +308,12 @@ describe("BuildingInfoPopup", () => {
         onSetAsStart={onSetAsStart}
         onSetAsDestination={onSetAsDestination}
         onSetAsMyLocation={onSetAsMyLocation}
-      />
+      />,
     );
-    
+
     expect(screen.getByText("Set as start")).toBeTruthy();
     expect(screen.getByText("Set as destination")).toBeTruthy();
-    expect(screen.getByText("Set as my location (demo)")).toBeTruthy();
+    expect(screen.queryByText("Set as my location (demo)")).toBeNull();
   });
 
   it("shows the indoor button when indoor access is available", () => {
