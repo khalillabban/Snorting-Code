@@ -113,6 +113,7 @@ interface NavigationBarProps {
   onUseMyLocation?: () => Buildings | null;
   accessibleOnly?: boolean;
   onAccessibleOnlyChange?: (value: boolean) => void;
+  shuttleAvailable?: boolean;
 }
 
 export default function NavigationBar({
@@ -128,6 +129,7 @@ export default function NavigationBar({
   onUseMyLocation,
   accessibleOnly = false,
   onAccessibleOnlyChange,
+  shuttleAvailable = true,
 }: Readonly<NavigationBarProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -152,6 +154,12 @@ export default function NavigationBar({
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
   const [localAccessibleOnly, setLocalAccessibleOnly] =
     useState(accessibleOnly);
+
+  useEffect(() => {
+    if (!shuttleAvailable && selectedStrategy.mode === "shuttle") {
+      setSelectedStrategy(WALKING_STRATEGY);
+    }
+  }, [shuttleAvailable, selectedStrategy.mode]);
 
   const search = useCallback((text: string) => {
     if (!text.trim()) {
@@ -521,25 +529,33 @@ export default function NavigationBar({
                 <View style={styles.modeContainer}>
                   {ALL_STRATEGIES.map((strategy) => {
                     const isActive = selectedStrategy.mode === strategy.mode;
+                    const isShuttle = strategy.mode === "shuttle";
+                    const isDisabled = isShuttle && !shuttleAvailable;
                     return (
                       <Pressable
                         key={strategy.mode}
                         testID={`mode-button-${strategy.mode}`}
-                        onPress={() => setSelectedStrategy(strategy)}
+                        onPress={() => {
+                          if (!isDisabled) setSelectedStrategy(strategy);
+                        }}
+                        disabled={isDisabled}
                         style={[
                           styles.modeButton,
                           isActive && styles.activeModeButton,
+                          isDisabled && styles.disabledModeButton,
                         ]}
+                        accessibilityState={{ disabled: isDisabled }}
+                        accessibilityHint={isDisabled ? "Shuttle is currently unavailable" : undefined}
                       >
                         <MaterialCommunityIcons
                           name={strategy.icon as any}
                           size={22}
-                          color={isActive ? colors.white : colors.primary}
+                          color={isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary}
                         />
                         <Text
                           style={[
                             styles.modeText,
-                            { color: isActive ? colors.white : colors.primary },
+                            { color: isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary },
                           ]}
                         >
                           {strategy.label}

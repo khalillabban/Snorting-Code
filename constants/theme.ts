@@ -18,7 +18,9 @@ export const colors = {
   white: "#ffffff",
   offWhite: "#f2f2f2", // Light Gray
   gray100: "#e5e5e5", // Light Gray
+  gray200: "#d4d4d4", // Lighter Medium Gray
   gray300: "#b3b3b3", // Medium Gray
+  gray400: "#9a9a9a", // Medium Dark Gray
   gray500: "#737373", // Dark Gray
   gray700: "#404040", // Darkest Gray
   black: "#1a1a1a", // Black

@@ -2083,6 +2083,7 @@ export default function CampusMapScreen() {
         }}
         accessibleOnly={accessibleOnly}
         onAccessibleOnlyChange={setAccessibleOnly}
+        shuttleAvailable={shuttleStatus.available}
       />
 
       <NextClassDirectionsPanel
