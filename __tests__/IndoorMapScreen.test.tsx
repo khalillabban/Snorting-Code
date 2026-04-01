@@ -64,10 +64,10 @@ jest.mock("../utils/indoorPOI", () => ({
 }));
 
 import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
@@ -75,14 +75,14 @@ import { BUILDINGS } from "../constants/buildings";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
-    getIndoorNavigationRoute,
-    getIndoorNavigationRouteFromNode,
-    getIndoorNavigationRouteToNode,
+  getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-    getBuildingPlanAsset,
-    getFloorImageMetadata,
+  getBuildingPlanAsset,
+  getFloorImageMetadata,
 } from "../utils/mapAssets";
 import { parseTransitionPayload } from "../utils/routeTransition";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
