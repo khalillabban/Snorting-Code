@@ -78,6 +78,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
+  MapView.displayName = 'MapView';
 
   const Marker = React.forwardRef((props: any, ref: any) => {
     const markerId = props.testID ?? `marker-${props.title ?? "marker"}`;
@@ -101,6 +102,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
+  Marker.displayName = 'Marker';
 
   const Polygon = (props: any) => {
     const handlePress = () => props.onPress?.({ stopPropagation: jest.fn() });

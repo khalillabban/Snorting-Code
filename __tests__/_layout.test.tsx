@@ -22,7 +22,7 @@ jest.mock("expo-router", () => {
     return <View testID="mock-stack">{children}</View>;
   };
 
-  Stack.Screen = () => null;
+  Stack.Screen = function StackScreen() { return null; };
 
   return {
     __esModule: true,
