@@ -11173,6 +11173,41 @@
       "accessible": false
     },
     {
+      "source": "Hall_F1_hallway_waypoint_25",
+      "target": "Hall_F1_elevator_door_1",
+      "type": "hallway",
+      "weight": 102,
+      "accessible": true
+    },
+    {
+      "source": "Hall_F1_hallway_waypoint_25",
+      "target": "Hall_F1_elevator_door_2",
+      "type": "hallway",
+      "weight": 106,
+      "accessible": true
+    },
+    {
+      "source": "Hall_F1_elevator_door_1",
+      "target": "Hall_F1_elevator_door_2",
+      "type": "hallway",
+      "weight": 70,
+      "accessible": true
+    },
+    {
+      "source": "Hall_F1_elevator_door_1",
+      "target": "Hall_F1_hallway_waypoint_26",
+      "type": "hallway",
+      "weight": 340,
+      "accessible": true
+    },
+    {
+      "source": "Hall_F1_elevator_door_2",
+      "target": "Hall_F1_hallway_waypoint_26",
+      "type": "hallway",
+      "weight": 343,
+      "accessible": true
+    },
+    {
       "source": "Hall_F1_elevator_door_1",
       "target": "Hall_F2_elevator_door_1",
       "type": "elevator",
