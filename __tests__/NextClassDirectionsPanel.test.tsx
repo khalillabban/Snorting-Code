@@ -929,7 +929,7 @@ describe("NextClassDirectionsPanel", () => {
             />,
           );
 
-          const gestureConfig = panSpy.mock.calls[0][0];
+          const gestureConfig = panSpy.mock.calls[0][0] as any;
           expect(gestureConfig).toBeTruthy();
 
           expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(false);
@@ -1267,7 +1267,7 @@ describe("NextClassDirectionsPanel", () => {
     });
 
     it("selecting a room suggestion sets the start building and room", async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}

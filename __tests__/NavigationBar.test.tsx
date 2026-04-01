@@ -1066,7 +1066,7 @@ describe("NavigationBar", () => {
     });
 
     it("should handle special characters in search", () => {
-      const { getByPlaceholderText, queryByText } = render(
+      const { getByPlaceholderText } = render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
