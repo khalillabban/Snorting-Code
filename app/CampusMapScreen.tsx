@@ -510,14 +510,6 @@ export default function CampusMapScreen() {
 
   const poiSearchLocation = userLocation ?? CAMPUSES[currentCampus].coordinates;
 
-  const activePOICategoryKey = useMemo(
-    () =>
-      Array.from(activePOICategories)
-        .sort((a, b) => a.localeCompare(b))
-        .join(","),
-    [activePOICategories],
-  );
-
   const task15Snapshot = useRef<Task15Snapshot | null>(null);
   const wasPOIListOpenRef = useRef(false);
 
