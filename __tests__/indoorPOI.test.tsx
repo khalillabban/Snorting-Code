@@ -1,10 +1,3 @@
-jest.mock("../utils/mapAssets", () => ({
-  getBuildingPlanAsset: jest.fn(),
-  normalizeIndoorBuildingCode: jest.fn((code: string) =>
-    (code ?? "").trim().toUpperCase() === "HALL" ? "H" : (code ?? "").trim().toUpperCase(),
-  ),
-}));
-
 import type { POICategoryId } from "../constants/indoorPOI";
 import {
   filterPOIsByCategories,
@@ -13,6 +6,13 @@ import {
   type IndoorPOI,
 } from "../utils/indoorPOI";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
+
+jest.mock("../utils/mapAssets", () => ({
+  getBuildingPlanAsset: jest.fn(),
+  normalizeIndoorBuildingCode: jest.fn((code: string) =>
+    (code ?? "").trim().toUpperCase() === "HALL" ? "H" : (code ?? "").trim().toUpperCase(),
+  ),
+}));
 
 const mockBuildingPlanAsset = {
   meta: { buildingId: "H" },

@@ -1,11 +1,18 @@
+import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-    getIndoorNavigationRoute,
-    getIndoorNavigationRouteFromNode,
-    getIndoorNavigationRouteToNode,
-    getRouteWaypointsForFloor,
-    indoorRouteToSteps,
+  getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
+  getRouteWaypointsForFloor,
+  indoorRouteToSteps,
 } from "../utils/indoorNavigation";
+import {
+  findShortestPath,
+  resolveRoutingNodeId,
+} from "../utils/indoorPathFinding";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
+import { getBuildingPlanAsset } from "../utils/mapAssets";
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
   getNormalizedBuildingPlan: jest.fn(),
@@ -23,14 +30,6 @@ jest.mock("../utils/indoorPathFinding", () => ({
   resolveRoutingNodeId: jest.fn(),
   findShortestPath: jest.fn(),
 }));
-
-import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import {
-    findShortestPath,
-    resolveRoutingNodeId,
-} from "../utils/indoorPathFinding";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getBuildingPlanAsset } from "../utils/mapAssets";
 
 const mockedGetNormalizedBuildingPlan = getNormalizedBuildingPlan as jest.Mock;
 const mockedFindIndoorRoomMatch = findIndoorRoomMatch as jest.Mock;
