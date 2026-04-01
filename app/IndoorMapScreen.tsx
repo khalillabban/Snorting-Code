@@ -218,14 +218,12 @@ function useFloorSync(
 function useInitialRoomQuery(
   initialRoomQuery: string,
   availableFloors: number[],
-  setSearchQuery: (q: string) => void,
   performRoomSearch: (q: string, floor: number) => void,
 ) {
   useEffect(() => {
     if (!initialRoomQuery) return;
-    setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch, setSearchQuery]);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
 }
 
 function useNavAutoTrigger(
@@ -287,8 +285,6 @@ export default function IndoorMapScreen() {
   }, [buildingName, floors]);
 
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
@@ -307,7 +303,6 @@ export default function IndoorMapScreen() {
   useEffect(() => {
     if (!availableFloors.length) return;
 
-    // If current floor is no longer valid, reset it
     if (!availableFloors.includes(selectedFloor)) {
       setSelectedFloor(availableFloors[0]);
     }
@@ -325,7 +320,6 @@ export default function IndoorMapScreen() {
     Set<POICategoryId>
   >(new Set());
 
-  // ── Usability Testing ────────────────────────────────────────────────────
   const sessionId = useRef(getSessionId());
   const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());
@@ -339,7 +333,6 @@ export default function IndoorMapScreen() {
   const endTask = useCallback(
     async (taskId: string, extraParams: Record<string, unknown> = {}) => {
       const start = taskTimers.current[taskId];
-      // Guard: skip if no matching startTask — prevents 0ms ghost completions
       if (!start) return;
       const duration_ms = Date.now() - start;
       delete taskTimers.current[taskId];
@@ -367,16 +360,12 @@ export default function IndoorMapScreen() {
   const navAttemptCount = useRef(0);
   const accessibleToggledDuringNav = useRef(false);
 
-  // ── Screen load: start task timers ──────────────────────────────────────
-  // FIX task_11: startTask("task_11") was completely missing — duration was 0
-  // FIX task_12: entirely new task — start timer alongside task_9
-  // task_9 and task_10 timers start here, end on successful route generation
   useEffect(() => {
     const run = async () => {
       screenLoadTime.current = Date.now();
-      startTask("task_9"); // ends on first successful indoor route (same floor)
-      startTask("task_11"); // FIX: was missing — ends on first POI toggle
-      startTask("task_12"); // FIX: new task — ends on successful cross-floor route
+      startTask("task_9");
+      startTask("task_11");
+      startTask("task_12");
       try {
         await logUsabilityEvent("indoor_map_screen_loaded", {
           session_id: sessionId.current,
@@ -587,7 +576,6 @@ export default function IndoorMapScreen() {
       }
 
       setSelectedRoom(match.room);
-      setSearchQuery(match.room.label);
       setSearchError(null);
 
       if (match.floor !== currentFloor) {
@@ -600,7 +588,6 @@ export default function IndoorMapScreen() {
   useInitialRoomQuery(
     initialRoomQuery,
     availableFloors,
-    setSearchQuery,
     performRoomSearch,
   );
 
@@ -810,7 +797,6 @@ export default function IndoorMapScreen() {
     applyNavigationResult(result);
 
     if (result.success) {
-      // task_12: detect cross-floor route and end task_12
       const isCrossFloor =
         result.route.origin.floor !==
         (result.route.destination?.floor ?? result.route.origin.floor);
