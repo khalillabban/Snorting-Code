@@ -12,13 +12,15 @@ jest.mock("expo-constants", () => ({
 }));
 
 // Mock expo-router to avoid requiring LinkPreview context in tests
+let capturedStateListener: ((e: any) => void) | null = null;
 jest.mock("expo-router", () => {
   const React = require("react");
   const { View } = require("react-native");
 
-  const Stack = ({ children }: { children?: React.ReactNode }) => (
-    <View testID="mock-stack">{children}</View>
-  );
+  const Stack = ({ children, screenListeners }: any) => {
+    capturedStateListener = screenListeners?.state ?? null;
+    return <View testID="mock-stack">{children}</View>;
+  };
 
   Stack.Screen = () => null;
 
@@ -31,12 +33,18 @@ jest.mock("expo-router", () => {
 // Mock react-native-smartlook-analytics
 const mockSetProjectKey = jest.fn();
 const mockStart = jest.fn();
+const mockTrackNavigationEnter = jest.fn();
+const mockTrackNavigationExit = jest.fn();
 const mockSmartlook = {
   instance: {
     preferences: {
       setProjectKey: mockSetProjectKey,
     },
     start: mockStart,
+    analytics: {
+      trackNavigationEnter: mockTrackNavigationEnter,
+      trackNavigationExit: mockTrackNavigationExit,
+    },
   },
 };
 jest.mock("react-native-smartlook-analytics", () => ({
@@ -51,7 +59,8 @@ describe("RootLayout", () => {
     .mockImplementation(() => {});
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    capturedStateListener = null;
     process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY = "test-key";
     (Constants as any).executionEnvironment = "development";
   });
@@ -87,10 +96,59 @@ describe("RootLayout", () => {
     });
     render(<RootLayout />);
     expect(mockSetProjectKey).toHaveBeenCalledWith("test-key");
-    expect(mockStart).not.toHaveBeenCalled(); // Start is not called if setProjectKey fails
+    expect(mockStart).not.toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "Smartlook is not available in this build.",
       expect.any(Error),
     );
+  });
+
+  describe("handleStateChange navigation tracking", () => {
+    const fireState = (state: any) => {
+      capturedStateListener?.({ data: { state } });
+    };
+
+    it("tracks navigation enter on first route change", () => {
+      render(<RootLayout />);
+      fireState({ index: 0, routes: [{ name: "index" }] });
+      expect(mockTrackNavigationEnter).toHaveBeenCalledWith("index");
+      expect(mockTrackNavigationExit).not.toHaveBeenCalled();
+    });
+
+    it("tracks exit then enter when route changes", () => {
+      render(<RootLayout />);
+      fireState({ index: 0, routes: [{ name: "index" }] });
+      fireState({ index: 1, routes: [{ name: "index" }, { name: "CampusMapScreen" }] });
+      expect(mockTrackNavigationExit).toHaveBeenCalledWith("index");
+      expect(mockTrackNavigationEnter).toHaveBeenCalledWith("CampusMapScreen");
+    });
+
+    it("does not track when route name is unchanged", () => {
+      render(<RootLayout />);
+      fireState({ index: 0, routes: [{ name: "index" }] });
+      jest.clearAllMocks();
+      fireState({ index: 0, routes: [{ name: "index" }] });
+      expect(mockTrackNavigationEnter).not.toHaveBeenCalled();
+      expect(mockTrackNavigationExit).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when state is null", () => {
+      render(<RootLayout />);
+      fireState(null);
+      expect(mockTrackNavigationEnter).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when route is missing", () => {
+      render(<RootLayout />);
+      fireState({ index: 5, routes: [] });
+      expect(mockTrackNavigationEnter).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when Smartlook was not initialized", () => {
+      delete process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY;
+      render(<RootLayout />);
+      fireState({ index: 0, routes: [{ name: "index" }] });
+      expect(mockTrackNavigationEnter).not.toHaveBeenCalled();
+    });
   });
 });
