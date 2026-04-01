@@ -232,4 +232,206 @@ describe("NavigationBar coverage branches", () => {
       expect(screen.queryByText("Room H-220")).toBeNull();
     });
   });
+
+  it("disables shuttle button when shuttleAvailable is false", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={false}
+      />,
+    );
+
+    const shuttleButton = screen.getByTestId("mode-button-shuttle");
+    expect(shuttleButton.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it("enables shuttle button when shuttleAvailable is true", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={true}
+      />,
+    );
+
+    const shuttleButton = screen.getByTestId("mode-button-shuttle");
+    expect(shuttleButton.props.accessibilityState?.disabled).toBeFalsy();
+  });
+
+  it("does not select shuttle strategy when disabled and pressed", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={false}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId("mode-button-shuttle"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("From — building or room (e.g. H-110)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("get-directions-button")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("get-directions-button"));
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ mode: "walking" }),
+        null,
+        null,
+        false,
+      );
+    });
+  });
+
+  it("resets to walking strategy when shuttle becomes unavailable", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    const { rerender } = render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={true}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId("mode-button-shuttle"));
+
+    rerender(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={false}
+      />,
+    );
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("From — building or room (e.g. H-110)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("get-directions-button")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("get-directions-button"));
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ mode: "walking" }),
+        null,
+        null,
+        false,
+      );
+    });
+  });
+
+  it("allows selecting shuttle when available", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        shuttleAvailable={true}
+      />,
+    );
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("From — building or room (e.g. H-110)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
+      "H",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestion-H")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("suggestion-H"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("get-directions-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("mode-button-shuttle"));
+
+    await waitFor(() => {
+      fireEvent.press(screen.getByTestId("get-directions-button"));
+    });
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ name: "H" }),
+        expect.objectContaining({ mode: "shuttle" }),
+        null,
+        null,
+        false,
+      );
+    });
+  });
 });
