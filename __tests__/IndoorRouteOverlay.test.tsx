@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
+
 import {
-    IndoorDirectionsPanel,
-    IndoorRouteOverlay,
+  IndoorDirectionsPanel,
+  IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
 import type { NavigationRoute } from "../utils/indoorNavigation";
 import { getRouteWaypointsForFloor } from "../utils/indoorNavigation";
@@ -12,7 +13,9 @@ jest.mock("../utils/indoorNavigation", () => ({
 }));
 
 jest.mock("react-native-svg", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
 
   return {

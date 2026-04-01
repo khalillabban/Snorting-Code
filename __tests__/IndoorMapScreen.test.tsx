@@ -1,4 +1,28 @@
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import { useLocalSearchParams } from "expo-router";
 import React from "react";
+import IndoorMapScreen from "../app/IndoorMapScreen";
+import { BUILDINGS } from "../constants/buildings";
+import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
+import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { selectBestIndoorExit } from "../utils/indoorExit";
+import {
+  getIndoorNavigationRoute,
+  getIndoorNavigationRouteFromNode,
+  getIndoorNavigationRouteToNode,
+} from "../utils/indoorNavigation";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import {
+  getBuildingPlanAsset,
+  getFloorImageMetadata,
+} from "../utils/mapAssets";
+import { parseTransitionPayload } from "../utils/routeTransition";
+import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 const mockPush = jest.fn();
 
@@ -19,7 +43,9 @@ jest.mock("../constants/usabilityConfig", () => ({
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "mock-uuid") }));
 
 jest.mock("expo-image", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Image } = require("react-native");
   return {
     Image: ({ contentFit, ...props }: any) => <Image {...props} />,
@@ -61,30 +87,6 @@ jest.mock("../utils/indoorPOI", () => ({
   filterPOIsByCategories: jest.fn(() => []),
 }));
 
-import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
-} from "@testing-library/react-native";
-import { useLocalSearchParams } from "expo-router";
-import IndoorMapScreen from "../app/IndoorMapScreen";
-import { BUILDINGS } from "../constants/buildings";
-import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { selectBestIndoorExit } from "../utils/indoorExit";
-import {
-    getIndoorNavigationRoute,
-    getIndoorNavigationRouteFromNode,
-    getIndoorNavigationRouteToNode,
-} from "../utils/indoorNavigation";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import {
-    getBuildingPlanAsset,
-    getFloorImageMetadata,
-} from "../utils/mapAssets";
-import { parseTransitionPayload } from "../utils/routeTransition";
-import { logUsabilityEvent } from "../utils/usabilityAnalytics";
-
 jest.mock("../utils/destinationIndoorLeg", () => ({
   // Keep the real sentinel logic, but expose the pick fn so we can force the fallback branch.
   isDestinationLegOrigin: (value: any) =>
@@ -93,8 +95,6 @@ jest.mock("../utils/destinationIndoorLeg", () => ({
       .toUpperCase() === "ENTRANCE",
   pickClosestEntryExitNodeId: jest.fn(),
 }));
-
-import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
 
 const mockHallRoom = {
   id: "Hall_F8_room_291",

@@ -19,6 +19,7 @@ jest.mock("expo-web-browser", () => ({
 }));
 
 // require AFTER mocks are declared
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const OAuthRedirect = require("../app/oauthredirect").default;
 
 describe("OAuthRedirect", () => {

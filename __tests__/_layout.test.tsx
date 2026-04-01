@@ -14,7 +14,9 @@ jest.mock("expo-constants", () => ({
 // Mock expo-router to avoid requiring LinkPreview context in tests
 let capturedStateListener: ((e: any) => void) | null = null;
 jest.mock("expo-router", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
 
   const Stack = ({ children, screenListeners }: any) => {
@@ -22,7 +24,7 @@ jest.mock("expo-router", () => {
     return <View testID="mock-stack">{children}</View>;
   };
 
-  Stack.Screen = () => null;
+  Stack.Screen = function StackScreen() { return null; };
 
   return {
     __esModule: true,
