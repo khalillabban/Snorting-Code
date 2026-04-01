@@ -1,7 +1,7 @@
 // Usability Testing Toggle
 // Set to true during usability testing sessions, false for production builds.
 import * as Crypto from "expo-crypto";
-export const USABILITY_TESTING_ENABLED = false;
+export const USABILITY_TESTING_ENABLED = true;
 
 let currentSessionId: string | null = null;
 
