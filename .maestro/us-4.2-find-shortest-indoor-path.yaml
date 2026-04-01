@@ -1,0 +1,61 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible: 
+      id: "directions-button"
+    timeout: 10000
+- tapOn: "directions-button"
+
+- extendedWaitUntil:
+    visible: 
+      id: "start-location-input"
+    timeout: 8000
+- tapOn:
+    id: "start-location-input"
+- eraseText
+- inputText: "H-867"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-room-H-867"
+    timeout: 5000
+- tapOn:
+    id: "suggestion-room-H-867"
+
+- tapOn:
+    id: "dest-location-input"
+- eraseText
+- inputText: "H-857"
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-room-H-857"
+    timeout: 5000
+- tapOn:
+    id: "suggestion-room-H-857"
+
+- tapOn:
+    id: "mode-button-walking"
+- tapOn: "Get Directions"
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-stage"
+    timeout: 8000
+
+- assertVisible:
+    id: "indoor-floor-stage"
+- assertVisible:
+    id: "indoor-floor-image"
+
+- assertNotVisible:
+    id: "room-search-error"
