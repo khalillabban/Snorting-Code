@@ -1,15 +1,15 @@
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import {
-  getCurrentPositionAsync,
-  getForegroundPermissionsAsync,
-  hasServicesEnabledAsync,
-  requestForegroundPermissionsAsync,
-  watchPositionAsync,
+    getCurrentPositionAsync,
+    getForegroundPermissionsAsync,
+    hasServicesEnabledAsync,
+    requestForegroundPermissionsAsync,
+    watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
