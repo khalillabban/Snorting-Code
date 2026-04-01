@@ -2112,6 +2112,8 @@ export default function CampusMapScreen() {
         onUseMyLocation={() => effectiveCurrentBuilding ?? null}
         canOpenIndoorMap={canOpenNextClassIndoorMap}
         onOpenIndoorMap={handleOpenNextClassIndoorMap}
+        accessibleOnly={accessibleOnly}
+        onAccessibleOnlyChange={setAccessibleOnly}
       />
     </View>
   );

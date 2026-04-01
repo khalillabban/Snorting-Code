@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { colors } from "../constants/theme";
 import {
   resetSession,
@@ -8,6 +8,9 @@ import {
 } from "../constants/usabilityConfig";
 
 export default function RootLayout() {
+  const smartlookRef = useRef<any>(null);
+  const prevRouteRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (USABILITY_TESTING_ENABLED) {
       resetSession();
@@ -27,13 +30,31 @@ export default function RootLayout() {
       const Smartlook = require("react-native-smartlook-analytics").default;
       Smartlook.instance.preferences.setProjectKey(projectKey);
       Smartlook.instance.start();
+      smartlookRef.current = Smartlook;
     } catch (error) {
       console.warn("Smartlook is not available in this build.", error);
     }
   }, []);
 
+  const handleStateChange = useCallback((state: any) => {
+    const sl = smartlookRef.current;
+    if (!sl || !state) return;
+    const route = state.routes?.[state.index];
+    if (!route) return;
+
+    const name = route.name as string;
+    if (name === prevRouteRef.current) return;
+
+    if (prevRouteRef.current) {
+      sl.instance.analytics.trackNavigationExit(prevRouteRef.current);
+    }
+    sl.instance.analytics.trackNavigationEnter(name);
+    prevRouteRef.current = name;
+  }, []);
+
   return (
     <Stack
+      screenListeners={{ state: (e) => handleStateChange(e.data.state) }}
       screenOptions={{
         headerStyle: { backgroundColor: colors.primaryDark },
         headerTintColor: colors.white,
