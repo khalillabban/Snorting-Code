@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { colors } from "../constants/theme";
 import {
   resetSession,

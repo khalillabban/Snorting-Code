@@ -3,12 +3,12 @@ import hallBuildingPlan from "../assets/maps/buildingsPlan/hall.json";
 import mbFloorsCombinedPlan from "../assets/maps/buildingsPlan/mb_floors_combined.json";
 import veBuildingPlan from "../assets/maps/buildingsPlan/ve.json";
 import vlFloorsCombinedPlan from "../assets/maps/buildingsPlan/vl_floors_combined.json";
-import mb1GeoJson from "../assets/maps/MB-1.json";
-import mbS2GeoJson from "../assets/maps/MB-S2.json";
 import mb1FloorPlan from "../assets/maps/FloorPlans/mb_1.png";
 import mbS2FloorPlan from "../assets/maps/FloorPlans/mb_s2.png";
 import vl1FloorPlan from "../assets/maps/FloorPlans/vl_1.png";
 import vl2FloorPlan from "../assets/maps/FloorPlans/vl_2.png";
+import mb1GeoJson from "../assets/maps/MB-1.json";
+import mbS2GeoJson from "../assets/maps/MB-S2.json";
 import { FLOOR_PLAN_SVG_SOURCES } from "./floorPlanSvgSources";
 
 export interface LegacyFloorGeoJsonAsset {
