@@ -6,18 +6,18 @@ import { RouteStrategy } from "./Routing";
 type DirectionsResponse = {
   status?: string;
   error_message?: string;
-  routes?: Array<{
-    legs?: Array<{
+  routes?: {
+    legs?: {
       distance?: { text?: string };
       duration?: { text?: string };
-      steps?: Array<{
+      steps?: {
         polyline?: { points?: string };
         html_instructions?: string;
         distance?: { text?: string };
         duration?: { text?: string };
-      }>;
-    }>;
-  }>;
+      }[];
+    }[];
+  }[];
 };
 
 function stripHtml(html: string): string {
