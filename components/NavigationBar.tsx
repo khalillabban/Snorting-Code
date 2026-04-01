@@ -556,7 +556,7 @@ export default function NavigationBar({
                     testID={
                       item.kind === "building"
                         ? `suggestion-${item.building.name}`
-                        : `suggestion-room-${item.room.id}`
+                        : `suggestion-room-${item.room.label}`
                     }
                     style={styles.suggestionItem}
                     onPress={() => selectResult(item)}

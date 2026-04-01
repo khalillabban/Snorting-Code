@@ -1,0 +1,41 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible: H
+    timeout: 10000
+- tapOn: H
+
+- tapOn:
+    id: popup-view-indoor
+
+- tapOn:
+    id: poi-filter-chip-washroom
+- tapOn:
+    id: poi-filter-chip-water_fountain
+- tapOn:
+    id: poi-filter-chip-stairs
+- tapOn:
+    id: poi-filter-chip-elevator
+- tapOn:
+    id: poi-filter-chip-entrance
+- tapOn:
+    id: floor-button-2
+- tapOn:
+    id: floor-button-8
+- tapOn:
+    id: floor-button-9
+
+- assertVisible:
+    id: "indoor-floor-stage"
+- assertVisible:
+    id: "indoor-floor-image"

@@ -218,14 +218,12 @@ function useFloorSync(
 function useInitialRoomQuery(
   initialRoomQuery: string,
   availableFloors: number[],
-  setSearchQuery: (q: string) => void,
   performRoomSearch: (q: string, floor: number) => void,
 ) {
   useEffect(() => {
     if (!initialRoomQuery) return;
-    setSearchQuery(initialRoomQuery);
     performRoomSearch(initialRoomQuery, availableFloors[0] || 1);
-  }, [availableFloors, initialRoomQuery, performRoomSearch, setSearchQuery]);
+  }, [availableFloors, initialRoomQuery, performRoomSearch]);
 }
 
 function useNavAutoTrigger(
@@ -287,7 +285,6 @@ export default function IndoorMapScreen() {
   }, [buildingName, floors]);
 
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
@@ -467,6 +464,10 @@ export default function IndoorMapScreen() {
     [buildingName, endTask, selectedFloor, activePOICategories],
   );
 
+  useEffect(() => {
+    setSearchError(null);
+    setSelectedRoom(null);
+  }, [buildingName]);
   const handlePOIFilterFirstInteraction = useCallback(async () => {
     await logUsabilityEvent("indoor_poi_filter_bar_first_tap", {
       session_id: sessionId.current,
@@ -585,7 +586,6 @@ export default function IndoorMapScreen() {
       }
 
       setSelectedRoom(match.room);
-      setSearchQuery(match.room.label);
       setSearchError(null);
 
       if (match.floor !== currentFloor) {
@@ -595,12 +595,7 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useInitialRoomQuery(
-    initialRoomQuery,
-    availableFloors,
-    setSearchQuery,
-    performRoomSearch,
-  );
+  useInitialRoomQuery(initialRoomQuery, availableFloors, performRoomSearch);
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
@@ -1065,7 +1060,7 @@ export default function IndoorMapScreen() {
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
-          <Pressable style={styles.searchButton} onPress={handleNavigate}>
+          <Pressable style={styles.searchButton} onPress={handleNavigate} testID="go-indoor-button">
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
