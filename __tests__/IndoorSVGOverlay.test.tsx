@@ -4,7 +4,9 @@ import { IndoorSVGOverlay } from "../components/IndoorSVGOverlay";
 import type { Buildings } from "../constants/type";
 
 jest.mock("react-native-maps", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
   const overlaySpy = jest.fn();
 
