@@ -67,9 +67,10 @@ jest.mock("react-native-maps", () => {
 
   const MapView = React.forwardRef((props: any, ref: any) => {
     React.useImperativeHandle(ref, () => ({ animateToRegion }));
+    const { onMapReady } = props;
     React.useEffect(() => {
-      props.onMapReady?.();
-    }, []);
+      onMapReady?.();
+    }, [onMapReady]);
     return (
       <View
         testID="map-view"

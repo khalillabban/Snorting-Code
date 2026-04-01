@@ -659,8 +659,11 @@ export default function CampusMapScreen() {
     setShowPOIList(true);
   }, [
     activePOICategoryKey,
+    activePOICategories,
+    clearPOIs,
     poiRange.meters,
     poiSearchLocation,
+    searchPOIs,
     showPOIFilter,
     poiSearchTrigger,
   ]);
@@ -929,6 +932,7 @@ export default function CampusMapScreen() {
       });
     };
     run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1527,7 +1531,6 @@ export default function CampusMapScreen() {
     destinationRoomQueryText,
     finalizeActiveIndoorOutdoorTask,
     openIndoorMap,
-    selectedRoute.dest,
   ]);
 
   useEffect(() => {

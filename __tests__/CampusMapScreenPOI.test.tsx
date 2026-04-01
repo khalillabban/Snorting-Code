@@ -49,11 +49,12 @@ jest.mock("../components/CampusMap", () => {
   const React = require("react");
   const { Pressable, Text, View } = require("react-native");
   const Mock = (props: any) => {
+    const { onUserLocationResolved } = props;
     React.useEffect(() => {
       if (mockShouldResolveUserLocation) {
-        props.onUserLocationResolved?.({ latitude: 45.497, longitude: -73.579 });
+        onUserLocationResolved?.({ latitude: 45.497, longitude: -73.579 });
       }
-    }, []);
+    }, [onUserLocationResolved]);
 
     const focusPoi = (props.nearbyPOIs ?? []).find((p: any) => p.placeId === props.focusPOIId);
     const coord = focusPoi ? { latitude: focusPoi.latitude, longitude: focusPoi.longitude } : null;
