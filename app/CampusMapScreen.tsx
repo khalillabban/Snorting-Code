@@ -1,4 +1,3 @@
-import { getSessionId } from "@/constants/usabilityConfig";
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -24,7 +23,6 @@ import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors, spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
-import { USABILITY_TESTING_ENABLED } from "../constants/usabilityConfig";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import type { PlacePOI } from "../services/GooglePlacesService";
@@ -54,6 +52,10 @@ import {
   serializeTransitionPayload,
 } from "../utils/routeTransition";
 
+import {
+  USABILITY_TESTING_ENABLED,
+  getSessionId,
+} from "../constants/usabilityConfig";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
 const buildCrossBuildingIndoorParams = ({
@@ -489,7 +491,6 @@ export default function CampusMapScreen() {
     Set<OutdoorPOICategoryId>
   >(new Set());
   const [poiRange, setPOIRange] = useState<POIRangeOption>(DEFAULT_POI_RANGE);
-  const [poiSearchTrigger, setPoiSearchTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -646,7 +647,7 @@ export default function CampusMapScreen() {
     [],
   );
 
-  useEffect(() => {
+  const syncNearbyPOIs = useCallback(() => {
     if (!showPOIFilter) return;
     if (activePOICategories.size === 0) {
       clearPOIs();
@@ -659,12 +660,21 @@ export default function CampusMapScreen() {
     );
     setShowPOIList(true);
   }, [
-    activePOICategoryKey,
+    activePOICategories,
+    clearPOIs,
     poiRange.meters,
     poiSearchLocation,
+    searchPOIs,
     showPOIFilter,
-    poiSearchTrigger,
   ]);
+
+  useEffect(() => {
+    syncNearbyPOIs();
+  }, [syncNearbyPOIs]);
+
+  const retryPOISearch = useCallback(() => {
+    syncNearbyPOIs();
+  }, [syncNearbyPOIs]);
 
   useEffect(() => {
     if (!showPOIList) {
@@ -684,10 +694,6 @@ export default function CampusMapScreen() {
       time_since_map_load_ms: Date.now() - mapLoadTime.current,
     }).catch(console.error);
   }, [showPOIList, activePOICategories, nearbyPOIs.length, poiRange.meters]);
-
-  const retryPOISearch = useCallback(() => {
-    setPoiSearchTrigger((c) => c + 1);
-  }, []);
 
   const handleTogglePOICategory = useCallback(
     (id: OutdoorPOICategoryId) => {
@@ -916,7 +922,7 @@ export default function CampusMapScreen() {
       });
     };
     getUserBuilding();
-  }, [findNearestBuilding]);
+  }, [campus, findNearestBuilding]);
 
   useEffect(() => {
     mapLoadTime.current = Date.now();
@@ -1529,7 +1535,6 @@ export default function CampusMapScreen() {
     destinationRoomQueryText,
     finalizeActiveIndoorOutdoorTask,
     openIndoorMap,
-    selectedRoute.dest,
   ]);
 
   useEffect(() => {
