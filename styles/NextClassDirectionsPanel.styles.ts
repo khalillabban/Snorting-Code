@@ -2,7 +2,7 @@ import { Dimensions, StyleSheet } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-export const FULL_HEIGHT = SCREEN_HEIGHT * 0.85;
+export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
 
 export const styles = StyleSheet.create({
   keyboardContainer: {
@@ -38,8 +38,11 @@ export const styles = StyleSheet.create({
     marginBottom: 10,
   },
   content: {
-    padding: spacing.lg,
     flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -250,5 +253,34 @@ export const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: "bold",
+  },
+
+  roomBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: colors.secondaryTransparent,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.gray100,
+  },
+  roomBadgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+
+  roomTag: {
+    backgroundColor: colors.secondaryTransparent,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  roomTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.secondary,
   },
 });

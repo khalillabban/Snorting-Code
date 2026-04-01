@@ -10,6 +10,12 @@ jest.mock("expo-router", () => ({
 jest.mock("../utils/usabilityAnalytics", () => ({
   logUsabilityEvent: jest.fn(),
 }));
+jest.mock("../constants/usabilityConfig", () => ({
+  __esModule: true,
+  USABILITY_TESTING_ENABLED: true,
+  getSessionId: jest.fn(() => "test-session-id"),
+  resetSession: jest.fn(() => "test-session-id"),
+}));
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "mock-uuid") }));
 
 jest.mock("expo-image", () => {
@@ -56,10 +62,10 @@ jest.mock("../utils/indoorPOI", () => ({
 }));
 
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import IndoorMapScreen from "../app/IndoorMapScreen";
@@ -67,14 +73,14 @@ import { BUILDINGS } from "../constants/buildings";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";
 import {
-  getIndoorNavigationRoute,
-  getIndoorNavigationRouteFromNode,
-  getIndoorNavigationRouteToNode,
+    getIndoorNavigationRoute,
+    getIndoorNavigationRouteFromNode,
+    getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import {
-  getBuildingPlanAsset,
-  getFloorImageMetadata,
+    getBuildingPlanAsset,
+    getFloorImageMetadata,
 } from "../utils/mapAssets";
 import { parseTransitionPayload } from "../utils/routeTransition";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
