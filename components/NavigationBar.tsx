@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 
-import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
@@ -23,75 +22,20 @@ import { Buildings } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
-import { getIndoorAccessState } from "../utils/indoorAccess";
 import {
-  getNormalizedBuildingPlan,
-  IndoorRoomRecord,
-} from "../utils/indoorBuildingPlan";
+  campusBuildingResults,
+  queryIndex,
+  resultLabel,
+  resultSubtitle,
+  SearchResult,
+} from "../utils/buildingSearch";
+import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT =
   Platform.OS === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
-const MAX_SUGGESTIONS = 20;
-
-export type SearchResult =
-  | { kind: "building"; building: Buildings }
-  | { kind: "room"; room: IndoorRoomRecord; building: Buildings };
-
-function resultLabel(result: SearchResult): string {
-  if (result.kind === "building") return result.building.displayName;
-  return result.room.roomName ? `${result.room.label} — ${result.room.roomName}` : result.room.label;
-}
-
-function resultSubtitle(result: SearchResult): string {
-  if (result.kind === "building") return result.building.campusName;
-  return `${result.building.displayName} · Floor ${result.room.floor}`;
-}
-
-type SearchIndex = SearchResult[];
-let _cachedIndex: SearchIndex | null = null;
-
-function buildSearchIndex(): SearchIndex {
-  const index: SearchIndex = [];
-
-  for (const building of BUILDINGS) {
-    index.push({ kind: "building", building });
-
-    const access = getIndoorAccessState(building.name);
-    if (!access.hasSearchableRooms) continue;
-
-    const plan = getNormalizedBuildingPlan(building.name);
-    if (!plan) continue;
-
-    for (const room of plan.rooms) {
-      index.push({ kind: "room", room, building });
-    }
-  }
-
-  return index;
-}
-
-function getSearchIndex(): SearchIndex {
-  _cachedIndex ??= buildSearchIndex();
-  return _cachedIndex;
-}
-
-function queryIndex(query: string): SearchResult[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-
-  return getSearchIndex()
-    .filter((item) => {
-      const label = resultLabel(item).toLowerCase();
-      const code = item.building.name.toLowerCase();
-      const roomNumber =
-        item.kind === "room" ? item.room.roomNumber.toLowerCase() : "";
-      return label.includes(q) || code.includes(q) || roomNumber.includes(q);
-    })
-    .slice(0, MAX_SUGGESTIONS);
-}
 
 interface NavigationBarProps {
   visible: boolean;
@@ -218,14 +162,7 @@ export default function NavigationBar({
     }
     setActiveInput(type);
     const campusNorm = currentCampus.toLowerCase();
-    setSuggestions(
-      BUILDINGS.filter(
-        (b) =>
-          b.boundingBox &&
-          b.boundingBox.length >= 3 &&
-          (b.campusName || "").toLowerCase() === campusNorm,
-      ).map((b) => ({ kind: "building", building: b })),
-    );
+    setSuggestions(campusBuildingResults(campusNorm));
   };
 
   const handleUseMyLocation = () => {
@@ -295,8 +232,6 @@ export default function NavigationBar({
     };
   }, [startBuilding, destBuilding, selectedStrategy, suggestions.length]);
 
-  // ── Visibility animation ────────────────────────────────────────────────────
-
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
@@ -312,8 +247,6 @@ export default function NavigationBar({
       }).start(() => setShouldRender(false));
     }
   }, [visible, translateY]);
-
-  // ── Auto-fill ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (autoStartBuilding && !startManuallyEdited) {

@@ -1,23 +1,22 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    StyleProp,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
-    ViewStyle,
+  Animated,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleProp,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+  ViewStyle,
 } from "react-native";
 
-import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
@@ -25,7 +24,17 @@ import { Buildings, ScheduleItem } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { FULL_HEIGHT, styles } from "../styles/NextClassDirectionsPanel.styles";
+import {
+  campusBuildingResults,
+  queryIndex,
+  resultLabel,
+  resultSubtitle,
+  SearchResult,
+} from "../utils/buildingSearch";
 import { findBuildingByCode } from "../utils/findBuildingByCode";
+import { normalizeRoomQuery } from "../utils/indoorAccess";
+import { getNormalizedBuildingPlan, IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_TOP = SCREEN_HEIGHT - FULL_HEIGHT;
@@ -70,78 +79,91 @@ function fmtRoom(building: string, room: string): string {
 interface SuggestionRowProps {
   testID: string;
   iconName: React.ComponentProps<typeof MaterialIcons>["name"];
+  iconColor?: string;
   primaryText: string;
   secondaryText: string;
+  showRoomTag?: boolean;
   onPress: () => void;
 }
 
 function SuggestionRow({
   testID,
   iconName,
+  iconColor,
   primaryText,
   secondaryText,
+  showRoomTag,
   onPress,
 }: Readonly<SuggestionRowProps>) {
   return (
     <Pressable testID={testID} style={styles.suggestionItem} onPress={onPress}>
-      <MaterialIcons name={iconName} size={20} color={colors.primary} />
-      <View style={{ marginLeft: 10 }}>
+      <MaterialIcons name={iconName} size={20} color={iconColor ?? colors.primary} />
+      <View style={{ marginLeft: 10, flex: 1 }}>
         <Text style={styles.suggestionText}>{primaryText}</Text>
         <Text style={styles.suggestionSubtext}>{secondaryText}</Text>
       </View>
+      {showRoomTag && (
+        <View style={styles.roomTag}>
+          <Text style={styles.roomTagText}>Room</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
 
 interface SuggestionListProps {
-  buildings: Buildings[];
+  suggestions: SearchResult[];
   courses: ScheduleItem[];
-  onSelectBuilding: (b: Buildings) => void;
+  onSelectResult: (r: SearchResult) => void;
   onSelectCourse: (c: ScheduleItem) => void;
 }
 
 function SuggestionList({
-  buildings,
+  suggestions,
   courses,
-  onSelectBuilding,
+  onSelectResult,
   onSelectCourse,
 }: Readonly<SuggestionListProps>) {
-  if (buildings.length > 0) {
+  if (suggestions.length > 0) {
     return (
-      <FlatList
-        data={buildings}
-        keyExtractor={(item) => item.name}
-        keyboardShouldPersistTaps="handled"
-        style={styles.suggestionList}
-        renderItem={({ item }) => (
+      <View style={styles.suggestionList}>
+        {suggestions.map((item, index) => (
           <SuggestionRow
-            testID={`nc-suggestion-${item.name}`}
-            iconName="business"
-            primaryText={item.displayName}
-            secondaryText={item.campusName}
-            onPress={() => onSelectBuilding(item)}
+            key={
+              item.kind === "building"
+                ? `b-${item.building.name}`
+                : `r-${item.room.id}-${index}`
+            }
+            testID={
+              item.kind === "building"
+                ? `nc-suggestion-${item.building.name}`
+                : `nc-room-${item.room.id}`
+            }
+            iconName={item.kind === "room" ? "meeting-room" : "business"}
+            iconColor={item.kind === "room" ? colors.secondary : colors.primary}
+            primaryText={resultLabel(item)}
+            secondaryText={resultSubtitle(item)}
+            showRoomTag={item.kind === "room"}
+            onPress={() => onSelectResult(item)}
           />
-        )}
-      />
+        ))}
+      </View>
     );
   }
   if (courses.length > 0) {
     return (
-      <FlatList
-        data={courses}
-        keyExtractor={(item) => item.id}
-        keyboardShouldPersistTaps="handled"
-        style={styles.suggestionList}
-        renderItem={({ item }) => (
+      <View style={styles.suggestionList}>
+        {courses.map((item) => (
           <SuggestionRow
+            key={item.id}
             testID={`nc-course-${item.id}`}
             iconName="school"
             primaryText={item.courseName}
             secondaryText={`${fmtRoom(item.building, item.room)} - ${item.campus}`}
             onPress={() => onSelectCourse(item)}
           />
-        )}
-      />
+        ))}
+      </View>
     );
   }
   return null;
@@ -202,6 +224,9 @@ interface NextClassDirectionsPanelProps {
     start: Buildings | null,
     destination: Buildings | null,
     strategy: RouteStrategy,
+    startRoom?: IndoorRoomRecord | null,
+    endRoom?: IndoorRoomRecord | null,
+    accessibleOnly?: boolean,
   ) => void;
   nextClass: ScheduleItem | null;
   scheduleItems: ScheduleItem[];
@@ -210,6 +235,8 @@ interface NextClassDirectionsPanelProps {
   onUseMyLocation?: () => Buildings | null;
   canOpenIndoorMap?: boolean;
   onOpenIndoorMap?: () => void;
+  accessibleOnly?: boolean;
+  onAccessibleOnlyChange?: (value: boolean) => void;
 }
 
 export default function NextClassDirectionsPanel({
@@ -223,6 +250,8 @@ export default function NextClassDirectionsPanel({
   onUseMyLocation,
   canOpenIndoorMap = false,
   onOpenIndoorMap,
+  accessibleOnly = false,
+  onAccessibleOnlyChange,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -231,8 +260,11 @@ export default function NextClassDirectionsPanel({
   const [destLoc, setDestLoc] = useState("");
   const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
+  const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
+  const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
+  const [localAccessibleOnly, setLocalAccessibleOnly] = useState(accessibleOnly);
 
-  const [filteredBuildings, setFilteredBuildings] = useState<Buildings[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<ScheduleItem[]>([]);
   const [activeInput, setActiveInput] = useState<
     "start" | "destination" | null
@@ -254,14 +286,26 @@ export default function NextClassDirectionsPanel({
     setDestBuilding(null);
   };
 
-  const setDestFromBuilding = (building: Buildings) => {
+  const setDestFromBuilding = (building: Buildings, room?: IndoorRoomRecord | null) => {
     setError(null);
     setDestLoc(building.displayName);
     setDestBuilding(building);
+    setEndRoom(room ?? null);
+  };
+
+  const resolveIndoorRoom = (
+    buildingCode: string,
+    roomCode: string,
+  ): IndoorRoomRecord | null => {
+    if (!roomCode) return null;
+    const plan = getNormalizedBuildingPlan(buildingCode);
+    if (!plan) return null;
+    const query = normalizeRoomQuery(buildingCode, roomCode);
+    return findIndoorRoomMatch(plan, query)?.room ?? null;
   };
 
   const clearActiveSearch = () => {
-    setFilteredBuildings([]);
+    setSuggestions([]);
     setFilteredCourses([]);
     setActiveInput(null);
   };
@@ -275,7 +319,8 @@ export default function NextClassDirectionsPanel({
 
     const building = findBuildingByCode(nextClass.building);
     if (building) {
-      setDestFromBuilding(building);
+      const room = resolveIndoorRoom(nextClass.building, nextClass.room);
+      setDestFromBuilding(building, room);
     } else {
       clearDestWithError(nextClass.courseName);
     }
@@ -290,7 +335,7 @@ export default function NextClassDirectionsPanel({
 
   useEffect(() => {
     const showingList =
-      filteredBuildings.length > 0 || filteredCourses.length > 0;
+      suggestions.length > 0 || filteredCourses.length > 0;
     if (!startBuilding || !destBuilding || showingList) {
       setRouteSummary(null);
       return;
@@ -320,7 +365,7 @@ export default function NextClassDirectionsPanel({
     startBuilding,
     destBuilding,
     selectedStrategy,
-    filteredBuildings.length,
+    suggestions.length,
     filteredCourses.length,
   ]);
 
@@ -344,29 +389,11 @@ export default function NextClassDirectionsPanel({
     setActiveInput(field);
     if (field === "start") {
       setStartLoc(text);
-      setFilteredCourses([]);
-      setFilteredBuildings(
-        text.length > 0
-          ? BUILDINGS.filter(
-              (b) =>
-                b.displayName.toLowerCase().includes(text.toLowerCase()) ||
-                b.name.toLowerCase().includes(text.toLowerCase()),
-            )
-          : [],
-      );
     } else {
       setDestLoc(text);
-      setFilteredBuildings([]);
-      setFilteredCourses(
-        text.length > 0
-          ? deduplicateCourses(
-              getClassCourseItems(scheduleItems).filter((item) =>
-                item.courseName.toLowerCase().includes(text.toLowerCase()),
-              ),
-            )
-          : [],
-      );
     }
+    setFilteredCourses([]);
+    setSuggestions(text.length > 0 ? queryIndex(text) : []);
   };
 
   const finalizeSelection = () => {
@@ -374,16 +401,27 @@ export default function NextClassDirectionsPanel({
     Keyboard.dismiss();
   };
 
-  const selectBuilding = (building: Buildings) => {
-    setStartLoc(building.displayName);
-    setStartBuilding(building);
+  const selectResult = (result: SearchResult) => {
+    const building = result.building;
+    const room = result.kind === "room" ? result.room : null;
+    const label = resultLabel(result);
+    if (activeInput === "start") {
+      setStartLoc(label);
+      setStartBuilding(building);
+      setStartRoom(room);
+    } else {
+      setDestLoc(label);
+      setDestBuilding(building);
+      setEndRoom(room);
+    }
     finalizeSelection();
   };
 
   const selectCourse = (item: ScheduleItem) => {
     const building = findBuildingByCode(item.building);
     if (building) {
-      setDestFromBuilding(building);
+      const room = resolveIndoorRoom(item.building, item.room);
+      setDestFromBuilding(building, room);
     } else {
       clearDestWithError(item.courseName);
     }
@@ -400,22 +438,14 @@ export default function NextClassDirectionsPanel({
       return;
     }
     setActiveInput(inputType);
-    setFilteredBuildings([]);
+    setSuggestions([]);
     setFilteredCourses([]);
     populateList();
   };
 
   const showBuildingPicker = () => {
-    togglePicker("start", filteredBuildings, () => {
-      const campusNorm = currentCampus.toLowerCase();
-      setFilteredBuildings(
-        BUILDINGS.filter(
-          (b) =>
-            b.boundingBox &&
-            b.boundingBox.length >= 3 &&
-            (b.campusName || "").toLowerCase() === campusNorm,
-        ),
-      );
+    togglePicker("start", suggestions, () => {
+      setSuggestions(campusBuildingResults(currentCampus));
     });
   };
 
@@ -445,11 +475,13 @@ export default function NextClassDirectionsPanel({
     setDestLoc(startLoc);
     setStartBuilding(destBuilding);
     setDestBuilding(startBuilding);
+    setStartRoom(endRoom);
+    setEndRoom(startRoom);
     setRouteSummary(null);
   };
 
   const handleConfirm = () => {
-    onConfirm(startBuilding, destBuilding, selectedStrategy);
+    onConfirm(startBuilding, destBuilding, selectedStrategy, startRoom, endRoom, localAccessibleOnly);
     onClose();
   };
 
@@ -476,7 +508,7 @@ export default function NextClassDirectionsPanel({
   if (!shouldRender) return null;
 
   const showingList =
-    filteredBuildings.length > 0 || filteredCourses.length > 0;
+    suggestions.length > 0 || filteredCourses.length > 0;
 
   return (
     <>
@@ -500,6 +532,12 @@ export default function NextClassDirectionsPanel({
           </View>
 
           <View style={styles.content}>
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
             {/* Next-class info card */}
             {nextClass && (
               <View style={styles.classInfoCard}>
@@ -554,7 +592,7 @@ export default function NextClassDirectionsPanel({
             <View style={styles.originDestinationCard}>
               <LocationInputRow
                 testID="next-class-start-input"
-                placeholder="From"
+                placeholder="From — building or room (e.g. H-921)"
                 value={startLoc}
                 onChangeText={(t) => handleSearch("start", t)}
                 groupStyle={[styles.inputGroup, styles.inputGroupFirst]}
@@ -579,6 +617,16 @@ export default function NextClassDirectionsPanel({
                 }
               />
 
+              {startRoom && (
+                <View style={styles.roomBadge}>
+                  <MaterialCommunityIcons name="door" size={14} color={colors.primary} />
+                  <Text style={styles.roomBadgeText}>Room {startRoom.label}</Text>
+                  <Pressable testID="clear-start-room" onPress={() => setStartRoom(null)}>
+                    <MaterialIcons name="close" size={14} color={colors.gray500} />
+                  </Pressable>
+                </View>
+              )}
+
               <Pressable
                 style={styles.swapButton}
                 onPress={swapOriginDestination}
@@ -594,7 +642,7 @@ export default function NextClassDirectionsPanel({
 
               <LocationInputRow
                 testID="next-class-dest-input"
-                placeholder="To (select a course)"
+                placeholder="To — building, room, or course"
                 value={destLoc}
                 onChangeText={(t) => handleSearch("destination", t)}
                 groupStyle={[styles.inputGroup, styles.inputGroupLast]}
@@ -608,6 +656,16 @@ export default function NextClassDirectionsPanel({
                 onPickPress={showCoursePicker}
                 pickLabel="Pick destination from course list"
               />
+
+              {endRoom && (
+                <View style={styles.roomBadge}>
+                  <MaterialCommunityIcons name="door" size={14} color={colors.primary} />
+                  <Text style={styles.roomBadgeText}>Room {endRoom.label}</Text>
+                  <Pressable testID="clear-end-room" onPress={() => setEndRoom(null)}>
+                    <MaterialIcons name="close" size={14} color={colors.gray500} />
+                  </Pressable>
+                </View>
+              )}
             </View>
 
             {/* Strategy buttons (hidden while picking) */}
@@ -643,6 +701,31 @@ export default function NextClassDirectionsPanel({
                     );
                   })}
                 </View>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                  <Pressable
+                    onPress={() => {
+                      setLocalAccessibleOnly(!localAccessibleOnly);
+                      onAccessibleOnlyChange?.(!localAccessibleOnly);
+                    }}
+                    style={[
+                      styles.modeButton,
+                      localAccessibleOnly && styles.activeModeButton,
+                      { flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
+                    ]}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: localAccessibleOnly }}
+                    testID="next-class-accessible-toggle"
+                  >
+                    <MaterialCommunityIcons
+                      name={localAccessibleOnly ? "wheelchair-accessibility" : "walk"}
+                      size={22}
+                      color={localAccessibleOnly ? colors.white : colors.primary}
+                    />
+                    <Text style={{ color: localAccessibleOnly ? colors.white : colors.primary, marginLeft: 8 }}>
+                      Accessible Route
+                    </Text>
+                  </Pressable>
+                </View>
                 {(routeSummaryLoading || routeSummary) && (
                   <Text style={styles.routeSummaryText} numberOfLines={1}>
                     {routeSummaryLoading
@@ -657,9 +740,9 @@ export default function NextClassDirectionsPanel({
 
             {/* Unified suggestion list */}
             <SuggestionList
-              buildings={filteredBuildings}
+              suggestions={suggestions}
               courses={filteredCourses}
-              onSelectBuilding={selectBuilding}
+              onSelectResult={selectResult}
               onSelectCourse={selectCourse}
             />
 
@@ -673,6 +756,7 @@ export default function NextClassDirectionsPanel({
                 <Text style={styles.searchButtonText}>Get Directions</Text>
               </Pressable>
             )}
+            </ScrollView>
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
