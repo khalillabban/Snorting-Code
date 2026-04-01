@@ -287,7 +287,8 @@ export default function IndoorMapScreen() {
   }, [buildingName, floors]);
 
   const [selectedFloor, setSelectedFloor] = useState(availableFloors[0] || 1);
-  const [searchQuery, setSearchQuery] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<IndoorRoomRecord | null>(
     null,
