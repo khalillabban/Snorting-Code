@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import {
     fireEvent,

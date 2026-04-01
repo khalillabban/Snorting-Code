@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";

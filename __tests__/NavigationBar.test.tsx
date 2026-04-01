@@ -508,6 +508,7 @@ describe("NavigationBar", () => {
       );
 
       const touchables = UNSAFE_getAllByType(
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("react-native").TouchableWithoutFeedback,
       );
 
@@ -527,6 +528,7 @@ describe("NavigationBar", () => {
       );
 
       const touchables = UNSAFE_getAllByType(
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("react-native").TouchableWithoutFeedback,
       );
 

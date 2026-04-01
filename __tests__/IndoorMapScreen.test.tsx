@@ -19,7 +19,9 @@ jest.mock("../constants/usabilityConfig", () => ({
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "mock-uuid") }));
 
 jest.mock("expo-image", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Image } = require("react-native");
   return {
     Image: ({ contentFit, ...props }: any) => <Image {...props} />,

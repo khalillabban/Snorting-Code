@@ -44,7 +44,9 @@ jest.mock("../utils/mapAssets", () => ({
 }));
 
 jest.mock("react-native-maps", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, View, TouchableOpacity } = require("react-native");
   const showCalloutMocks: Record<string, jest.Mock> = {};
 
@@ -184,7 +186,9 @@ jest.mock("../utils/pointInPolygon", () => ({
 }));
 
 jest.mock("../components/BuildingInfoPopup", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, View, Pressable } = require("react-native");
   return {
     BuildingInfoPopup: ({
