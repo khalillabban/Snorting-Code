@@ -458,6 +458,10 @@ export default function IndoorMapScreen() {
     [buildingName, endTask, selectedFloor, activePOICategories],
   );
 
+  useEffect(() => {
+    setSearchError(null);
+    setSelectedRoom(null);
+  }, [buildingName]);
   const handlePOIFilterFirstInteraction = useCallback(async () => {
     await logUsabilityEvent("indoor_poi_filter_bar_first_tap", {
       session_id: sessionId.current,
@@ -1053,7 +1057,7 @@ export default function IndoorMapScreen() {
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
-          <Pressable style={styles.searchButton} onPress={handleNavigate}>
+          <Pressable style={styles.searchButton} onPress={handleNavigate} testID="go-indoor-button">
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
