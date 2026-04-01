@@ -1,0 +1,44 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: SGW Campus
+
+- tapOn: directions-button
+
+- tapOn:
+    id: "start-location-input"
+- eraseText
+- inputText: "H-110"
+- tapOn:
+    id: suggestion-room-H-110
+    index: 1
+
+- tapOn:
+    id: dest-location-input
+- inputText: VL-201
+- tapOn:
+    id: suggestion-room-VL-201
+- tapOn:
+    id: mode-button-shuttle
+
+- tapOn: Get Directions
+
+- tapOn:
+    id: continue-outside
+
+- tapOn: Loyola
+
+- swipe:
+    direction: UP
+- tapOn: 󰠜, Continue indoors, 
+- tapOn:
+    id: floor-button-2
+
+

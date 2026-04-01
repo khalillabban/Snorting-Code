@@ -98,12 +98,12 @@ describe("NavigationBar coverage branches", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-110")).toBeTruthy();
       expect(screen.getByText("H-110 — Computer Lab")).toBeTruthy();
       expect(screen.getByText("Hall Building (H) · Floor 1")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByTestId("suggestion-room-room-110"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-110"));
 
     await waitFor(() => {
       expect(screen.getByText("Room H-110")).toBeTruthy();
@@ -115,12 +115,12 @@ describe("NavigationBar coverage branches", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-220")).toBeTruthy();
       expect(screen.getByText("H-220 — Lecture Hall")).toBeTruthy();
       expect(screen.getByText("Hall Building (H) · Floor 2")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByTestId("suggestion-room-room-220"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-220"));
 
     await waitFor(() => {
       expect(screen.getByText("Room H-220")).toBeTruthy();
@@ -158,27 +158,27 @@ describe("NavigationBar coverage branches", () => {
       "H-110",
     );
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-110")).toBeTruthy();
     });
-    fireEvent.press(screen.getByTestId("suggestion-room-room-110"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-110"));
 
     fireEvent.changeText(
       screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
       "H-220",
     );
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-220")).toBeTruthy();
     });
-    fireEvent.press(screen.getByTestId("suggestion-room-room-220"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-220"));
 
     fireEvent(screen.getByTestId("start-location-input"), "focus");
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-110")).toBeTruthy();
     });
 
     fireEvent(screen.getByTestId("dest-location-input"), "focus");
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-220")).toBeTruthy();
     });
   });
 
@@ -206,18 +206,18 @@ describe("NavigationBar coverage branches", () => {
       "H-110",
     );
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-110")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-110")).toBeTruthy();
     });
-    fireEvent.press(screen.getByTestId("suggestion-room-room-110"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-110"));
 
     fireEvent.changeText(
       screen.getByPlaceholderText("To — building or room (e.g. MB-1.210)"),
       "H-220",
     );
     await waitFor(() => {
-      expect(screen.getByTestId("suggestion-room-room-220")).toBeTruthy();
+      expect(screen.getByTestId("suggestion-room-H-220")).toBeTruthy();
     });
-    fireEvent.press(screen.getByTestId("suggestion-room-room-220"));
+    fireEvent.press(screen.getByTestId("suggestion-room-H-220"));
 
     await waitFor(() => {
       expect(screen.getByText("Room H-110")).toBeTruthy();

@@ -1,0 +1,62 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+- tapOn: "SGW Campus"
+
+- extendedWaitUntil:
+    visible: H
+    timeout: 10000
+- tapOn: H
+
+- tapOn:
+    id: popup-view-indoor
+
+- tapOn: From (H-110)
+
+- inputText: H-867
+
+- hideKeyboard
+
+- tapOn: To (H-920)
+
+- inputText: H-937
+
+- hideKeyboard
+
+- tapOn:
+    id: indoor-accessible-mode-toggle
+- tapOn:
+    id: go-indoor-button
+
+- assertVisible:
+    id: "indoor-floor-stage"
+- assertVisible:
+    id: "indoor-floor-image"
+
+- tapOn:
+    id: floor-button-8
+- tapOn:
+    id: floor-button-9
+
+- tapOn:
+    id: indoor-accessible-mode-toggle
+
+- tapOn:
+    id: go-indoor-button
+
+- assertVisible:
+    id: "indoor-floor-stage"
+- assertVisible:
+    id: "indoor-floor-image"
+
+- tapOn:
+    id: floor-button-8
+- tapOn:
+    id: floor-button-9
