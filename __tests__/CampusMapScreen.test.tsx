@@ -1,19 +1,19 @@
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen, {
-  buildRouteConfirmIntent,
-  classifyIndoorOutdoorTask,
-  handleIndoorRouteIntent,
-  parseStartedAtMs,
-  toBuildingCode,
+    buildRouteConfirmIntent,
+    classifyIndoorOutdoorTask,
+    handleIndoorRouteIntent,
+    parseStartedAtMs,
+    toBuildingCode,
 } from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
@@ -22,8 +22,8 @@ import { buildIndoorMapRouteParams } from "../utils/indoorAccess";
 import { getIndoorNavigationRouteFromNode } from "../utils/indoorNavigation";
 import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import {
-  getNextClassFromItems,
-  loadCachedSchedule,
+    getNextClassFromItems,
+    loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import { parseTransitionPayload } from "../utils/routeTransition";
 
@@ -38,6 +38,13 @@ jest.mock("../hooks/useNearbyPOIs", () => ({
 jest.mock("@/utils/usabilityAnalytics", () => ({
   __esModule: true,
   logUsabilityEvent: jest.fn(),
+}));
+
+jest.mock("@/constants/usabilityConfig", () => ({
+  __esModule: true,
+  USABILITY_TESTING_ENABLED: true,
+  getSessionId: jest.fn(() => "test-session-id"),
+  resetSession: jest.fn(() => "test-session-id"),
 }));
 
 const getRouterPushMock = () => require("expo-router").router.push as jest.Mock;

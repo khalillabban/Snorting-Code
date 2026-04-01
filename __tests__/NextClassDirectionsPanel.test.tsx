@@ -15,6 +15,51 @@ jest.mock("../services/GoogleDirectionsService", () => ({
   ),
 }));
 
+jest.mock("../utils/mapAssets", () => ({
+  normalizeIndoorBuildingCode: (code: string) => code.toUpperCase(),
+  getAvailableFloors: (code: string) => (code === "MB" ? [1] : []),
+  hasBuildingPlanAsset: (code: string) => code === "MB",
+}));
+
+const mockMBRoom = {
+  id: "MB-1.210",
+  buildingCode: "MB",
+  floor: 1,
+  label: "MB-1.210",
+  roomNumber: "1.210",
+  roomName: "Classroom",
+  aliases: [],
+  x: 100,
+  y: 200,
+  accessible: true,
+  searchTerms: ["MB-1.210", "1.210", "Classroom"],
+  searchKeys: ["MB1210"],
+};
+
+jest.mock("../utils/indoorBuildingPlan", () => ({
+  getNormalizedBuildingPlan: (code: string) => {
+    if (code !== "MB") return null;
+    return {
+      buildingCode: "MB",
+      floors: [1],
+      rooms: [mockMBRoom],
+      roomsByFloor: { 1: [mockMBRoom] },
+    };
+  },
+}));
+
+jest.mock("../utils/indoorRoomSearch", () => ({
+  findIndoorRoomMatch: (plan: any, query: string) => {
+    if (!plan) return null;
+    const room = plan.rooms.find(
+      (r: any) =>
+        query.toUpperCase().includes(r.roomNumber) ||
+        query.toUpperCase() === r.label,
+    );
+    return room ? { room, floor: room.floor, matchType: "exact_label", score: 1 } : null;
+  },
+}));
+
 jest.mock("../constants/buildings", () => ({
   BUILDINGS: [
     {
@@ -508,8 +553,8 @@ describe("NextClassDirectionsPanel", () => {
       expect(getByTestId("next-class-mode-bicycling")).toBeTruthy();
     });
 
-    it("filters courses when typing in destination input", async () => {
-      const { getByTestId, queryByTestId } = render(
+    it("searches buildings when typing in destination input", async () => {
+      const { getByTestId, queryByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -519,13 +564,13 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "Hall");
 
       await waitFor(() => {
-        // SOEN 390 course item should appear in course list
-        expect(getByTestId("nc-course-2")).toBeTruthy();
-        // COMP 335 course item should be filtered out from list
-        expect(queryByTestId("nc-course-1")).toBeNull();
+        // Building suggestion should appear via queryIndex
+        expect(queryByText("Henry F. Hall Building (H)")).toBeTruthy();
+        // Non-matching building should not appear
+        expect(queryByText("John Molson Building (MB)")).toBeNull();
       });
     });
 
@@ -615,8 +660,8 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
-    it("clears course list when search text is emptied", async () => {
-      const { getByTestId, queryByTestId } = render(
+    it("clears suggestion list when search text is emptied", async () => {
+      const { getByTestId, queryByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -626,16 +671,16 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      // Type to show courses
-      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+      // Type to show building suggestions
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "Hall");
       await waitFor(() => {
-        expect(getByTestId("nc-course-2")).toBeTruthy();
+        expect(queryByText("Henry F. Hall Building (H)")).toBeTruthy();
       });
 
-      // Clear text to hide courses
+      // Clear text to hide suggestions
       fireEvent.changeText(getByTestId("next-class-dest-input"), "");
       await waitFor(() => {
-        expect(queryByTestId("nc-course-2")).toBeNull();
+        expect(queryByText("Henry F. Hall Building (H)")).toBeNull();
       });
     });
 
@@ -925,7 +970,7 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
-    it("ignores matching event items when filtering destination courses", async () => {
+    it("ignores event items when picking destination courses via picker", async () => {
       const mixedItems: ScheduleItem[] = [
         ...mockScheduleItems,
         {
@@ -942,7 +987,7 @@ describe("NextClassDirectionsPanel", () => {
         },
       ];
 
-      const { getByTestId, queryByTestId } = render(
+      const { getByLabelText, getByTestId, queryByTestId } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -952,12 +997,375 @@ describe("NextClassDirectionsPanel", () => {
         />,
       );
 
-      fireEvent.changeText(getByTestId("next-class-dest-input"), "SOEN");
+      // Use the picker button (not text input) to show courses
+      fireEvent.press(getByLabelText("Pick destination from course list"));
 
       await waitFor(() => {
+        expect(getByTestId("nc-course-1")).toBeTruthy();
         expect(getByTestId("nc-course-2")).toBeTruthy();
+        // Event items should NOT appear in course picker
         expect(queryByTestId("nc-course-event-soen")).toBeNull();
       });
     });
+
+  // -----------------------------------------------------------------------
+  // Room resolution & room badge display
+  // -----------------------------------------------------------------------
+  describe("Room resolution and badges", () => {
+    it("auto-resolves indoor room from next class and shows end-room badge", async () => {
+      // mockScheduleItems[0] has building MB, room "1.210"
+      // Our mock indoorRoomSearch returns a match for MB-1.210
+      const { getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByText(/Room\s+MB-1\.210/)).toBeTruthy();
+      });
+    });
+
+    it("clears end-room badge when clear button is pressed", async () => {
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId("clear-end-room")).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId("clear-end-room"));
+
+      await waitFor(() => {
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
+
+    it("does not show room badge when room is not resolved", async () => {
+      // SOEN 390 class has building H, which returns null plan in our mock
+      const { queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[1]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Accessible route toggle
+  // -----------------------------------------------------------------------
+  describe("Accessible route toggle", () => {
+    it("renders the accessible route toggle button", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-accessible-toggle")).toBeTruthy();
+      });
+    });
+
+    it("accessible toggle starts unchecked by default", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        const toggle = getByTestId("next-class-accessible-toggle");
+        expect(toggle.props.accessibilityState.checked).toBe(false);
+      });
+    });
+
+    it("toggling accessible route calls onAccessibleOnlyChange", async () => {
+      const mockAccessibleChange = jest.fn();
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          onAccessibleOnlyChange={mockAccessibleChange}
+        />,
+      );
+
+      fireEvent.press(getByTestId("next-class-accessible-toggle"));
+
+      await waitFor(() => {
+        expect(mockAccessibleChange).toHaveBeenCalledWith(true);
+      });
+    });
+
+    it("toggling accessible route twice returns to unchecked", async () => {
+      const mockAccessibleChange = jest.fn();
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          onAccessibleOnlyChange={mockAccessibleChange}
+        />,
+      );
+
+      fireEvent.press(getByTestId("next-class-accessible-toggle"));
+      fireEvent.press(getByTestId("next-class-accessible-toggle"));
+
+      await waitFor(() => {
+        expect(mockAccessibleChange).toHaveBeenLastCalledWith(false);
+        const toggle = getByTestId("next-class-accessible-toggle");
+        expect(toggle.props.accessibilityState.checked).toBe(false);
+      });
+    });
+
+    it("starts checked when accessibleOnly prop is true", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          accessibleOnly={true}
+        />,
+      );
+
+      await waitFor(() => {
+        const toggle = getByTestId("next-class-accessible-toggle");
+        expect(toggle.props.accessibilityState.checked).toBe(true);
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // onConfirm passes rooms and accessible flag
+  // -----------------------------------------------------------------------
+  describe("onConfirm extended params", () => {
+    it("passes startRoom, endRoom, and accessibleOnly to onConfirm", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-get-directions")).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId("next-class-get-directions"));
+
+      expect(mockOnConfirm).toHaveBeenCalledTimes(1);
+      const args = mockOnConfirm.mock.calls[0];
+      // args: [startBuilding, destBuilding, strategy, startRoom, endRoom, accessibleOnly]
+      expect(args.length).toBe(6);
+      // startRoom is null (no start building set)
+      expect(args[3]).toBeNull();
+      // endRoom should be the resolved room for MB-1.210
+      expect(args[4]).toMatchObject({ label: "MB-1.210" });
+      // accessibleOnly defaults to false
+      expect(args[5]).toBe(false);
+    });
+
+    it("passes accessibleOnly=true when toggle is pressed before confirming", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      fireEvent.press(getByTestId("next-class-accessible-toggle"));
+      fireEvent.press(getByTestId("next-class-get-directions"));
+
+      const args = mockOnConfirm.mock.calls[0];
+      expect(args[5]).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Unified search: room suggestions with styling
+  // -----------------------------------------------------------------------
+  describe("Room search suggestions", () => {
+    it("shows room suggestions with Room tag when searching by room number", async () => {
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search for "1.210" — this should match the MB room via queryIndex
+      fireEvent.changeText(getByTestId("next-class-start-input"), "1.210");
+
+      await waitFor(() => {
+        // Room suggestion should show with room tag
+        expect(getByText("Room")).toBeTruthy();
+      });
+    });
+
+    it("shows building suggestions without Room tag when searching by building name", async () => {
+      const { getByTestId, queryAllByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search for "Hall" — only building result, no room tag
+      fireEvent.changeText(getByTestId("next-class-start-input"), "Hall");
+
+      await waitFor(() => {
+        // "Room" tag should NOT appear for building results
+        const roomTags = queryAllByText("Room");
+        expect(roomTags.length).toBe(0);
+      });
+    });
+
+    it("selecting a room suggestion sets the start building and room", async () => {
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search for room in start input
+      fireEvent.changeText(getByTestId("next-class-start-input"), "1.210");
+
+      await waitFor(() => {
+        // There should be a room suggestion with the testID
+        expect(getByTestId("nc-room-MB-1.210")).toBeTruthy();
+      });
+
+      // Select the room
+      fireEvent.press(getByTestId("nc-room-MB-1.210"));
+
+      await waitFor(() => {
+        // Start-room badge should appear
+        expect(getByTestId("clear-start-room")).toBeTruthy();
+      });
+    });
+
+    it("clearing start-room badge removes it", async () => {
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search and select room
+      fireEvent.changeText(getByTestId("next-class-start-input"), "1.210");
+      await waitFor(() => {
+        expect(getByTestId("nc-room-MB-1.210")).toBeTruthy();
+      });
+      fireEvent.press(getByTestId("nc-room-MB-1.210"));
+
+      await waitFor(() => {
+        expect(getByTestId("clear-start-room")).toBeTruthy();
+      });
+
+      // Clear the room badge
+      fireEvent.press(getByTestId("clear-start-room"));
+
+      await waitFor(() => {
+        expect(queryByTestId("clear-start-room")).toBeNull();
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Swap preserves rooms
+  // -----------------------------------------------------------------------
+  describe("Swap with rooms", () => {
+    it("swapping origin/destination also swaps room badges", async () => {
+      const autoStart = {
+        name: "MB",
+        campusName: "SGW",
+        displayName: "John Molson Building (MB)",
+        coordinates: { latitude: 45.495304, longitude: -73.579044 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { getByLabelText, getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      // Initially: end-room badge visible (from next class), no start-room badge
+      await waitFor(() => {
+        expect(getByTestId("clear-end-room")).toBeTruthy();
+        expect(queryByTestId("clear-start-room")).toBeNull();
+      });
+
+      // Swap
+      fireEvent.press(getByLabelText("Swap origin and destination"));
+
+      await waitFor(() => {
+        // After swap: the room that was on end should now be on start
+        expect(getByTestId("clear-start-room")).toBeTruthy();
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
+  });
 });
+
 

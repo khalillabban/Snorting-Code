@@ -61,7 +61,7 @@ function parseLocation(raw: string): {
 function splitRoom(room: string): { level: string; room: string } {
   const dotMatch = room.match(/^([A-Z0-9]+)\.(\d+)$/i);
   if (dotMatch) {
-    return { level: dotMatch[1].toUpperCase(), room: dotMatch[2] };
+    return { level: dotMatch[1].toUpperCase(), room: room.toUpperCase() };
   }
 
   const digitMatch = room.match(/^(\d)(\d+)$/);

@@ -2,11 +2,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ScheduleItem } from "../constants/type";
 import type { GoogleCalendarEvent } from "../services/GoogleCalendarService";
 import {
-  getNextClass,
-  getNextClassFromItems,
-  loadCachedSchedule,
-  parseCourseEvents,
-  saveSchedule,
+    getNextClass,
+    getNextClassFromItems,
+    loadCachedSchedule,
+    parseCourseEvents,
+    saveSchedule,
 } from "../utils/parseCourseEvents";
 
 beforeEach(async () => {
@@ -332,7 +332,7 @@ describe("parseCourseEvents", () => {
     expect(res[0].courseName).toBe("SOEN 321 LEC");
     expect(res[0].location).toBe("SGW - EV 2.260");
     expect(res[0].building).toBe("EV");
-    expect(res[0].room).toBe("260");
+    expect(res[0].room).toBe("2.260");
     expect(res[0].level).toBe("2");
   });
 
