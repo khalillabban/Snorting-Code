@@ -1,7 +1,6 @@
 import { getBuildingOutdoorFallback, selectBestIndoorExit } from "../utils/indoorExit";
 import { findShortestPath, resolveRoutingNodeId } from "../utils/indoorPathFinding";
-import type { BuildingPlanAsset } from "../utils/mapAssets";
-import { getBuildingPlanAsset } from "../utils/mapAssets";
+import { getBuildingPlanAsset, type BuildingPlanAsset } from "../utils/mapAssets";
 
 jest.mock("../utils/mapAssets", () => {
   return {
