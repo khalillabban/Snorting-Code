@@ -1,0 +1,63 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 20000
+
+- tapOn: SGW Campus
+- tapOn:
+    id: poi-filter-button
+- tapOn:
+    id: outdoor-poi-chip-restaurant
+- tapOn:
+    id: poi-range-200
+- tapOn:
+    id: poi-range-1000
+- tapOn:
+    id: poi-range-2000
+- tapOn:
+    id: poi-range-500
+- tapOn:
+    id: outdoor-poi-chip-restaurant
+- tapOn:
+    id: outdoor-poi-chip-coffee
+- tapOn:
+    id: outdoor-poi-chip-coffee
+- tapOn:
+    id: outdoor-poi-chip-study
+- tapOn:
+    id: outdoor-poi-chip-study
+
+- tapOn:
+    id: outdoor-poi-chip-grocery
+- tapOn:
+    id: outdoor-poi-chip-grocery
+
+- tapOn:
+    id: outdoor-poi-chip-pharmacy
+- tapOn:
+    id: outdoor-poi-chip-pharmacy
+
+- tapOn:
+    id: outdoor-poi-chip-atm
+
+- tapOn: BMO Bank of Montreal ATM, 151 m away
+- tapOn:
+    id: poi-get-directions-button
+- assertVisible: BMO Bank of Montreal ATM
+- assertVisible: Walk
+
+- tapOn: Close directions
+- tapOn:
+    id: clear-selected-poi-button
+
+- tapOn:
+    id: poi-filter-button
+
+
+
+
