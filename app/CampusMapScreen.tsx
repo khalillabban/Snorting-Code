@@ -660,7 +660,6 @@ export default function CampusMapScreen() {
     );
     setShowPOIList(true);
   }, [
-    activePOICategoryKey,
     activePOICategories,
     clearPOIs,
     poiRange.meters,
