@@ -70,17 +70,12 @@ Before running the app locally, make sure you have:
    npm install
    ```
 
-3. Create a `.env` file in the project root.
-4. Add the required environment variables:
-
-   ```env
-   EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=""
-   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=""
-   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=""
-   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=""
-   ```
-
-5. Start Expo:
+3. Create a `.env` file in the project root (see [Environment Variables](#environment-variables) section).
+4. Download Firebase credential files from the Discord `#shared-credentials` channel and place them in the project root:
+   - `google-services.json` for Android
+   - `GoogleService-Info.plist` for iOS
+5. Add the required environment variables to `.env`.
+6. Start Expo:
 
    ```bash
    npm run start
@@ -94,12 +89,116 @@ Before running the app locally, make sure you have:
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Required for iOS | Required for native Google Calendar sign-in on iOS. |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Optional | Only needed if you want a web or Expo proxy OAuth client configuration. |
 | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Yes | Used for route generation and Android Google Maps configuration. |
+| `EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY` | Required for Smartlook | Smartlook project key used in `app/_layout.tsx` to initialize session recording in development builds. |
 
 Important notes:
 
 - `.env` is ignored by Git and should not be committed.
 - Any change to `.env` requires restarting Expo.
 - Changes to Google client IDs affect native configuration in `app.config.js`, so you should rebuild the native app after updating them.
+- See `.env.example` for a template of all required variables.
+
+## Firebase Credential Files
+
+This project uses Firebase for analytics. Two credential files are required for native builds:
+
+- **`google-services.json`** (Android): Placed in the project root. Used by `app.config.js` for Android configuration.
+- **`GoogleService-Info.plist`** (iOS): Placed in the project root. Used by `app.config.js` for iOS configuration.
+
+Both files are in `.gitignore` and should **not** be committed to the repository.
+
+### Getting Firebase Credentials
+
+Download both files from the team's Discord `#shared-credentials` channel:
+
+1. Go to Discord `#shared-credentials` channel.
+2. Find the Firebase credential files (`google-services.json` and `GoogleService-Info.plist`).
+3. Download both files.
+4. Place them in the project root (the same level as `package.json`).
+5. Rebuild the native app after adding the files:
+
+   ```bash
+   npm run android
+   ```
+
+   or
+
+   ```bash
+   npm run ios
+   ```
+
+## Usability Testing Setup
+
+This project already includes Firebase Analytics and Smartlook integration for usability sessions.
+
+### Prerequisites
+
+- Firebase credential files (`google-services.json` and `GoogleService-Info.plist`) placed in the project root (see [Firebase Credential Files](#firebase-credential-files)).
+- `EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY` added to `.env` (available in the Discord `#shared-credentials` channel).
+
+### Installation
+
+1. Install dependencies (if not already installed):
+
+    ```bash
+    npm install @react-native-firebase/app @react-native-firebase/analytics
+    npx expo install react-native-smartlook-analytics expo-constants
+    ```
+
+2. Add `EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY` to `.env` and restart Expo.
+
+3. If you are building for iOS, run CocoaPods in the iOS project and update the Podfile:
+
+   ```bash
+   cd ios
+   pod install
+   ```
+
+   Then open [ios/Podfile](ios/Podfile) and add this line directly underneath `prepare_react_native_project!`:
+
+   ```ruby
+   use_modular_headers!
+   ```
+
+4. Build and run a native dev build with the credential files in place:
+
+    ```bash
+    npm run android
+    ```
+
+    or
+
+    ```bash
+    npm run ios
+    ```
+
+### Firebase DebugView
+
+Firebase usability events are easiest to validate in `Analytics -> DebugView`.
+
+**Android:**
+
+```bash
+adb shell setprop debug.firebase.analytics.app com.concordia.snortingcode
+```
+
+Then run your app and interact with it. Events should appear in DebugView within 10-30 seconds.
+
+**iOS (Xcode recommended):**
+
+1. Open the iOS project in Xcode.
+2. Go to `Product -> Scheme -> Edit Scheme...`.
+3. Select `Run` then `Arguments`.
+4. Add `-FIRDebugEnabled` under "Arguments Passed On Launch".
+5. Run the app from Xcode.
+
+Interact with the app and check `Firebase Console -> Analytics -> DebugView` for events.
+
+**iOS CLI alternative:**
+
+```bash
+npx react-native run-ios -- --args="-FIRDebugEnabled"
+```
 
 ## Google Calendar OAuth Setup
 
