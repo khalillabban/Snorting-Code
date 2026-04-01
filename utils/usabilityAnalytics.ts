@@ -6,7 +6,8 @@ export async function logUsabilityEvent(
 ): Promise<void> {
   if (!USABILITY_TESTING_ENABLED) return;
   try {
-    const analytics = (await import("@react-native-firebase/analytics")).default;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const analytics = require("@react-native-firebase/analytics").default;
     await analytics().logEvent(eventName, params);
   } catch (error) {
     console.error("Firebase Analytics Error:", eventName, error);
