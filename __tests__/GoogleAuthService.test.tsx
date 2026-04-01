@@ -22,6 +22,7 @@ jest.mock("expo-web-browser", () => ({
 }));
 
 // IMPORTANT: require AFTER mocks are declared (and only once)
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const GoogleAuthService = require("../services/GoogleAuthService") as typeof import("../services/GoogleAuthService");
 const { useGoogleCalendarAuth } = GoogleAuthService;
 
@@ -82,6 +83,7 @@ describe("services/GoogleAuthService", () => {
 
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = "123.apps.googleusercontent.com";
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("../services/GoogleAuthService");
 
     expect(mockMaybeCompleteAuthSession).toHaveBeenCalledTimes(1);

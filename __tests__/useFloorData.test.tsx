@@ -1,17 +1,16 @@
 import { renderHook } from "@testing-library/react-native";
 import { getRegisteredFloors, useFloorData } from "../hooks/useFloorData";
+import {
+  getAvailableFloors,
+  getBuildingPlanAsset,
+  getFloorImageAsset,
+} from "../utils/mapAssets";
 
 jest.mock("../utils/mapAssets", () => ({
   getAvailableFloors: jest.fn(),
   getBuildingPlanAsset: jest.fn(),
   getFloorImageAsset: jest.fn(),
 }));
-
-import {
-    getAvailableFloors,
-    getBuildingPlanAsset,
-    getFloorImageAsset,
-} from "../utils/mapAssets";
 
 const mockedGetAvailableFloors = getAvailableFloors as jest.Mock;
 const mockedGetBuildingPlanAsset = getBuildingPlanAsset as jest.Mock;

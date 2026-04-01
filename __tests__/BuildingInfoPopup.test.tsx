@@ -5,7 +5,9 @@ import { Buildings } from "../constants/type";
 
 // mock BuildingIcons so we don't test its internals here
 jest.mock("../components/AccessibilityIcons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   return {
     BuildingIcons: ({ icons, size }: any) => (

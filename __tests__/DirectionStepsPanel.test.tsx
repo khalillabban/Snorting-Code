@@ -6,7 +6,9 @@ import { RouteStep } from "../constants/type";
 
 // Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
 jest.mock("@expo/vector-icons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   return {
     MaterialCommunityIcons: (props: any) => <Text testID="mci-icon">{props.name}</Text>,

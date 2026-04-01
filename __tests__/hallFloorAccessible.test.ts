@@ -83,7 +83,7 @@ describe("Hall floor 1 edges", () => {
   );
 
   // Edges where both source and target are on floor 1
-  const floor1Edges = hallAsset.edges.filter(
+  const floor1Edges = hallAsset.edges!.filter(
     (e) => floor1NodeIds.has(e.source) && floor1NodeIds.has(e.target),
   );
 
@@ -108,7 +108,7 @@ describe("Hall elevator inter-floor edges", () => {
   const elevatorIds = new Set(elevatorNodes.map((n) => n.id));
 
   // Elevator edges connect elevator doors on different floors
-  const elevatorEdges = hallAsset.edges.filter(
+  const elevatorEdges = hallAsset.edges!.filter(
     (e) =>
       e.type === "elevator" &&
       elevatorIds.has(e.source) &&

@@ -1,6 +1,10 @@
+import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-    getIndoorNavigationRouteToNode,
+  getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
+import { findShortestPath, resolveRoutingNodeId } from "../utils/indoorPathFinding";
+import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import { getBuildingPlanAsset } from "../utils/mapAssets";
 
 jest.mock("../utils/indoorBuildingPlan", () => {
   return {
@@ -26,11 +30,6 @@ jest.mock("../utils/indoorPathFinding", () => {
     findShortestPath: jest.fn(),
   };
 });
-
-import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { findShortestPath, resolveRoutingNodeId } from "../utils/indoorPathFinding";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
-import { getBuildingPlanAsset } from "../utils/mapAssets";
 
 describe("getIndoorNavigationRouteToNode", () => {
   let logSpy: jest.SpyInstance;

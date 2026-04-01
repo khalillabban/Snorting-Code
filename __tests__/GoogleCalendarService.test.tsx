@@ -83,7 +83,6 @@ describe("services/GoogleCalendarService", () => {
       it("throws for a non-string token", async () => {
         await expectMissingToken(() =>
           fetchCalendarEventsInRange({
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             accessToken: null as any,
             ...baseArgs,
           }),

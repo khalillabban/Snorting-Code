@@ -4,7 +4,9 @@ import { OutdoorPOIFilter } from "../components/OutdoorPOIFilter";
 import { OUTDOOR_POI_CATEGORIES } from "../constants/outdoorPOI";
 
 jest.mock("@expo/vector-icons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
   return {

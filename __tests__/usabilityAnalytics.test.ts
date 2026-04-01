@@ -24,6 +24,7 @@ describe("logUsabilityEvent", () => {
     ) => Promise<void>;
     jest.isolateModules(() => {
       logUsabilityEvent =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../utils/usabilityAnalytics").logUsabilityEvent;
     });
     await expect(
@@ -51,6 +52,7 @@ describe("logUsabilityEvent", () => {
     ) => Promise<void>;
     jest.isolateModules(() => {
       logUsabilityEvent =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../utils/usabilityAnalytics").logUsabilityEvent;
     });
     await logUsabilityEvent("schedule_screen_loaded", { screen: "schedule" });
@@ -79,6 +81,7 @@ describe("logUsabilityEvent", () => {
     ) => Promise<void>;
     jest.isolateModules(() => {
       logUsabilityEvent =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../utils/usabilityAnalytics").logUsabilityEvent;
     });
 
@@ -107,6 +110,7 @@ describe("logUsabilityEvent", () => {
     ) => Promise<void>;
     jest.isolateModules(() => {
       logUsabilityEvent =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../utils/usabilityAnalytics").logUsabilityEvent;
     });
     await expect(
