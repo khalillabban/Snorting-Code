@@ -799,6 +799,7 @@ export default function CampusMapScreen() {
       dest: destBuilding,
     });
     setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
+    setAccessibleOnly(Boolean(transitionPayload.accessibleOnly));
     setRouteFocusTrigger((c) => c + 1);
     setIsNavVisible(true);
   }, [transitionPayload, findNearestBuilding]);
