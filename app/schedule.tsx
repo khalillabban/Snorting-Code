@@ -735,18 +735,19 @@ export default function ScheduleScreen() {
   );
 
   // Task 8: Log when schedule items are displayed
+  const itemCount = ui.status === "ready" ? ui.items.length : 0;
   useEffect(() => {
     if (ui.status !== "ready" && ui.status !== "empty") return;
     const run = async () => {
       await logUsabilityEvent("schedule_displayed", {
         session_id: sessionId.current,
-        item_count: ui.status === "ready" ? ui.items.length : 0,
+        item_count: itemCount,
         status: ui.status,
         time_since_screen_load_ms: Date.now() - scheduleScreenLoadTime.current,
       });
     };
     run();
-  }, [ui.status, ui.status === "ready" ? ui.items.length : 0]);
+  }, [ui.status, itemCount]);
 
   const header = (
     <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>

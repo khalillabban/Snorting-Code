@@ -238,7 +238,7 @@ function useNavAutoTrigger(
     if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
       handleNavigate();
     }
-  }, []);
+  }, [buildingName, handleNavigate, navDest, navOrigin]);
 }
 
 export default function IndoorMapScreen() {
@@ -391,6 +391,7 @@ export default function IndoorMapScreen() {
       }
     };
     run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{
@@ -948,7 +949,7 @@ export default function IndoorMapScreen() {
     buildingName,
     destinationRoomQueryText,
     outdoorAccessibleOnly,
-    outdoorDestBuilding,
+    outdoorDestBuildingCode,
     outdoorStrategy,
     pendingExitOutdoor,
     router,
@@ -994,7 +995,7 @@ export default function IndoorMapScreen() {
       accessible_only: accessibleOnly,
       time_since_screen_load_ms: Date.now() - screenLoadTime.current,
     }).catch(console.error);
-  }, [accessibleOnly, activeRoute, buildingName]);
+  }, [accessibleOnly, buildingName]);
 
   return (
     <View style={styles.container}>
