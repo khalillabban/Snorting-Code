@@ -5,7 +5,9 @@ import type { POICategoryId } from "../constants/indoorPOI";
 import type { IndoorPOI } from "../utils/indoorPOI";
 
 jest.mock("@expo/vector-icons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   const MockIcon = (props: any) => <Text>{props?.name ?? "icon"}</Text>;
   return {

@@ -3,23 +3,21 @@ import { DRIVING_STRATEGY, WALKING_STRATEGY } from "../constants/strategies";
 import { LatLng, RouteSegment, RouteStep } from "../constants/type";
 import { RouteStrategy } from "./Routing";
 
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-
 type DirectionsResponse = {
   status?: string;
   error_message?: string;
-  routes?: Array<{
-    legs?: Array<{
+  routes?: {
+    legs?: {
       distance?: { text?: string };
       duration?: { text?: string };
-      steps?: Array<{
+      steps?: {
         polyline?: { points?: string };
         html_instructions?: string;
         distance?: { text?: string };
         duration?: { text?: string };
-      }>;
-    }>;
-  }>;
+      }[];
+    }[];
+  }[];
 };
 
 function stripHtml(html: string): string {

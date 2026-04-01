@@ -44,8 +44,10 @@ jest.mock("../utils/mapAssets", () => ({
 }));
 
 jest.mock("react-native-maps", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
-  const { Text, View, TouchableOpacity } = require("react-native");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Text, View } = require("react-native");
   const showCalloutMocks: Record<string, jest.Mock> = {};
 
   const Polyline = (props: any) => (
@@ -65,9 +67,10 @@ jest.mock("react-native-maps", () => {
 
   const MapView = React.forwardRef((props: any, ref: any) => {
     React.useImperativeHandle(ref, () => ({ animateToRegion }));
+    const { onMapReady } = props;
     React.useEffect(() => {
-      props.onMapReady?.();
-    }, []);
+      onMapReady?.();
+    }, [onMapReady]);
     return (
       <View
         testID="map-view"
@@ -78,6 +81,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
+  MapView.displayName = 'MapView';
 
   const Marker = React.forwardRef((props: any, ref: any) => {
     const markerId = props.testID ?? `marker-${props.title ?? "marker"}`;
@@ -101,6 +105,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
+  Marker.displayName = 'Marker';
 
   const Polygon = (props: any) => {
     const handlePress = () => props.onPress?.({ stopPropagation: jest.fn() });
@@ -182,7 +187,9 @@ jest.mock("../utils/pointInPolygon", () => ({
 }));
 
 jest.mock("../components/BuildingInfoPopup", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, View, Pressable } = require("react-native");
   return {
     BuildingInfoPopup: ({

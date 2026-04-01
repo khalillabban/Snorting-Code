@@ -4,7 +4,9 @@ import { ShuttleUnavailableBanner } from "../components/ShuttleUnavailableBanner
 
 // Mock the vector icons to prevent font-loading errors in Jest
 jest.mock("@expo/vector-icons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   return {
     MaterialCommunityIcons: (props: any) => (
