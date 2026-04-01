@@ -13,24 +13,10 @@ appId: com.concordia.snortingcode
 - tapOn:
     id: "next-class-button"
 
-- tapOn:
-    id: next-class-start-input
-- eraseText
-- inputText: "MB"
-- tapOn:
-    id: nc-suggestion-MB
-
-- tapOn:
-    id: next-class-dest-input
-#rest to be done after next class indoor navigation is implemented
-
 - tapOn: Get Directions
 
-
-- swipe:
-    direction: UP
 - tapOn: 󰠜, Continue indoors, 
 - tapOn:
-    id: floor-button-9
+    id: floor-button--2
 
 
