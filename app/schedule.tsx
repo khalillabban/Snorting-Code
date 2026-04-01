@@ -4,11 +4,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
@@ -17,42 +17,42 @@ import { colors, spacing, typography } from "../constants/theme";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
-  clearCachedGoogleCalendarEvents,
-  clearGoogleCalendarCache,
-  filterVisibleCachedCalendars,
-  isGoogleCalendarEventsCacheStale,
-  isGoogleCalendarListCacheStale,
-  loadCachedGoogleCalendarEvents,
-  loadCachedGoogleCalendarEventsForIds,
-  loadCachedGoogleCalendarList,
-  mergeCachedCalendarEvents,
-  mergeCachedCalendarListItems,
-  saveCachedGoogleCalendarEvents,
-  saveCachedGoogleCalendarList,
+    clearCachedGoogleCalendarEvents,
+    clearGoogleCalendarCache,
+    filterVisibleCachedCalendars,
+    isGoogleCalendarEventsCacheStale,
+    isGoogleCalendarListCacheStale,
+    loadCachedGoogleCalendarEvents,
+    loadCachedGoogleCalendarEventsForIds,
+    loadCachedGoogleCalendarList,
+    mergeCachedCalendarEvents,
+    mergeCachedCalendarListItems,
+    saveCachedGoogleCalendarEvents,
+    saveCachedGoogleCalendarList,
 } from "../services/GoogleCalendarCacheStore";
 import {
-  GoogleCalendarApiError,
-  GoogleCalendarEvent,
-  GoogleCalendarListItem,
-  syncCalendarEvents,
-  syncCalendarList,
+    GoogleCalendarApiError,
+    GoogleCalendarEvent,
+    GoogleCalendarListItem,
+    syncCalendarEvents,
+    syncCalendarList,
 } from "../services/GoogleCalendarService";
 import {
-  clearSelectedCalendarIds,
-  getSelectedCalendarIds,
-  saveSelectedCalendarIds,
+    clearSelectedCalendarIds,
+    getSelectedCalendarIds,
+    saveSelectedCalendarIds,
 } from "../services/SelectedCalendarsStore";
 import {
-  deleteGoogleAccessToken,
-  getGoogleAccessToken,
-  isTokenLikelyExpired,
-  saveGoogleAccessToken,
+    deleteGoogleAccessToken,
+    getGoogleAccessToken,
+    isTokenLikelyExpired,
+    saveGoogleAccessToken,
 } from "../services/TokenStore";
 import {
-  getNextClass,
-  loadCachedSchedule,
-  parseCourseEvents,
-  saveSchedule,
+    getNextClass,
+    loadCachedSchedule,
+    parseCourseEvents,
+    saveSchedule,
 } from "../utils/parseCourseEvents";
 
 type UiState =
