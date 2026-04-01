@@ -10,12 +10,14 @@ describe("usabilityConfig", () => {
 
   it("returns a stable session id until reset", () => {
     const nowSpy = jest.spyOn(Date, "now").mockReturnValue(1700000000000);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { randomUUID } = require("expo-crypto") as {
       randomUUID: jest.Mock;
     };
     randomUUID.mockReturnValue("uuid-1");
 
     jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { getSessionId } = require("../constants/usabilityConfig") as {
         getSessionId: () => string;
       };
@@ -37,6 +39,7 @@ describe("usabilityConfig", () => {
       .mockReturnValueOnce(1700000000000)
       .mockReturnValueOnce(1700000001000);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { randomUUID } = require("expo-crypto") as {
       randomUUID: jest.Mock;
     };
@@ -44,6 +47,7 @@ describe("usabilityConfig", () => {
 
     jest.isolateModules(() => {
       const { getSessionId, resetSession } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../constants/usabilityConfig") as {
           getSessionId: () => string;
           resetSession: () => string;
