@@ -236,7 +236,7 @@ function useNavAutoTrigger(
     if (buildingName && trimParam(navOrigin) && trimParam(navDest)) {
       handleNavigate();
     }
-  }, []);
+  }, [buildingName, handleNavigate, navDest, navOrigin]);
 }
 
 export default function IndoorMapScreen() {
@@ -303,7 +303,6 @@ export default function IndoorMapScreen() {
   useEffect(() => {
     if (!availableFloors.length) return;
 
-    // If current floor is no longer valid, reset it
     if (!availableFloors.includes(selectedFloor)) {
       setSelectedFloor(availableFloors[0]);
     }
@@ -321,7 +320,6 @@ export default function IndoorMapScreen() {
     Set<POICategoryId>
   >(new Set());
 
-  // ── Usability Testing ────────────────────────────────────────────────────
   const sessionId = useRef(getSessionId());
   const task11Completed = useRef(false);
   const screenLoadTime = useRef<number>(Date.now());
@@ -335,7 +333,6 @@ export default function IndoorMapScreen() {
   const endTask = useCallback(
     async (taskId: string, extraParams: Record<string, unknown> = {}) => {
       const start = taskTimers.current[taskId];
-      // Guard: skip if no matching startTask — prevents 0ms ghost completions
       if (!start) return;
       const duration_ms = Date.now() - start;
       delete taskTimers.current[taskId];
@@ -363,16 +360,12 @@ export default function IndoorMapScreen() {
   const navAttemptCount = useRef(0);
   const accessibleToggledDuringNav = useRef(false);
 
-  // ── Screen load: start task timers ──────────────────────────────────────
-  // FIX task_11: startTask("task_11") was completely missing — duration was 0
-  // FIX task_12: entirely new task — start timer alongside task_9
-  // task_9 and task_10 timers start here, end on successful route generation
   useEffect(() => {
     const run = async () => {
       screenLoadTime.current = Date.now();
-      startTask("task_9"); // ends on first successful indoor route (same floor)
-      startTask("task_11"); // FIX: was missing — ends on first POI toggle
-      startTask("task_12"); // FIX: new task — ends on successful cross-floor route
+      startTask("task_9");
+      startTask("task_11");
+      startTask("task_12");
       try {
         await logUsabilityEvent("indoor_map_screen_loaded", {
           session_id: sessionId.current,
@@ -387,6 +380,7 @@ export default function IndoorMapScreen() {
       }
     };
     run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [pendingExitOutdoor, setPendingExitOutdoor] = useState<{
@@ -595,7 +589,11 @@ export default function IndoorMapScreen() {
     [buildingName, normalizedBuildingPlan],
   );
 
-  useInitialRoomQuery(initialRoomQuery, availableFloors, performRoomSearch);
+  useInitialRoomQuery(
+    initialRoomQuery,
+    availableFloors,
+    performRoomSearch,
+  );
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
@@ -803,7 +801,6 @@ export default function IndoorMapScreen() {
     applyNavigationResult(result);
 
     if (result.success) {
-      // task_12: detect cross-floor route and end task_12
       const isCrossFloor =
         result.route.origin.floor !==
         (result.route.destination?.floor ?? result.route.origin.floor);
@@ -942,7 +939,7 @@ export default function IndoorMapScreen() {
     buildingName,
     destinationRoomQueryText,
     outdoorAccessibleOnly,
-    outdoorDestBuilding,
+    outdoorDestBuildingCode,
     outdoorStrategy,
     pendingExitOutdoor,
     router,
@@ -988,7 +985,7 @@ export default function IndoorMapScreen() {
       accessible_only: accessibleOnly,
       time_since_screen_load_ms: Date.now() - screenLoadTime.current,
     }).catch(console.error);
-  }, [accessibleOnly, activeRoute, buildingName]);
+  }, [accessibleOnly, buildingName]);
 
   return (
     <View style={styles.container}>

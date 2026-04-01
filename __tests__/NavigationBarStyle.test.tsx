@@ -1,4 +1,9 @@
 // __tests__/NavigationBarStyle.test.tsx
+import {
+  FULL_HEIGHT,
+  PEEK_HEIGHT,
+  styles,
+} from "../styles/NavigationBar.styles";
 
 // Mock Dimensions BEFORE importing the styles module
 jest.mock("react-native", () => {
@@ -13,13 +18,6 @@ jest.mock("../constants/theme", () => ({
   colors: { primary: "#912338", black: "#1a1a1a", gray100: "#e5e5e5", gray200: "#d4d4d4", gray400: "#9a9a9a", gray500: "#737373", gray700: "#404040", white: "#ffffff", offWhite: "#f2f2f2" },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 },
 }));
-
-// NOW import the styles (after mocks are set up)
-import {
-    FULL_HEIGHT,
-    PEEK_HEIGHT,
-    styles,
-} from "../styles/NavigationBar.styles";
 
 describe("NavigationBar Styles", () => {
   it("calculates FULL_HEIGHT as 90% of screen height", () => {

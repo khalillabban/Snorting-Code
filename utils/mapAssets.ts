@@ -1,3 +1,16 @@
+import cc1BuildingPlan from "../assets/maps/buildingsPlan/cc1.json";
+import hallBuildingPlan from "../assets/maps/buildingsPlan/hall.json";
+import mbFloorsCombinedPlan from "../assets/maps/buildingsPlan/mb_floors_combined.json";
+import veBuildingPlan from "../assets/maps/buildingsPlan/ve.json";
+import vlFloorsCombinedPlan from "../assets/maps/buildingsPlan/vl_floors_combined.json";
+import mb1FloorPlan from "../assets/maps/FloorPlans/mb_1.png";
+import mbS2FloorPlan from "../assets/maps/FloorPlans/mb_s2.png";
+import vl1FloorPlan from "../assets/maps/FloorPlans/vl_1.png";
+import vl2FloorPlan from "../assets/maps/FloorPlans/vl_2.png";
+import mb1GeoJson from "../assets/maps/MB-1.json";
+import mbS2GeoJson from "../assets/maps/MB-S2.json";
+import { FLOOR_PLAN_SVG_SOURCES } from "./floorPlanSvgSources";
+
 export interface LegacyFloorGeoJsonAsset {
   type: string;
   features: {
@@ -80,11 +93,7 @@ let floorPlanSvgSourcesCache:
 
 function getFloorPlanSvgSources(): Record<FloorPlanSvgSourceKey, string> {
   if (!floorPlanSvgSourcesCache) {
-    floorPlanSvgSourcesCache = (
-      require("./floorPlanSvgSources") as {
-        FLOOR_PLAN_SVG_SOURCES: Record<FloorPlanSvgSourceKey, string>;
-      }
-    ).FLOOR_PLAN_SVG_SOURCES;
+    floorPlanSvgSourcesCache = FLOOR_PLAN_SVG_SOURCES;
   }
 
   return floorPlanSvgSourcesCache;
@@ -123,7 +132,7 @@ const INDOOR_ASSET_LOADERS: Record<string, () => IndoorBuildingAssets> = {
         coordinateScale: 0.5,
       },
     },
-    buildingPlanAsset: require("../assets/maps/buildingsPlan/cc1.json") as BuildingPlanAsset,
+    buildingPlanAsset: cc1BuildingPlan as BuildingPlanAsset,
   }),
   H: () => ({
     floors: [1, 2, 8, 9],
@@ -153,30 +162,30 @@ const INDOOR_ASSET_LOADERS: Record<string, () => IndoorBuildingAssets> = {
         coordinateScale: 0.5,
       },
     },
-    buildingPlanAsset: require("../assets/maps/buildingsPlan/hall.json") as BuildingPlanAsset,
+    buildingPlanAsset: hallBuildingPlan as BuildingPlanAsset,
   }),
   MB: () => ({
     floors: [1, -2],
     floorImages: {
       1: {
-        source: require("../assets/maps/FloorPlans/mb_1.png"),
+        source: mb1FloorPlan,
         width: 1024,
         height: 1024,
         coordinateScale: 1,
         showFullImage: true,
       },
       [-2]: {
-        source: require("../assets/maps/FloorPlans/mb_s2.png"),
+        source: mbS2FloorPlan,
         width: 1024,
         height: 1024,
         coordinateScale: 1,
         showFullImage: true,
       },
     },
-    buildingPlanAsset: require("../assets/maps/buildingsPlan/mb_floors_combined.json") as BuildingPlanAsset,
+    buildingPlanAsset: mbFloorsCombinedPlan as BuildingPlanAsset,
     legacyFloorGeoJson: {
-      1: require("../assets/maps/MB-1.json") as LegacyFloorGeoJsonAsset,
-      [-2]: require("../assets/maps/MB-S2.json") as LegacyFloorGeoJsonAsset,
+      1: mb1GeoJson as LegacyFloorGeoJsonAsset,
+      [-2]: mbS2GeoJson as LegacyFloorGeoJsonAsset,
     },
   }),
   VE: () => ({
@@ -195,25 +204,25 @@ const INDOOR_ASSET_LOADERS: Record<string, () => IndoorBuildingAssets> = {
         coordinateScale: 0.5,
       },
     },
-    buildingPlanAsset: require("../assets/maps/buildingsPlan/ve.json") as BuildingPlanAsset,
+    buildingPlanAsset: veBuildingPlan as BuildingPlanAsset,
   }),
   VL: () => ({
     floors: [1, 2],
     floorImages: {
       1: {
-        source: require("../assets/maps/FloorPlans/vl_1.png"),
+        source: vl1FloorPlan,
         width: 1024,
         height: 1024,
         coordinateScale: 1,
       },
       2: {
-        source: require("../assets/maps/FloorPlans/vl_2.png"),
+        source: vl2FloorPlan,
         width: 1024,
         height: 1024,
         coordinateScale: 1,
       },
     },
-    buildingPlanAsset: require("../assets/maps/buildingsPlan/vl_floors_combined.json") as BuildingPlanAsset,
+    buildingPlanAsset: vlFloorsCombinedPlan as BuildingPlanAsset,
   }),
 };
 

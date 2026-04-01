@@ -73,6 +73,7 @@ export function useGoogleCalendarAuth(options?: {
       return AuthSession.makeRedirectUri({ useProxy: true } as any);
     }
     return getNativeRedirectUri(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids.iosClientId, ids.androidClientId, useProxy]);
 
   const [request, response, promptAsync] = Google.useAuthRequest({

@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { colors } from "../constants/theme";
 import {
   resetSession,
@@ -27,6 +27,7 @@ export default function RootLayout() {
     }
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Smartlook = require("react-native-smartlook-analytics").default;
       Smartlook.instance.preferences.setProjectKey(projectKey);
       Smartlook.instance.start();

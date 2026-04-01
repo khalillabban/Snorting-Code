@@ -1,23 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    act,
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import React from "react";
 import { AppState } from "react-native";
 import ScheduleScreen, {
-    applyCachedSchedule,
-    buildScheduleItems,
-    eventOverlapsRange,
-    getEventDedupKey,
-    handleScheduleInitError,
-    loadCalendarsAndMaybeAutoSelect,
-    parseCalendarDate,
-    pickDefaultCalendarIds,
-    resolveAccessToken,
+  applyCachedSchedule,
+  buildScheduleItems,
+  eventOverlapsRange,
+  getEventDedupKey,
+  handleScheduleInitError,
+  loadCalendarsAndMaybeAutoSelect,
+  parseCalendarDate,
+  pickDefaultCalendarIds,
+  resolveAccessToken,
 } from "../app/schedule";
 import { GoogleCalendarApiError } from "../services/GoogleCalendarService";
 
@@ -122,7 +122,9 @@ jest.mock("../services/GoogleCalendarCacheStore", () => ({
 }));
 
 jest.mock("../components/ScheduleCalendar", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text } = require("react-native");
 
   return function MockScheduleCalendar(props: any) {

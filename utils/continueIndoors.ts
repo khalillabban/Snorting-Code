@@ -28,7 +28,7 @@ export function buildContinueIndoorsStep(opts: {
   baseSteps: RouteStep[];
   destinationBuildingCode: string;
   destinationRoomQuery: string;
-}): { steps: Array<RouteStep & { onPress?: () => void }>; openArgs: OpenIndoorNavArgs } | null {
+}): { steps: (RouteStep & { onPress?: () => void })[]; openArgs: OpenIndoorNavArgs } | null {
   const destCode = opts.destinationBuildingCode.trim();
   if (!destCode) return null;
 
