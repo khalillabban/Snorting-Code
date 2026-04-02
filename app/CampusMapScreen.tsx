@@ -2108,6 +2108,7 @@ export default function CampusMapScreen() {
         onOpenIndoorMap={handleOpenNextClassIndoorMap}
         accessibleOnly={accessibleOnly}
         onAccessibleOnlyChange={setAccessibleOnly}
+        shuttleAvailable={shuttleStatus.available}
       />
     </View>
   );

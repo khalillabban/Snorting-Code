@@ -237,6 +237,7 @@ interface NextClassDirectionsPanelProps {
   onOpenIndoorMap?: () => void;
   accessibleOnly?: boolean;
   onAccessibleOnlyChange?: (value: boolean) => void;
+  shuttleAvailable?: boolean;
 }
 
 export default function NextClassDirectionsPanel({
@@ -252,6 +253,7 @@ export default function NextClassDirectionsPanel({
   onOpenIndoorMap,
   accessibleOnly = false,
   onAccessibleOnlyChange,
+  shuttleAvailable = true,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -272,6 +274,12 @@ export default function NextClassDirectionsPanel({
 
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
+
+  useEffect(() => {
+    if (!shuttleAvailable && selectedStrategy.mode === "shuttle") {
+      setSelectedStrategy(WALKING_STRATEGY);
+    }
+  }, [shuttleAvailable, selectedStrategy.mode]);
   const [routeSummary, setRouteSummary] = useState<{
     duration?: string;
     distance?: string;
@@ -674,26 +682,36 @@ export default function NextClassDirectionsPanel({
                 <View style={styles.modeContainer}>
                   {ALL_STRATEGIES.map((strategy) => {
                     const isActive = selectedStrategy.mode === strategy.mode;
-                    const strategyColor = isActive
-                      ? colors.white
-                      : colors.primary;
+                    const isShuttle = strategy.mode === "shuttle";
+                    const isDisabled = isShuttle && !shuttleAvailable;
+                    const textColor = (() => {
+                      if (isDisabled) return colors.gray400;
+                      if (isActive) return colors.white;
+                      return colors.primary;
+                    })();
                     return (
                       <Pressable
                         key={strategy.mode}
                         testID={`next-class-mode-${strategy.mode}`}
-                        onPress={() => setSelectedStrategy(strategy)}
+                        onPress={() => {
+                          if (!isDisabled) setSelectedStrategy(strategy);
+                        }}
+                        disabled={isDisabled}
                         style={[
                           styles.modeButton,
                           isActive && styles.activeModeButton,
+                          isDisabled && styles.disabledModeButton,
                         ]}
+                        accessibilityState={{ disabled: isDisabled }}
+                        accessibilityHint={isDisabled ? "Shuttle is currently unavailable" : undefined}
                       >
                         <MaterialCommunityIcons
                           name={strategy.icon as any}
                           size={22}
-                          color={strategyColor}
+                          color={textColor}
                         />
                         <Text
-                          style={[styles.modeText, { color: strategyColor }]}
+                          style={[styles.modeText, { color: textColor }]}
                         >
                           {strategy.label}
                         </Text>

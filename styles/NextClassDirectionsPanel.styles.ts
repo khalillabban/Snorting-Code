@@ -194,6 +194,10 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.gray100,
   },
+  disabledModeButton: {
+    backgroundColor: colors.gray200,
+    opacity: 0.6,
+  },
   activeModeButton: {
     backgroundColor: colors.primary,
     shadowColor: colors.black,
