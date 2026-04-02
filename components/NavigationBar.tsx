@@ -464,6 +464,7 @@ export default function NavigationBar({
                     const isActive = selectedStrategy.mode === strategy.mode;
                     const isShuttle = strategy.mode === "shuttle";
                     const isDisabled = isShuttle && !shuttleAvailable;
+                    const textColor = isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary;
                     return (
                       <Pressable
                         key={strategy.mode}
@@ -483,12 +484,12 @@ export default function NavigationBar({
                         <MaterialCommunityIcons
                           name={strategy.icon as any}
                           size={22}
-                          color={isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary}
+                          color={textColor}
                         />
                         <Text
                           style={[
                             styles.modeText,
-                            { color: isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary },
+                            { color: textColor },
                           ]}
                         >
                           {strategy.label}
