@@ -574,9 +574,11 @@ export default function CampusMap({
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
-            console.warn(
-              `Building ${building.name} has no boundingBox coordinates.`,
-            );
+            if (building.name !== "QA") {
+              console.warn(
+                `Building ${building.name} has no boundingBox coordinates.`,
+              );
+            }
             return null;
           }
 
@@ -788,9 +790,9 @@ export default function CampusMap({
         onViewIndoorMap={
           availableFloors.length > 0 && selectedBuilding
             ? () => {
-                onViewIndoorMap?.(selectedBuilding);
-                setSelectedBuilding(null);
-              }
+              onViewIndoorMap?.(selectedBuilding);
+              setSelectedBuilding(null);
+            }
             : undefined
         }
       />
