@@ -5341,4 +5341,50 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     rerender(<CampusMapScreen />);
     await waitFor(() => {});
   });
+  describe("Condition Coverage for transition handling and early returns", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("CONDITION COVERAGE: hits the true branch of handledTransitionRef check (undefined -> empty string)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: undefined
+    });
+
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+    });
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => {});
+
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: ""
+    });
+
+    rerender(<CampusMapScreen />);
+    await waitFor(() => {});
+  });
+
+  it("CONDITION COVERAGE: handles null transition explicitly for ?? operator transpilation", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: null as any
+    });
+
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+    });
+
+    render(<CampusMapScreen />);
+    await waitFor(() => {});
+  });
+});
 });
