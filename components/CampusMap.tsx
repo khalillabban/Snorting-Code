@@ -18,7 +18,6 @@ import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
 import type { CampusKey } from "../constants/campuses";
 import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import { BUSSTOP } from "../constants/shuttle";
