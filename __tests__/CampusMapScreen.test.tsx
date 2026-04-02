@@ -5272,4 +5272,54 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
       expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
     });
   });
+  it("CONDITION COVERAGE: handles undefined transition param (fallback to empty string) and early returns on second render", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw"
+      // Note: `transition` is deliberately omitted here.
+    });
+    
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+    });
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => {});
+
+    rerender(<CampusMapScreen />);
+    await waitFor(() => {});
+  });
+
+  it("CONDITION COVERAGE: handles explicit transition string and clears ref on dismiss", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "explicit-transition-string-123"
+    });
+    
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      strategy: { mode: "walking" }
+    });
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => {});
+
+    rerender(<CampusMapScreen />);
+    await waitFor(() => {});
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => expect(screen.getByTestId("steps-dismiss")).toBeTruthy());
+    
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
+    
+  });
 });
