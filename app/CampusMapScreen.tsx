@@ -562,8 +562,8 @@ export default function CampusMapScreen() {
           overrides.categoryToggleCount ?? snap.categoryToggleCount,
         opened_list_view: overrides.openedListView ?? snap.openedListView,
         tapped_map_pin: overrides.tappedMapPin ?? snap.tappedMapPin,
-        final_range_meters: overrides.finalRangeMeters ?? snap.finalRangeMeters,
-        results_count: overrides.resultsCount ?? snap.resultsCount,
+        final_range_meters: overrides.finalRangeMeters!,
+        results_count: overrides.resultsCount!,
         time_since_map_load_ms: Date.now() - mapLoadTime.current,
         ...(overrides.poi_name ? { poi_name: overrides.poi_name } : {}),
         ...(overrides.poi_category

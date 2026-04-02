@@ -92,6 +92,8 @@ describe("logUsabilityEvent", () => {
   });
 
   it("swallows analytics errors without throwing", async () => {
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
     const analyticsFactory = jest.fn(() => {
       throw new Error("analytics unavailable");
     });
@@ -113,8 +115,11 @@ describe("logUsabilityEvent", () => {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../utils/usabilityAnalytics").logUsabilityEvent;
     });
+    
     await expect(
       logUsabilityEvent("event_error", { x: 1 }),
     ).resolves.toBeUndefined();
+
+    consoleErrorSpy.mockRestore();
   });
 });

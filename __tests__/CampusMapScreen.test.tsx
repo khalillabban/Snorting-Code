@@ -660,7 +660,7 @@ const getMapProps = () =>
 
 const renderScreen = async () => {
   render(<CampusMapScreen />);
-  await waitFor(() => {}); // flush async useEffect
+  await waitFor(() => { }); // flush async useEffect
 };
 
 const hasUsabilityEvent = (
@@ -1445,7 +1445,7 @@ describe("CampusMapScreen", () => {
     // an actual indoor steps list or fall back to a single hint line.
     expect(
       serialized.includes("Walk inside") ||
-        serialized.includes("Enter H and continue to H-110"),
+      serialized.includes("Enter H and continue to H-110"),
     ).toBe(true);
   });
 
@@ -1758,16 +1758,15 @@ describe("CampusMapScreen", () => {
   it("handles route steps panel interactions", async () => {
     await renderScreen();
 
-    // Trigger a route and steps so the panel renders
     fireEvent.press(screen.getByTestId("nav-confirm"));
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    // 1. Test Change Route (Covers: onChangeRoute)
     fireEvent.press(screen.getByTestId("steps-change"));
     expect(screen.getByTestId("nav-visible").props.children).toBe("visible");
 
-    // 2. Test Dismiss (Covers: onDismiss and state clearing)
-    fireEvent.press(screen.getByTestId("steps-dismiss"));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
   });
 
   it("centers on user location without changing campus coordinates", async () => {
@@ -2003,7 +2002,9 @@ describe("CampusMapScreen", () => {
         expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByTestId("steps-dismiss"));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("steps-dismiss"));
+      });
 
       const mapProps = getMapProps();
       expect(mapProps.startPoint).toBeNull();
@@ -2016,7 +2017,7 @@ describe("CampusMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
 
     const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => {});
+    await waitFor(() => { });
 
     // set focus target to user
     fireEvent.press(screen.getByTestId("my-location-button"));
@@ -2025,7 +2026,7 @@ describe("CampusMapScreen", () => {
     // change route param to loyola and rerender
     params.campus = "loyola";
     rerender(<CampusMapScreen />);
-    await waitFor(() => {});
+    await waitFor(() => { });
 
     // campus coords update, focusTarget stays user
     expect(getMapProps().coordinates).toEqual({ latitude: 3, longitude: 4 });
@@ -2162,9 +2163,9 @@ describe("CampusMapScreen", () => {
       expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
     });
 
-await act(async () => {
-  fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
-});
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+    });
     await waitFor(() => {
       expect(
         hasUsabilityEvent(
@@ -2257,9 +2258,9 @@ await act(async () => {
       expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
     });
 
-await act(async () => {
-  fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
-});
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+    });
     await waitFor(() => {
       expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
     });
@@ -2376,7 +2377,9 @@ await act(async () => {
     });
 
     fireEvent.press(screen.getByTestId("poi-get-directions-button"));
-    fireEvent.press(screen.getByTestId("steps-dismiss"));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
 
     await waitFor(() => {
       expect(
@@ -2519,8 +2522,9 @@ await act(async () => {
       expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByTestId("steps-dismiss"));
-
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
     await waitFor(() => {
       expect(
         hasUsabilityEvent(
@@ -2567,7 +2571,9 @@ await act(async () => {
         expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByTestId("steps-dismiss"));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("steps-dismiss"));
+      });
 
       await waitFor(() => {
         expect(
@@ -2777,7 +2783,9 @@ await act(async () => {
       expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByTestId("steps-dismiss"));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
 
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -2899,7 +2907,7 @@ await act(async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
     const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => {});
+    await waitFor(() => { });
 
     const btn = screen.getByTestId("show-shuttle-button");
     expect(btn.props.accessibilityLabel).toBe("Show shuttle");
@@ -3913,7 +3921,7 @@ describe("indoor_outdoor_combined_directions_viewed analytics", () => {
     fireEvent.press(screen.getByTestId("nav-confirm-same-building-rooms"));
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    await waitFor(() => {});
+    await waitFor(() => { });
 
     expect(
       hasUsabilityEvent("indoor_outdoor_combined_directions_viewed"),
@@ -4356,7 +4364,7 @@ describe("mergedSteps: bestNode selection with null outdoorLatLng", () => {
       const serialized = screen.getByTestId("steps-serialized").props.children;
       expect(
         serialized.includes("Take stairs to floor 5") ||
-          serialized.includes("Enter MB"),
+        serialized.includes("Enter MB"),
       ).toBe(true);
     } finally {
       if (existing) existing.coordinates = prevCoords;
@@ -4498,8 +4506,8 @@ describe("indoorRouteToSteps called on successful indoor leg", () => {
       expect(serialized).toContain("Enter MB");
       expect(
         serialized.includes("Walk forward 10m") ||
-          serialized.includes("Take elevator to floor 9") ||
-          serialized.includes("Enter MB and continue to MB-920"),
+        serialized.includes("Take elevator to floor 9") ||
+        serialized.includes("Enter MB and continue to MB-920"),
       ).toBe(true);
     } finally {
       if (existing) existing.coordinates = prevCoords;
@@ -5078,5 +5086,190 @@ describe("route_generated try/catch error handler", () => {
     });
 
     consoleErrorSpy.mockRestore();
+  });
+});
+describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+
+    // Inject POIs so the list actually populates for the Task 15/16 tests
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("covers finalizeTask16 early return (!snap) by clearing POI without starting directions", async () => {
+    render(<CampusMapScreen />);
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => expect(screen.getByTestId("clear-selected-poi-button")).toBeTruthy());
+
+    // Clear it before task 16 starts to hit the `if (!snap) return;` block
+    fireEvent.press(screen.getByTestId("clear-selected-poi-button"));
+
+    await waitFor(() => expect(screen.queryByTestId("clear-selected-poi-button")).toBeNull());
+  });
+
+  it("covers ensureTask16Started early return by clicking get directions twice", async () => {
+    render(<CampusMapScreen />);
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() => expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy());
+
+    // Double click to trigger the `if (task16Snapshot.current) return;` early return
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
+    });
+  });
+
+  it("covers early return for handled transition keys", async () => {
+    const transitionObj = {
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: { mode: "walking" },
+    };
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      transition: JSON.stringify(transitionObj)
+    });
+
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue(transitionObj);
+
+    const { rerender } = render(<CampusMapScreen />);
+    await waitFor(() => { });
+
+    // Rerender with the exact same transition string to hit `if (handledTransitionRef.current === transitionKey) return;`
+    rerender(<CampusMapScreen />);
+    await waitFor(() => { });
+  });
+
+  it("resolves originCampus to loyola when effectiveOrigin is loyola", async () => {
+    const transitionObj = {
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "VL", // VL is loyola in the mocked BUILDINGS
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: null,
+      strategy: { mode: "walking" },
+    };
+
+    // Pass `campus: "loyola"` so the separate campus-param useEffect doesn't overwrite our transition state
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "loyola",
+      transition: JSON.stringify(transitionObj)
+    });
+
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue(transitionObj);
+
+    render(<CampusMapScreen />);
+    await waitFor(() => {
+      const mapProps = JSON.parse(screen.getByTestId("campus-map-props").props.children);
+      expect(mapProps.focusTarget).toBe("loyola");
+    });
+  });
+
+  it("catches Firebase Analytics error in focusUserLocation", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => { });
+
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName) => {
+      if (eventName === "current_location_pressed") {
+        return Promise.reject(new Error("Location tracking error"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<CampusMapScreen />);
+    fireEvent.press(screen.getByTestId("my-location-button"));
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith("Firebase Analytics Error: ", expect.any(Error));
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it("covers finalizeActiveIndoorOutdoorTask early returns (!context and finalized check)", async () => {
+    render(<CampusMapScreen />);
+
+    // Normal outdoor route confirm
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => expect(screen.getByTestId("steps-dismiss")).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("steps-dismiss"));
+    });
+    const transitionObj = {
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: { mode: "walking" },
+      usabilityTaskId: "task_13",
+    };
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ transition: JSON.stringify(transitionObj) });
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue(transitionObj);
+
+    const { buildContinueIndoorsStep } = require("../utils/continueIndoors");
+    (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
+      steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
+      openArgs: { buildingCode: "MB", navOrigin: "ENTRANCE", navDest: "MB-1.210" },
+    });
+
+    render(<CampusMapScreen />); // Remount
+    await waitFor(() => { });
+
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const continueButtons = screen.getAllByTestId("step-pressable-1");
+    const lastButton = continueButtons[continueButtons.length - 1];
+
+    fireEvent.press(lastButton);
+    fireEvent.press(lastButton);
+  });
+
+  it("covers startCode/destCode fallback to unknown and null usability taskId logic", async () => {
+    render(<CampusMapScreen />);
+    fireEvent.press(screen.getByTestId("directions-button"));
+
+    fireEvent.press(screen.getByTestId("nav-confirm-nullstart"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("nav-visible").props.children).toBe("hidden");
+    });
   });
 });
