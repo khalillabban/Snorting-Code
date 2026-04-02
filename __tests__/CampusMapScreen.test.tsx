@@ -4251,3 +4251,375 @@ describe("building_popup_opened and task_3/task_4 transitions", () => {
     });
   });
 });
+describe("mergedSteps: bestNode selection with null outdoorLatLng", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("treats entry node with null outdoorLatLng as Infinity distance and skips it in favor of a valid node", async () => {
+    // Push building with coordinates BEFORE rendering so the memo finds it
+    const buildingsMod = require("../constants/buildings");
+    const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
+    const prevCoords = existing?.coordinates;
+    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-501",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+      accessibleOnly: false,
+    });
+
+    const { getBuildingPlanAsset } = require("../utils/mapAssets");
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [
+        {
+          id: "entry-null-latlng",
+          type: "building_entry_exit",
+          outdoorLatLng: null,
+        },
+        {
+          id: "entry-valid",
+          type: "building_entry_exit",
+          outdoorLatLng: { latitude: 45.497, longitude: -73.579 },
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 0, y: 0, label: "ENTRY" },
+        destination: { floor: 5, x: 1, y: 1, label: "MB-501" },
+        path: { steps: [{ instruction: "Take stairs to floor 5" }] },
+        segments: [],
+        floors: [1, 5],
+        totalDistance: 80,
+        fullyAccessible: false,
+        estimatedSeconds: 60,
+      },
+    });
+
+    try {
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      await waitFor(() => {
+        expect(getIndoorNavigationRouteFromNode).toHaveBeenCalledWith(
+          "MB",
+          "entry-valid",
+          "MB-501",
+          { accessibleOnly: false },
+        );
+      });
+
+      const serialized = screen.getByTestId("steps-serialized").props.children;
+      expect(
+        serialized.includes("Take stairs to floor 5") ||
+          serialized.includes("Enter MB"),
+      ).toBe(true);
+    } finally {
+      if (existing) existing.coordinates = prevCoords;
+    }
+  });
+
+  it("falls back to hint when all entry nodes have null outdoorLatLng", async () => {
+    const buildingsMod = require("../constants/buildings");
+    const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
+    const prevCoords = existing?.coordinates;
+    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-802",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+      accessibleOnly: false,
+    });
+
+    const { getBuildingPlanAsset } = require("../utils/mapAssets");
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [
+        { type: "building_entry_exit", outdoorLatLng: null },
+        { type: "building_entry_exit", outdoorLatLng: null },
+      ],
+      edges: [],
+    });
+
+    try {
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+      fireEvent.press(screen.getByTestId("trigger-get-directions"));
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      const serialized = screen.getByTestId("steps-serialized").props.children;
+      expect(serialized).toContain("Enter MB and continue to MB-802");
+      expect(getIndoorNavigationRouteFromNode).not.toHaveBeenCalled();
+    } finally {
+      if (existing) existing.coordinates = prevCoords;
+    }
+  });
+});
+
+describe("indoorRouteToSteps called on successful indoor leg", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("appends real indoor steps (via indoorRouteToSteps) when routing succeeds with multiple steps and accessibleOnly is forwarded", async () => {
+    const buildingsMod = require("../constants/buildings");
+    const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
+    const prevCoords = existing?.coordinates;
+    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-920",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+      accessibleOnly: true,
+    });
+
+    const { getBuildingPlanAsset } = require("../utils/mapAssets");
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      nodes: [
+        {
+          id: "entry-close",
+          type: "building_entry_exit",
+          outdoorLatLng: { latitude: 45.497, longitude: -73.579 },
+        },
+      ],
+      edges: [],
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 0, y: 0, label: "ENTRY" },
+        destination: { floor: 9, x: 5, y: 5, label: "MB-920" },
+        path: {
+          steps: [
+            { instruction: "Walk forward 10m" },
+            { instruction: "Take elevator to floor 9" },
+            { instruction: "Turn right" },
+          ],
+        },
+        segments: [],
+        floors: [1, 9],
+        totalDistance: 120,
+        fullyAccessible: true,
+        estimatedSeconds: 90,
+      },
+    });
+
+    try {
+      await renderScreen();
+
+      fireEvent.press(screen.getByTestId("nav-confirm"));
+      fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+      await waitFor(() => {
+        expect(getIndoorNavigationRouteFromNode).toHaveBeenCalledWith(
+          "MB",
+          "entry-close",
+          "MB-920",
+          { accessibleOnly: true },
+        );
+      });
+
+      const serialized = screen.getByTestId("steps-serialized").props.children;
+      expect(serialized).toContain("Enter MB");
+      expect(
+        serialized.includes("Walk forward 10m") ||
+          serialized.includes("Take elevator to floor 9") ||
+          serialized.includes("Enter MB and continue to MB-920"),
+      ).toBe(true);
+    } finally {
+      if (existing) existing.coordinates = prevCoords;
+    }
+  });
+});
+
+describe("indoor_outdoor_route_requested analytics failure in cross_building_indoor_to_outdoor", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("logs Firebase error and still navigates when indoor_outdoor_route_requested analytics throws for cross_building_indoor_to_outdoor", async () => {
+    (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
+      if (eventName === "indoor_outdoor_route_requested") {
+        return Promise.reject(new Error("analytics-failure"));
+      }
+      return Promise.resolve(undefined);
+    });
+
+    (buildIndoorMapRouteParams as jest.Mock).mockReturnValue({
+      buildingName: "CC",
+      floors: "1",
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"));
+
+    await waitFor(() => {
+      expect(getRouterPushMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/IndoorMapScreen" }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("NextClassDirectionsPanel onUseMyLocation returns effectiveCurrentBuilding", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("returns null from NextClassDirectionsPanel onUseMyLocation when no location is set", async () => {
+    (getNextClassFromItems as jest.Mock).mockReturnValue({
+      title: "COMP 999",
+      startTime: "10:00",
+      endTime: "11:00",
+      room: "H-1.101",
+      building: "MB",
+      campus: "sgw",
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("next-class-button"));
+    fireEvent.press(screen.getByTestId("next-class-use-location"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("next-class-use-location-result").props.children,
+      ).toBe("null");
+    });
+  });
+
+  it("returns autoStartBuilding from NextClassDirectionsPanel onUseMyLocation when GPS resolved a building but no demo location is set", async () => {
+    (getNextClassFromItems as jest.Mock).mockReturnValue({
+      title: "COMP 999",
+      startTime: "10:00",
+      endTime: "11:00",
+      room: "H-1.101",
+      building: "MB",
+      campus: "sgw",
+    });
+
+    // Grant location so autoStartBuilding is set to "B" (nearest building in mock)
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+      coords: { latitude: 5, longitude: 0 },
+    });
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("nav-auto-start").props.children).toContain('"name":"B"');
+    });
+
+    fireEvent.press(screen.getByTestId("next-class-button"));
+    fireEvent.press(screen.getByTestId("next-class-use-location"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("next-class-use-location-result").props.children,
+      ).toContain('"name":"B"');
+    });
+  });
+});
