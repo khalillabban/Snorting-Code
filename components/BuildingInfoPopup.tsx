@@ -9,19 +9,32 @@ type TabKey = "departments" | "services";
 interface BuildingInfoPopupProps {
   building: Buildings | null;
   onClose: () => void;
+  onSetAsStart?: (building: Buildings) => void;
+  onSetAsDestination?: (building: Buildings) => void;
+  onSetAsMyLocation?: (building: Buildings) => void;
+  hasIndoorMap?: boolean;
+  onViewIndoorMap?: () => void;
 }
 
-export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps) => {
+export const BuildingInfoPopup = ({
+  building,
+  onClose,
+  onSetAsStart,
+  onSetAsDestination,
+  onSetAsMyLocation,
+  hasIndoorMap,
+  onViewIndoorMap,
+}: BuildingInfoPopupProps) => {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
-  // reset active tab when building changes
   useEffect(() => {
     setActiveTab(null);
   }, [building]);
 
   if (!building) return null;
 
-  const hasDepartments = !!building.departments && building.departments.length > 0;
+  const hasDepartments =
+    !!building.departments && building.departments.length > 0;
   const hasServices = !!building.services && building.services.length > 0;
   const hasTabs = hasDepartments || hasServices;
 
@@ -29,19 +42,22 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
     setActiveTab((prev) => (prev === tab ? null : tab));
   };
 
-  const activeList =
-  activeTab === "departments"
-    ? building.departments ?? []
-    : activeTab === "services"
-      ? building.services ?? []
-      : [];
+  let activeList: string[];
+  if (activeTab === "departments") {
+    activeList = building.departments ?? [];
+  } else if (activeTab === "services") {
+    activeList = building.services ?? [];
+  } else {
+    activeList = [];
+  }
 
   return (
-    <View style={styles.overlayWrapper} pointerEvents="box-none">
+    <View
+      style={styles.overlayWrapper}
+      pointerEvents="box-none"
+      testID="building-info-popup"
+    >
       <View style={styles.card}>
-        
-        {/* TODO: Add drag handle if we implement a bottom-sheet interaction.*/}
-
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{building.displayName}</Text>
@@ -54,10 +70,10 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Close building info"
+            testID="building-info-close"
           >
-            <Text style={styles.closeText}>✕</Text>
+            <Text style={styles.closeText}>X</Text>
           </TouchableOpacity>
-
         </View>
 
         <View style={styles.divider} />
@@ -65,7 +81,9 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
             <Text style={styles.label}>Campus:</Text>
-            <Text style={styles.value}>{building.campusName.toUpperCase()}</Text>
+            <Text style={styles.value}>
+              {building.campusName.toUpperCase()}
+            </Text>
           </View>
           {building.icons && building.icons.length > 0 && (
             <BuildingIcons icons={building.icons} />
@@ -124,8 +142,8 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
 
             {activeTab && activeList.length > 0 && (
               <ScrollView style={styles.tabContent} nestedScrollEnabled>
-                {activeList.map((item, index) => (
-                  <Text key={index} style={styles.tabItem}>
+                {activeList.map((item) => (
+                  <Text key={item} style={styles.tabItem}>
                     {item}
                   </Text>
                 ))}
@@ -134,15 +152,41 @@ export const BuildingInfoPopup = ({ building, onClose }: BuildingInfoPopupProps)
           </>
         )}
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.actionButton}
-          onPress={() => {/* Add navigation logic in epic2*/ }}
-          accessibilityRole="button"
-          accessibilityLabel={`Get directions to ${building.displayName}`}
-        >
-          <Text style={styles.actionButtonText}>Get Directions</Text>
-        </TouchableOpacity>
+        <View style={styles.navButtonsRow}>
+          <TouchableOpacity
+            testID="popup-set-as-start"
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.actionButtonHalf]}
+            onPress={() => onSetAsStart?.(building)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set ${building.displayName} as starting point`}
+          >
+            <Text style={styles.actionButtonText}>Set as start</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="popup-set-as-destination"
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.actionButtonHalf]}
+            onPress={() => onSetAsDestination?.(building)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set ${building.displayName} as destination`}
+          >
+            <Text style={styles.actionButtonText}>Set as destination</Text>
+          </TouchableOpacity>
+        </View>
+
+        {hasIndoorMap && onViewIndoorMap && (
+          <TouchableOpacity
+            testID="popup-view-indoor"
+            activeOpacity={0.8}
+            style={[styles.actionButton, styles.indoorButton]}
+            onPress={onViewIndoorMap}
+            accessibilityRole="button"
+            accessibilityLabel={`Open indoor map for ${building.displayName}`}
+          >
+            <Text style={styles.indoorButtonText}>Open indoor map</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

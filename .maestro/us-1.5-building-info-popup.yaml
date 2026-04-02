@@ -1,0 +1,42 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: true
+    
+- extendedWaitUntil:
+    visible: "Concordia Maps"
+    timeout: 10000
+
+- assertVisible: "Select a campus"
+- tapOn: "SGW Campus"
+
+# Tap Hall building position
+- tapOn:
+    point: "40%,40%"
+
+# Verify the Popup
+- assertVisible: "Henry F. Hall Building (H)"
+- assertVisible: "1455 Blvd. De Maisonneuve Ouest, Montreal, Quebec H3G 1M8"
+- assertVisible: "Campus:"
+- assertVisible: "SGW"
+- assertVisible: 
+    id: "building-icon-information"
+- assertVisible:
+    id: "building-icon-printer"
+- assertVisible:
+    id: "building-icon-bike"
+- assertVisible:
+    id: "building-icon-wheelchair"
+
+# Verify Tabs
+- tapOn: "Show departments"
+- assertVisible: "Economics"
+
+- tapOn: "Show services"
+- assertVisible: "IT Service Desk"
+
+# Close the popup
+- tapOn: "Close building info"
+
+- assertNotVisible: "Henry F. Hall Building (H)"

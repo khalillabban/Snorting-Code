@@ -1,0 +1,85 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 15000
+
+# Navigate to schedule to verify next class exists
+- tapOn: "SGW Campus"
+
+# The next class button should be visible on the map screen
+- extendedWaitUntil:
+    visible:
+      id: "next-class-button"
+    timeout: 10000
+- tapOn:
+    id: "next-class-button"
+
+# ─── Verify next class info card ──────────────────────────────────────────────
+
+- extendedWaitUntil:
+    visible: "Next Class"
+    timeout: 8000
+- assertVisible: "Next Class"
+- assertVisible:
+    id: "next-class-name"
+
+# Verify destination is auto-filled from next class building
+- extendedWaitUntil:
+    visible:
+      id: "next-class-dest-input"
+    timeout: 5000
+
+# ─── Test destination via course picker ───────────────────────────────────────
+- tapOn:
+    id: "next-class-dest-input-picker"
+
+- swipe:
+    direction: UP
+    duration: 500
+    startX: 50%
+    startY: 20%
+
+- tapOn:
+    id: "next-class-dest-input-picker"
+
+# ─── Test transport modes ─────────────────────────────────────────────────────
+
+- extendedWaitUntil:
+    visible:
+      id: "next-class-mode-walking"
+    timeout: 5000
+- tapOn:
+    id: "next-class-mode-walking"
+
+- tapOn:
+    id: "next-class-mode-bicycling"
+
+- tapOn:
+    id: "next-class-mode-driving"
+
+- tapOn:
+    id: "next-class-mode-transit"
+
+- tapOn:
+    id: "next-class-mode-walking"
+
+# ─── Get Directions ───────────────────────────────────────────────────────────
+
+- extendedWaitUntil:
+    visible:
+      id: "next-class-get-directions"
+    timeout: 5000
+- tapOn:
+    id: "next-class-get-directions"
+
+# Verify directions panel appears
+- extendedWaitUntil:
+    visible: "Walk"
+    timeout: 10000
+- assertVisible: "Walk"
+- assertVisible: "Change route"

@@ -26,12 +26,16 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# IDE
+.idea/
+
 # macOS
 .DS_Store
 *.pem
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -41,6 +45,10 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Firebase / Google Configuration Files
+google-services.json
+GoogleService-Info.plist
 
 # test coverage
 coverage/
