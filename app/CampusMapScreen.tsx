@@ -1553,7 +1553,7 @@ export default function CampusMapScreen() {
     const destCode = toBuildingCode(selectedRoute.dest) ?? "unknown";
 
     const run = async () => {
-      await logUsabilityEvent("indoor_outdoor_combined_directions_viewed", {
+      await logUsabilityEvent("indoor_outdoor_combined_directions_view", {
         session_id: sessionId.current,
         task_id: activeIndoorOutdoorTask,
         start_building_code: startCode,

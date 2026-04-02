@@ -660,7 +660,7 @@ const getMapProps = () =>
 
 const renderScreen = async () => {
   render(<CampusMapScreen />);
-  await waitFor(() => { }); // flush async useEffect
+  await waitFor(() => {}); // flush async useEffect
 };
 
 const hasUsabilityEvent = (
@@ -1445,7 +1445,7 @@ describe("CampusMapScreen", () => {
     // an actual indoor steps list or fall back to a single hint line.
     expect(
       serialized.includes("Walk inside") ||
-      serialized.includes("Enter H and continue to H-110"),
+        serialized.includes("Enter H and continue to H-110"),
     ).toBe(true);
   });
 
@@ -2017,7 +2017,7 @@ describe("CampusMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockImplementation(() => params);
 
     const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => { });
+    await waitFor(() => {});
 
     // set focus target to user
     fireEvent.press(screen.getByTestId("my-location-button"));
@@ -2026,7 +2026,7 @@ describe("CampusMapScreen", () => {
     // change route param to loyola and rerender
     params.campus = "loyola";
     rerender(<CampusMapScreen />);
-    await waitFor(() => { });
+    await waitFor(() => {});
 
     // campus coords update, focusTarget stays user
     expect(getMapProps().coordinates).toEqual({ latitude: 3, longitude: 4 });
@@ -2619,7 +2619,7 @@ describe("CampusMapScreen", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("logs a Firebase error when steps_panel_viewed analytics fails", async () => {
+  it("logs a Firebase error when steps_panel_view analytics fails", async () => {
     (logUsabilityEvent as jest.Mock).mockImplementation((eventName: string) => {
       if (eventName === "steps_panel_viewed") {
         return Promise.reject(new Error("steps panel analytics failed"));
@@ -2647,7 +2647,7 @@ describe("CampusMapScreen", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("logs indoor_outdoor_combined_directions_viewed only once for the same active route", async () => {
+  it("logs indoor_outdoor_combined_directions_view only once for the same active route", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
       transition: "transition-string",
@@ -2671,7 +2671,7 @@ describe("CampusMapScreen", () => {
 
     await waitFor(() => {
       const count = (logUsabilityEvent as jest.Mock).mock.calls.filter(
-        ([name]) => name === "indoor_outdoor_combined_directions_viewed",
+        ([name]) => name === "indoor_outdoor_combined_directions_view",
       ).length;
       expect(count).toBe(1);
     });
@@ -2907,7 +2907,7 @@ describe("CampusMapScreen", () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
 
     const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => { });
+    await waitFor(() => {});
 
     const btn = screen.getByTestId("show-shuttle-button");
     expect(btn.props.accessibilityLabel).toBe("Show shuttle");
@@ -3602,7 +3602,9 @@ describe("POI filter panel state management", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -3691,7 +3693,9 @@ describe("campus switch cleans up active tasks", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -3809,7 +3813,9 @@ describe("accessible mode propagation", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -3832,28 +3838,30 @@ describe("accessible mode propagation", () => {
 
     // The accessible toggle in the nav bar should now reflect true
     await waitFor(() => {
-      expect(
-        screen.getByTestId("accessible-mode-toggle").props.value,
-      ).toBe(true);
+      expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(
+        true,
+      );
     });
   });
 
   it("toggling accessibility in nav bar changes the value", async () => {
     await renderScreen();
 
-    expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(false);
+    expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(
+      false,
+    );
 
     fireEvent.press(screen.getByTestId("accessible-mode-toggle"));
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId("accessible-mode-toggle").props.value,
-      ).toBe(true);
+      expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(
+        true,
+      );
     });
   });
 });
 
-describe("indoor_outdoor_combined_directions_viewed analytics", () => {
+describe("indoor_outdoor_combined_directions_view analytics", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
@@ -3901,7 +3909,7 @@ describe("indoor_outdoor_combined_directions_viewed analytics", () => {
     await waitFor(() => {
       expect(
         hasUsabilityEvent(
-          "indoor_outdoor_combined_directions_viewed",
+          "indoor_outdoor_combined_directions_view",
           (payload) =>
             payload?.outdoor_step_count === 1 &&
             payload?.total_step_count === 2 &&
@@ -3921,11 +3929,11 @@ describe("indoor_outdoor_combined_directions_viewed analytics", () => {
     fireEvent.press(screen.getByTestId("nav-confirm-same-building-rooms"));
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    await waitFor(() => { });
+    await waitFor(() => {});
 
-    expect(
-      hasUsabilityEvent("indoor_outdoor_combined_directions_viewed"),
-    ).toBe(false);
+    expect(hasUsabilityEvent("indoor_outdoor_combined_directions_view")).toBe(
+      false,
+    );
   });
 });
 
@@ -3934,7 +3942,9 @@ describe("usability event: route_generated", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -3988,7 +3998,9 @@ describe("building_popup_opened and task_3/task_4 transitions", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4054,7 +4066,9 @@ describe("nav_bar_opened event", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4104,7 +4118,9 @@ describe("task_16 abandoned on campus switch", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4135,7 +4151,9 @@ describe("task_16 abandoned on campus switch", () => {
     fireEvent.press(screen.getByTestId("poi-filter-button"));
     fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
 
-    await waitFor(() => expect(screen.getByTestId("poi-list-panel")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("poi-list-panel")).toBeTruthy(),
+    );
 
     await act(async () => {
       fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
@@ -4165,7 +4183,9 @@ describe("map_screen_loaded and startup tasks", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4194,7 +4214,9 @@ describe("map_screen_loaded and startup tasks", () => {
   });
 
   it("logs user_building_detected with the nearest building name when location is granted", async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "granted" },
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 5, longitude: 0 },
     });
@@ -4217,7 +4239,9 @@ describe("building_popup_opened and task_3/task_4 transitions", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4298,7 +4322,8 @@ describe("mergedSteps: bestNode selection with null outdoorLatLng", () => {
     const buildingsMod = require("../constants/buildings");
     const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
     const prevCoords = existing?.coordinates;
-    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+    if (existing)
+      existing.coordinates = { latitude: 45.497, longitude: -73.579 };
 
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
@@ -4364,7 +4389,7 @@ describe("mergedSteps: bestNode selection with null outdoorLatLng", () => {
       const serialized = screen.getByTestId("steps-serialized").props.children;
       expect(
         serialized.includes("Take stairs to floor 5") ||
-        serialized.includes("Enter MB"),
+          serialized.includes("Enter MB"),
       ).toBe(true);
     } finally {
       if (existing) existing.coordinates = prevCoords;
@@ -4375,7 +4400,8 @@ describe("mergedSteps: bestNode selection with null outdoorLatLng", () => {
     const buildingsMod = require("../constants/buildings");
     const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
     const prevCoords = existing?.coordinates;
-    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+    if (existing)
+      existing.coordinates = { latitude: 45.497, longitude: -73.579 };
 
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
@@ -4438,7 +4464,8 @@ describe("indoorRouteToSteps called on successful indoor leg", () => {
     const buildingsMod = require("../constants/buildings");
     const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
     const prevCoords = existing?.coordinates;
-    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+    if (existing)
+      existing.coordinates = { latitude: 45.497, longitude: -73.579 };
 
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
@@ -4506,8 +4533,8 @@ describe("indoorRouteToSteps called on successful indoor leg", () => {
       expect(serialized).toContain("Enter MB");
       expect(
         serialized.includes("Walk forward 10m") ||
-        serialized.includes("Take elevator to floor 9") ||
-        serialized.includes("Enter MB and continue to MB-920"),
+          serialized.includes("Take elevator to floor 9") ||
+          serialized.includes("Enter MB and continue to MB-920"),
       ).toBe(true);
     } finally {
       if (existing) existing.coordinates = prevCoords;
@@ -4523,7 +4550,9 @@ describe("indoor_outdoor_route_requested analytics failure in cross_building_ind
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     mockUseNearbyPOIs.mockReturnValue({
       pois: [],
       loading: false,
@@ -4556,7 +4585,9 @@ describe("indoor_outdoor_route_requested analytics failure in cross_building_ind
     await renderScreen();
 
     fireEvent.press(screen.getByTestId("directions-button"));
-    fireEvent.press(screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"));
+    fireEvent.press(
+      screen.getByTestId("nav-confirm-indoor-start-outdoor-dest"),
+    );
 
     await waitFor(() => {
       expect(getRouterPushMock()).toHaveBeenCalledWith(
@@ -4580,7 +4611,9 @@ describe("NextClassDirectionsPanel onUseMyLocation returns effectiveCurrentBuild
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     mockUseNearbyPOIs.mockReturnValue({
@@ -4628,7 +4661,9 @@ describe("NextClassDirectionsPanel onUseMyLocation returns effectiveCurrentBuild
     });
 
     // Grant location so autoStartBuilding is set to "B" (nearest building in mock)
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "granted" },
+    );
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: { latitude: 5, longitude: 0 },
     });
@@ -4636,7 +4671,9 @@ describe("NextClassDirectionsPanel onUseMyLocation returns effectiveCurrentBuild
     await renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByTestId("nav-auto-start").props.children).toContain('"name":"B"');
+      expect(screen.getByTestId("nav-auto-start").props.children).toContain(
+        '"name":"B"',
+      );
     });
 
     fireEvent.press(screen.getByTestId("next-class-button"));
@@ -4653,7 +4690,9 @@ describe("selectCampus analytics error handling", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4704,7 +4743,9 @@ describe("CampusMap startOverride with active POI route and userLocation", () =>
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4773,7 +4814,9 @@ describe("outdoor indoor_outdoor_route_requested analytics failure in outdoor ro
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4828,7 +4871,9 @@ describe("onSetAsStart and onSetAsDestination with undefined building name", () 
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -4902,7 +4947,8 @@ describe("mergedSteps: entryNodes filter excludes null outdoorLatLng nodes befor
     const buildingsMod = require("../constants/buildings");
     const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
     const prevCoords = existing?.coordinates;
-    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+    if (existing)
+      existing.coordinates = { latitude: 45.497, longitude: -73.579 };
 
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
@@ -4994,7 +5040,8 @@ describe("mergedSteps: entryNodes filter excludes null outdoorLatLng nodes befor
     const buildingsMod = require("../constants/buildings");
     const existing = buildingsMod.BUILDINGS.find((b: any) => b.name === "MB");
     const prevCoords = existing?.coordinates;
-    if (existing) existing.coordinates = { latitude: 45.497, longitude: -73.579 };
+    if (existing)
+      existing.coordinates = { latitude: 45.497, longitude: -73.579 };
 
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
@@ -5016,7 +5063,11 @@ describe("mergedSteps: entryNodes filter excludes null outdoorLatLng nodes befor
       nodes: [
         { id: "n1", type: "building_entry_exit", outdoorLatLng: null },
         { id: "n2", type: "building_entry_exit" }, // undefined outdoorLatLng
-        { id: "n3", type: "other_type", outdoorLatLng: { latitude: 45, longitude: -73 } }, // wrong type
+        {
+          id: "n3",
+          type: "other_type",
+          outdoorLatLng: { latitude: 45, longitude: -73 },
+        }, // wrong type
       ],
       edges: [],
     });
@@ -5043,7 +5094,9 @@ describe("route_generated try/catch error handler", () => {
     jest.clearAllMocks();
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
     (useLocalSearchParams as jest.Mock).mockReturnValue({});
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue(
+      { status: "denied" },
+    );
     (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
     (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
     (getNextClassFromItems as jest.Mock).mockReturnValue(null);
@@ -5118,15 +5171,21 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     fireEvent.press(screen.getByTestId("poi-filter-button"));
     fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
 
-    await waitFor(() => expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy(),
+    );
     fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
 
-    await waitFor(() => expect(screen.getByTestId("clear-selected-poi-button")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("clear-selected-poi-button")).toBeTruthy(),
+    );
 
     // Clear it before task 16 starts to hit the `if (!snap) return;` block
     fireEvent.press(screen.getByTestId("clear-selected-poi-button"));
 
-    await waitFor(() => expect(screen.queryByTestId("clear-selected-poi-button")).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByTestId("clear-selected-poi-button")).toBeNull(),
+    );
   });
 
   it("covers ensureTask16Started early return by clicking get directions twice", async () => {
@@ -5134,10 +5193,14 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     fireEvent.press(screen.getByTestId("poi-filter-button"));
     fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
 
-    await waitFor(() => expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy(),
+    );
     fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
 
-    await waitFor(() => expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy(),
+    );
 
     // Double click to trigger the `if (task16Snapshot.current) return;` early return
     fireEvent.press(screen.getByTestId("poi-get-directions-button"));
@@ -5157,18 +5220,18 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
       strategy: { mode: "walking" },
     };
     (useLocalSearchParams as jest.Mock).mockReturnValue({
-      transition: JSON.stringify(transitionObj)
+      transition: JSON.stringify(transitionObj),
     });
 
     const { parseTransitionPayload } = require("../utils/routeTransition");
     (parseTransitionPayload as jest.Mock).mockReturnValue(transitionObj);
 
     const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => { });
+    await waitFor(() => {});
 
     // Rerender with the exact same transition string to hit `if (handledTransitionRef.current === transitionKey) return;`
     rerender(<CampusMapScreen />);
-    await waitFor(() => { });
+    await waitFor(() => {});
   });
 
   it("resolves originCampus to loyola when effectiveOrigin is loyola", async () => {
@@ -5184,7 +5247,7 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     // Pass `campus: "loyola"` so the separate campus-param useEffect doesn't overwrite our transition state
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "loyola",
-      transition: JSON.stringify(transitionObj)
+      transition: JSON.stringify(transitionObj),
     });
 
     const { parseTransitionPayload } = require("../utils/routeTransition");
@@ -5192,13 +5255,17 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
 
     render(<CampusMapScreen />);
     await waitFor(() => {
-      const mapProps = JSON.parse(screen.getByTestId("campus-map-props").props.children);
+      const mapProps = JSON.parse(
+        screen.getByTestId("campus-map-props").props.children,
+      );
       expect(mapProps.focusTarget).toBe("loyola");
     });
   });
 
   it("catches Firebase Analytics error in focusUserLocation", async () => {
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => { });
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     (logUsabilityEvent as jest.Mock).mockImplementation((eventName) => {
       if (eventName === "current_location_pressed") {
@@ -5211,7 +5278,10 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     fireEvent.press(screen.getByTestId("my-location-button"));
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith("Firebase Analytics Error: ", expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Firebase Analytics Error: ",
+        expect.any(Error),
+      );
     });
     consoleSpy.mockRestore();
   });
@@ -5224,7 +5294,9 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     fireEvent.press(screen.getByTestId("nav-confirm"));
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    await waitFor(() => expect(screen.getByTestId("steps-dismiss")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("steps-dismiss")).toBeTruthy(),
+    );
 
     await act(async () => {
       fireEvent.press(screen.getByTestId("steps-dismiss"));
@@ -5238,18 +5310,24 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
       strategy: { mode: "walking" },
       usabilityTaskId: "task_13",
     };
-    (useLocalSearchParams as jest.Mock).mockReturnValue({ transition: JSON.stringify(transitionObj) });
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      transition: JSON.stringify(transitionObj),
+    });
     const { parseTransitionPayload } = require("../utils/routeTransition");
     (parseTransitionPayload as jest.Mock).mockReturnValue(transitionObj);
 
     const { buildContinueIndoorsStep } = require("../utils/continueIndoors");
     (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
       steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
-      openArgs: { buildingCode: "MB", navOrigin: "ENTRANCE", navDest: "MB-1.210" },
+      openArgs: {
+        buildingCode: "MB",
+        navOrigin: "ENTRANCE",
+        navDest: "MB-1.210",
+      },
     });
 
     render(<CampusMapScreen />); // Remount
-    await waitFor(() => { });
+    await waitFor(() => {});
 
     fireEvent.press(screen.getByTestId("trigger-get-directions"));
     fireEvent.press(screen.getByTestId("nav-confirm"));
@@ -5274,10 +5352,10 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
   });
   it("CONDITION COVERAGE: handles undefined transition param (fallback to empty string) and early returns on second render", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
-      campus: "sgw"
+      campus: "sgw",
       // Note: `transition` is deliberately omitted here.
     });
-    
+
     const { parseTransitionPayload } = require("../utils/routeTransition");
     (parseTransitionPayload as jest.Mock).mockReturnValue({
       mode: "indoor_to_outdoor",
@@ -5294,15 +5372,15 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
   it("CONDITION COVERAGE: handles explicit transition string and clears ref on dismiss", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
-      transition: "explicit-transition-string-123"
+      transition: "explicit-transition-string-123",
     });
-    
+
     const { parseTransitionPayload } = require("../utils/routeTransition");
     (parseTransitionPayload as jest.Mock).mockReturnValue({
       mode: "indoor_to_outdoor",
       destinationBuildingCode: "MB",
       destinationIndoorRoomQuery: "MB-1.210",
-      strategy: { mode: "walking" }
+      strategy: { mode: "walking" },
     });
 
     const { rerender } = render(<CampusMapScreen />);
@@ -5315,19 +5393,20 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     fireEvent.press(screen.getByTestId("nav-confirm"));
     fireEvent.press(screen.getByTestId("trigger-route-steps"));
 
-    await waitFor(() => expect(screen.getByTestId("steps-dismiss")).toBeTruthy());
-    
+    await waitFor(() =>
+      expect(screen.getByTestId("steps-dismiss")).toBeTruthy(),
+    );
+
     await act(async () => {
       fireEvent.press(screen.getByTestId("steps-dismiss"));
     });
-    
   });
   it("CONDITION COVERAGE: handles explicit null transition to satisfy ?? operator transpilation", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       campus: "sgw",
-      transition: null as any 
+      transition: null as any,
     });
-    
+
     const { parseTransitionPayload } = require("../utils/routeTransition");
     (parseTransitionPayload as jest.Mock).mockReturnValue({
       mode: "indoor_to_outdoor",
@@ -5335,56 +5414,56 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     });
 
     const { rerender } = render(<CampusMapScreen />);
-    
+
     await waitFor(() => {});
-    
+
     rerender(<CampusMapScreen />);
     await waitFor(() => {});
   });
   describe("Condition Coverage for transition handling and early returns", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    it("CONDITION COVERAGE: hits the true branch of handledTransitionRef check (undefined -> empty string)", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        campus: "sgw",
+        transition: undefined,
+      });
+
+      const { parseTransitionPayload } = require("../utils/routeTransition");
+      (parseTransitionPayload as jest.Mock).mockReturnValue({
+        mode: "indoor_to_outdoor",
+        destinationBuildingCode: "MB",
+      });
+
+      const { rerender } = render(<CampusMapScreen />);
+      await waitFor(() => {});
+
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        campus: "sgw",
+        transition: "",
+      });
+
+      rerender(<CampusMapScreen />);
+      await waitFor(() => {});
+    });
+
+    it("CONDITION COVERAGE: handles null transition explicitly for ?? operator transpilation", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        campus: "sgw",
+        transition: null as any,
+      });
+
+      const { parseTransitionPayload } = require("../utils/routeTransition");
+      (parseTransitionPayload as jest.Mock).mockReturnValue({
+        mode: "indoor_to_outdoor",
+        destinationBuildingCode: "MB",
+      });
+
+      render(<CampusMapScreen />);
+      await waitFor(() => {});
+    });
   });
-
-  it("CONDITION COVERAGE: hits the true branch of handledTransitionRef check (undefined -> empty string)", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      campus: "sgw",
-      transition: undefined
-    });
-
-    const { parseTransitionPayload } = require("../utils/routeTransition");
-    (parseTransitionPayload as jest.Mock).mockReturnValue({
-      mode: "indoor_to_outdoor",
-      destinationBuildingCode: "MB",
-    });
-
-    const { rerender } = render(<CampusMapScreen />);
-    await waitFor(() => {});
-
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      campus: "sgw",
-      transition: ""
-    });
-
-    rerender(<CampusMapScreen />);
-    await waitFor(() => {});
-  });
-
-  it("CONDITION COVERAGE: handles null transition explicitly for ?? operator transpilation", async () => {
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      campus: "sgw",
-      transition: null as any
-    });
-
-    const { parseTransitionPayload } = require("../utils/routeTransition");
-    (parseTransitionPayload as jest.Mock).mockReturnValue({
-      mode: "indoor_to_outdoor",
-      destinationBuildingCode: "MB",
-    });
-
-    render(<CampusMapScreen />);
-    await waitFor(() => {});
-  });
-});
 });
