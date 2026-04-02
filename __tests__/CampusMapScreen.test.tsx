@@ -3520,3 +3520,734 @@ describe("CampusMapScreen", () => {
     });
   });
 });
+
+describe("getCampusByCode and classifyIndoorOutdoorTask edge cases", () => {
+  it("getCampusByCode returns null for an unknown building code", () => {
+    // classifyIndoorOutdoorTask internally uses getCampusByCode; test via it
+    expect(classifyIndoorOutdoorTask("UNKNOWN", "ALSO_UNKNOWN")).toBeNull();
+  });
+
+  it("classifyIndoorOutdoorTask returns null when start equals dest", () => {
+    expect(classifyIndoorOutdoorTask("H", "H")).toBeNull();
+  });
+
+  it("classifyIndoorOutdoorTask handles object inputs with campusName field", () => {
+    const sgwBuilding = { name: "CUSTOM_A", campusName: "sgw" };
+    const loyBuilding = { name: "CUSTOM_B", campusName: "loyola" };
+    // Both unknown building codes but campusName present — should resolve via campusName
+    expect(classifyIndoorOutdoorTask(sgwBuilding, loyBuilding)).toBe("task_14");
+    expect(classifyIndoorOutdoorTask(sgwBuilding, sgwBuilding)).toBe(null);
+  });
+});
+
+describe("toBuildingCode edge cases", () => {
+  it("returns null for empty string", () => {
+    expect(toBuildingCode("")).toBeNull();
+  });
+
+  it("returns null for whitespace-only string", () => {
+    expect(toBuildingCode("   ")).toBeNull();
+  });
+
+  it("returns null for object with empty name", () => {
+    expect(toBuildingCode({ name: "  " })).toBeNull();
+  });
+
+  it("returns null for non-string/object primitive", () => {
+    expect(toBuildingCode(42)).toBeNull();
+    expect(toBuildingCode(true)).toBeNull();
+  });
+});
+
+describe("parseStartedAtMs additional cases", () => {
+  it("rejects Infinity", () => {
+    expect(parseStartedAtMs(Infinity)).toBeNull();
+  });
+
+  it("accepts large valid timestamp", () => {
+    expect(parseStartedAtMs(1_700_000_000_000)).toBe(1_700_000_000_000);
+  });
+
+  it("rejects string '0'", () => {
+    expect(parseStartedAtMs("0")).toBeNull();
+  });
+});
+
+describe("POI filter panel state management", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("clears POIs and resets categories when poi-filter-button is pressed while open", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+    await waitFor(() => expect(mockSearchPOIs).toHaveBeenCalled());
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    await waitFor(() => {
+      expect(mockClearPOIs).toHaveBeenCalled();
+    });
+  });
+
+  it("does not call searchPOIs when no categories are active", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    await waitFor(() => {
+      expect(mockSearchPOIs).not.toHaveBeenCalled();
+    });
+  });
+
+  it("calls searchPOIs when a second category is toggled on", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+
+    await waitFor(() => {
+      expect(mockSearchPOIs).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("removes category and triggers re-search when toggling the same chip twice", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+    await waitFor(() => expect(mockSearchPOIs).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+    await waitFor(() => {
+      // After removing the only category, clearPOIs should be called
+      expect(mockClearPOIs).toHaveBeenCalled();
+    });
+  });
+
+  it("starts task_15 snapshot only once when multiple categories are toggled", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-restaurant"));
+
+    // Close the filter — task_15 should complete once
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+
+    await waitFor(() => {
+      const completions = (logUsabilityEvent as jest.Mock).mock.calls.filter(
+        ([name, payload]) =>
+          name === "task_completed" && payload?.task_id === "task_15",
+      );
+      expect(completions).toHaveLength(1);
+    });
+  });
+});
+
+describe("campus switch cleans up active tasks", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("finalizes task_15 when campus is switched while filter is active with a category", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_15" &&
+            payload?.outcome === "filter_closed",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs campus_switch event with correct campus name", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "campus_switch",
+          (payload) => payload?.campus_name === "loyola",
+        ),
+      ).toBe(true);
+    });
+  });
+});
+
+describe("mergedSteps outdoor + indoor suffix integration", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("includes prefix exit step, outdoor steps, and Enter suffix when destinationIndoorRoomQuery is set", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+    });
+
+    (getIndoorNavigationRouteFromNode as jest.Mock).mockReturnValue({
+      success: false,
+      route: [],
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const text = screen.getByTestId("steps-serialized").props.children;
+    expect(text).toContain("Exit H to the selected entrance");
+    expect(text).toContain("Walk");
+    expect(text).toContain("Enter MB");
+  });
+
+  it("does not prepend exit step when transition mode is not indoor_to_outdoor", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    const text = screen.getByTestId("steps-serialized").props.children;
+    expect(text).not.toContain("Exit");
+  });
+});
+
+describe("accessible mode propagation", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("sets accessibleOnly to true in state when accessible route is confirmed", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm-accessible"));
+
+    // The accessible toggle in the nav bar should now reflect true
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("accessible-mode-toggle").props.value,
+      ).toBe(true);
+    });
+  });
+
+  it("toggling accessibility in nav bar changes the value", async () => {
+    await renderScreen();
+
+    expect(screen.getByTestId("accessible-mode-toggle").props.value).toBe(false);
+
+    fireEvent.press(screen.getByTestId("accessible-mode-toggle"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("accessible-mode-toggle").props.value,
+      ).toBe(true);
+    });
+  });
+});
+
+describe("indoor_outdoor_combined_directions_viewed analytics", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("logs correct step counts when combined directions are viewed", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: "transition-string",
+    });
+
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      originBuildingCode: "H",
+      destinationBuildingCode: "MB",
+      destinationIndoorRoomQuery: "MB-1.210",
+      exitOutdoor: { latitude: 45.0, longitude: -73.0 },
+      strategy: WALKING_STRATEGY,
+    });
+
+    (buildContinueIndoorsStep as jest.Mock).mockReturnValue({
+      steps: [{ instruction: "Walk" }, { instruction: "Continue indoors" }],
+      openArgs: {
+        buildingCode: "MB",
+        navOrigin: "ENTRANCE",
+        navDest: "MB-1.210",
+      },
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "indoor_outdoor_combined_directions_viewed",
+          (payload) =>
+            payload?.outdoor_step_count === 1 &&
+            payload?.total_step_count === 2 &&
+            payload?.indoor_segment_step_count === 1,
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("does not log combined directions when task_13/14 is not active", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "sgw" });
+    (parseTransitionPayload as jest.Mock).mockReturnValue(null);
+
+    await renderScreen();
+
+    // Confirm route with same building (no task_13/14 since H=H in the nav-confirm mock)
+    fireEvent.press(screen.getByTestId("nav-confirm-same-building-rooms"));
+    fireEvent.press(screen.getByTestId("trigger-route-steps"));
+
+    await waitFor(() => {});
+
+    expect(
+      hasUsabilityEvent("indoor_outdoor_combined_directions_viewed"),
+    ).toBe(false);
+  });
+});
+
+describe("usability event: route_generated", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("logs route_generated when an outdoor route is confirmed", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(screen.getByTestId("nav-confirm"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "route_generated",
+          (payload) => payload?.travel_mode === "walking",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs route_generated with 'My Location' when start is null", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(screen.getByTestId("nav-confirm-nullstart"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "route_generated",
+          (payload) => payload?.start_location === "My Location",
+        ),
+      ).toBe(true);
+    });
+  });
+});
+
+describe("building_popup_opened and task_3/task_4 transitions", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("logs building_popup_opened when a building is selected on the map", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-building-with-map"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "building_popup_opened",
+          (payload) => payload?.building_name === "H",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs set_as_destination_from_popup when destination is set from the map popup", async () => {
+    await renderScreen();
+
+    // trigger-get-directions calls onSetAsDestination({ name: "H", displayName: "Hall" })
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "set_as_destination_from_popup",
+          (payload) => payload?.building_name === "H",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs set_as_start_from_popup when start is set from the map popup", async () => {
+    await renderScreen();
+
+    // trigger-set-as-start calls onSetAsStart({ name: "MB", displayName: "MB Building" })
+    fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "set_as_start_from_popup",
+          (payload) => payload?.building_name === "MB",
+        ),
+      ).toBe(true);
+    });
+  });
+});
+
+describe("nav_bar_opened event", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("logs nav_bar_opened with trigger 'directions_button' when directions button is pressed", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "nav_bar_opened",
+          (payload) => payload?.trigger === "directions_button",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("increments nav_open_count on each open", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("directions-button"));
+    fireEvent.press(screen.getByTestId("nav-close"));
+    fireEvent.press(screen.getByTestId("directions-button"));
+
+    await waitFor(() => {
+      const events = (logUsabilityEvent as jest.Mock).mock.calls.filter(
+        ([name]) => name === "nav_bar_opened",
+      );
+      expect(events.length).toBe(2);
+      expect(events[1][1].open_count).toBe(2);
+    });
+  });
+});
+
+describe("task_16 abandoned on campus switch", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+    (buildContinueIndoorsStep as jest.Mock).mockImplementation(
+      jest.requireActual("../utils/continueIndoors").buildContinueIndoorsStep,
+    );
+  });
+
+  it("finalizes task_16 as abandoned when campus is switched mid-task", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => expect(screen.getByTestId("poi-list-panel")).toBeTruthy());
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy(),
+    );
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+    fireEvent.press(screen.getByTestId("campus-toggle-loyola"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "task_completed",
+          (payload) =>
+            payload?.task_id === "task_16" && payload?.outcome === "abandoned",
+        ),
+      ).toBe(true);
+    });
+  });
+});
+
+describe("map_screen_loaded and startup tasks", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("logs map_screen_loaded on mount with correct campus", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ campus: "loyola" });
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "map_screen_loaded",
+          (payload) => payload?.campus === "loyola",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs user_building_detected with the nearest building name when location is granted", async () => {
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+      coords: { latitude: 5, longitude: 0 },
+    });
+
+    await renderScreen();
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "user_building_detected",
+          (payload) => payload?.building_name === "B",
+        ),
+      ).toBe(true);
+    });
+  });
+});
+
+describe("building_popup_opened and task_3/task_4 transitions", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (useShuttleAvailability as jest.Mock).mockReturnValue({ available: true });
+    (loadCachedSchedule as jest.Mock).mockResolvedValue(null);
+    (getNextClassFromItems as jest.Mock).mockReturnValue(null);
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+  });
+
+  it("logs building_popup_opened when a building is selected on the map", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-building-with-map"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "building_popup_opened",
+          (payload) => payload?.building_name === "H",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs set_as_destination_from_popup when destination is set from the map popup", async () => {
+    await renderScreen();
+
+    // trigger-get-directions calls onSetAsDestination({ name: "H", displayName: "Hall" })
+    fireEvent.press(screen.getByTestId("trigger-get-directions"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "set_as_destination_from_popup",
+          (payload) => payload?.building_name === "H",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("logs set_as_start_from_popup when start is set from the map popup", async () => {
+    await renderScreen();
+
+    // trigger-set-as-start calls onSetAsStart({ name: "MB", displayName: "MB Building" })
+    fireEvent.press(screen.getByTestId("trigger-set-as-start"));
+
+    await waitFor(() => {
+      expect(
+        hasUsabilityEvent(
+          "set_as_start_from_popup",
+          (payload) => payload?.building_name === "MB",
+        ),
+      ).toBe(true);
+    });
+  });
+});
