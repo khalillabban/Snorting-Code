@@ -70,6 +70,8 @@ type CampusMapProps = Readonly<{
 const HIGHLIGHT_STROKE_WIDTH = 3;
 const SELECTED_STROKE_WIDTH = 5;
 const DEFAULT_STROKE_WIDTH = 2;
+const SELECTED_BUILDING_DELTA = 0.004;
+const SELECTED_BUILDING_LAT_OFFSET = 0.0011;
 
 const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
 const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
@@ -486,10 +488,12 @@ export default function CampusMap({
     if (selectedBuilding && mapReady) {
       mapRef.current?.animateToRegion(
         {
-          latitude: selectedBuilding.coordinates.latitude - 0.0011,
+          latitude:
+            selectedBuilding.coordinates.latitude -
+            SELECTED_BUILDING_LAT_OFFSET,
           longitude: selectedBuilding.coordinates.longitude,
-          latitudeDelta: 0.004,
-          longitudeDelta: 0.004,
+          latitudeDelta: SELECTED_BUILDING_DELTA,
+          longitudeDelta: SELECTED_BUILDING_DELTA,
         },
         300,
       );
@@ -570,9 +574,11 @@ export default function CampusMap({
           const style = getPolygonStyle(isCurrent, isSelected);
 
           if (!building.boundingBox?.length) {
-            console.warn(
-              `Building ${building.name} has no boundingBox coordinates.`,
-            );
+            if (building.name !== "QA") {
+              console.warn(
+                `Building ${building.name} has no boundingBox coordinates.`,
+              );
+            }
             return null;
           }
 
@@ -784,9 +790,9 @@ export default function CampusMap({
         onViewIndoorMap={
           availableFloors.length > 0 && selectedBuilding
             ? () => {
-                onViewIndoorMap?.(selectedBuilding);
-                setSelectedBuilding(null);
-              }
+              onViewIndoorMap?.(selectedBuilding);
+              setSelectedBuilding(null);
+            }
             : undefined
         }
       />

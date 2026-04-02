@@ -52,3 +52,6 @@ GoogleService-Info.plist
 
 # test coverage
 coverage/
+
+#JetBrainsIDE
+.idea/

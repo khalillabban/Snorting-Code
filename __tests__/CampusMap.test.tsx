@@ -179,6 +179,14 @@ jest.mock("../constants/buildings", () => ({
       coordinates: { latitude: 13, longitude: 23 },
       boundingBox: [],
     },
+    {
+      name: "QA",
+      campusName: "sgw",
+      displayName: "QA Building",
+      address: "QA Address",
+      coordinates: { latitude: 14, longitude: 24 },
+      boundingBox: [], // This will test the 'false' branch of your condition
+    },
   ],
 }));
 
@@ -1177,5 +1185,25 @@ describe("CampusMap", () => {
     expect(screen.getByTestId("label-pill-A")).toBeTruthy();
     expect(screen.getByTestId("label-pill-B")).toBeTruthy();
     expect(screen.getByTestId("label-pill-C")).toBeTruthy();
+  });
+  it("warns for buildings with empty boundingBox except when the building is 'QA'", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Building EMPTY has no boundingBox coordinates.",
+      );
+      
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        "Building QA has no boundingBox coordinates.",
+      );
+    });
   });
 });
