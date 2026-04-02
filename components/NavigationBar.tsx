@@ -464,7 +464,11 @@ export default function NavigationBar({
                     const isActive = selectedStrategy.mode === strategy.mode;
                     const isShuttle = strategy.mode === "shuttle";
                     const isDisabled = isShuttle && !shuttleAvailable;
-                    const textColor = isDisabled ? colors.gray400 : isActive ? colors.white : colors.primary;
+                    const textColor = (() => {
+                      if (isDisabled) return colors.gray400;
+                      if (isActive) return colors.white;
+                      return colors.primary;
+                    })();
                     return (
                       <Pressable
                         key={strategy.mode}
@@ -551,8 +555,8 @@ export default function NavigationBar({
                     {routeSummaryLoading
                       ? "Loading…"
                       : [routeSummary?.duration, routeSummary?.distance]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
                   </Text>
                 )}
               </View>
