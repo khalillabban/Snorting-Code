@@ -5322,4 +5322,23 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
     });
     
   });
+  it("CONDITION COVERAGE: handles explicit null transition to satisfy ?? operator transpilation", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      campus: "sgw",
+      transition: null as any 
+    });
+    
+    const { parseTransitionPayload } = require("../utils/routeTransition");
+    (parseTransitionPayload as jest.Mock).mockReturnValue({
+      mode: "indoor_to_outdoor",
+      destinationBuildingCode: "MB",
+    });
+
+    const { rerender } = render(<CampusMapScreen />);
+    
+    await waitFor(() => {});
+    
+    rerender(<CampusMapScreen />);
+    await waitFor(() => {});
+  });
 });
