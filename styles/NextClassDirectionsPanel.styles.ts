@@ -1,8 +1,8 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-export const FULL_HEIGHT = SCREEN_HEIGHT * 0.95;
+export const FULL_HEIGHT = SCREEN_HEIGHT * (Platform.OS === "ios" ? 0.9 : 0.95);
 
 export const styles = StyleSheet.create({
   keyboardContainer: {
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
