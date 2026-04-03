@@ -1,7 +1,13 @@
 import { StyleSheet } from "react-native";
-import { colors, spacing, typography } from "../constants/theme";
+import {
+  colors as defaultColors,
+  spacing,
+  typography,
+  type ThemePalette,
+} from "../constants/theme";
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   rootContainer: {
     flex: 1,
   },
@@ -66,7 +72,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   shuttleDisabled: {
-    backgroundColor: "#666",
+    backgroundColor: colors.gray500,
     opacity: 0.8,
   },
   nextClassButton: {
@@ -184,3 +190,5 @@ export const styles = StyleSheet.create({
     fontWeight: typography.button.fontWeight,
   },
 });
+
+export const styles = createStyles();

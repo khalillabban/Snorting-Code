@@ -19,8 +19,8 @@ import {
 
 import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
-import { colors } from "../constants/theme";
 import { Buildings, ScheduleItem } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { FULL_HEIGHT, styles } from "../styles/NextClassDirectionsPanel.styles";
@@ -95,6 +95,7 @@ function SuggestionRow({
   showRoomTag,
   onPress,
 }: Readonly<SuggestionRowProps>) {
+  const { colors } = useColorAccessibility();
   return (
     <Pressable testID={testID} style={styles.suggestionItem} onPress={onPress}>
       <MaterialIcons name={iconName} size={20} color={iconColor ?? colors.primary} />
@@ -124,6 +125,7 @@ function SuggestionList({
   onSelectResult,
   onSelectCourse,
 }: Readonly<SuggestionListProps>) {
+  const { colors } = useColorAccessibility();
   if (suggestions.length > 0) {
     return (
       <View style={styles.suggestionList}>
@@ -192,6 +194,7 @@ function LocationInputRow({
   pickLabel,
   extraButton,
 }: Readonly<LocationInputRowProps>) {
+  const { colors } = useColorAccessibility();
   return (
     <View style={groupStyle}>
       <View style={styles.inputIconWrap}>{iconSlot}</View>
@@ -253,6 +256,7 @@ export default function NextClassDirectionsPanel({
   accessibleOnly = false,
   onAccessibleOnlyChange,
 }: Readonly<NextClassDirectionsPanelProps>) {
+  const { colors } = useColorAccessibility();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 

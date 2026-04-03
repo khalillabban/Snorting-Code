@@ -1,10 +1,17 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import {
+    borderRadius,
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   keyboardContainer: {
     position: "absolute",
     width: "100%",
@@ -284,3 +291,5 @@ export const styles = StyleSheet.create({
     color: colors.secondary,
   },
 });
+
+export const styles = createStyles();
