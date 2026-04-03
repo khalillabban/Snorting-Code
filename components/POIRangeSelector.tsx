@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { POI_RANGE_OPTIONS, type POIRangeOption } from "../constants/poiRange";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/POIRangeSelector.styles";
 
 interface POIRangeSelectorProps {
@@ -11,9 +12,11 @@ export function POIRangeSelector({
   selected,
   onSelect,
 }: Readonly<POIRangeSelectorProps>) {
+    const { colors } = useColorAccessibility();
+
   return (
-    <View style={styles.wrapper} testID="poi-range-selector">
-      <Text style={styles.label}>Range:</Text>
+    <View style={[styles.wrapper, { backgroundColor: colors.white }]} testID="poi-range-selector">
+      <Text style={[styles.label, { color: colors.gray500 }]}>Range:</Text>
       <View style={styles.buttonsRow}>
         {POI_RANGE_OPTIONS.map((opt) => {
           const isActive = selected.id === opt.id;
@@ -25,11 +28,19 @@ export function POIRangeSelector({
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={`Set search radius to ${opt.label}`}
               onPress={() => onSelect(opt)}
-              style={[styles.button, isActive && styles.buttonActive]}
+              style={[
+                styles.button,
+                { borderColor: colors.gray300, backgroundColor: colors.white },
+                isActive && { 
+                  backgroundColor: colors.primary, 
+                  borderColor: colors.primary 
+                },
+              ]}
             >
               <Text
                 style={[
                   styles.buttonLabel,
+                                    { color: colors.gray700 },
                   isActive && styles.buttonLabelActive,
                 ]}
               >
