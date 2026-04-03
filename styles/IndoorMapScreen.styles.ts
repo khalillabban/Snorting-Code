@@ -1,7 +1,13 @@
 import { StyleSheet } from "react-native";
-import { colors, spacing, typography } from "../constants/theme";
+import {
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
 const MARKER_SIZE = 28;
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
@@ -224,3 +230,5 @@ export const styles = StyleSheet.create({
   marginBottom: 8,
 },
 });
+
+export const styles = createStyles();

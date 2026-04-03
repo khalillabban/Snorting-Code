@@ -1,8 +1,15 @@
 import {
     StyleSheet
 } from "react-native";
-import { colors, spacing, typography } from "../constants/theme";
-export const styles = StyleSheet.create({
+import {
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
+
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
@@ -19,7 +26,7 @@ export const styles = StyleSheet.create({
     borderTopRightRadius: 18,
     maxHeight: "80%",
     paddingBottom: spacing.lg,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOpacity: 0.12,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -6 },
@@ -290,4 +297,6 @@ export const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 14,
   },
-});
+  });
+
+export const styles = createStyles();

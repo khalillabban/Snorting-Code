@@ -13,8 +13,9 @@ import React, {
 import { AppState, Pressable, Text, View } from "react-native";
 import ScheduleCalendar from "../components/ScheduleCalendar";
 import { SEMESTER_END, SEMESTER_START } from "../constants/semesterConfig";
-import { colors, spacing, typography } from "../constants/theme";
+import { spacing, typography } from "../constants/theme";
 import { SCHEDULE_ITEMS, ScheduleItem } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { useGoogleCalendarAuth } from "../services/GoogleAuthService";
 import {
     clearCachedGoogleCalendarEvents,
@@ -202,6 +203,7 @@ export function handleScheduleInitError(
 
 export default function ScheduleScreen() {
   const sessionId = useRef(getSessionId());
+  const { colors } = useColorAccessibility();
 
   const { request, promptAsync, getResultFromResponse, response } =
     useGoogleCalendarAuth({ useProxy: false });

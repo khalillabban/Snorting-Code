@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { colors, spacing, typography } from "../constants/theme";
+import { spacing, typography } from "../constants/theme";
 import type { ScheduleItem } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 
 type ScheduleFilter = "all" | "class" | "event";
 
@@ -64,6 +65,8 @@ function getItemKind(item: Pick<ScheduleItem, "courseName" | "kind">): ScheduleI
 }
 
 function ScheduleCard({ item }: Readonly<{ item: ScheduleItem }>) {
+    const { colors } = useColorAccessibility();
+
   return (
     <View
       style={{
@@ -78,10 +81,10 @@ function ScheduleCard({ item }: Readonly<{ item: ScheduleItem }>) {
       <Text style={{ ...typography.button, color: colors.primaryDark }}>
         {item.courseName}
       </Text>
-      <Text style={{ marginTop: 4, color: colors.gray700 }}>
+      <Text style={{ marginTop: 4, color: colors.gray700, fontSize: 14 }}>
         {timeRange(item.start, item.end)}
       </Text>
-      <Text style={{ marginTop: 4, color: colors.gray700 }}>
+      <Text style={{ marginTop: 4, color: colors.gray700, fontSize: 14 }}>
         {item.location}
       </Text>
     </View>
@@ -101,6 +104,8 @@ function AccordionHeader({
   onToggle,
   testID,
 }: Readonly<AccordionHeaderProps>) {
+    const { colors } = useColorAccessibility();
+
   return (
     <View
       style={{
@@ -150,6 +155,8 @@ function FilterChip({
   onPress: () => void;
   testID: string;
 }>) {
+    const { colors } = useColorAccessibility();
+
   return (
     <Pressable
       testID={testID}
@@ -188,6 +195,8 @@ function SectionBody({
   emptyMessage: string;
   tone: "upcoming" | "past";
 }>) {
+  const { colors } = useColorAccessibility();
+
   const labelBackgroundColor =
     tone === "upcoming" ? colors.primary : colors.gray300;
   const labelTextColor = tone === "upcoming" ? colors.white : colors.gray700;
@@ -242,6 +251,7 @@ function SectionBody({
 export default function ScheduleCalendar({
   items,
 }: Readonly<{ items: ScheduleItem[] }>) {
+  const { colors } = useColorAccessibility();
   const [visibleFilter, setVisibleFilter] = useState<ScheduleFilter>("all");
   const [upcomingClassesExpanded, setUpcomingClassesExpanded] = useState(true);
   const [pastClassesExpanded, setPastClassesExpanded] = useState(false);

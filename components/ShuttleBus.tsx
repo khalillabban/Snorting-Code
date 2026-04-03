@@ -2,7 +2,8 @@ import { Departure } from "@/constants/type";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { shuttleSchedule } from "../constants/shuttle";
-import { styles } from "../styles/ShuttleBar.styles";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { createStyles } from "../styles/ShuttleBar.styles";
 import { getScheduleKeyForDate } from "../utils/shuttleAvailability";
 
 type Campus = "SGW" | "Loyola";
@@ -69,6 +70,8 @@ interface ShuttleBusProps {
 }
 
 const ShuttleBus = ({ startLocation, endLocation }: ShuttleBusProps) => {
+  const { colors } = useColorAccessibility();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [nextDepartures, setNextDepartures] = useState<Departure[]>([]);
   const [isShuttleAvailable, setIsShuttleAvailable] = useState(false);
 
