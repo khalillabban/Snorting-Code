@@ -15,7 +15,7 @@ jest.mock("react-native", () => {
 });
 
 jest.mock("../constants/theme", () => ({
-  colors: { primary: "#912338", black: "#1a1a1a", gray100: "#e5e5e5", gray500: "#737373", gray700: "#404040", white: "#ffffff", offWhite: "#f2f2f2" },
+  colors: { primary: "#912338", black: "#1a1a1a", gray100: "#e5e5e5", gray200: "#d4d4d4", gray400: "#9a9a9a", gray500: "#737373", gray700: "#404040", white: "#ffffff", offWhite: "#f2f2f2" },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 },
 }));
 
@@ -34,5 +34,10 @@ describe("NavigationBar Styles", () => {
 
   it("searchButton uses primary color from theme", () => {
     expect(styles.searchButton.backgroundColor).toBe("#912338");
+  });
+
+  it("disabledModeButton has correct opacity and background", () => {
+    expect(styles.disabledModeButton.backgroundColor).toBe("#d4d4d4");
+    expect(styles.disabledModeButton.opacity).toBe(0.6);
   });
 });

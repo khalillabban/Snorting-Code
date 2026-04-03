@@ -177,6 +177,10 @@ export const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  disabledModeButton: {
+    backgroundColor: colors.gray200,
+    opacity: 0.6,
+  },
   modeText: {
     fontSize: 10,
     marginTop: 2,

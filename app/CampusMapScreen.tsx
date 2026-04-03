@@ -2088,6 +2088,7 @@ export default function CampusMapScreen() {
         }}
         accessibleOnly={accessibleOnly}
         onAccessibleOnlyChange={setAccessibleOnly}
+        shuttleAvailable={shuttleStatus.available}
       />
 
       <NextClassDirectionsPanel
@@ -2113,6 +2114,7 @@ export default function CampusMapScreen() {
         onOpenIndoorMap={handleOpenNextClassIndoorMap}
         accessibleOnly={accessibleOnly}
         onAccessibleOnlyChange={setAccessibleOnly}
+        shuttleAvailable={shuttleStatus.available}
       />
     </View>
   );
