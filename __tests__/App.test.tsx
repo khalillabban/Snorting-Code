@@ -18,6 +18,17 @@ describe("Index screen", () => {
     jest.clearAllMocks();
   });
 
+  beforeAll(() => {
+    // Suppress known Icon component act() warnings from @expo/vector-icons
+    jest.spyOn(console, "error").mockImplementation((...args: any[]) => {
+      const message = String(args[0] || "");
+      if (message.includes("An update to Icon inside a test was not wrapped")) {
+        return;
+      }
+      // For other errors, call the original console.error
+    });
+  });
+
   it("renders title, subtitle, and all buttons", () => {
     render(<Index />);
 

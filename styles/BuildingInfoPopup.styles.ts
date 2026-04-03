@@ -1,8 +1,15 @@
 // BuildingInfoPopup.styles.ts 
 import { StyleSheet } from "react-native";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import {
+    borderRadius,
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   overlayWrapper: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
@@ -14,7 +21,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -170,4 +177,6 @@ export const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     textAlign: "left",
   },
-});
+  });
+
+export const styles = createStyles();
