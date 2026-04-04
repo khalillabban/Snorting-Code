@@ -71,6 +71,8 @@ jest.mock("../utils/mapAssets", () => ({
 }));
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
+  compactIndoorSearchKey: (value: string) =>
+    value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
   getNormalizedBuildingPlan: (code: string) => {
     if (code !== "H") return null;
     return {
@@ -89,7 +91,7 @@ jest.mock("../utils/indoorBuildingPlan", () => ({
           y: 200,
           accessible: true,
           searchTerms: ["H-920", "920", "Lecture Hall"],
-          searchKeys: ["H920"],
+          searchKeys: ["H920", "920", "LECTUREHALL"],
         },
         {
           id: "H-861",
@@ -103,7 +105,7 @@ jest.mock("../utils/indoorBuildingPlan", () => ({
           y: 50,
           accessible: true,
           searchTerms: ["H-861", "861"],
-          searchKeys: ["H861"],
+          searchKeys: ["H861", "861"],
         },
       ],
       roomsByFloor: {},
@@ -313,6 +315,26 @@ describe("queryIndex", () => {
   it("returns no results for unrecognized query", () => {
     const results = queryIndex("ZZZZZZ");
     expect(results).toEqual([]);
+  });
+
+  it("finds rooms by compact query without punctuation (e.g., H920 matches H-920)", () => {
+    const results = queryIndex("H920");
+    const rooms = results.filter((r) => r.kind === "room");
+    expect(rooms.length).toBeGreaterThanOrEqual(1);
+    expect(rooms.some((r) => r.room.label === "H-920")).toBe(true);
+  });
+
+  it("finds rooms by compact query with mixed case (e.g., h861 matches H-861)", () => {
+    const results = queryIndex("h861");
+    const rooms = results.filter((r) => r.kind === "room");
+    expect(rooms.length).toBeGreaterThanOrEqual(1);
+    expect(rooms.some((r) => r.room.label === "H-861")).toBe(true);
+  });
+
+  it("finds rooms using searchKeys for partial compact matches", () => {
+    const results = queryIndex("92");
+    const rooms = results.filter((r) => r.kind === "room");
+    expect(rooms.some((r) => r.room.label === "H-920")).toBe(true);
   });
 });
 

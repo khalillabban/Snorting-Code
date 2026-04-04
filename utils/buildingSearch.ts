@@ -1,7 +1,7 @@
 import { BUILDINGS } from "../constants/buildings";
 import { Buildings } from "../constants/type";
 import { getIndoorAccessState } from "./indoorAccess";
-import { getNormalizedBuildingPlan, IndoorRoomRecord } from "./indoorBuildingPlan";
+import { compactIndoorSearchKey, getNormalizedBuildingPlan, IndoorRoomRecord } from "./indoorBuildingPlan";
 
 const MAX_SUGGESTIONS = 20;
 
@@ -52,13 +52,26 @@ export function queryIndex(query: string): SearchResult[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
+  const compactQuery = compactIndoorSearchKey(q);
+
   return getSearchIndex()
     .filter((item) => {
       const label = resultLabel(item).toLowerCase();
       const code = item.building.name.toLowerCase();
       const roomNumber =
         item.kind === "room" ? item.room.roomNumber.toLowerCase() : "";
-      return label.includes(q) || code.includes(q) || roomNumber.includes(q);
+      const searchKeys =
+        item.kind === "room" ? item.room.searchKeys : [];
+
+      if (label.includes(q) || code.includes(q) || roomNumber.includes(q)) {
+        return true;
+      }
+
+      if (compactQuery && searchKeys.some((key) => key.includes(compactQuery))) {
+        return true;
+      }
+
+      return false;
     })
     .slice(0, MAX_SUGGESTIONS);
 }

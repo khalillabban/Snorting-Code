@@ -41,6 +41,8 @@ const mockMBRoom = {
 };
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
+  compactIndoorSearchKey: (value: string) =>
+    value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
   getNormalizedBuildingPlan: (code: string) => {
     if (code !== "MB") return null;
     return {
