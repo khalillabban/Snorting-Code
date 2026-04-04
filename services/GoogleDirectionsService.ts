@@ -15,6 +15,15 @@ type DirectionsResponse = {
         html_instructions?: string;
         distance?: { text?: string };
         duration?: { text?: string };
+        travel_mode?: string;
+        transit_details?: {
+          line?: { short_name?: string; vehicle?: { type?: string } };
+          departure_time?: { text?: string };
+          arrival_time?: { text?: string };
+          departure_stop?: { name?: string };
+          arrival_stop?: { name?: string };
+          num_stops?: number;
+        };
       }[];
     }[];
   }[];
@@ -210,13 +219,28 @@ export async function getOutdoorRouteWithSteps(
   });
 
   const leg = data.routes?.[0]?.legs?.[0];
-  const routeSteps: RouteStep[] = steps.map((step) => ({
-    instruction: step.html_instructions
-      ? stripHtml(step.html_instructions)
-      : "",
-    distance: step.distance?.text,
-    duration: step.duration?.text,
-  }));
+  const routeSteps: RouteStep[] = steps.map((step) => {
+    const base: RouteStep = {
+      instruction: step.html_instructions
+        ? stripHtml(step.html_instructions)
+        : "",
+      distance: step.distance?.text,
+      duration: step.duration?.text,
+    };
+    if (step.travel_mode === "TRANSIT" && step.transit_details) {
+      const td = step.transit_details;
+      base.transitDetails = {
+        lineName: td.line?.short_name,
+        vehicleType: td.line?.vehicle?.type,
+        departureTime: td.departure_time?.text,
+        arrivalTime: td.arrival_time?.text,
+        departureStop: td.departure_stop?.name,
+        arrivalStop: td.arrival_stop?.name,
+        numStops: td.num_stops,
+      };
+    }
+    return base;
+  });
 
   return {
     coordinates,

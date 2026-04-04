@@ -75,6 +75,36 @@ function formatDuration(minutes: number): string {
   return `${Math.round(minutes)} min`;
 }
 
+type StepIconName = "door-open" | "bus" | "subway" | "train" | "walk";
+
+const SUBWAY_TYPES = new Set(["subway", "metro_rail"]);
+const TRAIN_TYPES = new Set(["rail", "commuter_train"]);
+
+function resolveStepIcon(
+  isShuttle: boolean,
+  isTransit: boolean,
+  isCta: boolean,
+  vehicleType?: string,
+): StepIconName {
+  if (isCta) return "door-open";
+  if (!isShuttle && !isTransit) return "walk";
+  const vt = vehicleType?.toLowerCase();
+  if (vt && SUBWAY_TYPES.has(vt)) return "subway";
+  if (vt && TRAIN_TYPES.has(vt)) return "train";
+  return "bus";
+}
+
+function buildTransitMetaText(details: NonNullable<RouteStep["transitDetails"]>): string {
+  return [
+    details.lineName && `Line ${details.lineName}`,
+    details.departureTime && `Departs ${details.departureTime}`,
+    details.arrivalTime && `Arrives ${details.arrivalTime}`,
+    details.numStops != null && `${details.numStops} stops`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 type StepWrapperProps = {
   readonly styles: ReturnType<typeof createStyles>;
   readonly onPress?: () => void;
@@ -223,22 +253,20 @@ export function DirectionStepsPanel({
           keyboardShouldPersistTaps="handled"
         >
           {steps.map((step, index) => {
-            // Check if this is a shuttle-specific step
+            const lowerInstruction = step.instruction.toLowerCase();
             const isShuttle =
-              step.instruction.toLowerCase().includes("shuttle") ||
-              step.instruction.toLowerCase().includes("board");
-
-            const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
-
+              lowerInstruction.includes("shuttle") ||
+              lowerInstruction.includes("board");
+            const isTransit = Boolean(step.transitDetails);
             const isContinueIndoorsCta =
               Boolean(step.onPress) && index === steps.length - 1;
-
-            let iconName: "door-open" | "bus" | "walk" = "walk";
-            if (isContinueIndoorsCta) {
-              iconName = "door-open";
-            } else if (isShuttle) {
-              iconName = "bus";
-            }
+            const iconName = resolveStepIcon(
+              isShuttle,
+              isTransit,
+              isContinueIndoorsCta,
+              step.transitDetails?.vehicleType,
+            );
+            const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
             return (
               <StepWrapper
@@ -265,7 +293,6 @@ export function DirectionStepsPanel({
                 </View>
 
                 <View style={styles.stepBody}>
-                  {/* Make the shuttle instruction bold to stand out */}
                   <Text
                     style={[
                       styles.stepInstruction,
@@ -275,6 +302,12 @@ export function DirectionStepsPanel({
                   >
                     {step.instruction}
                   </Text>
+
+                  {isTransit && step.transitDetails && (
+                    <Text style={styles.stepMeta}>
+                      {buildTransitMetaText(step.transitDetails)}
+                    </Text>
+                  )}
 
                   {(step.distance || step.duration) && (
                     <Text style={styles.stepMeta}>

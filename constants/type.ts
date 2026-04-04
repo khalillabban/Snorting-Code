@@ -102,6 +102,15 @@ export interface RouteStep {
   instruction: string;
   distance?: string;
   duration?: string;
+  transitDetails?: {
+    lineName?: string;
+    vehicleType?: string;
+    departureTime?: string;
+    arrivalTime?: string;
+    departureStop?: string;
+    arrivalStop?: string;
+    numStops?: number;
+  };
 }
 
 export interface CalendarEvent {
