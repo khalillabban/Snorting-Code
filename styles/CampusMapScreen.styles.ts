@@ -76,8 +76,8 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     opacity: 0.8,
   },
   nextClassButton: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondaryDark,
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDarker,
   },
   nextClassButtonDisabled: {
     backgroundColor: colors.gray500,

@@ -1,5 +1,4 @@
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -27,22 +26,6 @@ function createStyles(colors: ThemePalette) {
       alignItems: "center",
       padding: spacing.lg,
     },
-    settingsButton: {
-      position: "absolute",
-      top: 20,
-      right: 16,
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.white,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: colors.black,
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 4,
-    },
     title: {
       ...typography.title,
       color: colors.white,
@@ -63,6 +46,7 @@ function createStyles(colors: ThemePalette) {
       borderWidth: 1,
       borderColor: colors.white,
       marginBottom: spacing.xl,
+      alignItems: "center",
     },
     modeChipText: {
       ...typography.caption,
@@ -115,22 +99,18 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Pressable
-        style={styles.settingsButton}
-        onPress={() => setSettingsVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Open color accessibility settings"
-        testID="home-settings-button"
-      >
-        <MaterialCommunityIcons name="cog-outline" size={22} color={colors.primary} />
-      </Pressable>
-
       <Text style={styles.title}>Concordia Maps</Text>
       <Text style={styles.subtitle}>Select a campus</Text>
 
-      <View style={styles.modeChip}>
+      <Pressable
+        style={styles.modeChip}
+        onPress={() => setSettingsVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Change color mode"
+        testID="home-color-mode-button"
+      >
         <Text style={styles.modeChipText}>Color mode: {mode === "classic" ? "Classic" : mode === "redGreenSafe" ? "Red-Green Safe" : mode === "blueYellowSafe" ? "Blue-Yellow Safe" : "High Contrast"}</Text>
-      </View>
+      </Pressable>
 
       <Pressable style={styles.button} onPress={() => goToCampus("sgw")}>
         <Text style={styles.buttonText}>SGW Campus</Text>
@@ -154,7 +134,7 @@ export default function Index() {
       </Pressable>
 
       <Text style={styles.footerHint}>
-        Use the settings button to switch to a color-blind-friendly palette.
+        Tap the color mode button to switch to a color-blind-friendly palette.
       </Text>
 
       <ColorAccessibilitySettingsModal
