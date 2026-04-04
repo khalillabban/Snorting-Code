@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { StyleSheet, View, ViewStyle } from "react-native";
+import React from "react";
+import { StyleSheet, ViewStyle } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -19,6 +19,10 @@ interface ZoomableViewProps {
   testID?: string;
 }
 
+export function clampScale(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function ZoomableView({
   children,
   style,
@@ -32,23 +36,13 @@ export function ZoomableView({
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
-  const focalX = useSharedValue(0);
-  const focalY = useSharedValue(0);
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
       savedScale.value = scale.value;
     })
     .onUpdate((event) => {
-      const newScale = savedScale.value * event.scale;
-      scale.value = Math.min(Math.max(newScale, minScale), maxScale);
-    })
-    .onEnd(() => {
-      if (scale.value < minScale) {
-        scale.value = withTiming(minScale);
-        translateX.value = withTiming(0);
-        translateY.value = withTiming(0);
-      }
+      scale.value = clampScale(savedScale.value * event.scale, minScale, maxScale);
     });
 
   const panGesture = Gesture.Pan()
