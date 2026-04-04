@@ -45,6 +45,7 @@ import {
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
   NavigationRoute,
+  getRouteWaypointsForFloor,
   type NavigationResult,
 } from "../utils/indoorNavigation";
 import { getIndoorPOIs } from "../utils/indoorPOI";
@@ -70,6 +71,7 @@ const DEFAULT_AVAILABLE_FLOORS = [1] as const;
 
 type FloorViewport = { width: number; height: number };
 type FloorBounds = { minX: number; minY: number; maxX: number; maxY: number };
+type FloorContentPoint = { x: number; y: number };
 type FloorStageLayout = {
   frameLeft: number;
   frameTop: number;
@@ -100,11 +102,14 @@ function getFloorImageDimensions(
   };
 }
 
-function getFloorContentBounds(
+export function getFloorContentBounds(
   floorImageDimensions: { width: number; height: number },
-  currentFloorRooms: IndoorRoomRecord[],
+  currentFloorRooms: FloorContentPoint[],
+  routeWaypoints: FloorContentPoint[] = [],
 ): FloorBounds {
-  if (currentFloorRooms.length === 0) {
+  const fitPoints = [...currentFloorRooms, ...routeWaypoints];
+
+  if (fitPoints.length === 0) {
     return {
       minX: 0,
       minY: 0,
@@ -114,25 +119,25 @@ function getFloorContentBounds(
   }
 
   const rawMinX = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.x)) -
+    Math.min(...fitPoints.map((point) => point.x)) -
       FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.x)) +
+    Math.max(...fitPoints.map((point) => point.x)) +
       FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.y)) -
+    Math.min(...fitPoints.map((point) => point.y)) -
       FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.y)) +
+    Math.max(...fitPoints.map((point) => point.y)) +
       FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
@@ -492,6 +497,13 @@ export default function IndoorMapScreen() {
     () => getFloorImageDimensions(floorImageMetadata, scaledCurrentFloorRooms),
     [floorImageMetadata, scaledCurrentFloorRooms],
   );
+  const activeRouteWaypoints = useMemo(
+    () =>
+      activeRoute
+        ? getRouteWaypointsForFloor(activeRoute, selectedFloor, coordinateScale)
+        : [],
+    [activeRoute, coordinateScale, selectedFloor],
+  );
   const floorBounds = useMemo(
     () =>
       floorImageMetadata?.showFullImage
@@ -501,8 +513,13 @@ export default function IndoorMapScreen() {
             maxX: floorImageDimensions.width,
             maxY: floorImageDimensions.height,
           }
-        : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
+        : getFloorContentBounds(
+            floorImageDimensions,
+            scaledCurrentFloorRooms,
+            activeRouteWaypoints,
+          ),
     [
+      activeRouteWaypoints,
       floorImageDimensions,
       floorImageMetadata?.showFullImage,
       scaledCurrentFloorRooms,

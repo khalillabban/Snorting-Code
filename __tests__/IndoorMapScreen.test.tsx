@@ -6,7 +6,7 @@ import {
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
-import IndoorMapScreen from "../app/IndoorMapScreen";
+import IndoorMapScreen, { getFloorContentBounds } from "../app/IndoorMapScreen";
 import { BUILDINGS } from "../constants/buildings";
 import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
@@ -165,6 +165,17 @@ function expectConsoleErrorWithMessage(
 
 describe("IndoorMapScreen", () => {
   let warnSpy: jest.SpyInstance;
+
+  it("expands fitted bounds to include current-floor route waypoints", () => {
+    const bounds = getFloorContentBounds(
+      { width: 1000, height: 1000 },
+      [{ x: 100, y: 120 }],
+      [{ x: 120, y: 860 }],
+    );
+
+    expect(bounds.minY).toBeLessThanOrEqual(120);
+    expect(bounds.maxY).toBeGreaterThanOrEqual(860);
+  });
 
   beforeEach(() => {
     warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
