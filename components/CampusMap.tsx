@@ -14,7 +14,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
+import {
+  Animated,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from "react-native";
 import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
@@ -51,6 +58,9 @@ type CampusMapProps = Readonly<{
   strategy: RouteStrategy;
   demoCurrentBuilding?: Buildings | null;
   onRouteSteps?: (steps: RouteStep[]) => void;
+  onRouteSummary?: (
+    summary: { duration?: string; distance?: string } | null,
+  ) => void;
   onRouteError?: (message: string | null) => void;
   onSetAsStart?: (building: Buildings) => void;
   onSetAsDestination?: (building: Buildings) => void;
@@ -84,8 +94,12 @@ function getPolygonStyle(
   isSelected: boolean,
 ) {
   const useHighContrastStroke = mode === "redGreenSafe" && isDarkMap;
-  const defaultStroke = useHighContrastStroke ? colors.secondaryLight : colors.primary;
-  const selectedStroke = useHighContrastStroke ? colors.warning : colors.primaryDark;
+  const defaultStroke = useHighContrastStroke
+    ? colors.secondaryLight
+    : colors.primary;
+  const selectedStroke = useHighContrastStroke
+    ? colors.warning
+    : colors.primaryDark;
 
   if (isCurrent) {
     return {
@@ -170,6 +184,7 @@ export default function CampusMap({
   strategy,
   demoCurrentBuilding,
   onRouteSteps,
+  onRouteSummary,
   onRouteError,
   onSetAsStart,
   onSetAsDestination,
@@ -354,37 +369,43 @@ export default function CampusMap({
       if (!effectiveOrigin || !effectiveDestination) {
         setRouteSegments([]);
         onRouteSteps?.([]);
+        onRouteSummary?.(null);
         onRouteError?.(null);
         return;
       }
 
       setRouteSegments([]);
       onRouteSteps?.([]);
+      onRouteSummary?.(null);
       onRouteError?.(null);
 
       try {
-        const { steps, segments } = await getOutdoorRouteWithSteps(
-          effectiveOrigin,
-          effectiveDestination,
-          strategy,
-        );
+        const { steps, segments, duration, distance } =
+          await getOutdoorRouteWithSteps(
+            effectiveOrigin,
+            effectiveDestination,
+            strategy,
+          );
 
         if (cancelled) return;
 
         if (segments.length === 0) {
           setRouteSegments([]);
           onRouteSteps?.([]);
+          onRouteSummary?.(null);
           onRouteError?.("No route found for the selected destination.");
           return;
         }
 
         setRouteSegments(segments);
         onRouteSteps?.(steps);
+        onRouteSummary?.({ duration: duration, distance: distance });
         onRouteError?.(null);
       } catch (error) {
         if (!cancelled) {
           onRouteSteps?.([]);
           setRouteSegments([]);
+          onRouteSummary?.(null);
           const message =
             error instanceof Error
               ? error.message
@@ -405,6 +426,7 @@ export default function CampusMap({
     strategy,
     onRouteError,
     onRouteSteps,
+    onRouteSummary,
   ]);
 
   // Fetch shuttle route (campus to campus) via Google Directions when showShuttle is true
@@ -813,9 +835,9 @@ export default function CampusMap({
         onViewIndoorMap={
           availableFloors.length > 0 && selectedBuilding
             ? () => {
-              onViewIndoorMap?.(selectedBuilding);
-              setSelectedBuilding(null);
-            }
+                onViewIndoorMap?.(selectedBuilding);
+                setSelectedBuilding(null);
+              }
             : undefined
         }
       />

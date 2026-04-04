@@ -16,8 +16,8 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import {
-    OUTDOOR_POI_CATEGORY_MAP,
-    type OutdoorPOICategoryId,
+  OUTDOOR_POI_CATEGORY_MAP,
+  type OutdoorPOICategoryId,
 } from "../constants/outdoorPOI";
 import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
@@ -31,32 +31,32 @@ import type { PlacePOI } from "../services/GooglePlacesService";
 import { RouteStrategy } from "../services/Routing";
 import { createStyles } from "../styles/CampusMapScreen.styles";
 import {
-    buildContinueIndoorsStep,
-    getContinueIndoorsBuildingCode,
+  buildContinueIndoorsStep,
+  getContinueIndoorsBuildingCode,
 } from "../utils/continueIndoors";
 import {
-    buildIndoorMapRouteParams,
-    getIndoorAccessState,
-    normalizeRoomQuery,
+  buildIndoorMapRouteParams,
+  getIndoorAccessState,
+  normalizeRoomQuery,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
-    getIndoorNavigationRouteFromNode,
-    indoorRouteToSteps,
+  getIndoorNavigationRouteFromNode,
+  indoorRouteToSteps,
 } from "../utils/indoorNavigation";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
 import {
-    getNextClassFromItems,
-    loadCachedSchedule,
+  getNextClassFromItems,
+  loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import {
-    parseTransitionPayload,
-    serializeTransitionPayload,
+  parseTransitionPayload,
+  serializeTransitionPayload,
 } from "../utils/routeTransition";
 
 import {
-    USABILITY_TESTING_ENABLED,
-    getSessionId,
+  USABILITY_TESTING_ENABLED,
+  getSessionId,
 } from "../constants/usabilityConfig";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -621,10 +621,7 @@ export default function CampusMapScreen() {
   }, []);
 
   const endTask = useCallback(
-    async (
-      taskId: string,
-      extraParams: Record<string, unknown> = {},
-    ) => {
+    async (taskId: string, extraParams: Record<string, unknown> = {}) => {
       if (!USABILITY_TESTING_ENABLED) return;
       const start = taskTimers.current[taskId];
       if (!start) return;
@@ -689,6 +686,10 @@ export default function CampusMapScreen() {
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+  const [routeSummary, setRouteSummary] = useState<{
+    duration?: string;
+    distance?: string;
+  } | null>(null);
   const [showPOIFilter, setShowPOIFilter] = useState(false);
   const [showPOIList, setShowPOIList] = useState(false);
   const [focusPOIId, setFocusPOIId] = useState<string | null>(null);
@@ -1266,6 +1267,7 @@ export default function CampusMapScreen() {
     setActiveOutdoorPOIRoute(null);
     setPOIRouteError(null);
     setRouteSteps([]);
+    setRouteSummary(null);
   }, [finalizeTask16, selectedOutdoorPOI]);
 
   const focusUserLocation = useCallback(async () => {
@@ -1736,6 +1738,7 @@ export default function CampusMapScreen() {
         strategy={selectedStrategy}
         demoCurrentBuilding={demoCurrentBuilding}
         onRouteSteps={handleRouteSteps}
+        onRouteSummary={setRouteSummary}
         onBuildingSelected={async (building) => {
           if (!building) return;
           await endTask("task_3", { building_name: building.name });
@@ -1843,7 +1846,10 @@ export default function CampusMapScreen() {
 
       {/* Left button stack */}
       <View
-        style={[styles.buttonStack, { left: spacing.md, right: undefined, bottom: 50 + bottomInset }]}
+        style={[
+          styles.buttonStack,
+          { left: spacing.md, right: undefined, bottom: 50 + bottomInset },
+        ]}
       >
         <Pressable
           testID="show-shuttle-button"
@@ -2075,6 +2081,7 @@ export default function CampusMapScreen() {
         <DirectionStepsPanel
           steps={routeStepsWithContinueIndoors}
           strategy={selectedStrategy}
+          routeSummary={routeSummary}
           onChangeRoute={async () => {
             //  Task 16: user tapped "Change route"
             if (task16Snapshot.current && !task16EndedRef.current) {
@@ -2112,6 +2119,7 @@ export default function CampusMapScreen() {
             setSelectedRoute({ start: null, dest: null });
             setActiveOutdoorPOIRoute(null);
             setRouteSteps([]);
+            setRouteSummary(null);
             try {
               await logUsabilityEvent("steps_panel_dismissed", {
                 session_id: sessionId.current,

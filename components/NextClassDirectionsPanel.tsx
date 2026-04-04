@@ -18,8 +18,7 @@ import {
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
-import { WALKING_STRATEGY } from "../constants/strategies";
-import { colors } from "../constants/theme";
+import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings, ScheduleItem } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
@@ -34,7 +33,10 @@ import {
 } from "../utils/buildingSearch";
 import { findBuildingByCode } from "../utils/findBuildingByCode";
 import { normalizeRoomQuery } from "../utils/indoorAccess";
-import { getNormalizedBuildingPlan, IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import {
+  getNormalizedBuildingPlan,
+  IndoorRoomRecord,
+} from "../utils/indoorBuildingPlan";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import { StrategyModeSelector } from "./StrategyModeSelector";
 
@@ -100,7 +102,11 @@ function SuggestionRow({
   const { colors } = useColorAccessibility();
   return (
     <Pressable testID={testID} style={styles.suggestionItem} onPress={onPress}>
-      <MaterialIcons name={iconName} size={20} color={iconColor ?? colors.primary} />
+      <MaterialIcons
+        name={iconName}
+        size={20}
+        color={iconColor ?? colors.primary}
+      />
       <View style={{ marginLeft: 10, flex: 1 }}>
         <Text style={styles.suggestionText}>{primaryText}</Text>
         <Text style={styles.suggestionSubtext}>{secondaryText}</Text>
@@ -251,7 +257,7 @@ export default function NextClassDirectionsPanel({
   onConfirm,
   nextClass,
   scheduleItems,
-  autoStartBuilding,
+  autoStartBuilding: _autoStartBuilding,
   currentCampus = "sgw",
   onUseMyLocation,
   canOpenIndoorMap = false,
@@ -270,7 +276,8 @@ export default function NextClassDirectionsPanel({
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
   const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
   const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
-  const [localAccessibleOnly, setLocalAccessibleOnly] = useState(accessibleOnly);
+  const [localAccessibleOnly, setLocalAccessibleOnly] =
+    useState(accessibleOnly);
 
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<ScheduleItem[]>([]);
@@ -280,18 +287,16 @@ export default function NextClassDirectionsPanel({
 
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
+  const [routeSummaries, setRouteSummaries] = useState<
+    Partial<Record<RouteStrategy["mode"], string | null>>
+  >({});
+  const [routeSummariesLoading, setRouteSummariesLoading] = useState(false);
 
   useEffect(() => {
     if (!shuttleAvailable && selectedStrategy.mode === "shuttle") {
       setSelectedStrategy(WALKING_STRATEGY);
     }
   }, [shuttleAvailable, selectedStrategy.mode]);
-  const [routeSummary, setRouteSummary] = useState<{
-    duration?: string;
-    distance?: string;
-  } | null>(null);
-  const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
 
   const clearDestWithError = (courseName: string) => {
@@ -300,7 +305,10 @@ export default function NextClassDirectionsPanel({
     setDestBuilding(null);
   };
 
-  const setDestFromBuilding = (building: Buildings, room?: IndoorRoomRecord | null) => {
+  const setDestFromBuilding = (
+    building: Buildings,
+    room?: IndoorRoomRecord | null,
+  ) => {
     setError(null);
     setDestLoc(building.displayName);
     setDestBuilding(building);
@@ -341,44 +349,50 @@ export default function NextClassDirectionsPanel({
   }, [nextClass]);
 
   useEffect(() => {
-    if (autoStartBuilding) {
-      setStartLoc(autoStartBuilding.displayName);
-      setStartBuilding(autoStartBuilding);
-    }
-  }, [autoStartBuilding]);
-
-  useEffect(() => {
-    const showingList =
-      suggestions.length > 0 || filteredCourses.length > 0;
+    const showingList = suggestions.length > 0 || filteredCourses.length > 0;
     if (!startBuilding || !destBuilding || showingList) {
-      setRouteSummary(null);
+      setRouteSummaries({});
       return;
     }
+
     let cancelled = false;
-    setRouteSummaryLoading(true);
-    setRouteSummary(null);
-    getOutdoorRouteWithSteps(
-      startBuilding.coordinates,
-      destBuilding.coordinates,
-      selectedStrategy,
+    setRouteSummariesLoading(true);
+    setRouteSummaries({});
+
+    Promise.all(
+      ALL_STRATEGIES.map(async (strategy) => {
+        if (strategy.mode === "shuttle" && !shuttleAvailable) {
+          return [strategy.mode, null] as const;
+        }
+
+        try {
+          const res = await getOutdoorRouteWithSteps(
+            startBuilding.coordinates,
+            destBuilding.coordinates,
+            strategy,
+          );
+          return [strategy.mode, res.duration ?? null] as const;
+        } catch {
+          return [strategy.mode, null] as const;
+        }
+      }),
     )
-      .then((res) => {
-        if (!cancelled)
-          setRouteSummary({ duration: res.duration, distance: res.distance });
-      })
-      .catch(() => {
-        if (!cancelled) setRouteSummary(null);
+      .then((entries) => {
+        if (!cancelled) {
+          setRouteSummaries(Object.fromEntries(entries));
+        }
       })
       .finally(() => {
-        if (!cancelled) setRouteSummaryLoading(false);
+        if (!cancelled) setRouteSummariesLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
   }, [
     startBuilding,
     destBuilding,
-    selectedStrategy,
+    shuttleAvailable,
     suggestions.length,
     filteredCourses.length,
   ]);
@@ -491,11 +505,18 @@ export default function NextClassDirectionsPanel({
     setDestBuilding(startBuilding);
     setStartRoom(endRoom);
     setEndRoom(startRoom);
-    setRouteSummary(null);
+    setRouteSummaries({});
   };
 
   const handleConfirm = () => {
-    onConfirm(startBuilding, destBuilding, selectedStrategy, startRoom, endRoom, localAccessibleOnly);
+    onConfirm(
+      startBuilding,
+      destBuilding,
+      selectedStrategy,
+      startRoom,
+      endRoom,
+      localAccessibleOnly,
+    );
     onClose();
   };
 
@@ -521,8 +542,7 @@ export default function NextClassDirectionsPanel({
 
   if (!shouldRender) return null;
 
-  const showingList =
-    suggestions.length > 0 || filteredCourses.length > 0;
+  const showingList = suggestions.length > 0 || filteredCourses.length > 0;
 
   return (
     <>
@@ -552,202 +572,247 @@ export default function NextClassDirectionsPanel({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
             >
-            {/* Next-class info card */}
-            {nextClass && (
-              <View style={styles.classInfoCard}>
-                <Text style={styles.classInfoLabel}>Next Class</Text>
-                {/* Row 1: course name (left), room (right) */}
-                <View style={styles.classInfoHeader}>
-                  <Text style={styles.classInfoTitle} testID="next-class-name">
-                    {nextClass.courseName}
-                  </Text>
-                  <Text style={styles.classInfoLocation}>
-                    {fmtRoom(nextClass.building, nextClass.room) ||
-                      nextClass.location}
-                  </Text>
+              {/* Next-class info card */}
+              {nextClass && (
+                <View style={styles.classInfoCard}>
+                  <Text style={styles.classInfoLabel}>Next Class</Text>
+                  {/* Row 1: course name (left), room (right) */}
+                  <View style={styles.classInfoHeader}>
+                    <Text
+                      style={styles.classInfoTitle}
+                      testID="next-class-name"
+                    >
+                      {nextClass.courseName}
+                    </Text>
+                    <Text style={styles.classInfoLocation}>
+                      {fmtRoom(nextClass.building, nextClass.room) ||
+                        nextClass.location}
+                    </Text>
+                  </View>
+                  {/* Row 2: date (left), time (right) */}
+                  <View style={styles.classInfoHeader}>
+                    <Text style={styles.classInfoDate}>
+                      {fmtDate(nextClass.start)}
+                    </Text>
+                    <Text style={styles.classInfoTime}>
+                      {fmtTime(nextClass.start)} - {fmtTime(nextClass.end)}
+                    </Text>
+                  </View>
                 </View>
-                {/* Row 2: date (left), time (right) */}
-                <View style={styles.classInfoHeader}>
-                  <Text style={styles.classInfoDate}>
-                    {fmtDate(nextClass.start)}
+              )}
+
+              {nextClass && canOpenIndoorMap && onOpenIndoorMap && (
+                <Pressable
+                  style={styles.secondaryActionButton}
+                  onPress={onOpenIndoorMap}
+                  testID="next-class-open-indoor"
+                >
+                  <Text style={styles.secondaryActionButtonText}>
+                    Open Indoor Map
                   </Text>
-                  <Text style={styles.classInfoTime}>
-                    {fmtTime(nextClass.start)} - {fmtTime(nextClass.end)}
-                  </Text>
+                </Pressable>
+              )}
+
+              {/* Error banner */}
+              {error && (
+                <View style={styles.errorBanner} testID="next-class-error">
+                  <MaterialIcons
+                    name="error-outline"
+                    size={18}
+                    color={colors.error}
+                  />
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
-              </View>
-            )}
+              )}
 
-            {nextClass && canOpenIndoorMap && onOpenIndoorMap && (
-              <Pressable
-                style={styles.secondaryActionButton}
-                onPress={onOpenIndoorMap}
-                testID="next-class-open-indoor"
-              >
-                <Text style={styles.secondaryActionButtonText}>
-                  Open Indoor Map
-                </Text>
-              </Pressable>
-            )}
-
-            {/* Error banner */}
-            {error && (
-              <View style={styles.errorBanner} testID="next-class-error">
-                <MaterialIcons
-                  name="error-outline"
-                  size={18}
-                  color={colors.error}
+              {/* Origin / Destination */}
+              <View style={styles.originDestinationCard}>
+                <LocationInputRow
+                  testID="next-class-start-input"
+                  placeholder="From — building or room (e.g. H-921)"
+                  value={startLoc}
+                  onChangeText={(t) => handleSearch("start", t)}
+                  groupStyle={[styles.inputGroup, styles.inputGroupFirst]}
+                  iconSlot={<View style={styles.originDot} />}
+                  onPickPress={showBuildingPicker}
+                  pickLabel="Pick starting building from list"
+                  extraButton={
+                    onUseMyLocation ? (
+                      <Pressable
+                        style={styles.pickButton}
+                        onPress={handleUseMyLocation}
+                        accessibilityLabel="Use my current location as start"
+                        accessibilityRole="button"
+                      >
+                        <MaterialIcons
+                          name="my-location"
+                          size={22}
+                          color={colors.primary}
+                        />
+                      </Pressable>
+                    ) : undefined
+                  }
                 />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
 
-            {/* Origin / Destination */}
-            <View style={styles.originDestinationCard}>
-              <LocationInputRow
-                testID="next-class-start-input"
-                placeholder="From — building or room (e.g. H-921)"
-                value={startLoc}
-                onChangeText={(t) => handleSearch("start", t)}
-                groupStyle={[styles.inputGroup, styles.inputGroupFirst]}
-                iconSlot={<View style={styles.originDot} />}
-                onPickPress={showBuildingPicker}
-                pickLabel="Pick starting building from list"
-                extraButton={
-                  onUseMyLocation ? (
+                {startRoom && (
+                  <View style={styles.roomBadge}>
+                    <MaterialCommunityIcons
+                      name="door"
+                      size={14}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.roomBadgeText}>
+                      Room {startRoom.label}
+                    </Text>
                     <Pressable
-                      style={styles.pickButton}
-                      onPress={handleUseMyLocation}
-                      accessibilityLabel="Use my current location as start"
-                      accessibilityRole="button"
+                      testID="clear-start-room"
+                      onPress={() => setStartRoom(null)}
                     >
                       <MaterialIcons
-                        name="my-location"
-                        size={22}
-                        color={colors.primary}
+                        name="close"
+                        size={14}
+                        color={colors.gray500}
                       />
                     </Pressable>
-                  ) : undefined
-                }
-              />
+                  </View>
+                )}
 
-              {startRoom && (
-                <View style={styles.roomBadge}>
-                  <MaterialCommunityIcons name="door" size={14} color={colors.primary} />
-                  <Text style={styles.roomBadgeText}>Room {startRoom.label}</Text>
-                  <Pressable testID="clear-start-room" onPress={() => setStartRoom(null)}>
-                    <MaterialIcons name="close" size={14} color={colors.gray500} />
-                  </Pressable>
-                </View>
-              )}
-
-              <Pressable
-                style={styles.swapButton}
-                onPress={swapOriginDestination}
-                accessibilityLabel="Swap origin and destination"
-                accessibilityRole="button"
-              >
-                <MaterialIcons
-                  name="swap-vert"
-                  size={22}
-                  color={colors.gray500}
-                />
-              </Pressable>
-
-              <LocationInputRow
-                testID="next-class-dest-input"
-                placeholder="To — building, room, or course"
-                value={destLoc}
-                onChangeText={(t) => handleSearch("destination", t)}
-                groupStyle={[styles.inputGroup, styles.inputGroupLast]}
-                iconSlot={
+                <Pressable
+                  style={styles.swapButton}
+                  onPress={swapOriginDestination}
+                  accessibilityLabel="Swap origin and destination"
+                  accessibilityRole="button"
+                >
                   <MaterialIcons
-                    name="place"
-                    size={20}
-                    color={colors.primary}
+                    name="swap-vert"
+                    size={22}
+                    color={colors.gray500}
                   />
-                }
-                onPickPress={showCoursePicker}
-                pickLabel="Pick destination from course list"
-              />
+                </Pressable>
 
-              {endRoom && (
-                <View style={styles.roomBadge}>
-                  <MaterialCommunityIcons name="door" size={14} color={colors.primary} />
-                  <Text style={styles.roomBadgeText}>Room {endRoom.label}</Text>
-                  <Pressable testID="clear-end-room" onPress={() => setEndRoom(null)}>
-                    <MaterialIcons name="close" size={14} color={colors.gray500} />
-                  </Pressable>
-                </View>
-              )}
-            </View>
-
-            {/* Strategy buttons (hidden while picking) */}
-            {!showingList && (
-              <View style={styles.modeSection}>
-                <StrategyModeSelector
-                  selectedStrategy={selectedStrategy}
-                  onSelect={setSelectedStrategy}
-                  shuttleAvailable={shuttleAvailable}
-                  testIDPrefix="next-class-mode"
-                  buttonStyles={styles}
-                  containerStyle={styles.modeContainer}
-                />
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                  <Pressable
-                    onPress={() => {
-                      setLocalAccessibleOnly(!localAccessibleOnly);
-                      onAccessibleOnlyChange?.(!localAccessibleOnly);
-                    }}
-                    style={[
-                      styles.modeButton,
-                      localAccessibleOnly && styles.activeModeButton,
-                      { flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
-                    ]}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: localAccessibleOnly }}
-                    testID="next-class-accessible-toggle"
-                  >
-                    <MaterialCommunityIcons
-                      name={localAccessibleOnly ? "wheelchair-accessibility" : "walk"}
-                      size={22}
-                      color={localAccessibleOnly ? colors.white : colors.primary}
+                <LocationInputRow
+                  testID="next-class-dest-input"
+                  placeholder="To — building, room, or course"
+                  value={destLoc}
+                  onChangeText={(t) => handleSearch("destination", t)}
+                  groupStyle={[styles.inputGroup, styles.inputGroupLast]}
+                  iconSlot={
+                    <MaterialIcons
+                      name="place"
+                      size={20}
+                      color={colors.primary}
                     />
-                    <Text style={{ color: localAccessibleOnly ? colors.white : colors.primary, marginLeft: 8 }}>
-                      Accessible Route
+                  }
+                  onPickPress={showCoursePicker}
+                  pickLabel="Pick destination from course list"
+                />
+
+                {endRoom && (
+                  <View style={styles.roomBadge}>
+                    <MaterialCommunityIcons
+                      name="door"
+                      size={14}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.roomBadgeText}>
+                      Room {endRoom.label}
                     </Text>
-                  </Pressable>
-                </View>
-                {(routeSummaryLoading || routeSummary) && (
-                  <Text style={styles.routeSummaryText} numberOfLines={1}>
-                    {routeSummaryLoading
-                      ? "Loading..."
-                      : [routeSummary?.duration, routeSummary?.distance]
-                          .filter(Boolean)
-                          .join(" - ") || "-"}
-                  </Text>
+                    <Pressable
+                      testID="clear-end-room"
+                      onPress={() => setEndRoom(null)}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={14}
+                        color={colors.gray500}
+                      />
+                    </Pressable>
+                  </View>
                 )}
               </View>
-            )}
 
-            {/* Unified suggestion list */}
-            <SuggestionList
-              suggestions={suggestions}
-              courses={filteredCourses}
-              onSelectResult={selectResult}
-              onSelectCourse={selectCourse}
-            />
+              {/* Strategy buttons (hidden while picking) */}
+              {!showingList && (
+                <View style={styles.modeSection}>
+                  <StrategyModeSelector
+                    selectedStrategy={selectedStrategy}
+                    onSelect={setSelectedStrategy}
+                    shuttleAvailable={shuttleAvailable}
+                    testIDPrefix="next-class-mode"
+                    buttonStyles={styles}
+                    containerStyle={styles.modeContainer}
+                    routeSummaries={routeSummaries}
+                    summariesLoading={routeSummariesLoading}
+                  />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 8,
+                    }}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        setLocalAccessibleOnly(!localAccessibleOnly);
+                        onAccessibleOnlyChange?.(!localAccessibleOnly);
+                      }}
+                      style={[
+                        styles.modeButton,
+                        localAccessibleOnly && styles.activeModeButton,
+                        {
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingHorizontal: 12,
+                        },
+                      ]}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: localAccessibleOnly }}
+                      testID="next-class-accessible-toggle"
+                    >
+                      <MaterialCommunityIcons
+                        name={
+                          localAccessibleOnly
+                            ? "wheelchair-accessibility"
+                            : "walk"
+                        }
+                        size={22}
+                        color={
+                          localAccessibleOnly ? colors.white : colors.primary
+                        }
+                      />
+                      <Text
+                        style={{
+                          color: localAccessibleOnly
+                            ? colors.white
+                            : colors.primary,
+                          marginLeft: 8,
+                        }}
+                      >
+                        Accessible Route
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
 
-            {/* Get Directions button */}
-            {!showingList && (
-              <Pressable
-                style={styles.searchButton}
-                onPress={handleConfirm}
-                testID="next-class-get-directions"
-              >
-                <Text style={styles.searchButtonText}>Get Directions</Text>
-              </Pressable>
-            )}
+              {/* Unified suggestion list */}
+              <SuggestionList
+                suggestions={suggestions}
+                courses={filteredCourses}
+                onSelectResult={selectResult}
+                onSelectCourse={selectCourse}
+              />
+
+              {/* Get Directions button */}
+              {!showingList && (
+                <Pressable
+                  style={styles.searchButton}
+                  onPress={handleConfirm}
+                  testID="next-class-get-directions"
+                >
+                  <Text style={styles.searchButtonText}>Get Directions</Text>
+                </Pressable>
+              )}
             </ScrollView>
           </View>
         </Animated.View>

@@ -1,34 +1,33 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
-import { WALKING_STRATEGY } from "../constants/strategies";
-import { colors } from "../constants/theme";
+import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
 import {
-    campusBuildingResults,
-    queryIndex,
-    resultLabel,
-    resultSubtitle,
-    SearchResult,
+  campusBuildingResults,
+  queryIndex,
+  resultLabel,
+  resultSubtitle,
+  SearchResult,
 } from "../utils/buildingSearch";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import { StrategyModeSelector } from "./StrategyModeSelector";
@@ -87,18 +86,16 @@ export default function NavigationBar({
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
   const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
   const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
-  const [startManuallyEdited, setStartManuallyEdited] = useState(false);
 
   const [activeInput, setActiveInput] = useState<"start" | "dest" | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
 
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
-  const [routeSummary, setRouteSummary] = useState<{
-    duration?: string;
-    distance?: string;
-  } | null>(null);
-  const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
+  const [routeSummaries, setRouteSummaries] = useState<
+    Partial<Record<RouteStrategy["mode"], string | null>>
+  >({});
+  const [routeSummariesLoading, setRouteSummariesLoading] = useState(false);
   const [localAccessibleOnly, setLocalAccessibleOnly] =
     useState(accessibleOnly);
 
@@ -118,7 +115,6 @@ export default function NavigationBar({
 
   const handleStartChange = (text: string) => {
     setStartLoc(text);
-    setStartManuallyEdited(true);
     setStartRoom(null);
     setStartBuilding(null);
     setActiveInput("start");
@@ -175,12 +171,10 @@ export default function NavigationBar({
       setStartLoc(building.displayName);
       setStartBuilding(building);
       setStartRoom(null);
-      setStartManuallyEdited(true);
     } else {
       setStartLoc("My Location");
       setStartBuilding(null);
       setStartRoom(null);
-      setStartManuallyEdited(true);
     }
     dismissSuggestions();
   };
@@ -192,7 +186,7 @@ export default function NavigationBar({
     setDestBuilding(startBuilding);
     setStartRoom(endRoom);
     setEndRoom(startRoom);
-    setRouteSummary(null);
+    setRouteSummaries({});
   };
 
   const handleConfirm = () => {
@@ -209,31 +203,42 @@ export default function NavigationBar({
 
   useEffect(() => {
     if (!startBuilding || !destBuilding || suggestions.length > 0) {
-      setRouteSummary(null);
+      setRouteSummaries({});
       return;
     }
     let cancelled = false;
-    setRouteSummaryLoading(true);
-    setRouteSummary(null);
-    getOutdoorRouteWithSteps(
-      startBuilding.coordinates,
-      destBuilding.coordinates,
-      selectedStrategy,
+    setRouteSummariesLoading(true);
+    setRouteSummaries({});
+
+    Promise.all(
+      ALL_STRATEGIES.map(async (strategy) => {
+        if (strategy.mode === "shuttle" && !shuttleAvailable) {
+          return [strategy.mode, null] as const;
+        }
+
+        try {
+          const result = await getOutdoorRouteWithSteps(
+            startBuilding.coordinates,
+            destBuilding.coordinates,
+            strategy,
+          );
+          return [strategy.mode, result.duration ?? null] as const;
+        } catch {
+          return [strategy.mode, null] as const;
+        }
+      }),
     )
-      .then((res) => {
-        if (!cancelled)
-          setRouteSummary({ duration: res.duration, distance: res.distance });
-      })
-      .catch(() => {
-        if (!cancelled) setRouteSummary(null);
+      .then((entries) => {
+        if (cancelled) return;
+        setRouteSummaries(Object.fromEntries(entries));
       })
       .finally(() => {
-        if (!cancelled) setRouteSummaryLoading(false);
+        if (!cancelled) setRouteSummariesLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [startBuilding, destBuilding, selectedStrategy, suggestions.length]);
+  }, [startBuilding, destBuilding, shuttleAvailable, suggestions.length]);
 
   useEffect(() => {
     if (visible) {
@@ -250,14 +255,6 @@ export default function NavigationBar({
       }).start(() => setShouldRender(false));
     }
   }, [visible, translateY]);
-
-  useEffect(() => {
-    if (autoStartBuilding && !startManuallyEdited) {
-      setStartLoc(autoStartBuilding.displayName);
-      setStartBuilding(autoStartBuilding);
-      setStartRoom(null);
-    }
-  }, [autoStartBuilding, startManuallyEdited]);
 
   useEffect(() => {
     if (visible && initialStart) {
@@ -469,6 +466,8 @@ export default function NavigationBar({
                   testIDPrefix="mode-button"
                   buttonStyles={styles}
                   containerStyle={styles.modeContainer}
+                  routeSummaries={routeSummaries}
+                  summariesLoading={routeSummariesLoading}
                 />
                 <View
                   style={{
@@ -518,15 +517,6 @@ export default function NavigationBar({
                     </Text>
                   </Pressable>
                 </View>
-                {(routeSummaryLoading || routeSummary) && (
-                  <Text style={styles.routeSummaryText} numberOfLines={1}>
-                    {routeSummaryLoading
-                      ? "Loading…"
-                      : [routeSummary?.duration, routeSummary?.distance]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
-                  </Text>
-                )}
               </View>
             )}
 
