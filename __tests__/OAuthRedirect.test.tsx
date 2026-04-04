@@ -1,4 +1,5 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 
 const mockReplace = jest.fn();
@@ -34,5 +35,20 @@ describe("OAuthRedirect", () => {
       expect(mockMaybeCompleteAuthSession).toHaveBeenCalledTimes(1);
       expect(mockReplace).toHaveBeenCalledWith("/schedule");
     });
+  });
+
+  it("shows a fallback error message when auth completion throws", async () => {
+    mockMaybeCompleteAuthSession.mockImplementation(() => {
+      throw undefined;
+    });
+
+    render(<OAuthRedirect />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Something went wrong. Please try again."),
+      ).toBeTruthy();
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

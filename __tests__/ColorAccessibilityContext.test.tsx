@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import {
@@ -35,8 +35,24 @@ function Probe() {
 }
 
 describe("ColorAccessibilityContext", () => {
+  type NodeEnv = "development" | "production" | "test";
+  const originalNodeEnv: NodeEnv =
+    (process.env.NODE_ENV as NodeEnv | undefined) ?? "test";
+
+  const setNodeEnv = (value: NodeEnv) => {
+    jest.replaceProperty(process, "env", {
+      ...process.env,
+      NODE_ENV: value,
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    setNodeEnv(originalNodeEnv);
+  });
+
+  afterEach(() => {
+    setNodeEnv(originalNodeEnv);
   });
 
   it("starts hydrated in test env with classic mode and all options", () => {
@@ -87,5 +103,103 @@ describe("ColorAccessibilityContext", () => {
     fireEvent.press(screen.getByTestId("set-high-contrast"));
 
     expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("hydrates from AsyncStorage and persists updates outside test env", async () => {
+    setNodeEnv("development");
+    jest
+      .spyOn(AsyncStorage, "getItem")
+      .mockResolvedValueOnce("blueYellowSafe");
+    const setItemSpy = jest
+      .spyOn(AsyncStorage, "setItem")
+      .mockResolvedValue(undefined);
+
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hydrated").props.children).toBe("true");
+      expect(screen.getByTestId("mode").props.children).toBe("blueYellowSafe");
+    });
+
+    fireEvent.press(screen.getByTestId("set-high-contrast"));
+
+    await waitFor(() => {
+      expect(setItemSpy).toHaveBeenCalledWith(
+        "snorting-code.color-accessibility-mode",
+        "highContrast",
+      );
+    });
+  });
+
+  it("ignores invalid saved mode values", async () => {
+    setNodeEnv("development");
+    jest.spyOn(AsyncStorage, "getItem").mockResolvedValueOnce("invalid-mode");
+
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hydrated").props.children).toBe("true");
+    });
+    expect(screen.getByTestId("mode").props.children).toBe("classic");
+  });
+
+  it("warns and still hydrates when loading mode fails", async () => {
+    setNodeEnv("development");
+    jest.spyOn(AsyncStorage, "getItem").mockRejectedValueOnce(new Error("boom"));
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hydrated").props.children).toBe("true");
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Failed to load color accessibility mode.",
+      expect.any(Error),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("warns when persisting mode fails outside test env", async () => {
+    setNodeEnv("development");
+    jest.spyOn(AsyncStorage, "getItem").mockResolvedValueOnce(null);
+    jest
+      .spyOn(AsyncStorage, "setItem")
+      .mockRejectedValueOnce(new Error("save-failed"));
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hydrated").props.children).toBe("true");
+    });
+
+    fireEvent.press(screen.getByTestId("set-red-green"));
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Failed to save color accessibility mode.",
+        expect.any(Error),
+      );
+    });
+
+    warnSpy.mockRestore();
   });
 });
