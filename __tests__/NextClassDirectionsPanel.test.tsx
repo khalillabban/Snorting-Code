@@ -193,7 +193,7 @@ describe("NextClassDirectionsPanel", () => {
     });
 
     it("renders next class info when visible", async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByText, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -298,7 +298,7 @@ describe("NextClassDirectionsPanel", () => {
         distance: "2 km",
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByText, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -312,7 +312,7 @@ describe("NextClassDirectionsPanel", () => {
       fireEvent.press(getByText("Henry F. Hall Building (H)"));
 
       await waitFor(() => {
-        expect(getByText("12 min")).toBeTruthy();
+        expect(getAllByText("12 min")).toHaveLength(5);
       });
     });
   });

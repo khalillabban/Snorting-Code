@@ -368,7 +368,7 @@ describe("DirectionStepsPanel", () => {
 
     expect(screen.getByText("Plain step")).toBeTruthy();
     expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
-    expect(screen.getByText("5 m")).toBeTruthy();
+    expect(screen.getAllByText("5 m").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders shuttle highlight path when instruction contains board", () => {

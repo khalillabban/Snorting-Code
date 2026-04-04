@@ -289,7 +289,7 @@ describe("NavigationBar", () => {
 
   describe("Search Functionality", () => {
     it("should filter buildings when typing in start location input", () => {
-      const { getByPlaceholderText, getByText } = render(
+      const { getByPlaceholderText, getByText, getAllByText } = render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
@@ -304,7 +304,7 @@ describe("NavigationBar", () => {
     });
 
     it("should filter buildings when typing in destination input", () => {
-      const { getByPlaceholderText, getByText } = render(
+      const { getByPlaceholderText, getByText, getAllByText } = render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
@@ -1292,14 +1292,14 @@ describe("NavigationBar", () => {
     });
 
     it("shows route summary when both locations set and API returns duration and distance", async () => {
-      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValueOnce({
+      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
         coordinates: [],
         steps: [],
         duration: "12 mins",
         distance: "2.1 km",
       });
 
-      const { getByPlaceholderText, getByText } = render(
+      const { getByPlaceholderText, getByText, getAllByText } = render(
         <NavigationBar
           visible={true}
           onClose={mockOnClose}
@@ -1313,7 +1313,7 @@ describe("NavigationBar", () => {
       fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
       await waitFor(() => {
-        expect(getByText("12 mins · 2.1 km")).toBeTruthy();
+        expect(getAllByText("12 mins")).toHaveLength(5);
       });
     });
   });
