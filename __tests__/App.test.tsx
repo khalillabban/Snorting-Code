@@ -111,4 +111,16 @@ describe("Index screen", () => {
       expect(screen.getByText("Color mode: High Contrast")).toBeTruthy();
     });
   });
+
+  it("updates home color mode label when selecting Blue-Yellow Safe", async () => {
+    renderIndex();
+
+    fireEvent.press(screen.getByTestId("home-color-mode-button"));
+    fireEvent.press(screen.getByLabelText("Blue-Yellow Safe"));
+    fireEvent.press(screen.getByText("Done"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Color mode: Blue-Yellow Safe")).toBeTruthy();
+    });
+  });
 });

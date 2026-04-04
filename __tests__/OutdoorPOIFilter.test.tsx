@@ -131,4 +131,47 @@ describe("OutdoorPOIFilter", () => {
 
     spy.mockRestore();
   });
+
+  it("falls back to primary color for unknown category colors in non-classic mode", () => {
+    const target = OUTDOOR_POI_CATEGORIES.find((cat) => cat.id === "coffee");
+    expect(target).toBeTruthy();
+    const originalColor = target!.color;
+    (target as any).color = "#abcdef";
+
+    const spy = jest
+      .spyOn(ColorAccessibilityContext, "useColorAccessibility")
+      .mockReturnValue({
+        mode: "redGreenSafe",
+        isHydrated: true,
+        options: [],
+        setMode: jest.fn(),
+        colors: {
+          white: "#fff",
+          gray300: "#b3b3b3",
+          primary: "#777777",
+          accent1: "#1",
+          route1: "#2",
+          route2: "#3",
+          route3: "#4",
+          route4: "#5",
+          accent2: "#6",
+        } as any,
+      } as any);
+
+    render(
+      <OutdoorPOIFilter
+        activeCategories={new Set(["coffee"])}
+        onToggle={jest.fn()}
+      />,
+    );
+
+    const coffeeChip = screen.getByTestId("outdoor-poi-chip-coffee");
+    const flattened = Array.isArray(coffeeChip.props.style)
+      ? Object.assign({}, ...coffeeChip.props.style.filter(Boolean))
+      : coffeeChip.props.style;
+    expect(flattened.backgroundColor).toBe("#777777");
+
+    (target as any).color = originalColor;
+    spy.mockRestore();
+  });
 });

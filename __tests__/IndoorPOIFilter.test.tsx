@@ -135,4 +135,46 @@ describe("IndoorPOIFilter", () => {
 
     spy.mockRestore();
   });
+
+  it("falls back to primary color for unknown category colors in non-classic mode", () => {
+    const target = POI_CATEGORIES.find((cat) => cat.id === "washroom");
+    expect(target).toBeTruthy();
+    const originalColor = target!.color;
+    (target as any).color = "#abcdef";
+
+    const spy = jest
+      .spyOn(ColorAccessibilityContext, "useColorAccessibility")
+      .mockReturnValue({
+        mode: "redGreenSafe",
+        isHydrated: true,
+        options: [],
+        setMode: jest.fn(),
+        colors: {
+          white: "#fff",
+          gray300: "#b3b3b3",
+          primary: "#101010",
+          route2: "#222222",
+          info: "#333333",
+          routeShuttle: "#444444",
+          routeTransit: "#555555",
+          warning: "#666666",
+        } as any,
+      } as any);
+
+    render(
+      <IndoorPOIFilter
+        activeCategories={new Set<POICategoryId>(["washroom"])}
+        onToggle={mockToggle}
+      />,
+    );
+
+    const chip = screen.getByTestId("poi-filter-chip-washroom");
+    const flattened = Array.isArray(chip.props.style)
+      ? Object.assign({}, ...chip.props.style.filter(Boolean))
+      : chip.props.style;
+    expect(flattened.backgroundColor).toBe("#101010");
+
+    (target as any).color = originalColor;
+    spy.mockRestore();
+  });
 });

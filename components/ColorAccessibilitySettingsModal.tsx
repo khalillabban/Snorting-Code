@@ -123,8 +123,8 @@ export function ColorAccessibilitySettingsModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+      <Pressable testID="color-settings-backdrop" style={styles.backdrop} onPress={onClose}>
+        <Pressable testID="color-settings-sheet" style={styles.sheet} onPress={(event) => event.stopPropagation()}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>Color accessibility</Text>
