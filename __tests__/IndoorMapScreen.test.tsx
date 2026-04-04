@@ -1727,7 +1727,7 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByText("H-110 → H-920")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("✕"));
+    fireEvent.press(screen.getByLabelText("Close directions"));
 
     await waitFor(() => {
       expect(logUsabilityEvent).toHaveBeenCalledWith(
@@ -1774,7 +1774,7 @@ describe("IndoorMapScreen", () => {
 
     await waitFor(() => expect(screen.getByText("H-110 → H-920")).toBeTruthy());
 
-    fireEvent.press(screen.getByText("✕"));
+    fireEvent.press(screen.getByLabelText("Close directions"));
 
     await waitFor(() => {
       expect(screen.queryByText("H-110 → H-920")).toBeNull();
@@ -2572,7 +2572,7 @@ describe("IndoorMapScreen", () => {
     render(<IndoorMapScreen />);
     await screen.findByText("H-110 → H-920");
 
-    fireEvent.press(screen.getByText("✕"));
+    fireEvent.press(screen.getByLabelText("Close directions"));
 
     await waitFor(() => {
       expectConsoleErrorWithMessage(

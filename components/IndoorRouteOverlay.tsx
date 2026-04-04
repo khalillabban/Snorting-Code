@@ -1,12 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Polyline } from "react-native-svg";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/IndoorRouteOverlay.styles";
 import {
-    NavigationRoute,
-    NavigationSegment,
-    getRouteWaypointsForFloor,
+  NavigationRoute,
+  NavigationSegment,
+  getRouteWaypointsForFloor,
 } from "../utils/indoorNavigation";
 
 interface FloorStageLayout {
@@ -52,22 +52,21 @@ export function IndoorRouteOverlay({
     });
 
     const screenPts = waypoints.map(toScreen);
-    const polylineStr = screenPts.map((p) => `${p.x},${p.y}`).join(" ");
-
-    const first = screenPts[0] ?? null;
-    const last = screenPts.at(-1) ?? null;
+    const polylineStr = screenPts.map((point) => `${point.x},${point.y}`).join(" ");
 
     return {
       points: polylineStr,
-      originPoint: first,
-      destPoint: last,
+      originPoint: screenPts[0] ?? null,
+      destPoint: screenPts.at(-1) ?? null,
     };
   }, [route, floor, coordinateScale, stageLayout, floorBounds]);
 
   if (!points || !originPoint) return null;
 
   const mainColor = accessibleOnly ? colors.routeTransit : colors.routeDrive;
-  const alphaColor = accessibleOnly ? colors.secondaryTransparent : colors.primaryTransparent;
+  const alphaColor = accessibleOnly
+    ? colors.secondaryTransparent
+    : colors.primaryTransparent;
 
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -106,21 +105,21 @@ export function IndoorRouteOverlay({
 
       {destPoint &&
         (destPoint.x !== originPoint.x || destPoint.y !== originPoint.y) && (
-        <G>
-          <Circle
-            cx={destPoint.x}
-            cy={destPoint.y}
-            r={DOT_RADIUS + 3}
-            fill={alphaColor}
-          />
-          <Circle
-            cx={destPoint.x}
-            cy={destPoint.y}
-            r={DOT_RADIUS}
-            fill={colors.error}
-          />
-        </G>
-      )}
+          <G>
+            <Circle
+              cx={destPoint.x}
+              cy={destPoint.y}
+              r={DOT_RADIUS + 3}
+              fill={alphaColor}
+            />
+            <Circle
+              cx={destPoint.x}
+              cy={destPoint.y}
+              r={DOT_RADIUS}
+              fill={colors.error}
+            />
+          </G>
+        )}
     </Svg>
   );
 }
@@ -149,9 +148,31 @@ export function IndoorDirectionsPanel({
   route,
   onClose,
 }: Readonly<IndoorDirectionsPanelProps>) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const segmentCountLabel = `${route.segments.length} step${route.segments.length === 1 ? "" : "s"}`;
+  const routeSignature = useMemo(
+    () =>
+      [
+        route.origin.label,
+        route.destination.label,
+        route.estimatedSeconds,
+        route.fullyAccessible,
+        route.segments
+          .map(
+            (segment) =>
+              `${segment.kind}|${segment.description}|${segment.floor}|${segment.distance}`,
+          )
+          .join("||"),
+      ].join("::"),
+    [route],
+  );
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [routeSignature]);
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title} numberOfLines={1}>
@@ -164,27 +185,59 @@ export function IndoorDirectionsPanel({
               : " · some inaccessible sections"}
           </Text>
         </View>
-        {onClose && (
-          <Pressable onPress={onClose} style={styles.closeButton} hitSlop={8}>
-            <Text style={styles.closeText}>✕</Text>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setIsExpanded((value) => !value)}
+            style={styles.toggleButton}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isExpanded ? "Collapse directions steps" : "Expand directions steps"
+            }
+          >
+            <Text style={styles.toggleButtonText}>{isExpanded ? "Hide" : "Show"}</Text>
           </Pressable>
-        )}
+          {onClose && (
+            <Pressable
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close directions"
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
-      {/* Steps */}
-      <ScrollView
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {route.segments.map((seg, index) => (
-          <SegmentRow
-            key={`${seg.kind}-${seg.floor}-${seg.nodeIds.join(">")}-${seg.description}`}
-            segment={seg}
-            index={index}
-          />
-        ))}
-      </ScrollView>
+      {isExpanded ? (
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {route.segments.map((segment, index) => (
+            <SegmentRow
+              key={`${segment.kind}-${segment.floor}-${segment.nodeIds.join(">")}-${segment.description}`}
+              segment={segment}
+              index={index}
+            />
+          ))}
+        </ScrollView>
+      ) : (
+        <Pressable
+          style={styles.preview}
+          onPress={() => setIsExpanded(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open indoor directions preview"
+        >
+          <Text style={styles.previewTitle}>{segmentCountLabel} available</Text>
+          <Text style={styles.previewText}>
+            Expand to view step-by-step directions while keeping more of the map
+            visible.
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -196,7 +249,7 @@ function SegmentRow({
   segment: NavigationSegment;
   index: number;
 }>) {
-  const icon = SEGMENT_ICONS[segment.kind] ?? "·";
+  const icon = SEGMENT_ICONS[segment.kind] ?? "•";
   const isTransition = segment.kind === "stairs" || segment.kind === "elevator";
 
   return (

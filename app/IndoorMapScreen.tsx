@@ -61,7 +61,7 @@ import {
 } from "../utils/routeTransition";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
-const FLOOR_FRAME_PADDING = spacing.md;
+const FLOOR_FRAME_PADDING = spacing.sm;
 const DEFAULT_VIEWPORT_HEIGHT = 280;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;

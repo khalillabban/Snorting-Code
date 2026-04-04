@@ -5,16 +5,17 @@ export const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: 320,
+    maxHeight: 272,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 8,
+    overflow: "hidden",
   },
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -22,6 +23,7 @@ export const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    marginRight: 12,
   },
   title: {
     fontSize: 15,
@@ -34,8 +36,26 @@ export const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  toggleButton: {
+    minWidth: 52,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  toggleButtonText: {
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "600",
+  },
   closeButton: {
-    marginLeft: 12,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -48,8 +68,25 @@ export const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "600",
   },
+  preview: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 4,
+  },
+  previewTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  previewText: {
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 18,
+  },
   list: {
     flexGrow: 0,
+    maxHeight: 208,
   },
   listContent: {
     paddingVertical: 8,
