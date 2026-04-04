@@ -13,7 +13,7 @@ type StepWrapperProps = {
   readonly children: React.ReactNode;
 };
 
-function StepWrapper({
+export function StepWrapper({
   styles,
   onPress,
   isCallToAction = false,

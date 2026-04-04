@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
-import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
+import { DirectionStepsPanel, StepWrapper } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
+import { createStyles } from "../styles/DirectionStepsPanel.styles";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { Text } = require("react-native");
 
 // Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
 jest.mock("@expo/vector-icons", () => {
@@ -22,7 +26,36 @@ const mockSteps: RouteStep[] = [
   { instruction: "Arrive at destination", duration: "1 min" },
 ];
 
+const wrapperStyles = createStyles();
+
 describe("DirectionStepsPanel", () => {
+  it("renders StepWrapper as a plain row when no onPress is provided", () => {
+    const { getByText, queryByRole } = render(
+      <StepWrapper styles={wrapperStyles}>
+        <Text>Plain wrapper</Text>
+      </StepWrapper>,
+    );
+
+    expect(getByText("Plain wrapper")).toBeTruthy();
+    expect(queryByRole("button")).toBeNull();
+  });
+
+  it("renders StepWrapper as a pressable and uses the default CTA flag when omitted", () => {
+    const onPress = jest.fn();
+
+    render(
+      <StepWrapper styles={wrapperStyles} onPress={onPress}>
+        <Text>Pressable wrapper</Text>
+      </StepWrapper>,
+    );
+
+    expect(screen.getByText("Pressable wrapper")).toBeTruthy();
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+
+    fireEvent.press(screen.getByText("Pressable wrapper"));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it("returns null when steps array is empty", () => {
     const { queryByText } = render(
       <DirectionStepsPanel
