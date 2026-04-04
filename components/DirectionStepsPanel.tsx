@@ -227,17 +227,19 @@ export function DirectionStepsPanel({
             const isShuttle =
               step.instruction.toLowerCase().includes("shuttle") ||
               step.instruction.toLowerCase().includes("board");
+            const isTransit = Boolean(step.transitDetails);
 
             const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
             const isContinueIndoorsCta =
               Boolean(step.onPress) && index === steps.length - 1;
 
-            let iconName: "door-open" | "bus" | "walk" = "walk";
+            let iconName: "door-open" | "bus" | "subway" | "train" | "walk" = "walk";
             if (isContinueIndoorsCta) {
               iconName = "door-open";
-            } else if (isShuttle) {
-              iconName = "bus";
+            } else if (isShuttle || isTransit) {
+              const vt = step.transitDetails?.vehicleType?.toLowerCase();
+              iconName = vt === "subway" || vt === "metro_rail" ? "subway" : vt === "rail" || vt === "commuter_train" ? "train" : "bus";
             }
 
             return (
@@ -275,6 +277,19 @@ export function DirectionStepsPanel({
                   >
                     {step.instruction}
                   </Text>
+
+                  {isTransit && step.transitDetails && (
+                    <Text style={styles.stepMeta}>
+                      {[
+                        step.transitDetails.lineName && `Line ${step.transitDetails.lineName}`,
+                        step.transitDetails.departureTime && `Departs ${step.transitDetails.departureTime}`,
+                        step.transitDetails.arrivalTime && `Arrives ${step.transitDetails.arrivalTime}`,
+                        step.transitDetails.numStops != null && `${step.transitDetails.numStops} stops`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  )}
 
                   {(step.distance || step.duration) && (
                     <Text style={styles.stepMeta}>
