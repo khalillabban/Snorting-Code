@@ -182,6 +182,10 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     shadowRadius: 2,
     elevation: 2,
   },
+  disabledModeButton: {
+    backgroundColor: colors.gray200,
+    opacity: 0.6,
+  },
   modeText: {
     fontSize: 10,
     marginTop: 2,
