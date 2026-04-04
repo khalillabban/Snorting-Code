@@ -1,8 +1,8 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
+export const FULL_HEIGHT = SCREEN_HEIGHT * (Platform.OS === "ios" ? 0.9 : 0.95);
 
 export const styles = StyleSheet.create({
   keyboardContainer: {
@@ -125,7 +125,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Origin/destination inputs 
+  // Origin/destination inputs
   originDestinationCard: {
     backgroundColor: colors.offWhite,
     borderRadius: 12,
@@ -174,7 +174,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
-  // Mode/strategy buttons 
+  // Mode/strategy buttons
   modeSection: {
     marginBottom: spacing.md,
   },
