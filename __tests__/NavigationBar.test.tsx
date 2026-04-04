@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import React from "react";
 import { Animated, Keyboard } from "react-native";
 import NavigationBar from "../components/NavigationBar";
@@ -1165,7 +1170,7 @@ describe("NavigationBar", () => {
     });
   });
 
-  describe("Auto Start Building (NEW FEATURE)", () => {
+  describe("Auto Start Building", () => {
     const mockAutoBuilding = {
       name: "EV",
       campusName: "SGW",
@@ -1179,7 +1184,7 @@ describe("NavigationBar", () => {
       boundingBox: [],
     };
 
-    it("should auto-fill starting location when autoStartBuilding is provided", async () => {
+    it("does not auto-fill starting location when autoStartBuilding is provided", async () => {
       const { getByPlaceholderText } = render(
         <NavigationBar
           visible={true}
@@ -1190,13 +1195,11 @@ describe("NavigationBar", () => {
       );
 
       await waitFor(() => {
-        expect(getByPlaceholderText(/From/).props.value).toBe(
-          mockAutoBuilding.displayName,
-        );
+        expect(getByPlaceholderText(/From/).props.value).toBe("");
       });
     });
 
-    it("should set start building internally and confirm correctly", async () => {
+    it("does not set start building from autoStartBuilding until user picks location", async () => {
       const { getByText } = render(
         <NavigationBar
           visible={true}
@@ -1209,11 +1212,7 @@ describe("NavigationBar", () => {
       fireEvent.press(getByText("Get Directions"));
 
       expect(mockOnConfirm).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: "EV",
-          displayName:
-            "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
-        }),
+        null,
         null,
         expect.objectContaining({
           mode: "walking",

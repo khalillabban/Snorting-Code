@@ -86,7 +86,6 @@ export default function NavigationBar({
   const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
   const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
   const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
-  const [startManuallyEdited, setStartManuallyEdited] = useState(false);
 
   const [activeInput, setActiveInput] = useState<"start" | "dest" | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -116,7 +115,6 @@ export default function NavigationBar({
 
   const handleStartChange = (text: string) => {
     setStartLoc(text);
-    setStartManuallyEdited(true);
     setStartRoom(null);
     setStartBuilding(null);
     setActiveInput("start");
@@ -173,12 +171,10 @@ export default function NavigationBar({
       setStartLoc(building.displayName);
       setStartBuilding(building);
       setStartRoom(null);
-      setStartManuallyEdited(true);
     } else {
       setStartLoc("My Location");
       setStartBuilding(null);
       setStartRoom(null);
-      setStartManuallyEdited(true);
     }
     dismissSuggestions();
   };
@@ -259,14 +255,6 @@ export default function NavigationBar({
       }).start(() => setShouldRender(false));
     }
   }, [visible, translateY]);
-
-  useEffect(() => {
-    if (autoStartBuilding && !startManuallyEdited) {
-      setStartLoc(autoStartBuilding.displayName);
-      setStartBuilding(autoStartBuilding);
-      setStartRoom(null);
-    }
-  }, [autoStartBuilding, startManuallyEdited]);
 
   useEffect(() => {
     if (visible && initialStart) {
