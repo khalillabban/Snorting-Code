@@ -1,4 +1,3 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Accuracy,
@@ -583,24 +582,10 @@ export default function CampusMap({
             tracksViewChanges={Platform.OS === "android"}
           >
             <View style={styles.destinationPinWrapper}>
-              <MaterialIcons
-                name="place"
-                size={44}
-                color="black"
-                style={styles.destinationPinShadow}
-              />
-              <MaterialIcons
-                name="place"
-                size={30}
-                color="black"
-                style={[styles.destinationPinShadow, { top: 6 }]}
-              />
-              <MaterialIcons
-                name="place"
-                size={40}
-                color={colors.error}
-                style={styles.destinationPinFront}
-              />
+              <View style={styles.destinationPinHead}>
+                <View style={styles.destinationPinInner} />
+              </View>
+              <View style={styles.destinationPinTail} />
             </View>
           </Marker>
         )}
