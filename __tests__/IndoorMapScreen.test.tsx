@@ -16,7 +16,10 @@ import {
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
 } from "../utils/indoorNavigation";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import {
+  findIndoorRoomMatch,
+  findIndoorRoomMatches,
+} from "../utils/indoorRoomSearch";
 import {
   getBuildingPlanAsset,
   getFloorImageMetadata,
@@ -68,6 +71,7 @@ jest.mock("../utils/indoorBuildingPlan", () => ({
 
 jest.mock("../utils/indoorRoomSearch", () => ({
   findIndoorRoomMatch: jest.fn(),
+  findIndoorRoomMatches: jest.fn(),
 }));
 
 jest.mock("../utils/indoorNavigation", () => ({
@@ -204,6 +208,7 @@ describe("IndoorMapScreen", () => {
     );
 
     (findIndoorRoomMatch as jest.Mock).mockReturnValue(null);
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([]);
     (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
       success: false,
       error: "NO_PATH_FOUND",
@@ -1321,6 +1326,152 @@ describe("IndoorMapScreen", () => {
       expect(screen.getByPlaceholderText("From (H-110)")).toBeTruthy();
       expect(screen.getByPlaceholderText("To (H-920)")).toBeTruthy();
       expect(screen.getByText("Go")).toBeTruthy();
+    });
+  });
+
+  it("shows room suggestions while typing in the origin field", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([
+      {
+        room: mockHallRoom,
+        floor: 8,
+        matchType: "prefix_room",
+        score: 650,
+      },
+    ]);
+
+    render(<IndoorMapScreen />);
+    const originInput = await screen.findByPlaceholderText("From (H-110)");
+
+    fireEvent(originInput, "focus");
+    fireEvent.changeText(originInput, "867");
+
+    await waitFor(() => {
+      expect(findIndoorRoomMatches).toHaveBeenCalledWith(mockHallPlan, "867", {
+        currentFloor: 1,
+        maxResults: 6,
+      });
+      expect(screen.getByTestId("indoor-room-suggestion-list")).toBeTruthy();
+      expect(
+        screen.getByTestId("indoor-room-suggestion-origin-Hall_F8_room_291"),
+      ).toBeTruthy();
+      expect(screen.getByText("H-867")).toBeTruthy();
+      expect(screen.getByText("Floor 8")).toBeTruthy();
+    });
+  });
+
+  it("selects a room suggestion for the destination field", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([
+      {
+        room: mockHallRoom,
+        floor: 8,
+        matchType: "prefix_room",
+        score: 650,
+      },
+    ]);
+
+    render(<IndoorMapScreen />);
+    const destinationInput = await screen.findByPlaceholderText("To (H-920)");
+
+    fireEvent(destinationInput, "focus");
+    fireEvent.changeText(destinationInput, "867");
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("indoor-room-suggestion-dest-Hall_F8_room_291"),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(
+      screen.getByTestId("indoor-room-suggestion-dest-Hall_F8_room_291"),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("H-867")).toBeTruthy();
+      expect(screen.queryByTestId("indoor-room-suggestion-list")).toBeNull();
+      expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
+      expect(
+        screen.getByTestId("floor-button-8").props.accessibilityState,
+      ).toEqual({
+        selected: true,
+      });
+    });
+  });
+
+  it("shows a no-results helper when indoor room suggestions are empty", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([]);
+
+    render(<IndoorMapScreen />);
+    const originInput = await screen.findByPlaceholderText("From (H-110)");
+
+    fireEvent(originInput, "focus");
+    fireEvent.changeText(originInput, "ZZZ");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("indoor-room-suggestion-empty")).toBeTruthy();
+      expect(screen.getByText("No matching rooms found")).toBeTruthy();
+      expect(screen.queryByTestId("indoor-room-suggestion-list")).toBeNull();
+    });
+  });
+
+  it("clears the selected room preview when typing a new indoor query", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatches as jest.Mock)
+      .mockReturnValueOnce([
+        {
+          room: mockHallRoom,
+          floor: 8,
+          matchType: "prefix_room",
+          score: 650,
+        },
+      ])
+      .mockReturnValue([]);
+
+    render(<IndoorMapScreen />);
+    const originInput = await screen.findByPlaceholderText("From (H-110)");
+
+    fireEvent(originInput, "focus");
+    fireEvent.changeText(originInput, "867");
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("indoor-room-suggestion-origin-Hall_F8_room_291"),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(
+      screen.getByTestId("indoor-room-suggestion-origin-Hall_F8_room_291"),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Showing H-867 on floor 8")).toBeTruthy();
+      expect(screen.getByTestId("selected-room-marker")).toBeTruthy();
+    });
+
+    fireEvent.changeText(originInput, "H-86");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Showing H-867 on floor 8")).toBeNull();
+      expect(screen.queryByTestId("selected-room-marker")).toBeNull();
+      expect(screen.getByTestId("indoor-room-suggestion-empty")).toBeTruthy();
     });
   });
 
