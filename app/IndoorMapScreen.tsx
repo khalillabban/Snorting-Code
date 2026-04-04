@@ -642,6 +642,22 @@ export default function IndoorMapScreen() {
     [activeNavField],
   );
 
+  const handleNavQueryChange = useCallback(
+    (field: NavInputField, text: string) => {
+      if (field === "origin") {
+        setNavOriginQuery(text);
+      } else {
+        setNavDestQuery(text);
+      }
+
+      setActiveNavField(field);
+      setSelectedRoom(null);
+      setSearchError(null);
+      setNavError(null);
+    },
+    [],
+  );
+
   useInitialRoomQuery(
     initialRoomQuery,
     availableFloors,
@@ -1081,9 +1097,7 @@ export default function IndoorMapScreen() {
             placeholderTextColor={colors.gray500}
             value={navOriginQuery}
             onChangeText={(text) => {
-              setNavOriginQuery(text);
-              setActiveNavField("origin");
-              setSearchError(null);
+              handleNavQueryChange("origin", text);
               if (text.length === 1) {
                 logUsabilityEvent("indoor_nav_origin_started", {
                   session_id: sessionId.current,
@@ -1102,9 +1116,7 @@ export default function IndoorMapScreen() {
             placeholderTextColor={colors.gray500}
             value={navDestQuery}
             onChangeText={(text) => {
-              setNavDestQuery(text);
-              setActiveNavField("dest");
-              setSearchError(null);
+              handleNavQueryChange("dest", text);
               if (text.length === 1) {
                 logUsabilityEvent("indoor_nav_dest_started", {
                   session_id: sessionId.current,
