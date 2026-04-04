@@ -526,8 +526,6 @@ async function handleRouteConfirmation(
   }
 }
 
-// Task 15 / 16 sub-step tracking helpers
-
 type Task15Snapshot = {
   startedAtMs: number;
   rangeChangeCount: number;
@@ -615,35 +613,38 @@ export default function CampusMapScreen() {
   const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
   const finalizedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
 
-  const startTask = (taskId: string) => {
+  const startTask = useCallback((taskId: string) => {
     if (!USABILITY_TESTING_ENABLED) return;
     taskTimers.current[taskId] = Date.now();
-  };
+  }, []);
 
-  const endTask = async (
-    taskId: string,
-    extraParams: Record<string, unknown> = {},
-  ) => {
-    if (!USABILITY_TESTING_ENABLED) return;
-    const start = taskTimers.current[taskId];
-    if (!start) return;
-    const duration_ms = Date.now() - start;
-    delete taskTimers.current[taskId];
+  const endTask = useCallback(
+    async (
+      taskId: string,
+      extraParams: Record<string, unknown> = {},
+    ) => {
+      if (!USABILITY_TESTING_ENABLED) return;
+      const start = taskTimers.current[taskId];
+      if (!start) return;
+      const duration_ms = Date.now() - start;
+      delete taskTimers.current[taskId];
 
-    await logUsabilityEvent("task_completed", {
-      session_id: sessionId.current,
-      task_id: taskId,
-      duration_ms,
-      ...extraParams,
-    });
+      await logUsabilityEvent("task_completed", {
+        session_id: sessionId.current,
+        task_id: taskId,
+        duration_ms,
+        ...extraParams,
+      });
 
-    await logUsabilityEvent("task_finished", {
-      session_id: sessionId.current,
-      finished_task_id: taskId,
-      duration_ms,
-      ...extraParams,
-    });
-  };
+      await logUsabilityEvent("task_finished", {
+        session_id: sessionId.current,
+        finished_task_id: taskId,
+        duration_ms,
+        ...extraParams,
+      });
+    },
+    [],
+  );
 
   const findNearestBuilding = useCallback((lat: number, lon: number) => {
     let nearest = BUILDINGS[0];
