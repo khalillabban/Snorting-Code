@@ -68,4 +68,14 @@ describe("Index screen", () => {
 
     expect(mockPush).toHaveBeenCalledWith("/schedule");
   });
+
+  it("opens and closes color accessibility modal from the color mode button", () => {
+    render(<Index />);
+
+    fireEvent.press(screen.getByTestId("home-color-mode-button"));
+    expect(screen.getByText("Color accessibility")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Done"));
+    expect(screen.queryByText("Color accessibility")).toBeNull();
+  });
 });
