@@ -50,7 +50,7 @@ export const COLOR_ACCESSIBILITY_OPTIONS: Array<{
   },
 ];
 
-function hexToRgb(hex: string) {
+export function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "").trim();
   const expanded =
     normalized.length === 3
@@ -67,7 +67,7 @@ function hexToRgb(hex: string) {
   };
 }
 
-function withOpacity(hex: string, opacity: number) {
+export function withOpacity(hex: string, opacity: number) {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }

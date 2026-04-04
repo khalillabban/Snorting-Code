@@ -302,6 +302,20 @@ describe("DirectionStepsPanel", () => {
     expect(onMidStepPress).toHaveBeenCalledTimes(1);
   });
 
+  it("renders non-pressable steps as plain rows", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Plain step", distance: "5 m" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Plain step")).toBeTruthy();
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+    expect(screen.getByText("5 m")).toBeTruthy();
+  });
+
   it("renders shuttle highlight path when instruction contains board", () => {
     render(
       <DirectionStepsPanel

@@ -3,8 +3,10 @@ import {
     COLOR_ACCESSIBILITY_OPTIONS,
     colors,
     getThemePalette,
+    hexToRgb,
     spacing,
     typography,
+    withOpacity,
 } from "../constants/theme";
 
 describe("Theme constants", () => {
@@ -91,6 +93,20 @@ describe("Theme constants", () => {
       expect(borderRadius.md).toBe(10);
       expect(borderRadius.lg).toBe(16);
       expect(borderRadius.full).toBe(9999);
+    });
+  });
+
+  describe("color helper branches", () => {
+    it("expands short hex values in hexToRgb", () => {
+      expect(hexToRgb("#abc")).toEqual({
+        r: 170,
+        g: 187,
+        b: 204,
+      });
+    });
+
+    it("formats rgba values with withOpacity", () => {
+      expect(withOpacity("#abc", 0.5)).toBe("rgba(170, 187, 204, 0.5)");
     });
   });
 });
