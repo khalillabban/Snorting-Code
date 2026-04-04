@@ -1425,8 +1425,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "LD Building (LD)",
     address: "1424 Bishop St, Montreal, Quebec H3G 2E6",
     coordinates: {
-      latitude: 45.497256,
-      longitude: -73.578915,
+      latitude: 45.496676412055216,
+      longitude: -73.5772918490087,
     },
     services: ["CSU Daycare & Nursery"],
     boundingBox: [
