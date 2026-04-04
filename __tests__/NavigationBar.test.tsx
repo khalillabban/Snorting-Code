@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { Animated, Keyboard } from "react-native";
 import NavigationBar from "../components/NavigationBar";
@@ -10,9 +10,7 @@ jest.mock("@expo/vector-icons", () => ({
 }));
 
 jest.mock("../services/GoogleDirectionsService", () => ({
-  getOutdoorRouteWithSteps: jest.fn(
-    () => new Promise<never>(() => { })
-  ),
+  getOutdoorRouteWithSteps: jest.fn(() => new Promise<never>(() => {})),
 }));
 
 jest.mock("../constants/buildings", () => ({
@@ -26,7 +24,11 @@ jest.mock("../constants/buildings", () => ({
       icons: ["information", "wheelchair"],
       departments: ["Biology", "Chemistry and Biochemistry", "Physics"],
       services: ["Café", "Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
+      boundingBox: [
+        { latitude: 0, longitude: 0 },
+        { latitude: 0, longitude: 1 },
+        { latitude: 1, longitude: 1 },
+      ],
     },
     {
       name: "VL",
@@ -61,7 +63,11 @@ jest.mock("../constants/buildings", () => ({
         "Sociology and Anthropology",
       ],
       services: ["Campus Safety and Prevention Services", "First Stop"],
-      boundingBox: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }, { latitude: 1, longitude: 1 }],
+      boundingBox: [
+        { latitude: 0, longitude: 0 },
+        { latitude: 0, longitude: 1 },
+        { latitude: 1, longitude: 1 },
+      ],
     },
     {
       name: "EV",
@@ -166,10 +172,16 @@ describe("NavigationBar", () => {
       expect(getByText("Get Directions")).toBeTruthy();
     });
     it("handles route summary error gracefully", async () => {
-      (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(new Error("API Error"));
+      (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(
+        new Error("API Error"),
+      );
 
       const { getByPlaceholderText, getByText, queryByText } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
 
       fireEvent.changeText(getByPlaceholderText(/From/), "Science");
@@ -196,15 +208,21 @@ describe("NavigationBar", () => {
           onConfirm={mockOnConfirm}
           initialDestination={mockInitialDest as any}
           onInitialDestinationApplied={mockOnApplied}
-        />
+        />,
       );
 
-      expect(getByPlaceholderText(/To/).props.value).toBe("Henry F. Hall Building (H)");
+      expect(getByPlaceholderText(/To/).props.value).toBe(
+        "Henry F. Hall Building (H)",
+      );
       expect(mockOnApplied).toHaveBeenCalled();
     });
     it("updates the selected strategy when a mode button is pressed", () => {
       const { getByText } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
 
       fireEvent.press(getByText("Car"));
@@ -217,7 +235,7 @@ describe("NavigationBar", () => {
         expect.objectContaining({ mode: "driving", label: "Car" }),
         null, // startRoom
         null, // endRoom
-        false
+        false,
       );
     });
   });
@@ -439,10 +457,14 @@ describe("NavigationBar", () => {
           name: "VL",
           displayName: "Concordia Vanier Library (VL)",
         }),
-        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        expect.objectContaining({
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        }),
         null,
         null,
-        false
+        false,
       );
     });
 
@@ -476,10 +498,14 @@ describe("NavigationBar", () => {
       expect(mockOnConfirm).toHaveBeenCalledWith(
         null,
         null,
-        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        expect.objectContaining({
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        }),
         null,
         null,
-        false
+        false,
       );
     });
 
@@ -590,7 +616,7 @@ describe("NavigationBar", () => {
             onClose={mockOnClose}
             onConfirm={mockOnConfirm}
             currentCampus="loyola"
-          />
+          />,
         );
 
         // Use the correct accessibility label for the building picker button
@@ -913,7 +939,12 @@ describe("NavigationBar", () => {
       it("does not overwrite start location with autoStartBuilding if user has manually edited it", () => {
         const mockAuto = { name: "EV", displayName: "EV Building" };
         const { getByPlaceholderText, rerender } = render(
-          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={null} />
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            autoStartBuilding={null}
+          />,
         );
 
         const input = getByPlaceholderText(/From/);
@@ -921,7 +952,12 @@ describe("NavigationBar", () => {
         fireEvent.changeText(input, "User Typed Location");
 
         rerender(
-          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} autoStartBuilding={mockAuto as any} />
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            autoStartBuilding={mockAuto as any}
+          />,
         );
 
         expect(input.props.value).toBe("User Typed Location");
@@ -937,17 +973,23 @@ describe("NavigationBar", () => {
             onConfirm={mockOnConfirm}
             initialStart={mockInitialStart as any}
             onInitialStartApplied={mockOnApplied}
-          />
+          />,
         );
 
         expect(getByPlaceholderText(/From/).props.value).toBe("Hall Building");
         expect(mockOnApplied).toHaveBeenCalled();
       });
-      it("shows 'Loading…' while the route is being fetched", async () => {
-        (getOutdoorRouteWithSteps as jest.Mock).mockReturnValue(new Promise(() => { }));
+      it("shows loading under each transportation mode while routes are being fetched", async () => {
+        (getOutdoorRouteWithSteps as jest.Mock).mockReturnValue(
+          new Promise(() => {}),
+        );
 
         const { getByPlaceholderText, getByText } = render(
-          <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+          />,
         );
 
         fireEvent.changeText(getByPlaceholderText(/From/), "Science");
@@ -955,7 +997,7 @@ describe("NavigationBar", () => {
         fireEvent.changeText(getByPlaceholderText(/To/), "Library");
         fireEvent.press(getByText("Concordia Vanier Library (VL)"));
 
-        expect(getByText("Loading…")).toBeTruthy();
+        expect(screen.getAllByText("Loading…")).toHaveLength(5);
       });
 
       it("should handle very large dy values", () => {
@@ -1144,13 +1186,13 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           autoStartBuilding={mockAutoBuilding as any}
-        />
+        />,
       );
 
       await waitFor(() => {
-        expect(
-          getByPlaceholderText(/From/).props.value
-        ).toBe(mockAutoBuilding.displayName);
+        expect(getByPlaceholderText(/From/).props.value).toBe(
+          mockAutoBuilding.displayName,
+        );
       });
     });
 
@@ -1161,7 +1203,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           autoStartBuilding={mockAutoBuilding as any}
-        />
+        />,
       );
 
       fireEvent.press(getByText("Get Directions"));
@@ -1173,10 +1215,14 @@ describe("NavigationBar", () => {
             "Engineering, Computer Science and Visual Arts Integrated Complex (EV)",
         }),
         null,
-        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        expect.objectContaining({
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        }),
         null,
         null,
-        false
+        false,
       );
     });
 
@@ -1194,22 +1240,28 @@ describe("NavigationBar", () => {
       expect(mockOnConfirm).toHaveBeenCalledWith(
         null,
         null,
-        expect.objectContaining({ mode: "walking", label: "Walk", icon: "walk" }),
+        expect.objectContaining({
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        }),
         null,
         null,
-        true
+        true,
       );
     });
 
     it("should not crash when autoStartBuilding is null", () => {
-      expect(() => render(
-        <NavigationBar
-          visible={true}
-          onClose={mockOnClose}
-          onConfirm={mockOnConfirm}
-          autoStartBuilding={null}
-        />
-      )).not.toThrow();
+      expect(() =>
+        render(
+          <NavigationBar
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            autoStartBuilding={null}
+          />,
+        ),
+      ).not.toThrow();
     });
   });
 
@@ -1275,7 +1327,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           currentCampus="loyola"
-        />
+        />,
       );
 
       // Use the correct accessibility label for the building picker button
@@ -1298,7 +1350,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           currentCampus="loyola"
-        />
+        />,
       );
 
       // Use the correct accessibility label for the building picker button
@@ -1321,7 +1373,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           onUseMyLocation={mockUseMyLocation}
-        />
+        />,
       );
 
       expect(getByLabelText("Use my current location")).toBeTruthy();
@@ -1333,7 +1385,7 @@ describe("NavigationBar", () => {
           visible={true}
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
-        />
+        />,
       );
 
       expect(queryByLabelText("Use my current location")).toBeNull();
@@ -1353,14 +1405,14 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           onUseMyLocation={mockUseMyLocation}
-        />
+        />,
       );
 
       fireEvent.press(getByLabelText("Use my current location"));
 
       expect(mockUseMyLocation).toHaveBeenCalled();
       expect(getByPlaceholderText(/From/).props.value).toBe(
-        "Richard J Renaud Science Complex (SP)"
+        "Richard J Renaud Science Complex (SP)",
       );
     });
 
@@ -1373,7 +1425,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           onUseMyLocation={mockUseMyLocation}
-        />
+        />,
       );
 
       fireEvent.press(getByLabelText("Use my current location"));
@@ -1386,40 +1438,69 @@ describe("NavigationBar", () => {
   describe("Accessible Route Toggle", () => {
     it("renders the accessible route toggle button", () => {
       const { getByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       expect(getByTestId("accessible-mode-toggle")).toBeTruthy();
     });
 
     it("defaults to unchecked (false) when no accessibleOnly prop is passed", () => {
       const { getByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
-      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
+      expect(
+        getByTestId("accessible-mode-toggle").props.accessibilityState,
+      ).toEqual({ checked: false });
     });
 
     it("defaults to checked (true) when accessibleOnly prop is true", () => {
       const { getByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} accessibleOnly={true} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          accessibleOnly={true}
+        />,
       );
-      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
+      expect(
+        getByTestId("accessible-mode-toggle").props.accessibilityState,
+      ).toEqual({ checked: true });
     });
 
     it("toggles to checked when pressed once", () => {
       const { getByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       fireEvent.press(getByTestId("accessible-mode-toggle"));
-      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: true });
+      expect(
+        getByTestId("accessible-mode-toggle").props.accessibilityState,
+      ).toEqual({ checked: true });
     });
 
     it("toggles back to unchecked when pressed twice", () => {
       const { getByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       fireEvent.press(getByTestId("accessible-mode-toggle"));
       fireEvent.press(getByTestId("accessible-mode-toggle"));
-      expect(getByTestId("accessible-mode-toggle").props.accessibilityState).toEqual({ checked: false });
+      expect(
+        getByTestId("accessible-mode-toggle").props.accessibilityState,
+      ).toEqual({ checked: false });
     });
 
     it("calls onAccessibleOnlyChange with true when toggled on", () => {
@@ -1430,7 +1511,7 @@ describe("NavigationBar", () => {
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           onAccessibleOnlyChange={mockOnChange}
-        />
+        />,
       );
       fireEvent.press(getByTestId("accessible-mode-toggle"));
       expect(mockOnChange).toHaveBeenCalledWith(true);
@@ -1445,7 +1526,7 @@ describe("NavigationBar", () => {
           onConfirm={mockOnConfirm}
           accessibleOnly={true}
           onAccessibleOnlyChange={mockOnChange}
-        />
+        />,
       );
       fireEvent.press(getByTestId("accessible-mode-toggle"));
       expect(mockOnChange).toHaveBeenCalledWith(false);
@@ -1453,34 +1534,50 @@ describe("NavigationBar", () => {
 
     it("passes accessibleOnly=false to onConfirm when toggle is off", () => {
       const { getByText } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       fireEvent.press(getByText("Get Directions"));
       expect(mockOnConfirm).toHaveBeenCalledWith(
-        null, null,
+        null,
+        null,
         expect.objectContaining({ mode: "walking" }),
-        null, null,
-        false
+        null,
+        null,
+        false,
       );
     });
 
     it("passes accessibleOnly=true to onConfirm when toggle is on", () => {
       const { getByTestId, getByText } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       fireEvent.press(getByTestId("accessible-mode-toggle"));
       fireEvent.press(getByText("Get Directions"));
       expect(mockOnConfirm).toHaveBeenCalledWith(
-        null, null,
+        null,
+        null,
         expect.objectContaining({ mode: "walking" }),
-        null, null,
-        true
+        null,
+        null,
+        true,
       );
     });
 
     it("toggle is hidden when the suggestion list is showing", () => {
       const { getByPlaceholderText, queryByTestId } = render(
-        <NavigationBar visible={true} onClose={mockOnClose} onConfirm={mockOnConfirm} />
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
       );
       fireEvent.changeText(getByPlaceholderText(/From/), "Science");
       // suggestions are showing — modeSection (including toggle) is hidden
