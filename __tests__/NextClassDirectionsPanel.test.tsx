@@ -1,8 +1,14 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
-import { Animated, Keyboard, PanResponder, TouchableWithoutFeedback } from "react-native";
+import {
+  Animated,
+  Keyboard,
+  PanResponder,
+  TouchableWithoutFeedback,
+} from "react-native";
 import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
 import type { ScheduleItem } from "../constants/type";
+import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialIcons: "MaterialIcons",
@@ -10,9 +16,7 @@ jest.mock("@expo/vector-icons", () => ({
 }));
 
 jest.mock("../services/GoogleDirectionsService", () => ({
-  getOutdoorRouteWithSteps: jest.fn(
-    () => new Promise<never>(() => {}),
-  ),
+  getOutdoorRouteWithSteps: jest.fn(() => new Promise<never>(() => {})),
 }));
 
 jest.mock("../utils/mapAssets", () => ({
@@ -56,7 +60,9 @@ jest.mock("../utils/indoorRoomSearch", () => ({
         query.toUpperCase().includes(r.roomNumber) ||
         query.toUpperCase() === r.label,
     );
-    return room ? { room, floor: room.floor, matchType: "exact_label", score: 1 } : null;
+    return room
+      ? { room, floor: room.floor, matchType: "exact_label", score: 1 }
+      : null;
   },
 }));
 
@@ -257,7 +263,7 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
-    it("auto-sets start when autoStartBuilding is provided", async () => {
+    it("does not auto-set start when autoStartBuilding is provided", async () => {
       const autoStart = {
         name: "H",
         campusName: "SGW",
@@ -280,7 +286,33 @@ describe("NextClassDirectionsPanel", () => {
 
       await waitFor(() => {
         const startInput = getByTestId("next-class-start-input");
-        expect(startInput.props.value).toBe("Henry F. Hall Building (H)");
+        expect(startInput.props.value).toBe("");
+      });
+    });
+
+    it("shows per-transport duration labels under the mode buttons", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+        coordinates: [],
+        steps: [],
+        duration: "12 min",
+        distance: "2 km",
+      });
+
+      const { getByTestId, getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      fireEvent.changeText(getByTestId("next-class-start-input"), "Hall");
+      fireEvent.press(getByText("Henry F. Hall Building (H)"));
+
+      await waitFor(() => {
+        expect(getByText("12 min")).toBeTruthy();
       });
     });
   });
@@ -595,25 +627,18 @@ describe("NextClassDirectionsPanel", () => {
     });
 
     it("can swap origin and destination", async () => {
-      const autoStart = {
-        name: "H",
-        campusName: "SGW",
-        displayName: "Henry F. Hall Building (H)",
-        coordinates: { latitude: 45.497256, longitude: -73.578915 },
-        address: "",
-        boundingBox: [],
-      };
-
-      const { getByLabelText, getByTestId } = render(
+      const { getByLabelText, getByTestId, getByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           nextClass={mockScheduleItems[0]}
           scheduleItems={mockScheduleItems}
-          autoStartBuilding={autoStart}
         />,
       );
+
+      fireEvent.changeText(getByTestId("next-class-start-input"), "Hall");
+      fireEvent.press(getByText("Henry F. Hall Building (H)"));
 
       await waitFor(() => {
         expect(getByTestId("next-class-start-input").props.value).toBe(
@@ -776,7 +801,9 @@ describe("NextClassDirectionsPanel", () => {
       fireEvent.press(getByLabelText("Use my current location as start"));
 
       await waitFor(() => {
-        expect(getByTestId("next-class-start-input").props.value).toBe("My Location");
+        expect(getByTestId("next-class-start-input").props.value).toBe(
+          "My Location",
+        );
       });
     });
 
@@ -910,103 +937,113 @@ describe("NextClassDirectionsPanel", () => {
         // Only one course should appear (deduplicated)
         const courses = queryAllByTestId(/^nc-course-/);
         expect(courses.length).toBe(1);
-        });
-      });
-
-      describe("Gesture and overlay coverage", () => {
-        it("closes on fast/large downward swipe and springs back on small swipe", async () => {
-          const panSpy = jest
-            .spyOn(PanResponder, "create")
-            .mockImplementation((config: any) => ({ panHandlers: config } as any));
-
-          render(
-            <NextClassDirectionsPanel
-              visible={true}
-              onClose={mockOnClose}
-              onConfirm={mockOnConfirm}
-              nextClass={mockScheduleItems[0]}
-              scheduleItems={mockScheduleItems}
-            />,
-          );
-
-          const gestureConfig = panSpy.mock.calls[0][0] as any;
-          expect(gestureConfig).toBeTruthy();
-
-          expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(false);
-          expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 20 })).toBe(true);
-
-          gestureConfig.onPanResponderMove({}, { dy: -10, vy: 0 });
-          gestureConfig.onPanResponderRelease({}, { dy: 30, vy: 0.1 });
-          expect(Animated.spring).toHaveBeenCalled();
-
-          gestureConfig.onPanResponderMove({}, { dy: 40, vy: 0.1 });
-          gestureConfig.onPanResponderRelease({}, { dy: 140, vy: 0.1 });
-          expect(mockOnClose).toHaveBeenCalled();
-
-          panSpy.mockRestore();
-        });
-
-        it("dismisses keyboard and closes when backdrop is pressed", async () => {
-          const dismissSpy = jest.spyOn(Keyboard, "dismiss").mockImplementation(() => {});
-
-          const rendered = render(
-            <NextClassDirectionsPanel
-              visible={true}
-              onClose={mockOnClose}
-              onConfirm={mockOnConfirm}
-              nextClass={mockScheduleItems[0]}
-              scheduleItems={mockScheduleItems}
-            />,
-          );
-
-          const touchables = rendered.UNSAFE_getAllByType(TouchableWithoutFeedback);
-          touchables[0].props.onPress();
-
-          expect(dismissSpy).toHaveBeenCalled();
-          expect(mockOnClose).toHaveBeenCalled();
-
-          dismissSpy.mockRestore();
-        });
       });
     });
 
-    it("ignores event items when picking destination courses via picker", async () => {
-      const mixedItems: ScheduleItem[] = [
-        ...mockScheduleItems,
-        {
-          id: "event-soen",
-          kind: "event",
-          courseName: "SOEN Mixer",
-          start: new Date(Date.now() + 5_400_000),
-          end: new Date(Date.now() + 7_200_000),
-          location: "SGW EV Atrium",
-          campus: "SGW",
-          building: "EV",
-          room: "Atrium",
-          level: "",
-        },
-      ];
+    describe("Gesture and overlay coverage", () => {
+      it("closes on fast/large downward swipe and springs back on small swipe", async () => {
+        const panSpy = jest
+          .spyOn(PanResponder, "create")
+          .mockImplementation(
+            (config: any) => ({ panHandlers: config }) as any,
+          );
 
-      const { getByLabelText, getByTestId, queryByTestId } = render(
-        <NextClassDirectionsPanel
-          visible={true}
-          onClose={mockOnClose}
-          onConfirm={mockOnConfirm}
-          nextClass={mixedItems[0]}
-          scheduleItems={mixedItems}
-        />,
-      );
+        render(
+          <NextClassDirectionsPanel
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            nextClass={mockScheduleItems[0]}
+            scheduleItems={mockScheduleItems}
+          />,
+        );
 
-      // Use the picker button (not text input) to show courses
-      fireEvent.press(getByLabelText("Pick destination from course list"));
+        const gestureConfig = panSpy.mock.calls[0][0] as any;
+        expect(gestureConfig).toBeTruthy();
 
-      await waitFor(() => {
-        expect(getByTestId("nc-course-1")).toBeTruthy();
-        expect(getByTestId("nc-course-2")).toBeTruthy();
-        // Event items should NOT appear in course picker
-        expect(queryByTestId("nc-course-event-soen")).toBeNull();
+        expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(
+          false,
+        );
+        expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 20 })).toBe(
+          true,
+        );
+
+        gestureConfig.onPanResponderMove({}, { dy: -10, vy: 0 });
+        gestureConfig.onPanResponderRelease({}, { dy: 30, vy: 0.1 });
+        expect(Animated.spring).toHaveBeenCalled();
+
+        gestureConfig.onPanResponderMove({}, { dy: 40, vy: 0.1 });
+        gestureConfig.onPanResponderRelease({}, { dy: 140, vy: 0.1 });
+        expect(mockOnClose).toHaveBeenCalled();
+
+        panSpy.mockRestore();
+      });
+
+      it("dismisses keyboard and closes when backdrop is pressed", async () => {
+        const dismissSpy = jest
+          .spyOn(Keyboard, "dismiss")
+          .mockImplementation(() => {});
+
+        const rendered = render(
+          <NextClassDirectionsPanel
+            visible={true}
+            onClose={mockOnClose}
+            onConfirm={mockOnConfirm}
+            nextClass={mockScheduleItems[0]}
+            scheduleItems={mockScheduleItems}
+          />,
+        );
+
+        const touchables = rendered.UNSAFE_getAllByType(
+          TouchableWithoutFeedback,
+        );
+        touchables[0].props.onPress();
+
+        expect(dismissSpy).toHaveBeenCalled();
+        expect(mockOnClose).toHaveBeenCalled();
+
+        dismissSpy.mockRestore();
       });
     });
+  });
+
+  it("ignores event items when picking destination courses via picker", async () => {
+    const mixedItems: ScheduleItem[] = [
+      ...mockScheduleItems,
+      {
+        id: "event-soen",
+        kind: "event",
+        courseName: "SOEN Mixer",
+        start: new Date(Date.now() + 5_400_000),
+        end: new Date(Date.now() + 7_200_000),
+        location: "SGW EV Atrium",
+        campus: "SGW",
+        building: "EV",
+        room: "Atrium",
+        level: "",
+      },
+    ];
+
+    const { getByLabelText, getByTestId, queryByTestId } = render(
+      <NextClassDirectionsPanel
+        visible={true}
+        onClose={mockOnClose}
+        onConfirm={mockOnConfirm}
+        nextClass={mixedItems[0]}
+        scheduleItems={mixedItems}
+      />,
+    );
+
+    // Use the picker button (not text input) to show courses
+    fireEvent.press(getByLabelText("Pick destination from course list"));
+
+    await waitFor(() => {
+      expect(getByTestId("nc-course-1")).toBeTruthy();
+      expect(getByTestId("nc-course-2")).toBeTruthy();
+      // Event items should NOT appear in course picker
+      expect(queryByTestId("nc-course-event-soen")).toBeNull();
+    });
+  });
 
   // -----------------------------------------------------------------------
   // Room resolution & room badge display
@@ -1330,15 +1367,6 @@ describe("NextClassDirectionsPanel", () => {
   // -----------------------------------------------------------------------
   describe("Swap with rooms", () => {
     it("swapping origin/destination also swaps room badges", async () => {
-      const autoStart = {
-        name: "MB",
-        campusName: "SGW",
-        displayName: "John Molson Building (MB)",
-        coordinates: { latitude: 45.495304, longitude: -73.579044 },
-        address: "",
-        boundingBox: [],
-      };
-
       const { getByLabelText, getByTestId, queryByTestId } = render(
         <NextClassDirectionsPanel
           visible={true}
@@ -1346,7 +1374,6 @@ describe("NextClassDirectionsPanel", () => {
           onConfirm={mockOnConfirm}
           nextClass={mockScheduleItems[0]}
           scheduleItems={mockScheduleItems}
-          autoStartBuilding={autoStart}
         />,
       );
 
@@ -1420,5 +1447,3 @@ describe("NextClassDirectionsPanel", () => {
     });
   });
 });
-
-
