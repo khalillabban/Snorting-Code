@@ -3,6 +3,18 @@ import Constants from "expo-constants";
 import React from "react";
 import RootLayout from "../app/_layout";
 
+// Mock react-native-safe-area-context
+jest.mock("react-native-safe-area-context", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require("react-native");
+  return {
+    SafeAreaProvider: ({ children }: any) => <View>{children}</View>,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  };
+});
+
 // Mock expo-constants
 jest.mock("expo-constants", () => ({
   __esModule: true,

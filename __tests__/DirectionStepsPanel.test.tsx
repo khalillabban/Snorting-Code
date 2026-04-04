@@ -8,6 +8,10 @@ import { createStyles } from "../styles/DirectionStepsPanel.styles";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { Text } = require("react-native");
 
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 // Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
 jest.mock("@expo/vector-icons", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports

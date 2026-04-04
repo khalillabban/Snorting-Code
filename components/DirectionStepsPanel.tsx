@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { spacing } from "../constants/theme";
 import { RouteStep } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { useBottomInset } from "../hooks/useBottomInset";
 import { RouteStrategy } from "../services/Routing";
 import { createStyles } from "../styles/DirectionStepsPanel.styles";
 
@@ -56,11 +58,12 @@ export function DirectionStepsPanel({
 }: DirectionStepsPanelProps) {
   const { colors } = useColorAccessibility();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const bottomInset = useBottomInset();
 
   if (steps.length === 0) return null;
 
   return (
-    <View style={styles.panel} pointerEvents="box-none">
+    <View style={[styles.panel, { bottom: spacing.lg + spacing.md + bottomInset }]} pointerEvents="box-none">
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.modeBadge}>

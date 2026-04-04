@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
     resetSession,
     USABILITY_TESTING_ENABLED,
@@ -87,8 +88,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ColorAccessibilityProvider>
-      <AppStack onStateChange={handleStateChange} />
-    </ColorAccessibilityProvider>
+    <SafeAreaProvider>
+      <ColorAccessibilityProvider>
+        <AppStack onStateChange={handleStateChange} />
+      </ColorAccessibilityProvider>
+    </SafeAreaProvider>
   );
 }

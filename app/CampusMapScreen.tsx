@@ -24,6 +24,7 @@ import { WALKING_STRATEGY } from "../constants/strategies";
 import { spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { useBottomInset } from "../hooks/useBottomInset";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import type { PlacePOI } from "../services/GooglePlacesService";
@@ -549,6 +550,7 @@ type Task16Snapshot = {
 export default function CampusMapScreen() {
   const { colors } = useColorAccessibility();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const bottomInset = useBottomInset();
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus, transition, destinationRoomQuery } = useLocalSearchParams<{
     campus?: CampusKey;
@@ -1841,7 +1843,7 @@ export default function CampusMapScreen() {
 
       {/* Left button stack */}
       <View
-        style={[styles.buttonStack, { left: spacing.md, right: undefined }]}
+        style={[styles.buttonStack, { left: spacing.md, right: undefined, bottom: 50 + bottomInset }]}
       >
         <Pressable
           testID="show-shuttle-button"
@@ -1898,7 +1900,7 @@ export default function CampusMapScreen() {
       </View>
 
       {/* Right button stack */}
-      <View style={styles.buttonStack}>
+      <View style={[styles.buttonStack, { bottom: 50 + bottomInset }]}>
         <Pressable
           testID="poi-filter-button"
           accessibilityLabel={

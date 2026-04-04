@@ -6,6 +6,10 @@ import React from "react";
 import CampusMapScreen from "../app/CampusMapScreen";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 let mockShouldResolveUserLocation = true;
 
 jest.mock("@expo/vector-icons", () => {
