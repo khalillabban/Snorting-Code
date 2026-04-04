@@ -16,7 +16,10 @@ export const BUILDINGS: Buildings[] = [
     campusName: "loyola",
     displayName: "Richard J Renaud Science Complex (SP)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
-    coordinates: { latitude: 45.4576633, longitude: -73.6413024 },
+    coordinates: {
+      latitude: 45.457575363773735,
+      longitude: -73.64168011523282,
+    },
     icons: ["information", "wheelchair"],
     departments: [
       "Biology",
@@ -136,7 +139,7 @@ export const BUILDINGS: Buildings[] = [
     campusName: "loyola",
     displayName: "F.C. Smith Building (FC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
-    coordinates: { latitude: 45.45850065, longitude: -73.639362 },
+    coordinates: { latitude: 45.45860259946241, longitude: -73.63935195781474 },
     icons: ["wheelchair"],
     services: ["Concordia Multi-Faith and Spirituality Centre"],
     boundingBox: [
@@ -333,7 +336,10 @@ export const BUILDINGS: Buildings[] = [
     campusName: "loyola",
     displayName: "Jesuit Residence (JR)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
-    coordinates: { latitude: 45.45842125, longitude: -73.643235 },
+    coordinates: {
+      latitude: 45.458532783471675,
+      longitude: -73.64326468429341,
+    },
     icons: ["parking", "wheelchair"],
     services: ["Student Residence"],
     boundingBox: [
@@ -527,7 +533,10 @@ export const BUILDINGS: Buildings[] = [
     campusName: "loyola",
     displayName: "Central Building (CC)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
-    coordinates: { latitude: 45.45823045, longitude: -73.64035915 },
+    coordinates: {
+      latitude: 45.45833920747274,
+      longitude: -73.64040874819267,
+    },
     icons: ["information", "bike", "wheelchair"],
     services: [
       "Concordia Student Union",
@@ -651,7 +660,10 @@ export const BUILDINGS: Buildings[] = [
     campusName: "loyola",
     displayName: "Concordia Vanier Library (VL)",
     address: "7141 Sherbrooke St W, Montreal, QC H4B 1R6",
-    coordinates: { latitude: 45.4589523, longitude: -73.63857895 },
+    coordinates: {
+      latitude: 45.459031549480855,
+      longitude: -73.63839709144611,
+    },
     icons: ["information", "wheelchair"],
     services: ["Georges P. Vanier Library"],
     boundingBox: [
@@ -888,8 +900,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "CL Annex (CL)",
     address: "1665 Rue Sainte-Catherine O, Montréal, Quebec H3H 1L9",
     coordinates: {
-      latitude: 45.494522,
-      longitude: -73.579256,
+      latitude: 45.49421932154994,
+      longitude: -73.57928716185401,
     },
     icons: ["information", "printer", "wheelchair"],
     boundingBox: [
@@ -907,8 +919,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "D Annex (D)",
     address: "2140 Bishop St, Montreal, Quebec H3G 2E9",
     coordinates: {
-      latitude: 45.497774,
-      longitude: -73.579271,
+      latitude: 45.49773835617977,
+      longitude: -73.57926153235088,
     },
     boundingBox: [
       { latitude: 45.497707427688056, longitude: -73.57934124180272 },
@@ -1425,8 +1437,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "LD Building (LD)",
     address: "1424 Bishop St, Montreal, Quebec H3G 2E6",
     coordinates: {
-      latitude: 45.497256,
-      longitude: -73.578915,
+      latitude: 45.496676412055216,
+      longitude: -73.5772918490087,
     },
     services: ["CSU Daycare & Nursery"],
     boundingBox: [
@@ -1482,8 +1494,8 @@ export const BUILDINGS: Buildings[] = [
     displayName: "John Molson Building (MB)",
     address: "1450 Guy St, Montreal, Quebec H3H 0A1",
     coordinates: {
-      latitude: 45.495236,
-      longitude: -73.579024,
+      latitude: 45.49538448993082,
+      longitude: -73.57917771723012,
     },
     icons: ["wheelchair"],
     departments: [
