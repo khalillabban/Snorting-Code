@@ -1407,6 +1407,27 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("shows a no-results helper when indoor room suggestions are empty", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([]);
+
+    render(<IndoorMapScreen />);
+    const originInput = await screen.findByPlaceholderText("From (H-110)");
+
+    fireEvent(originInput, "focus");
+    fireEvent.changeText(originInput, "ZZZ");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("indoor-room-suggestion-empty")).toBeTruthy();
+      expect(screen.getByText("No matching rooms found")).toBeTruthy();
+      expect(screen.queryByTestId("indoor-room-suggestion-list")).toBeNull();
+    });
+  });
+
   it("renders the accessible toggle button", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",

@@ -128,6 +128,21 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     fontSize: 11,
     fontWeight: typography.button.fontWeight,
   },
+  suggestionEmptyState: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.offWhite,
+  },
+  suggestionEmptyText: {
+    color: colors.gray500,
+    fontSize: typography.body.fontSize,
+  },
   selectedRoomBanner: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

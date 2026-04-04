@@ -584,6 +584,12 @@ export default function IndoorMapScreen() {
     });
   }, [activeNavField, activeNavQuery, normalizedBuildingPlan, selectedFloor]);
 
+  const showNoRoomSuggestions =
+    Boolean(activeNavField) &&
+    Boolean(activeNavQuery.trim()) &&
+    Boolean(normalizedBuildingPlan) &&
+    roomSuggestions.length === 0;
+
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
       const trimmedQuery = rawQuery.trim();
@@ -1161,6 +1167,22 @@ export default function IndoorMapScreen() {
                 </Pressable>
               );
             })}
+          </View>
+        )}
+
+        {showNoRoomSuggestions && (
+          <View
+            style={styles.suggestionEmptyState}
+            testID="indoor-room-suggestion-empty"
+          >
+            <MaterialCommunityIcons
+              name="map-search-outline"
+              size={18}
+              color={colors.gray500}
+            />
+            <Text style={styles.suggestionEmptyText}>
+              No matching rooms found
+            </Text>
           </View>
         )}
 
