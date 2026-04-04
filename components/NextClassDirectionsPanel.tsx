@@ -18,7 +18,8 @@ import {
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
-import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
+import { WALKING_STRATEGY } from "../constants/strategies";
+import { colors } from "../constants/theme";
 import { Buildings, ScheduleItem } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
@@ -35,6 +36,7 @@ import { findBuildingByCode } from "../utils/findBuildingByCode";
 import { normalizeRoomQuery } from "../utils/indoorAccess";
 import { getNormalizedBuildingPlan, IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import { StrategyModeSelector } from "./StrategyModeSelector";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_TOP = SCREEN_HEIGHT - FULL_HEIGHT;
@@ -240,6 +242,7 @@ interface NextClassDirectionsPanelProps {
   onOpenIndoorMap?: () => void;
   accessibleOnly?: boolean;
   onAccessibleOnlyChange?: (value: boolean) => void;
+  shuttleAvailable?: boolean;
 }
 
 export default function NextClassDirectionsPanel({
@@ -255,6 +258,7 @@ export default function NextClassDirectionsPanel({
   onOpenIndoorMap,
   accessibleOnly = false,
   onAccessibleOnlyChange,
+  shuttleAvailable = true,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const { colors } = useColorAccessibility();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -276,6 +280,12 @@ export default function NextClassDirectionsPanel({
 
   const [selectedStrategy, setSelectedStrategy] =
     useState<RouteStrategy>(WALKING_STRATEGY);
+
+  useEffect(() => {
+    if (!shuttleAvailable && selectedStrategy.mode === "shuttle") {
+      setSelectedStrategy(WALKING_STRATEGY);
+    }
+  }, [shuttleAvailable, selectedStrategy.mode]);
   const [routeSummary, setRouteSummary] = useState<{
     duration?: string;
     distance?: string;
@@ -675,36 +685,14 @@ export default function NextClassDirectionsPanel({
             {/* Strategy buttons (hidden while picking) */}
             {!showingList && (
               <View style={styles.modeSection}>
-                <View style={styles.modeContainer}>
-                  {ALL_STRATEGIES.map((strategy) => {
-                    const isActive = selectedStrategy.mode === strategy.mode;
-                    const strategyColor = isActive
-                      ? colors.white
-                      : colors.primary;
-                    return (
-                      <Pressable
-                        key={strategy.mode}
-                        testID={`next-class-mode-${strategy.mode}`}
-                        onPress={() => setSelectedStrategy(strategy)}
-                        style={[
-                          styles.modeButton,
-                          isActive && styles.activeModeButton,
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name={strategy.icon as any}
-                          size={22}
-                          color={strategyColor}
-                        />
-                        <Text
-                          style={[styles.modeText, { color: strategyColor }]}
-                        >
-                          {strategy.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <StrategyModeSelector
+                  selectedStrategy={selectedStrategy}
+                  onSelect={setSelectedStrategy}
+                  shuttleAvailable={shuttleAvailable}
+                  testIDPrefix="next-class-mode"
+                  buttonStyles={styles}
+                  containerStyle={styles.modeContainer}
+                />
                 <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                   <Pressable
                     onPress={() => {

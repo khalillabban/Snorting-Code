@@ -1366,6 +1366,59 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
   });
+
+  describe("Shuttle availability", () => {
+    it("resets to walking strategy when shuttle becomes unavailable", async () => {
+      const { rerender, getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          shuttleAvailable={true}
+        />,
+      );
+
+      fireEvent.press(getByTestId("next-class-mode-shuttle"));
+
+      rerender(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          shuttleAvailable={false}
+        />,
+      );
+
+      await waitFor(() => {
+        const walkingButton = getByTestId("next-class-mode-walking");
+        expect(walkingButton.props.style).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ backgroundColor: "#912338" }),
+          ]),
+        );
+      });
+    });
+
+    it("passes shuttleAvailable to StrategyModeSelector", async () => {
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          shuttleAvailable={false}
+        />,
+      );
+
+      const shuttleButton = getByTestId("next-class-mode-shuttle");
+      expect(shuttleButton.props.accessibilityState?.disabled).toBe(true);
+    });
+  });
 });
 
 

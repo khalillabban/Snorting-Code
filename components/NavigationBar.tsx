@@ -16,7 +16,8 @@ import {
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
-import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
+import { WALKING_STRATEGY } from "../constants/strategies";
+import { colors } from "../constants/theme";
 import { Buildings } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
@@ -30,6 +31,7 @@ import {
     SearchResult,
 } from "../utils/buildingSearch";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import { StrategyModeSelector } from "./StrategyModeSelector";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT =
@@ -57,6 +59,7 @@ interface NavigationBarProps {
   onUseMyLocation?: () => Buildings | null;
   accessibleOnly?: boolean;
   onAccessibleOnlyChange?: (value: boolean) => void;
+  shuttleAvailable?: boolean;
 }
 
 export default function NavigationBar({
@@ -72,6 +75,7 @@ export default function NavigationBar({
   onUseMyLocation,
   accessibleOnly = false,
   onAccessibleOnlyChange,
+  shuttleAvailable = true,
 }: Readonly<NavigationBarProps>) {
   const { colors } = useColorAccessibility();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -97,6 +101,12 @@ export default function NavigationBar({
   const [routeSummaryLoading, setRouteSummaryLoading] = useState(false);
   const [localAccessibleOnly, setLocalAccessibleOnly] =
     useState(accessibleOnly);
+
+  useEffect(() => {
+    if (!shuttleAvailable && selectedStrategy.mode === "shuttle") {
+      setSelectedStrategy(WALKING_STRATEGY);
+    }
+  }, [shuttleAvailable, selectedStrategy.mode]);
 
   const search = useCallback((text: string) => {
     if (!text.trim()) {
@@ -452,36 +462,14 @@ export default function NavigationBar({
 
             {!showingList && (
               <View style={styles.modeSection}>
-                <View style={styles.modeContainer}>
-                  {ALL_STRATEGIES.map((strategy) => {
-                    const isActive = selectedStrategy.mode === strategy.mode;
-                    return (
-                      <Pressable
-                        key={strategy.mode}
-                        testID={`mode-button-${strategy.mode}`}
-                        onPress={() => setSelectedStrategy(strategy)}
-                        style={[
-                          styles.modeButton,
-                          isActive && styles.activeModeButton,
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name={strategy.icon as any}
-                          size={22}
-                          color={isActive ? colors.white : colors.primary}
-                        />
-                        <Text
-                          style={[
-                            styles.modeText,
-                            { color: isActive ? colors.white : colors.primary },
-                          ]}
-                        >
-                          {strategy.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <StrategyModeSelector
+                  selectedStrategy={selectedStrategy}
+                  onSelect={setSelectedStrategy}
+                  shuttleAvailable={shuttleAvailable}
+                  testIDPrefix="mode-button"
+                  buttonStyles={styles}
+                  containerStyle={styles.modeContainer}
+                />
                 <View
                   style={{
                     flexDirection: "row",
@@ -535,8 +523,8 @@ export default function NavigationBar({
                     {routeSummaryLoading
                       ? "Loading…"
                       : [routeSummary?.duration, routeSummary?.distance]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
                   </Text>
                 )}
               </View>

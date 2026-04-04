@@ -1,14 +1,8 @@
-import { Dimensions, StyleSheet } from "react-native";
-import {
-    borderRadius,
-    colors as defaultColors,
-    spacing,
-    typography,
-    type ThemePalette,
-} from "../constants/theme";
+import { Dimensions, Platform, StyleSheet } from "react-native";
+import { borderRadius, colors, spacing, typography } from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
+export const FULL_HEIGHT = SCREEN_HEIGHT * (Platform.OS === "ios" ? 0.9 : 0.95);
 
 export const createStyles = (colors: ThemePalette = defaultColors) =>
   StyleSheet.create({
@@ -132,7 +126,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     flex: 1,
   },
 
-  // Origin/destination inputs 
+  // Origin/destination inputs
   originDestinationCard: {
     backgroundColor: colors.offWhite,
     borderRadius: 12,
@@ -181,7 +175,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     paddingVertical: 12,
   },
 
-  // Mode/strategy buttons 
+  // Mode/strategy buttons
   modeSection: {
     marginBottom: spacing.md,
   },
@@ -200,6 +194,10 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     paddingHorizontal: 2,
     borderRadius: 8,
     backgroundColor: colors.gray100,
+  },
+  disabledModeButton: {
+    backgroundColor: colors.gray200,
+    opacity: 0.6,
   },
   activeModeButton: {
     backgroundColor: colors.primary,
