@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Keyboard,
   Pressable,
   ScrollView,
   Text,
@@ -49,7 +50,11 @@ import {
   type NavigationResult,
 } from "../utils/indoorNavigation";
 import { getIndoorPOIs } from "../utils/indoorPOI";
-import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import {
+  findIndoorRoomMatch,
+  findIndoorRoomMatches,
+  type IndoorRoomMatch,
+} from "../utils/indoorRoomSearch";
 import {
   getAvailableFloors,
   getBuildingPlanAsset,
@@ -72,6 +77,7 @@ const DEFAULT_AVAILABLE_FLOORS = [1] as const;
 type FloorViewport = { width: number; height: number };
 type FloorBounds = { minX: number; minY: number; maxX: number; maxY: number };
 type FloorContentPoint = { x: number; y: number };
+type NavInputField = "origin" | "dest";
 type FloorStageLayout = {
   frameLeft: number;
   frameTop: number;
@@ -300,6 +306,9 @@ export default function IndoorMapScreen() {
   });
   const [navOriginQuery, setNavOriginQuery] = useState(trimParam(navOrigin));
   const [navDestQuery, setNavDestQuery] = useState(trimParam(navDest));
+  const [activeNavField, setActiveNavField] = useState<NavInputField | null>(
+    null,
+  );
 
   const destinationRoomQueryText = trimParam(destinationRoomQuery);
   const trimmedOutdoorDestBuilding = trimParam(outdoorDestBuilding);
@@ -574,6 +583,30 @@ export default function IndoorMapScreen() {
     selectedRoomOnCurrentFloor,
   ]);
 
+  const activeNavQuery = useMemo(() => {
+    if (activeNavField === "origin") return navOriginQuery;
+    if (activeNavField === "dest") return navDestQuery;
+    return "";
+  }, [activeNavField, navDestQuery, navOriginQuery]);
+
+  const roomSuggestions = useMemo(() => {
+    if (!normalizedBuildingPlan || !activeNavField) return [];
+
+    const query = activeNavQuery.trim();
+    if (!query) return [];
+
+    return findIndoorRoomMatches(normalizedBuildingPlan, query, {
+      currentFloor: selectedFloor,
+      maxResults: 6,
+    });
+  }, [activeNavField, activeNavQuery, normalizedBuildingPlan, selectedFloor]);
+
+  const showNoRoomSuggestions =
+    Boolean(activeNavField) &&
+    Boolean(activeNavQuery.trim()) &&
+    Boolean(normalizedBuildingPlan) &&
+    roomSuggestions.length === 0;
+
   const performRoomSearch = useCallback(
     (rawQuery: string, currentFloor: number) => {
       const trimmedQuery = rawQuery.trim();
@@ -604,6 +637,42 @@ export default function IndoorMapScreen() {
       }
     },
     [buildingName, normalizedBuildingPlan],
+  );
+
+  const handleSelectRoomSuggestion = useCallback(
+    (match: IndoorRoomMatch) => {
+      if (activeNavField === "origin") {
+        setNavOriginQuery(match.room.label);
+      } else if (activeNavField === "dest") {
+        setNavDestQuery(match.room.label);
+      } else {
+        return;
+      }
+
+      setSelectedRoom(match.room);
+      setSelectedFloor(match.floor);
+      setSearchError(null);
+      setNavError(null);
+      setActiveNavField(null);
+      Keyboard.dismiss();
+    },
+    [activeNavField],
+  );
+
+  const handleNavQueryChange = useCallback(
+    (field: NavInputField, text: string) => {
+      if (field === "origin") {
+        setNavOriginQuery(text);
+      } else {
+        setNavDestQuery(text);
+      }
+
+      setActiveNavField(field);
+      setSelectedRoom(null);
+      setSearchError(null);
+      setNavError(null);
+    },
+    [],
   );
 
   useInitialRoomQuery(
@@ -770,6 +839,8 @@ export default function IndoorMapScreen() {
 
   const handleNavigate = useCallback(async () => {
     if (!buildingName) return;
+    setActiveNavField(null);
+    Keyboard.dismiss();
     setNavError(null);
     setPendingExitOutdoor(null);
 
@@ -1043,7 +1114,7 @@ export default function IndoorMapScreen() {
             placeholderTextColor={colors.gray500}
             value={navOriginQuery}
             onChangeText={(text) => {
-              setNavOriginQuery(text);
+              handleNavQueryChange("origin", text);
               if (text.length === 1) {
                 logUsabilityEvent("indoor_nav_origin_started", {
                   session_id: sessionId.current,
@@ -1053,6 +1124,7 @@ export default function IndoorMapScreen() {
                 }).catch(console.error);
               }
             }}
+            onFocus={() => setActiveNavField("origin")}
             returnKeyType="next"
           />
           <TextInput
@@ -1061,7 +1133,7 @@ export default function IndoorMapScreen() {
             placeholderTextColor={colors.gray500}
             value={navDestQuery}
             onChangeText={(text) => {
-              setNavDestQuery(text);
+              handleNavQueryChange("dest", text);
               if (text.length === 1) {
                 logUsabilityEvent("indoor_nav_dest_started", {
                   session_id: sessionId.current,
@@ -1071,6 +1143,7 @@ export default function IndoorMapScreen() {
                 }).catch(console.error);
               }
             }}
+            onFocus={() => setActiveNavField("dest")}
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
@@ -1078,6 +1151,69 @@ export default function IndoorMapScreen() {
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
+
+        {activeNavField && roomSuggestions.length > 0 && (
+          <View
+            style={styles.suggestionList}
+            testID="indoor-room-suggestion-list"
+          >
+            {roomSuggestions.map((match, index) => {
+              const secondaryParts = [`Floor ${match.floor}`];
+              if (match.room.roomName) {
+                secondaryParts.push(match.room.roomName);
+              }
+
+              return (
+                <Pressable
+                  key={`${activeNavField}-${match.room.id}-${index}`}
+                  testID={`indoor-room-suggestion-${activeNavField}-${match.room.id}`}
+                  style={[
+                    styles.suggestionItem,
+                    index > 0 && styles.suggestionItemBorder,
+                  ]}
+                  onPress={() => handleSelectRoomSuggestion(match)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${match.room.label}, floor ${match.floor}`}
+                >
+                  <View style={styles.suggestionIconWrap}>
+                    <MaterialCommunityIcons
+                      name="door"
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionText}>{match.room.label}</Text>
+                    <Text style={styles.suggestionSubtext}>
+                      {secondaryParts.join(" · ")}
+                    </Text>
+                  </View>
+                  {match.floor === selectedFloor && (
+                    <View style={styles.suggestionBadge}>
+                      <Text style={styles.suggestionBadgeText}>This floor</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {showNoRoomSuggestions && (
+          <View
+            style={styles.suggestionEmptyState}
+            testID="indoor-room-suggestion-empty"
+          >
+            <MaterialCommunityIcons
+              name="map-search-outline"
+              size={18}
+              color={colors.gray500}
+            />
+            <Text style={styles.suggestionEmptyText}>
+              No matching rooms found
+            </Text>
+          </View>
+        )}
 
         {navError && (
           <View style={styles.errorBanner}>
