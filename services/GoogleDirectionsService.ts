@@ -69,15 +69,15 @@ function parseToMinutes(timeStr?: string): number {
 }
 
 function formatMinutes(totalMinutes: number): string {
-  if (totalMinutes < 60) return `${totalMinutes} mins`;
+  if (totalMinutes < 60) return `${totalMinutes} min`;
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  return m > 0 ? `${h} hour ${m} mins` : `${h} hour`;
+  return m > 0 ? `${h} h ${m} min` : `${h} h`;
 }
 
 export interface OutdoorRouteResult {
   coordinates: LatLng[];
-  segments: RouteSegment[]; // <-- add this
+  segments: RouteSegment[];
   steps: RouteStep[];
   duration?: string;
   distance?: string;
@@ -99,15 +99,25 @@ export async function getOutdoorRouteWithSteps(
   }
 
   if (strategy.mode === "shuttle") {
-    const distToSGW = Math.abs(origin.latitude - BUSSTOP[0].coordinates.latitude);
+    const distToSGW = Math.abs(
+      origin.latitude - BUSSTOP[0].coordinates.latitude,
+    );
     const fromStop = distToSGW < 0.01 ? BUSSTOP[0] : BUSSTOP[1];
     const toStop = fromStop === BUSSTOP[0] ? BUSSTOP[1] : BUSSTOP[0];
 
     // Walk to the stop
-    const walkToStop = await getOutdoorRouteWithSteps(origin, fromStop.coordinates, WALKING_STRATEGY);
+    const walkToStop = await getOutdoorRouteWithSteps(
+      origin,
+      fromStop.coordinates,
+      WALKING_STRATEGY,
+    );
 
     // Shuttle ride
-    const shuttleUrl = buildDirectionsUrl(fromStop.coordinates, toStop.coordinates, DRIVING_STRATEGY);
+    const shuttleUrl = buildDirectionsUrl(
+      fromStop.coordinates,
+      toStop.coordinates,
+      DRIVING_STRATEGY,
+    );
     const shuttleResponse = await fetch(shuttleUrl);
     const shuttleData: DirectionsResponse = await shuttleResponse.json();
     const shuttleLeg = shuttleData.routes?.[0]?.legs?.[0];
@@ -118,17 +128,24 @@ export async function getOutdoorRouteWithSteps(
     });
 
     // Walk from the stop to destination
-    const walkFromStop = await getOutdoorRouteWithSteps(toStop.coordinates, destination, WALKING_STRATEGY);
+    const walkFromStop = await getOutdoorRouteWithSteps(
+      toStop.coordinates,
+      destination,
+      WALKING_STRATEGY,
+    );
 
     // Filter out "Empty" walking legs (if user is already at the stop)
-    const validWalkToSteps = walkToStop.steps.filter(s => s.duration !== "1 min" || s.distance !== "0 m");
-    const validWalkFromSteps = walkFromStop.steps.filter(s => s.duration !== "1 min" || s.distance !== "0 m");
+    const validWalkToSteps = walkToStop.steps.filter(
+      (s) => s.duration !== "1 min" || s.distance !== "0 m",
+    );
+    const validWalkFromSteps = walkFromStop.steps.filter(
+      (s) => s.duration !== "1 min" || s.distance !== "0 m",
+    );
 
     const totalMins =
       parseToMinutes(walkToStop.duration) +
       parseToMinutes(shuttleLeg?.duration?.text) +
       parseToMinutes(walkFromStop.duration);
-
 
     const parseDistance = (d?: string) => {
       if (!d) return 0;
@@ -137,12 +154,17 @@ export async function getOutdoorRouteWithSteps(
       return 0;
     };
 
-    const totalDistance = parseDistance(walkToStop.distance) +
+    const totalDistance =
+      parseDistance(walkToStop.distance) +
       parseDistance(shuttleLeg?.distance?.text) +
       parseDistance(walkFromStop.distance);
 
     return {
-      coordinates: [...walkToStop.coordinates, ...shuttleCoords, ...walkFromStop.coordinates],
+      coordinates: [
+        ...walkToStop.coordinates,
+        ...shuttleCoords,
+        ...walkFromStop.coordinates,
+      ],
       segments: [
         { coordinates: walkToStop.coordinates, mode: "walking" },
         { coordinates: shuttleCoords, mode: "shuttle" },

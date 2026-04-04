@@ -57,6 +57,12 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       fontSize: typography.body.fontSize,
       fontWeight: "600",
     },
+    routeSummary: {
+      color: colors.gray700,
+      fontSize: typography.caption.fontSize,
+      fontWeight: "500",
+      lineHeight: 16,
+    },
     headerSummary: {
       color: colors.gray500,
       fontSize: typography.caption.fontSize,

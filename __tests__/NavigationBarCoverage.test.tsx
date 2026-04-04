@@ -44,6 +44,8 @@ jest.mock("../utils/indoorAccess", () => ({
 }));
 
 jest.mock("../utils/indoorBuildingPlan", () => ({
+  compactIndoorSearchKey: (value: string) =>
+    value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
   getNormalizedBuildingPlan: jest.fn().mockReturnValue({
     rooms: [
       {

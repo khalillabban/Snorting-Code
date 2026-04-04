@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { StrategyModeSelector } from "../components/StrategyModeSelector";
-import { WALKING_STRATEGY, SHUTTLE_STRATEGY } from "../constants/strategies";
+import { SHUTTLE_STRATEGY, WALKING_STRATEGY } from "../constants/strategies";
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialCommunityIcons: "MaterialCommunityIcons",
@@ -12,6 +12,7 @@ const mockButtonStyles = {
   activeModeButton: { backgroundColor: "#912338" },
   disabledModeButton: { opacity: 0.5 },
   modeText: { fontSize: 12 },
+  modeSummary: { fontSize: 10 },
 };
 
 describe("StrategyModeSelector", () => {
@@ -30,6 +31,30 @@ describe("StrategyModeSelector", () => {
     expect(screen.getByTestId("mode-button-driving")).toBeTruthy();
     expect(screen.getByTestId("mode-button-transit")).toBeTruthy();
     expect(screen.getByTestId("mode-button-shuttle")).toBeTruthy();
+  });
+
+  it("renders route duration beneath each transportation mode", () => {
+    const onSelect = jest.fn();
+    render(
+      <StrategyModeSelector
+        selectedStrategy={WALKING_STRATEGY}
+        onSelect={onSelect}
+        buttonStyles={mockButtonStyles}
+        routeSummaries={{
+          walking: "22 min",
+          bicycling: "14 min",
+          driving: "9 min",
+          transit: "27 min",
+          shuttle: "31 min",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("22 min")).toBeTruthy();
+    expect(screen.getByText("14 min")).toBeTruthy();
+    expect(screen.getByText("9 min")).toBeTruthy();
+    expect(screen.getByText("27 min")).toBeTruthy();
+    expect(screen.getByText("31 min")).toBeTruthy();
   });
 
   it("calls onSelect when a strategy button is pressed", () => {
@@ -155,7 +180,9 @@ describe("StrategyModeSelector", () => {
     );
 
     const shuttleButton = screen.getByTestId("mode-button-shuttle");
-    expect(shuttleButton.props.accessibilityHint).toBe("Shuttle is currently unavailable");
+    expect(shuttleButton.props.accessibilityHint).toBe(
+      "Shuttle is currently unavailable",
+    );
   });
 
   it("shows white color for active strategy button", () => {

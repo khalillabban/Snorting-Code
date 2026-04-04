@@ -9,7 +9,10 @@ interface StrategyButtonStyles {
   activeModeButton: ViewStyle;
   disabledModeButton: ViewStyle;
   modeText?: object;
+  modeSummary?: object;
 }
+
+type RouteSummaries = Partial<Record<RouteStrategy["mode"], string | null>>;
 
 interface StrategyModeSelectorProps {
   selectedStrategy: RouteStrategy;
@@ -18,6 +21,8 @@ interface StrategyModeSelectorProps {
   testIDPrefix?: string;
   buttonStyles: StrategyButtonStyles;
   containerStyle?: StyleProp<ViewStyle>;
+  routeSummaries?: RouteSummaries;
+  summariesLoading?: boolean;
 }
 
 export function StrategyModeSelector({
@@ -27,6 +32,8 @@ export function StrategyModeSelector({
   testIDPrefix = "mode-button",
   buttonStyles,
   containerStyle,
+  routeSummaries,
+  summariesLoading = false,
 }: Readonly<StrategyModeSelectorProps>) {
   return (
     <View style={containerStyle}>
@@ -64,6 +71,16 @@ export function StrategyModeSelector({
             />
             <Text style={[buttonStyles.modeText, { color: textColor }]}>
               {strategy.label}
+            </Text>
+            <Text
+              style={[
+                buttonStyles.modeSummary,
+                { color: textColor, opacity: isDisabled ? 0.7 : 0.9 },
+              ]}
+            >
+              {summariesLoading
+                ? "Loading…"
+                : (routeSummaries?.[strategy.mode] ?? "—")}
             </Text>
           </Pressable>
         );

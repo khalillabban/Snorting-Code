@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
-import { DirectionStepsPanel, StepWrapper } from "../components/DirectionStepsPanel";
+import {
+  DirectionStepsPanel,
+  StepWrapper,
+} from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
 import { createStyles } from "../styles/DirectionStepsPanel.styles";
@@ -18,14 +21,24 @@ jest.mock("@expo/vector-icons", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
   return {
-    MaterialCommunityIcons: (props: any) => <Text testID="mci-icon">{props.name}</Text>,
+    MaterialCommunityIcons: (props: any) => (
+      <Text testID="mci-icon">{props.name}</Text>
+    ),
     MaterialIcons: (props: any) => <Text testID="mi-icon">{props.name}</Text>,
   };
 });
 
 const mockSteps: RouteStep[] = [
-  { instruction: "Head north on Main St", distance: "100 m", duration: "1 min" },
-  { instruction: "Turn right onto Oak Ave", distance: "200 m", duration: "3 min" },
+  {
+    instruction: "Head north on Main St",
+    distance: "100 m",
+    duration: "1 min",
+  },
+  {
+    instruction: "Turn right onto Oak Ave",
+    distance: "200 m",
+    duration: "3 min",
+  },
   { instruction: "Arrive at destination", duration: "1 min" },
 ];
 
@@ -86,6 +99,7 @@ describe("DirectionStepsPanel", () => {
     );
 
     expect(screen.getByText("Walk")).toBeTruthy();
+    expect(screen.getByText("5 min \u00B7 300 m")).toBeTruthy();
     expect(screen.getByText("Change route")).toBeTruthy();
     expect(screen.getByText("3 steps hidden to keep the route visible")).toBeTruthy();
     expect(screen.queryByText("Head north on Main St")).toBeNull();
@@ -93,10 +107,24 @@ describe("DirectionStepsPanel", () => {
     expandStepsPanel();
 
     expect(screen.getByText("Head north on Main St")).toBeTruthy();
-    expect(screen.getByText("100 m - 1 min")).toBeTruthy();
+    expect(screen.getByText("100 m \u00B7 1 min")).toBeTruthy();
     expect(screen.getByText("Turn right onto Oak Ave")).toBeTruthy();
-    expect(screen.getByText("200 m - 3 min")).toBeTruthy();
+    expect(screen.getByText("200 m \u00B7 3 min")).toBeTruthy();
     expect(screen.getByText("Arrive at destination")).toBeTruthy();
+  });
+
+  it("prefers the provided route summary over the computed one", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ duration: "7 min", distance: "450 m" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("7 min \u00B7 450 m")).toBeTruthy();
+    expect(screen.queryByText("5 min \u00B7 300 m")).toBeNull();
   });
 
   it("starts collapsed and toggles expanded state from the header control", () => {
@@ -204,7 +232,7 @@ describe("DirectionStepsPanel", () => {
 
     expect(screen.getByText("50 m")).toBeTruthy();
     expect(screen.getByText("2 mins")).toBeTruthy();
-    expect(screen.getByText("10 m - 1 min")).toBeTruthy();
+    expect(screen.getByText("10 m \u00B7 1 min")).toBeTruthy();
   });
 
   it("does not render metadata when distance and duration are empty strings", () => {
@@ -219,11 +247,15 @@ describe("DirectionStepsPanel", () => {
     expandStepsPanel();
 
     expect(screen.getByText("Empty meta")).toBeTruthy();
-    expect(screen.queryByText(" - ")).toBeNull();
+    expect(screen.queryByText(" \u00B7 ")).toBeNull();
   });
 
   it("renders different strategy label for transit", () => {
-    const transitStrategy = { mode: "transit" as const, label: "Transit", icon: "bus" };
+    const transitStrategy = {
+      mode: "transit" as const,
+      label: "Transit",
+      icon: "bus",
+    };
 
     render(
       <DirectionStepsPanel
@@ -394,7 +426,7 @@ describe("DirectionStepsPanel", () => {
 
     expect(screen.getByText("Plain step")).toBeTruthy();
     expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
-    expect(screen.getByText("5 m")).toBeTruthy();
+    expect(screen.getAllByText("5 m").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders shuttle highlight path when instruction contains board", () => {
