@@ -34,9 +34,13 @@ function parseDurationMinutes(value: string): number | null {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
 
-  const hourMatch = normalized.match(/([\d.]+)\s*h(?:ours?|rs?)?/);
-  const minuteMatch = normalized.match(/([\d.]+)\s*m(?:in(?:ute)?s?)?/);
-  const secondMatch = normalized.match(/([\d.]+)\s*s(?:ec(?:ond)?s?)?/);
+  const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)/);
+  const minuteMatch = normalized.match(
+    /(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)/,
+  );
+  const secondMatch = normalized.match(
+    /(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s)/,
+  );
 
   if (!hourMatch && !minuteMatch && !secondMatch) return null;
 
