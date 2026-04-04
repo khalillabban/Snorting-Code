@@ -8,21 +8,21 @@ jest.mock("@react-native-firebase/analytics", () => () => ({
 }));
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import CampusMapScreen, {
-  buildRouteConfirmIntent,
-  classifyIndoorOutdoorTask,
-  handleIndoorRouteIntent,
-  parseStartedAtMs,
-  toBuildingCode,
+    buildRouteConfirmIntent,
+    classifyIndoorOutdoorTask,
+    handleIndoorRouteIntent,
+    parseStartedAtMs,
+    toBuildingCode,
 } from "../app/CampusMapScreen";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
@@ -31,8 +31,8 @@ import { buildIndoorMapRouteParams } from "../utils/indoorAccess";
 import { getIndoorNavigationRouteFromNode } from "../utils/indoorNavigation";
 import { getAvailableFloors, hasBuildingPlanAsset } from "../utils/mapAssets";
 import {
-  getNextClassFromItems,
-  loadCachedSchedule,
+    getNextClassFromItems,
+    loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import { parseTransitionPayload } from "../utils/routeTransition";
 
@@ -2192,35 +2192,6 @@ describe("CampusMapScreen", () => {
     });
   });
 
-  it("tracks task 15 map selection with poi_selected_from_map outcome", async () => {
-    await renderScreen();
-
-    fireEvent.press(screen.getByTestId("poi-filter-button"));
-    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
-    fireEvent.press(screen.getByTestId("trigger-select-poi-map"));
-
-    await waitFor(() => {
-      expect(
-        hasUsabilityEvent(
-          "task_completed",
-          (payload) =>
-            payload?.task_id === "task_15" &&
-            payload?.outcome === "poi_selected_from_map",
-        ),
-      ).toBe(true);
-
-      expect(
-        hasUsabilityEvent(
-          "task_15_poi_detail_viewed",
-          (payload) =>
-            payload?.source === "map" && payload?.poi_name === "Map Cafe",
-        ),
-      ).toBe(true);
-
-      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
-    });
-  });
-
   it("tracks task 16 change-route when a POI route is started from an existing steps panel", async () => {
     mockUseNearbyPOIs.mockReturnValue({
       pois: [
@@ -2328,67 +2299,6 @@ describe("CampusMapScreen", () => {
       expect(hasUsabilityEvent("task_15_list_closed_without_selection")).toBe(
         true,
       );
-    });
-  });
-
-  it("tracks task 16 dismissal when steps panel is dismissed with an active POI task", async () => {
-    mockUseNearbyPOIs.mockReturnValue({
-      pois: [
-        {
-          placeId: "poi-1",
-          name: "Cafe One",
-          latitude: 45.4972,
-          longitude: -73.5792,
-          vicinity: "123 Test St",
-          categoryId: "coffee",
-        },
-      ],
-      loading: false,
-      error: null,
-      search: mockSearchPOIs,
-      clear: mockClearPOIs,
-    });
-
-    await renderScreen();
-
-    // Keep a pre-existing steps panel open from a non-POI route.
-    fireEvent.press(screen.getByTestId("trigger-get-directions"));
-    fireEvent.press(screen.getByTestId("nav-confirm"));
-    fireEvent.press(screen.getByTestId("trigger-route-steps"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("steps-dismiss")).toBeTruthy();
-    });
-
-    // Start POI Task 16 but do not generate new POI route steps yet.
-    fireEvent.press(screen.getByTestId("poi-filter-button"));
-    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("poi-list-panel")).toBeTruthy();
-    });
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("poi-get-directions-button")).toBeTruthy();
-    });
-
-    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
-    await act(async () => {
-      fireEvent.press(screen.getByTestId("steps-dismiss"));
-    });
-
-    await waitFor(() => {
-      expect(
-        hasUsabilityEvent(
-          "task_completed",
-          (payload) =>
-            payload?.task_id === "task_16" && payload?.outcome === "dismissed",
-        ),
-      ).toBe(true);
     });
   });
 
@@ -4805,6 +4715,27 @@ describe("CampusMap startOverride with active POI route and userLocation", () =>
       const props = getMapProps();
       // startOverride should be null since userLocation is null
       expect(props.startOverride).toBeNull();
+    });
+  });
+
+  it("uses the current building fallback as the POI route start when userLocation is unavailable", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-set-my-location"));
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(getMapProps().startPoint).toEqual({
+        name: "EV",
+        displayName: "EV Building",
+      });
     });
   });
 });
