@@ -322,6 +322,210 @@ export function buildRouteConfirmIntent({
   return { kind: "outdoor_route" };
 }
 
+type RefValue<T> = { current: T };
+
+type HandleRouteConfirmationDeps = {
+  setAccessibleOnly: (value: boolean) => void;
+  setSelectedRouteEndRoom: (value: IndoorRoomRecord | null) => void;
+  openIndoorMap: OpenIndoorMapFn;
+  setIsNavVisible: (value: boolean) => void;
+  setActiveOutdoorPOIRoute: (value: PlacePOI | null) => void;
+  setPOIRouteError: (value: string | null) => void;
+  setSelectedRoute: (value: {
+    start: Buildings | null;
+    dest: Buildings | null;
+  }) => void;
+  setSelectedStrategy: (value: RouteStrategy) => void;
+  setRouteFocusTrigger: (updater: (count: number) => number) => void;
+  navStartTime: RefValue<number | null>;
+  navOpenCount: RefValue<number>;
+  task6EndedRef: RefValue<boolean>;
+  completedIndoorOutdoorTasks: RefValue<Set<string>>;
+  finalizedIndoorOutdoorTasks: RefValue<Set<string>>;
+  startTask: (taskId: string) => void;
+  endTask: (
+    taskId: string,
+    extraParams?: Record<string, unknown>,
+  ) => Promise<void>;
+  sessionId: RefValue<string>;
+  mapLoadTime: RefValue<number>;
+};
+
+async function handleRouteConfirmation(
+  deps: HandleRouteConfirmationDeps,
+  params: {
+    start: Buildings | null;
+    dest: Buildings | null;
+    strategy: RouteStrategy;
+    startRoom?: IndoorRoomRecord | null;
+    endRoom?: IndoorRoomRecord | null;
+    accessible?: boolean;
+  },
+): Promise<void> {
+  const { start, dest, strategy, startRoom, endRoom, accessible } = params;
+  deps.setAccessibleOnly(Boolean(accessible));
+  deps.setSelectedRouteEndRoom(endRoom ?? null);
+
+  type CrossBuildingIndoorTransition = {
+    mode: "cross_building_indoor";
+    originBuildingCode: string;
+    originIndoorRoomQuery: string;
+    destinationBuildingCode: string;
+    destinationIndoorRoomQuery: string;
+    strategy: RouteStrategy;
+    accessibleOnly: boolean;
+    usabilityTaskId?: "task_13" | "task_14";
+    usabilityTaskStartedAtMs?: number;
+  };
+
+  const intent = buildRouteConfirmIntent({
+    start,
+    dest,
+    strategy,
+    startRoom,
+    endRoom,
+    accessible,
+  });
+
+  if (intent.kind === "cross_building_indoor_to_indoor") {
+    const payload: CrossBuildingIndoorTransition = {
+      mode: "cross_building_indoor",
+      originBuildingCode: intent.originBuildingCode,
+      originIndoorRoomQuery: intent.originIndoorRoomQuery,
+      destinationBuildingCode: intent.destinationBuildingCode,
+      destinationIndoorRoomQuery: intent.destinationIndoorRoomQuery,
+      strategy: intent.strategy,
+      accessibleOnly: intent.accessibleOnly,
+      usabilityTaskId: classifyIndoorOutdoorTask(start, dest) ?? undefined,
+      usabilityTaskStartedAtMs: Date.now(),
+    };
+
+    router.push({
+      pathname: "/CampusMapScreen",
+      params: {
+        campus: intent.campus,
+        transition: serializeTransitionPayload(payload),
+      },
+    });
+    return;
+  }
+
+  if (intent.kind === "cross_building_indoor_to_outdoor") {
+    deps.setIsNavVisible(false);
+    const indoorParams = buildIndoorMapRouteParams(intent.startBuilding.name);
+    if (!indoorParams) return;
+
+    const indoorOutdoorTaskId = classifyIndoorOutdoorTask(
+      intent.startBuilding,
+      intent.destBuilding,
+    );
+    const taskStartedAtMs = indoorOutdoorTaskId ? Date.now() : undefined;
+    const startCode = toBuildingCode(intent.startBuilding);
+    const destCode = toBuildingCode(intent.destBuilding);
+
+    if (indoorOutdoorTaskId) {
+      deps.completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+      deps.finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+      deps.startTask(indoorOutdoorTaskId);
+      try {
+        await logUsabilityEvent("indoor_outdoor_route_requested", {
+          session_id: deps.sessionId.current,
+          task_id: indoorOutdoorTaskId,
+          start_building_code: startCode ?? "unknown",
+          destination_building_code: destCode ?? "unknown",
+          same_campus: indoorOutdoorTaskId === "task_13",
+          cross_campus: indoorOutdoorTaskId === "task_14",
+          travel_mode: intent.strategy.mode,
+          time_since_map_load_ms: Date.now() - deps.mapLoadTime.current,
+        });
+      } catch (error) {
+        console.error("Firebase Analytics Error: ", error);
+      }
+    }
+
+    router.push({
+      pathname: "/IndoorMapScreen",
+      params: buildCrossBuildingIndoorParams({
+        params: indoorParams,
+        startRoom: intent.startRoom,
+        startBuilding: intent.startBuilding,
+        destBuilding: intent.destBuilding,
+        strategy: intent.strategy,
+        accessible: intent.accessibleOnly,
+        usabilityTaskId: indoorOutdoorTaskId ?? undefined,
+        usabilityTaskStartedAtMs: taskStartedAtMs,
+      }),
+    });
+    return;
+  }
+
+  if (
+    intent.kind === "same_building_indoor_room_to_room" ||
+    intent.kind === "same_building_indoor_to_room"
+  ) {
+    handleIndoorRouteIntent({
+      intent,
+      openIndoorMap: deps.openIndoorMap,
+      setIsNavVisible: deps.setIsNavVisible,
+    });
+    return;
+  }
+
+  deps.setActiveOutdoorPOIRoute(null);
+  deps.setPOIRouteError(null);
+  deps.setSelectedRoute({ start, dest });
+  deps.setSelectedStrategy(strategy);
+  deps.setIsNavVisible(false);
+  deps.setRouteFocusTrigger((count) => (start ? count + 1 : count));
+
+  deps.task6EndedRef.current = false;
+
+  const indoorOutdoorTaskId = classifyIndoorOutdoorTask(start, dest);
+  const startCode = toBuildingCode(start);
+  const destCode = toBuildingCode(dest);
+
+  if (indoorOutdoorTaskId) {
+    deps.completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+    deps.finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
+    deps.startTask(indoorOutdoorTaskId);
+    await logUsabilityEvent("indoor_outdoor_route_requested", {
+      session_id: deps.sessionId.current,
+      task_id: indoorOutdoorTaskId,
+      start_building_code: startCode ?? "unknown",
+      destination_building_code: destCode ?? "unknown",
+      same_campus: indoorOutdoorTaskId === "task_13",
+      cross_campus: indoorOutdoorTaskId === "task_14",
+      travel_mode: strategy.mode,
+      time_since_map_load_ms: Date.now() - deps.mapLoadTime.current,
+    });
+  }
+
+  try {
+    const timeSpent = deps.navStartTime.current
+      ? Date.now() - deps.navStartTime.current
+      : 0;
+    await logUsabilityEvent("route_generated", {
+      session_id: deps.sessionId.current,
+      start_location: start?.name ?? "My Location",
+      dest_location: dest?.name ?? "Unknown",
+      travel_mode: strategy.mode,
+      time_spent_ms: timeSpent,
+      nav_open_count: deps.navOpenCount.current,
+    });
+    deps.navStartTime.current = null;
+
+    await deps.endTask("task_5", {
+      start_location: start?.name ?? "My Location",
+      dest_location: dest?.name ?? "Unknown",
+      travel_mode: strategy.mode,
+    });
+
+    deps.startTask("task_6");
+  } catch (error) {
+    console.error("Firebase Analytics Error: ", error);
+  }
+}
+
 // Task 15 / 16 sub-step tracking helpers
 
 type Task15Snapshot = {
@@ -1115,169 +1319,31 @@ export default function CampusMapScreen() {
       endRoom?: IndoorRoomRecord | null,
       accessible?: boolean,
     ): Promise<void> => {
-      setAccessibleOnly(!!accessible);
-      setSelectedRouteEndRoom(endRoom ?? null);
-
-      type CrossBuildingIndoorTransition = {
-        mode: "cross_building_indoor";
-        originBuildingCode: string;
-        originIndoorRoomQuery: string;
-        destinationBuildingCode: string;
-        destinationIndoorRoomQuery: string;
-        strategy: RouteStrategy;
-        accessibleOnly: boolean;
-        usabilityTaskId?: "task_13" | "task_14";
-        usabilityTaskStartedAtMs?: number;
-      };
-
-      const intent = buildRouteConfirmIntent({
-        start,
-        dest,
-        strategy,
-        startRoom,
-        endRoom,
-        accessible,
-      });
-
-      if (intent.kind === "cross_building_indoor_to_indoor") {
-        const payload: CrossBuildingIndoorTransition = {
-          mode: "cross_building_indoor",
-          originBuildingCode: intent.originBuildingCode,
-          originIndoorRoomQuery: intent.originIndoorRoomQuery,
-          destinationBuildingCode: intent.destinationBuildingCode,
-          destinationIndoorRoomQuery: intent.destinationIndoorRoomQuery,
-          strategy: intent.strategy,
-          accessibleOnly: intent.accessibleOnly,
-          usabilityTaskId: classifyIndoorOutdoorTask(start, dest) ?? undefined,
-          usabilityTaskStartedAtMs: Date.now(),
-        };
-
-        router.push({
-          pathname: "/CampusMapScreen",
-          params: {
-            campus: intent.campus,
-            transition: serializeTransitionPayload(payload),
-          },
-        });
-        return;
-      }
-
-      if (intent.kind === "cross_building_indoor_to_outdoor") {
-        setIsNavVisible(false);
-        const params = buildIndoorMapRouteParams(intent.startBuilding.name);
-        if (!params) return;
-
-        const indoorOutdoorTaskId = classifyIndoorOutdoorTask(
-          intent.startBuilding,
-          intent.destBuilding,
-        );
-        const taskStartedAtMs = indoorOutdoorTaskId ? Date.now() : undefined;
-        const startCode = toBuildingCode(intent.startBuilding);
-        const destCode = toBuildingCode(intent.destBuilding);
-
-        if (indoorOutdoorTaskId) {
-          completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
-          finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
-          startTask(indoorOutdoorTaskId);
-          try {
-            await logUsabilityEvent("indoor_outdoor_route_requested", {
-              session_id: sessionId.current,
-              task_id: indoorOutdoorTaskId,
-              start_building_code: startCode ?? "unknown",
-              destination_building_code: destCode ?? "unknown",
-              same_campus: indoorOutdoorTaskId === "task_13",
-              cross_campus: indoorOutdoorTaskId === "task_14",
-              travel_mode: intent.strategy.mode,
-              time_since_map_load_ms: Date.now() - mapLoadTime.current,
-            });
-          } catch (error) {
-            console.error("Firebase Analytics Error: ", error);
-          }
-        }
-
-        router.push({
-          pathname: "/IndoorMapScreen",
-          params: buildCrossBuildingIndoorParams({
-            params,
-            startRoom: intent.startRoom,
-            startBuilding: intent.startBuilding,
-            destBuilding: intent.destBuilding,
-            strategy: intent.strategy,
-            accessible: intent.accessibleOnly,
-            usabilityTaskId: indoorOutdoorTaskId ?? undefined,
-            usabilityTaskStartedAtMs: taskStartedAtMs,
-          }),
-        });
-        return;
-      }
-
-      if (
-        intent.kind === "same_building_indoor_room_to_room" ||
-        intent.kind === "same_building_indoor_to_room"
-      ) {
-        handleIndoorRouteIntent({
-          intent,
+      await handleRouteConfirmation(
+        {
+          setAccessibleOnly,
+          setSelectedRouteEndRoom,
           openIndoorMap,
           setIsNavVisible,
-        });
-        return;
-      }
-
-      setActiveOutdoorPOIRoute(null);
-      setPOIRouteError(null);
-      setSelectedRoute({ start, dest });
-      setSelectedStrategy(strategy);
-      setIsNavVisible(false);
-      setRouteFocusTrigger((c) => (start ? c + 1 : c));
-
-      task6EndedRef.current = false;
-
-      const indoorOutdoorTaskId = classifyIndoorOutdoorTask(start, dest);
-      const startCode = toBuildingCode(start);
-      const destCode = toBuildingCode(dest);
-
-      if (indoorOutdoorTaskId) {
-        completedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
-        finalizedIndoorOutdoorTasks.current.delete(indoorOutdoorTaskId);
-        startTask(indoorOutdoorTaskId);
-        await logUsabilityEvent("indoor_outdoor_route_requested", {
-          session_id: sessionId.current,
-          task_id: indoorOutdoorTaskId,
-          start_building_code: startCode ?? "unknown",
-          destination_building_code: destCode ?? "unknown",
-          same_campus: indoorOutdoorTaskId === "task_13",
-          cross_campus: indoorOutdoorTaskId === "task_14",
-          travel_mode: strategy.mode,
-          time_since_map_load_ms: Date.now() - mapLoadTime.current,
-        });
-      }
-
-      try {
-        const timeSpent = navStartTime.current
-          ? Date.now() - navStartTime.current
-          : 0;
-        await logUsabilityEvent("route_generated", {
-          session_id: sessionId.current,
-          start_location: start?.name ?? "My Location",
-          dest_location: dest?.name ?? "Unknown",
-          travel_mode: strategy.mode,
-          time_spent_ms: timeSpent,
-          nav_open_count: navOpenCount.current,
-        });
-        navStartTime.current = null;
-
-        await endTask("task_5", {
-          start_location: start?.name ?? "My Location",
-          dest_location: dest?.name ?? "Unknown",
-          travel_mode: strategy.mode,
-        });
-
-        startTask("task_6");
-      } catch (error) {
-        console.error("Firebase Analytics Error: ", error);
-      }
+          setActiveOutdoorPOIRoute,
+          setPOIRouteError,
+          setSelectedRoute,
+          setSelectedStrategy,
+          setRouteFocusTrigger,
+          navStartTime,
+          navOpenCount,
+          task6EndedRef,
+          completedIndoorOutdoorTasks,
+          finalizedIndoorOutdoorTasks,
+          startTask,
+          endTask,
+          sessionId,
+          mapLoadTime,
+        },
+        { start, dest, strategy, startRoom, endRoom, accessible },
+      );
     },
-    [openIndoorMap],
+    [endTask, mapLoadTime, openIndoorMap, sessionId, startTask],
   );
 
   const handleOpenNextClassIndoorMap = useCallback(() => {

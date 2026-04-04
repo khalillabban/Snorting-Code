@@ -81,6 +81,18 @@ export default function Index() {
   const { colors, mode } = useColorAccessibility();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const modeLabel = useMemo(() => {
+    switch (mode) {
+      case "classic":
+        return "Classic";
+      case "redGreenSafe":
+        return "Red-Green Safe";
+      case "blueYellowSafe":
+        return "Blue-Yellow Safe";
+      default:
+        return "High Contrast";
+    }
+  }, [mode]);
 
   // ── Usability Testing: Task 8 timing ─────────────────────────────────────
   const homeLoadTime = useRef<number>(Date.now());
@@ -109,7 +121,7 @@ export default function Index() {
         accessibilityLabel="Change color mode"
         testID="home-color-mode-button"
       >
-        <Text style={styles.modeChipText}>Color mode: {mode === "classic" ? "Classic" : mode === "redGreenSafe" ? "Red-Green Safe" : mode === "blueYellowSafe" ? "Blue-Yellow Safe" : "High Contrast"}</Text>
+        <Text style={styles.modeChipText}>Color mode: {modeLabel}</Text>
       </Pressable>
 
       <Pressable style={styles.button} onPress={() => goToCampus("sgw")}>
