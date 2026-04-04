@@ -283,4 +283,36 @@ describe("DirectionStepsPanel", () => {
     fireEvent.press(screen.getByText("Continue indoors"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it("does not add CTA accessibility hint for non-final pressable step", () => {
+    const onMidStepPress = jest.fn();
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Tap midpoint", onPress: onMidStepPress },
+          { instruction: "Final non-cta" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+    fireEvent.press(screen.getByText("Tap midpoint"));
+    expect(onMidStepPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders shuttle highlight path when instruction contains board", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Board shuttle at stop", duration: "2 min" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("bus");
+  });
 });

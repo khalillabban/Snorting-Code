@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { IndoorPOIFilter } from "../components/IndoorPOIFilter";
 import { POI_CATEGORIES, type POICategoryId } from "../constants/indoorPOI";
+import * as ColorAccessibilityContext from "../contexts/ColorAccessibilityContext";
 
 jest.mock("@expo/vector-icons", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -81,5 +82,57 @@ describe("IndoorPOIFilter", () => {
 
     const stairsChip = screen.getByTestId("poi-filter-chip-stairs");
     expect(stairsChip.props.accessibilityLabel).toBe("Show Stairs");
+  });
+
+  it("fires onFirstInteraction only once", () => {
+    const onFirstInteraction = jest.fn();
+    render(
+      <IndoorPOIFilter
+        activeCategories={new Set()}
+        onToggle={mockToggle}
+        onFirstInteraction={onFirstInteraction}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId("poi-filter-chip-washroom"));
+    fireEvent.press(screen.getByTestId("poi-filter-chip-stairs"));
+
+    expect(onFirstInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies mapped accessible colors in non-classic mode for active chips", () => {
+    const spy = jest
+      .spyOn(ColorAccessibilityContext, "useColorAccessibility")
+      .mockReturnValue({
+        mode: "redGreenSafe",
+        isHydrated: true,
+        options: [],
+        setMode: jest.fn(),
+        colors: {
+          white: "#fff",
+          gray300: "#b3b3b3",
+          primary: "#111111",
+          route2: "#222222",
+          info: "#333333",
+          routeShuttle: "#444444",
+          routeTransit: "#555555",
+          warning: "#666666",
+        } as any,
+      } as any);
+
+    render(
+      <IndoorPOIFilter
+        activeCategories={new Set<POICategoryId>(["washroom"])}
+        onToggle={mockToggle}
+      />,
+    );
+
+    const washroomChip = screen.getByTestId("poi-filter-chip-washroom");
+    const flattened = Array.isArray(washroomChip.props.style)
+      ? Object.assign({}, ...washroomChip.props.style.filter(Boolean))
+      : washroomChip.props.style;
+    expect(flattened.backgroundColor).toBe("#222222");
+
+    spy.mockRestore();
   });
 });

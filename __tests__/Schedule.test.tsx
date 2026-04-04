@@ -1,23 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import React from "react";
 import { AppState } from "react-native";
 import ScheduleScreen, {
-  applyCachedSchedule,
-  buildScheduleItems,
-  eventOverlapsRange,
-  getEventDedupKey,
-  handleScheduleInitError,
-  loadCalendarsAndMaybeAutoSelect,
-  parseCalendarDate,
-  pickDefaultCalendarIds,
-  resolveAccessToken,
+    applyCachedSchedule,
+    buildScheduleItems,
+    eventOverlapsRange,
+    getEventDedupKey,
+    handleScheduleInitError,
+    loadCalendarsAndMaybeAutoSelect,
+    parseCalendarDate,
+    pickDefaultCalendarIds,
+    resolveAccessToken,
 } from "../app/schedule";
 import { GoogleCalendarApiError } from "../services/GoogleCalendarService";
 
@@ -404,10 +404,12 @@ describe("ScheduleScreen caching flow", () => {
     });
 
     expect(mockSyncCalendarEvents).not.toHaveBeenCalled();
-    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
-      "schedule_displayed",
-      expect.any(Object),
-    );
+    await waitFor(() => {
+      expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+        "schedule_displayed",
+        expect.any(Object),
+      );
+    });
     expect(screen.getByText("Disconnect")).toBeTruthy();
   });
 

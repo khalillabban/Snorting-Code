@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 
 import {
-  IndoorDirectionsPanel,
-  IndoorRouteOverlay,
+    IndoorDirectionsPanel,
+    IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
 import type { NavigationRoute } from "../utils/indoorNavigation";
 import { getRouteWaypointsForFloor } from "../utils/indoorNavigation";
@@ -133,6 +133,27 @@ describe("IndoorRouteOverlay", () => {
     );
 
     expect(mockedWaypoints).toHaveBeenCalledWith(route, 8, 0.5);
+  });
+
+  it("uses accessible route color branch when accessibleOnly is true", () => {
+    mockedWaypoints.mockReturnValue([
+      { x: 10, y: 20 },
+      { x: 30, y: 40 },
+    ]);
+
+    render(
+      <IndoorRouteOverlay
+        route={makeRoute()}
+        floor={1}
+        coordinateScale={1}
+        stageLayout={stageLayout}
+        floorBounds={floorBounds}
+        accessibleOnly
+      />,
+    );
+
+    const polylines = screen.getAllByTestId("svg-polyline");
+    expect(polylines[1].props.stroke).toBe("#2e7d32");
   });
 });
 
