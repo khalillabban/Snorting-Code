@@ -20,6 +20,7 @@ interface ZoomableViewProps {
 }
 
 export function clampScale(value: number, min: number, max: number): number {
+  "worklet";
   return Math.min(Math.max(value, min), max);
 }
 
@@ -39,18 +40,23 @@ export function ZoomableView({
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
+      "worklet";
       savedScale.value = scale.value;
     })
     .onUpdate((event) => {
-      scale.value = clampScale(savedScale.value * event.scale, minScale, maxScale);
+      "worklet";
+      const newScale = savedScale.value * event.scale;
+      scale.value = Math.min(Math.max(newScale, minScale), maxScale);
     });
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      "worklet";
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     })
     .onUpdate((event) => {
+      "worklet";
       if (scale.value > 1) {
         translateX.value = savedTranslateX.value + event.translationX;
         translateY.value = savedTranslateY.value + event.translationY;
@@ -60,6 +66,7 @@ export function ZoomableView({
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
+      "worklet";
       if (scale.value > 1) {
         scale.value = withTiming(1);
         translateX.value = withTiming(0);
