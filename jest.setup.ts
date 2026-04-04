@@ -11,11 +11,14 @@ const suppressPatterns = [
 
 // Override console.error to catch and suppress known warnings
 global.console.error = (...args: any[]) => {
-  // Check if any argument contains a suppression pattern
-  const hasPattern = args.some((arg) => {
-    const str = String(arg);
-    return suppressPatterns.some((pattern) => pattern.test(str));
-  });
+  // React can emit formatted messages across multiple args (e.g. %s + component name).
+  // Join all args so patterns still match reliably.
+  const fullMessage = args.map((arg) => String(arg)).join(" ");
+
+  const hasPattern =
+    suppressPatterns.some((pattern) => pattern.test(fullMessage)) ||
+    (fullMessage.includes("was not wrapped in act") &&
+      (fullMessage.includes("VirtualizedList") || fullMessage.includes("Icon")));
 
   // Only log if no suppression pattern matched
   if (!hasPattern) {

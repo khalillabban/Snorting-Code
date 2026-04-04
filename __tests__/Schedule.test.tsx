@@ -807,10 +807,12 @@ describe("ScheduleScreen caching flow", () => {
       );
       expect(mockSyncCalendarEvents).toHaveBeenCalledTimes(2);
     });
-    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
-      "schedule_displayed",
-      expect.any(Object),
-    );
+    await waitFor(() => {
+      expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+        "schedule_displayed",
+        expect.any(Object),
+      );
+    });
 
     expect(screen.getByTestId("calendar-items-count").props.children).toBe(1);
   });

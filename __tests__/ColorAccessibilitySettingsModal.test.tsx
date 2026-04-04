@@ -51,4 +51,25 @@ describe("ColorAccessibilitySettingsModal", () => {
     fireEvent.press(screen.getByLabelText("Red-Green Safe"));
     expect(setMode).toHaveBeenCalledWith("redGreenSafe");
   });
+
+  it("does not render content when visible is false", () => {
+    jest.spyOn(ColorAccessibilityContext, "useColorAccessibility").mockReturnValue({
+      mode: "classic",
+      setMode: jest.fn(),
+      isHydrated: true,
+      colors: {
+        white: "#fff",
+        black: "#000",
+        offWhite: "#f2f2f2",
+        primary: "#912338",
+        primaryDark: "#6d1a2a",
+        gray100: "#e5e5e5",
+        gray700: "#404040",
+      } as any,
+      options: [],
+    } as any);
+
+    render(<ColorAccessibilitySettingsModal visible={false} onClose={jest.fn()} />);
+    expect(screen.queryByText("Color accessibility")).toBeNull();
+  });
 });

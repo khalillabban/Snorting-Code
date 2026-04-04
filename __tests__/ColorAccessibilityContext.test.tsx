@@ -1,0 +1,91 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import React from "react";
+import { Pressable, Text, View } from "react-native";
+import {
+    ColorAccessibilityProvider,
+    useColorAccessibility,
+} from "../contexts/ColorAccessibilityContext";
+
+function Probe() {
+  const { mode, colors, setMode, isHydrated, options } = useColorAccessibility();
+
+  return (
+    <View>
+      <Text testID="mode">{mode}</Text>
+      <Text testID="primary">{colors.primary}</Text>
+      <Text testID="hydrated">{String(isHydrated)}</Text>
+      <Text testID="options-count">{String(options.length)}</Text>
+
+      <Pressable testID="set-red-green" onPress={() => setMode("redGreenSafe")}>
+        <Text>set-red-green</Text>
+      </Pressable>
+      <Pressable testID="set-blue-yellow" onPress={() => setMode("blueYellowSafe")}>
+        <Text>set-blue-yellow</Text>
+      </Pressable>
+      <Pressable testID="set-high-contrast" onPress={() => setMode("highContrast")}>
+        <Text>set-high-contrast</Text>
+      </Pressable>
+      <Pressable testID="set-classic" onPress={() => setMode("classic")}>
+        <Text>set-classic</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+describe("ColorAccessibilityContext", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("starts hydrated in test env with classic mode and all options", () => {
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    expect(screen.getByTestId("mode").props.children).toBe("classic");
+    expect(screen.getByTestId("primary").props.children).toBe("#912338");
+    expect(screen.getByTestId("hydrated").props.children).toBe("true");
+    expect(screen.getByTestId("options-count").props.children).toBe("4");
+  });
+
+  it("switches palettes when mode changes", () => {
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    fireEvent.press(screen.getByTestId("set-red-green"));
+    expect(screen.getByTestId("mode").props.children).toBe("redGreenSafe");
+    expect(screen.getByTestId("primary").props.children).toBe("#1557B0");
+
+    fireEvent.press(screen.getByTestId("set-blue-yellow"));
+    expect(screen.getByTestId("mode").props.children).toBe("blueYellowSafe");
+    expect(screen.getByTestId("primary").props.children).toBe("#8E2B5C");
+
+    fireEvent.press(screen.getByTestId("set-high-contrast"));
+    expect(screen.getByTestId("mode").props.children).toBe("highContrast");
+    expect(screen.getByTestId("primary").props.children).toBe("#111111");
+
+    fireEvent.press(screen.getByTestId("set-classic"));
+    expect(screen.getByTestId("mode").props.children).toBe("classic");
+    expect(screen.getByTestId("primary").props.children).toBe("#912338");
+  });
+
+  it("does not persist mode to AsyncStorage while NODE_ENV is test", () => {
+    render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    fireEvent.press(screen.getByTestId("set-red-green"));
+    fireEvent.press(screen.getByTestId("set-high-contrast"));
+
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+});
