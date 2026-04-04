@@ -9,10 +9,7 @@ import { RouteStrategy } from "../services/Routing";
 import { createStyles } from "../styles/DirectionStepsPanel.styles";
 
 function parseDistanceMeters(value: string): number | null {
-  const match = value
-    .trim()
-    .toLowerCase()
-    .match(/^([\d.]+)\s*(km|m|mi|ft)$/);
+  const match = /^([\d.]+)\s*(km|m|mi|ft)$/.exec(value.trim().toLowerCase());
   if (!match) return null;
 
   const amount = Number(match[1]);
@@ -34,15 +31,18 @@ function parseDurationMinutes(value: string): number | null {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
 
-  const hourMatch = /(\d+(?:\.\d+)?)\s*(?:hours|hour|hrs|hr|h)\b/.exec(
-    normalized,
-  );
-  const minuteMatch = /(\d+(?:\.\d+)?)\s*(?:minutes|minute|mins|min|m)\b/.exec(
-    normalized,
-  );
-  const secondMatch = /(\d+(?:\.\d+)?)\s*(?:seconds|second|secs|sec|s)\b/.exec(
-    normalized,
-  );
+  const hourMatch =
+    /(\d{1,10}(?:\.\d{1,10})?)\s{0,10}(?:hours|hour|hrs|hr|h)\b/.exec(
+      normalized,
+    );
+  const minuteMatch =
+    /(\d{1,10}(?:\.\d{1,10})?)\s{0,10}(?:minutes|minute|mins|min|m)\b/.exec(
+      normalized,
+    );
+  const secondMatch =
+    /(\d{1,10}(?:\.\d{1,10})?)\s{0,10}(?:seconds|second|secs|sec|s)\b/.exec(
+      normalized,
+    );
 
   if (!hourMatch && !minuteMatch && !secondMatch) return null;
 
