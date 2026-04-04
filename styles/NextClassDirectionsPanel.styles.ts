@@ -1,5 +1,11 @@
 import { Dimensions, Platform, StyleSheet } from "react-native";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import {
+  borderRadius,
+  colors as defaultColors,
+  spacing,
+  typography,
+  type ThemePalette,
+} from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export const FULL_HEIGHT = SCREEN_HEIGHT * (Platform.OS === "ios" ? 0.9 : 0.95);
@@ -196,7 +202,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     backgroundColor: colors.gray100,
   },
   disabledModeButton: {
-    backgroundColor: colors.gray200,
+    backgroundColor: colors.gray300,
     opacity: 0.6,
   },
   activeModeButton: {

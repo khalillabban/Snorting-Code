@@ -183,7 +183,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     elevation: 2,
   },
   disabledModeButton: {
-    backgroundColor: colors.gray200,
+    backgroundColor: colors.gray300,
     opacity: 0.6,
   },
   modeText: {
