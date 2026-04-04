@@ -737,7 +737,7 @@ export default function CampusMapScreen() {
       };
       startTask("task_15");
     },
-    [],
+    [startTask],
   );
 
   const finalizeTask15 = useCallback(
@@ -807,7 +807,7 @@ export default function CampusMapScreen() {
       task16EndedRef.current = false;
       startTask("task_16");
     },
-    [],
+    [startTask],
   );
 
   const finalizeTask16 = useCallback(
@@ -1280,7 +1280,7 @@ export default function CampusMapScreen() {
     } catch (error) {
       console.error("Firebase Analytics Error: ", error);
     }
-  }, []);
+  }, [endTask]);
 
   const openIndoorMap = useCallback(
     (
@@ -1559,7 +1559,7 @@ export default function CampusMapScreen() {
         }
       }
     },
-    [activeOutdoorPOIRoute, finalizeTask16],
+    [activeOutdoorPOIRoute, endTask, finalizeTask16],
   );
 
   type InteractiveRouteStep = RouteStep & {
