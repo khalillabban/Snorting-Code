@@ -1,6 +1,14 @@
 import { StyleSheet } from "react-native";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
-export const styles = StyleSheet.create({
+import {
+    borderRadius,
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
+
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   panel: {
     position: "absolute",
     left: spacing.md,
@@ -108,7 +116,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   shuttleStepHighlight: {
-    backgroundColor: "#800000", // A slightly darker/different red for the bus
+    backgroundColor: colors.routeShuttle,
   },
   shuttleTextBold: {
     fontWeight: "700",
@@ -145,4 +153,6 @@ export const styles = StyleSheet.create({
     alignSelf: "center",
     marginLeft: spacing.sm,
   },
-});
+  });
+
+export const styles = createStyles();

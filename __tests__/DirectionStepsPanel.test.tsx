@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
-import { DirectionStepsPanel } from "../components/DirectionStepsPanel";
+import { DirectionStepsPanel, StepWrapper } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
+import { createStyles } from "../styles/DirectionStepsPanel.styles";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { Text } = require("react-native");
 
 // Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
 jest.mock("@expo/vector-icons", () => {
@@ -22,7 +26,36 @@ const mockSteps: RouteStep[] = [
   { instruction: "Arrive at destination", duration: "1 min" },
 ];
 
+const wrapperStyles = createStyles();
+
 describe("DirectionStepsPanel", () => {
+  it("renders StepWrapper as a plain row when no onPress is provided", () => {
+    const { getByText, queryByRole } = render(
+      <StepWrapper styles={wrapperStyles}>
+        <Text>Plain wrapper</Text>
+      </StepWrapper>,
+    );
+
+    expect(getByText("Plain wrapper")).toBeTruthy();
+    expect(queryByRole("button")).toBeNull();
+  });
+
+  it("renders StepWrapper as a pressable and uses the default CTA flag when omitted", () => {
+    const onPress = jest.fn();
+
+    render(
+      <StepWrapper styles={wrapperStyles} onPress={onPress}>
+        <Text>Pressable wrapper</Text>
+      </StepWrapper>,
+    );
+
+    expect(screen.getByText("Pressable wrapper")).toBeTruthy();
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+
+    fireEvent.press(screen.getByText("Pressable wrapper"));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it("returns null when steps array is empty", () => {
     const { queryByText } = render(
       <DirectionStepsPanel
@@ -282,5 +315,51 @@ describe("DirectionStepsPanel", () => {
 
     fireEvent.press(screen.getByText("Continue indoors"));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not add CTA accessibility hint for non-final pressable step", () => {
+    const onMidStepPress = jest.fn();
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Tap midpoint", onPress: onMidStepPress },
+          { instruction: "Final non-cta" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+    fireEvent.press(screen.getByText("Tap midpoint"));
+    expect(onMidStepPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders non-pressable steps as plain rows", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Plain step", distance: "5 m" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Plain step")).toBeTruthy();
+    expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+    expect(screen.getByText("5 m")).toBeTruthy();
+  });
+
+  it("renders shuttle highlight path when instruction contains board", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Board shuttle at stop", duration: "2 min" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("bus");
   });
 });

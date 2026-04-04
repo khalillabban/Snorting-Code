@@ -2,10 +2,10 @@ import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
-import { colors } from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import type { PlacePOI } from "../services/GooglePlacesService";
 import { styles } from "../styles/POIListPanel.styles";
-import { haversineMeters, formatDistance } from "../utils/distance";
+import { formatDistance, haversineMeters } from "../utils/distance";
 
 interface POIListPanelProps {
   pois: PlacePOI[];
@@ -30,6 +30,7 @@ export function POIListPanel({
   locationUnavailable = false,
   onRetry,
 }: Readonly<POIListPanelProps>) {
+  const { colors } = useColorAccessibility();
   const sorted = useMemo<POIWithDistance[]>(() => {
     return pois
       .map((poi) => ({
@@ -60,18 +61,18 @@ export function POIListPanel({
       return (
         <View style={styles.emptyContainer} testID="poi-list-error">
           <MaterialIcons name="error-outline" size={36} color={colors.error} />
-          <Text style={[styles.emptyText, { marginTop: 8, color: colors.error }]}>
+          <Text style={[styles.emptyText, { marginTop: 8, color: colors.error, textAlign: "center" }]}>
             {error}
           </Text>
           {onRetry && (
             <Pressable
               onPress={onRetry}
-              style={styles.retryButton}
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
               accessibilityRole="button"
               accessibilityLabel="Retry search"
               testID="poi-list-retry"
             >
-              <Text style={styles.retryButtonText}>Try Again</Text>
+              <Text style={[styles.retryButtonText, { color: colors.white }]}>Try Again</Text>
             </Pressable>
           )}
         </View>
@@ -82,10 +83,10 @@ export function POIListPanel({
       return (
         <View style={styles.emptyContainer} testID="poi-list-empty">
           <MaterialCommunityIcons name="map-search-outline" size={36} color={colors.gray500} />
-          <Text style={[styles.emptyText, { marginTop: 8 }]}>
+          <Text style={[styles.emptyText, { marginTop: 8, color: colors.gray700, textAlign: "center" }]}>
             No places found nearby.
           </Text>
-          <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
+          <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4, color: colors.gray500, textAlign: "center" }]}>
             Try selecting a different category or increasing the search range.
           </Text>
         </View>
@@ -102,7 +103,7 @@ export function POIListPanel({
           const catDef = OUTDOOR_POI_CATEGORY_MAP[item.categoryId];
           return (
             <Pressable
-              style={styles.row}
+              style={[styles.row, { backgroundColor: colors.offWhite, marginVertical: 6 }]}
               onPress={() => onSelect?.(item)}
               accessibilityRole="button"
               accessibilityLabel={`${item.name}, ${formatDistance(item.distance)} away`}
@@ -117,20 +118,20 @@ export function POIListPanel({
                 <MaterialCommunityIcons
                   name={catDef?.icon ?? "map-marker"}
                   size={16}
-                  color="#fff"
+                  color={colors.white}
                 />
               </View>
               <View style={styles.rowBody}>
-                <Text style={styles.rowName} numberOfLines={1}>
+                <Text style={[styles.rowName, { color: colors.gray700 }]} numberOfLines={1}>
                   {item.name}
                 </Text>
                 {item.vicinity ? (
-                  <Text style={styles.rowVicinity} numberOfLines={1}>
+                  <Text style={[styles.rowVicinity, { color: colors.gray500 }]} numberOfLines={1}>
                     {item.vicinity}
                   </Text>
                 ) : null}
               </View>
-              <Text style={styles.rowDistance}>
+              <Text style={[styles.rowDistance, { color: colors.gray700 }]}>
                 {formatDistance(item.distance)}
               </Text>
             </Pressable>
@@ -142,30 +143,35 @@ export function POIListPanel({
 
   return (
     <View style={styles.panel} testID="poi-list-panel">
-      <View style={styles.card}>
-        <View style={styles.header}>
+      <View style={[styles.card, { backgroundColor: colors.white }]}>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: colors.white, borderBottomColor: colors.gray100 },
+          ]}
+        >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text style={styles.headerTitle}>Nearby Places</Text>
+            <Text style={[styles.headerTitle, { color: colors.gray700 }]}>Nearby Places</Text>
             {!loading && !error && (
-              <Text style={styles.headerCount}>({sorted.length})</Text>
+              <Text style={[styles.headerCount, { color: colors.gray500 }]}>({sorted.length})</Text>
             )}
           </View>
           <Pressable
             onPress={onClose}
-            style={styles.closeButton}
+            style={[styles.closeButton, { backgroundColor: colors.gray100, borderRadius: 8 }]}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Close nearby places list"
             testID="poi-list-close"
           >
-            <Text style={styles.closeText}>✕</Text>
+            <Text style={[styles.closeText, { color: colors.gray700 }]}>✕</Text>
           </Pressable>
         </View>
 
         {locationUnavailable && !error && (
           <View style={styles.locationBanner} testID="poi-list-location-banner">
             <MaterialIcons name="location-off" size={14} color={colors.gray500} />
-            <Text style={styles.locationBannerText}>
+            <Text style={[styles.locationBannerText, { color: colors.gray500 }]}>
               Location unavailable — showing results near campus center
             </Text>
           </View>

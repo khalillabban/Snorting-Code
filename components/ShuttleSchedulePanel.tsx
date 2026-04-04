@@ -9,8 +9,9 @@ import {
   View,
 } from "react-native";
 import { shuttleSchedule } from "../constants/shuttle";
-import { colors, spacing } from "../constants/theme";
-import { styles } from "../styles/ShuttleSchedulePanel.styles";
+import { spacing } from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { createStyles } from "../styles/ShuttleSchedulePanel.styles";
 import {
   getScheduleKeyForDate,
   type ScheduleKey,
@@ -134,6 +135,8 @@ interface ShuttleSchedulePanelProps {
 }
 
 export function ShuttleSchedulePanel({ onClose }: ShuttleSchedulePanelProps) {
+  const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [now, setNow] = useState(() => new Date());
   const [direction, setDirection] = useState<DirectionKey>("SGW_to_Loyola");
   const [viewMode, setViewMode] = useState<"upcoming" | "all">("upcoming");
@@ -463,6 +466,8 @@ function TripRow({
   readonly highlight: boolean;
   readonly badge: TripBadge | null;
 }) {
+  const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const dep = timeToMinutes(trip.departureTime);
   const eta = minutesUntilDeparture(dep, currentMinutes);
 

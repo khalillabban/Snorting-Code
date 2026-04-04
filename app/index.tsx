@@ -1,12 +1,86 @@
 import { logUsabilityEvent } from "@/utils/usabilityAnalytics";
 import { useRouter } from "expo-router";
-import { useRef } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import {
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import { ColorAccessibilitySettingsModal } from "../components/ColorAccessibilitySettingsModal";
 import { CampusKey } from "../constants/campuses";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import {
+    borderRadius,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+
+function createStyles(colors: ThemePalette) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: spacing.lg,
+    },
+    title: {
+      ...typography.title,
+      color: colors.white,
+      marginBottom: spacing.sm,
+      textAlign: "center",
+    },
+    subtitle: {
+      ...typography.subtitle,
+      color: colors.offWhite,
+      marginBottom: spacing.md,
+      textAlign: "center",
+    },
+    modeChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.primarySemiTransparent,
+      borderWidth: 1,
+      borderColor: colors.white,
+      marginBottom: spacing.xl,
+      alignItems: "center",
+    },
+    modeChipText: {
+      ...typography.caption,
+      color: colors.white,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+      fontWeight: "700",
+    },
+    button: {
+      width: "100%",
+      paddingVertical: 14,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.white,
+      marginBottom: spacing.md,
+      alignItems: "center",
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.primary,
+    },
+    footerHint: {
+      marginTop: spacing.sm,
+      color: colors.offWhite,
+      fontSize: 12,
+      textAlign: "center",
+    },
+  });
+}
 
 export default function Index() {
   const router = useRouter();
+  const { colors, mode } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
   // ── Usability Testing: Task 8 timing ─────────────────────────────────────
   const homeLoadTime = useRef<number>(Date.now());
@@ -28,6 +102,16 @@ export default function Index() {
       <Text style={styles.title}>Concordia Maps</Text>
       <Text style={styles.subtitle}>Select a campus</Text>
 
+      <Pressable
+        style={styles.modeChip}
+        onPress={() => setSettingsVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Change color mode"
+        testID="home-color-mode-button"
+      >
+        <Text style={styles.modeChipText}>Color mode: {mode === "classic" ? "Classic" : mode === "redGreenSafe" ? "Red-Green Safe" : mode === "blueYellowSafe" ? "Blue-Yellow Safe" : "High Contrast"}</Text>
+      </Pressable>
+
       <Pressable style={styles.button} onPress={() => goToCampus("sgw")}>
         <Text style={styles.buttonText}>SGW Campus</Text>
       </Pressable>
@@ -48,38 +132,15 @@ export default function Index() {
       >
         <Text style={styles.buttonText}>My Schedule</Text>
       </Pressable>
+
+      <Text style={styles.footerHint}>
+        Tap the color mode button to switch to a color-blind-friendly palette.
+      </Text>
+
+      <ColorAccessibilitySettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: spacing.lg,
-  },
-  title: {
-    ...typography.title,
-    color: colors.white,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.subtitle,
-    color: colors.offWhite,
-    marginBottom: spacing.xl,
-  },
-  button: {
-    width: "100%",
-    paddingVertical: 14,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.offWhite,
-    marginBottom: spacing.md,
-    alignItems: "center",
-  },
-  buttonText: {
-    ...typography.button,
-    color: colors.primary,
-  },
-});

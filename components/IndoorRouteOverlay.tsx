@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Polyline } from "react-native-svg";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/IndoorRouteOverlay.styles";
 import {
-  NavigationRoute,
-  NavigationSegment,
-  getRouteWaypointsForFloor,
+    NavigationRoute,
+    NavigationSegment,
+    getRouteWaypointsForFloor,
 } from "../utils/indoorNavigation";
 
 interface FloorStageLayout {
@@ -30,12 +31,6 @@ interface IndoorRouteOverlayProps {
   accessibleOnly?: boolean;
 }
 
-const ROUTE_COLOR = "#3B82F6";
-const ROUTE_COLOR_ALPHA = "#3B82F640";
-const ACCESSIBLE_ROUTE_COLOR = "#2563eb"; // blue-600
-const ACCESSIBLE_ROUTE_COLOR_ALPHA = "#2563eb40";
-const DESTINATION_COLOR = "#EF4444";
-const ORIGIN_COLOR = "#22C55E";
 const STROKE_WIDTH = 3.5;
 const DOT_RADIUS = 5;
 
@@ -47,6 +42,7 @@ export function IndoorRouteOverlay({
   floorBounds,
   accessibleOnly,
 }: Readonly<IndoorRouteOverlayProps>) {
+  const { colors } = useColorAccessibility();
   const { points, originPoint, destPoint } = useMemo(() => {
     const waypoints = getRouteWaypointsForFloor(route, floor, coordinateScale);
 
@@ -70,8 +66,8 @@ export function IndoorRouteOverlay({
 
   if (!points || !originPoint) return null;
 
-  const mainColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR : ROUTE_COLOR;
-  const alphaColor = accessibleOnly ? ACCESSIBLE_ROUTE_COLOR_ALPHA : ROUTE_COLOR_ALPHA;
+  const mainColor = accessibleOnly ? colors.routeTransit : colors.routeDrive;
+  const alphaColor = accessibleOnly ? colors.secondaryTransparent : colors.primaryTransparent;
 
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -104,7 +100,7 @@ export function IndoorRouteOverlay({
           cx={originPoint.x}
           cy={originPoint.y}
           r={DOT_RADIUS}
-          fill={ORIGIN_COLOR}
+          fill={colors.success}
         />
       </G>
 
@@ -121,7 +117,7 @@ export function IndoorRouteOverlay({
             cx={destPoint.x}
             cy={destPoint.y}
             r={DOT_RADIUS}
-            fill={DESTINATION_COLOR}
+            fill={colors.error}
           />
         </G>
       )}

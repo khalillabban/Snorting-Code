@@ -1,11 +1,16 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { colors, spacing } from "../constants/theme";
+import {
+    colors as defaultColors,
+    spacing,
+    type ThemePalette,
+} from "../constants/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
 export const PEEK_HEIGHT = 120;
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   keyboardContainer: {
     position: "absolute",
     width: "100%",
@@ -178,7 +183,7 @@ export const styles = StyleSheet.create({
     elevation: 2,
   },
   disabledModeButton: {
-    backgroundColor: colors.gray200,
+    backgroundColor: colors.gray300,
     opacity: 0.6,
   },
   modeText: {
@@ -214,3 +219,5 @@ export const styles = StyleSheet.create({
     color: colors.secondary,
   },
 });
+
+export const styles = createStyles();

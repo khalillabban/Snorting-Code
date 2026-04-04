@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { colors } from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 
 //FILE TO SEE FETCH THE BUS SO WE CAN SEE THEM IN REAL TIME FROM THE WEBSITE
 import {
@@ -10,7 +10,7 @@ import {
   View
 } from "react-native";
 import { BUSSTOP } from "../constants/shuttle";
-import { styles } from "../styles/ShuttleBusTracker.styles";
+import { createStyles } from "../styles/ShuttleBusTracker.styles";
 
 export interface BusPoint {
   ID: string;
@@ -87,6 +87,8 @@ export function useShuttleBus() {
 }
 
 export const ShuttleBusTracker = () => {
+  const { colors } = useColorAccessibility();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const { activeBuses, loading } = useShuttleBus();
 
   if (loading) {

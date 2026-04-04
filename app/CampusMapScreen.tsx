@@ -16,45 +16,46 @@ import { BUILDINGS } from "../constants/buildings";
 import type { CampusKey } from "../constants/campuses";
 import { CAMPUSES } from "../constants/campuses";
 import {
-  OUTDOOR_POI_CATEGORY_MAP,
-  type OutdoorPOICategoryId,
+    OUTDOOR_POI_CATEGORY_MAP,
+    type OutdoorPOICategoryId,
 } from "../constants/outdoorPOI";
 import { DEFAULT_POI_RANGE, type POIRangeOption } from "../constants/poiRange";
 import { WALKING_STRATEGY } from "../constants/strategies";
-import { colors, spacing } from "../constants/theme";
+import { spacing } from "../constants/theme";
 import { Buildings, RouteStep, ScheduleItem } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { useNearbyPOIs } from "../hooks/useNearbyPOIs";
 import { useShuttleAvailability } from "../hooks/useShuttleAvailability";
 import type { PlacePOI } from "../services/GooglePlacesService";
 import { RouteStrategy } from "../services/Routing";
-import { styles } from "../styles/CampusMapScreen.styles";
+import { createStyles } from "../styles/CampusMapScreen.styles";
 import {
-  buildContinueIndoorsStep,
-  getContinueIndoorsBuildingCode,
+    buildContinueIndoorsStep,
+    getContinueIndoorsBuildingCode,
 } from "../utils/continueIndoors";
 import {
-  buildIndoorMapRouteParams,
-  getIndoorAccessState,
-  normalizeRoomQuery,
+    buildIndoorMapRouteParams,
+    getIndoorAccessState,
+    normalizeRoomQuery,
 } from "../utils/indoorAccess";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import {
-  getIndoorNavigationRouteFromNode,
-  indoorRouteToSteps,
+    getIndoorNavigationRouteFromNode,
+    indoorRouteToSteps,
 } from "../utils/indoorNavigation";
 import { getBuildingPlanAsset } from "../utils/mapAssets";
 import {
-  getNextClassFromItems,
-  loadCachedSchedule,
+    getNextClassFromItems,
+    loadCachedSchedule,
 } from "../utils/parseCourseEvents";
 import {
-  parseTransitionPayload,
-  serializeTransitionPayload,
+    parseTransitionPayload,
+    serializeTransitionPayload,
 } from "../utils/routeTransition";
 
 import {
-  USABILITY_TESTING_ENABLED,
-  getSessionId,
+    USABILITY_TESTING_ENABLED,
+    getSessionId,
 } from "../constants/usabilityConfig";
 import { getDistanceToPolygon } from "../utils/pointInPolygon";
 
@@ -344,6 +345,8 @@ type Task16Snapshot = {
 };
 
 export default function CampusMapScreen() {
+  const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [accessibleOnly, setAccessibleOnly] = useState(false);
   const { campus, transition, destinationRoomQuery } = useLocalSearchParams<{
     campus?: CampusKey;

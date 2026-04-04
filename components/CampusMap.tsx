@@ -14,7 +14,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
 import type { LatLng, Region } from "react-native-maps";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { BUILDINGS } from "../constants/buildings";
@@ -22,13 +22,13 @@ import type { CampusKey } from "../constants/campuses";
 import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY } from "../constants/strategies";
-import { colors } from "../constants/theme";
 import type {
   Buildings,
   Location,
   RouteSegment,
   RouteStep,
 } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import type { PlacePOI } from "../services/GooglePlacesService";
 import type { RouteStrategy } from "../services/Routing";
@@ -76,7 +76,17 @@ const SELECTED_BUILDING_LAT_OFFSET = 0.0011;
 const LABELS_SHOW_AT_DELTA = 0.01; // turn ON when zoomed in enough
 const LABELS_HIDE_AT_DELTA = 0.012; // turn OFF when zoomed out
 
-function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
+function getPolygonStyle(
+  colors: ReturnType<typeof useColorAccessibility>["colors"],
+  mode: ReturnType<typeof useColorAccessibility>["mode"],
+  isDarkMap: boolean,
+  isCurrent: boolean,
+  isSelected: boolean,
+) {
+  const useHighContrastStroke = mode === "redGreenSafe" && isDarkMap;
+  const defaultStroke = useHighContrastStroke ? colors.secondaryLight : colors.primary;
+  const selectedStroke = useHighContrastStroke ? colors.warning : colors.primaryDark;
+
   if (isCurrent) {
     return {
       fillColor: colors.secondaryTransparent,
@@ -87,13 +97,13 @@ function getPolygonStyle(isCurrent: boolean, isSelected: boolean) {
   if (isSelected) {
     return {
       fillColor: colors.primaryLight,
-      strokeColor: colors.primaryDark,
+      strokeColor: selectedStroke,
       strokeWidth: SELECTED_STROKE_WIDTH,
     };
   }
   return {
     fillColor: colors.primaryTransparent,
-    strokeColor: colors.primary,
+    strokeColor: defaultStroke,
     strokeWidth: DEFAULT_STROKE_WIDTH,
   };
 }
@@ -120,7 +130,10 @@ function CurrentLocationMarker({ coordinate }: CurrentLocationMarkerProps) {
   );
 }
 
-function getPolylineStyleForMode(mode: RouteStrategy["mode"]) {
+function getPolylineStyleForMode(
+  colors: ReturnType<typeof useColorAccessibility>["colors"],
+  mode: RouteStrategy["mode"],
+) {
   const strokeColors: Record<RouteStrategy["mode"], string> = {
     walking: colors.routeWalk,
     bicycling: colors.routeBike,
@@ -170,6 +183,9 @@ export default function CampusMap({
   focusPOITrigger = 0,
   onSelectPOI,
 }: CampusMapProps) {
+  const { colors, mode } = useColorAccessibility();
+  const colorScheme = useColorScheme();
+  const isDarkMap = colorScheme === "dark";
   const [selectedBuilding, setSelectedBuilding] = useState<Buildings | null>(
     null,
   );
@@ -571,7 +587,13 @@ export default function CampusMap({
         {buildingsOnCampus.map((building) => {
           const isSelected = selectedBuilding?.name === building.name;
           const isCurrent = currentBuilding?.name === building.name;
-          const style = getPolygonStyle(isCurrent, isSelected);
+          const style = getPolygonStyle(
+            colors,
+            mode,
+            isDarkMap,
+            isCurrent,
+            isSelected,
+          );
 
           if (!building.boundingBox?.length) {
             if (building.name !== "QA") {
@@ -629,6 +651,7 @@ export default function CampusMap({
         {routeSegments.length > 0 &&
           routeSegments.map((seg) => {
             const { strokeColor, lineDashPattern } = getPolylineStyleForMode(
+              colors,
               seg.mode,
             );
 

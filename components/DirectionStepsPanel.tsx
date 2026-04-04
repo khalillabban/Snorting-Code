@@ -1,18 +1,24 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { colors } from "../constants/theme";
 import { RouteStep } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { RouteStrategy } from "../services/Routing";
-import { styles } from "../styles/DirectionStepsPanel.styles";
+import { createStyles } from "../styles/DirectionStepsPanel.styles";
 
 type StepWrapperProps = {
+  readonly styles: ReturnType<typeof createStyles>;
   readonly onPress?: () => void;
   readonly isCallToAction?: boolean;
   readonly children: React.ReactNode;
 };
 
-function StepWrapper({ onPress, isCallToAction = false, children }: StepWrapperProps) {
+export function StepWrapper({
+  styles,
+  onPress,
+  isCallToAction = false,
+  children,
+}: StepWrapperProps) {
   if (!onPress) {
     return <View style={styles.stepRow}>{children}</View>;
   }
@@ -48,6 +54,9 @@ export function DirectionStepsPanel({
   onDismiss,
   onFocusUser,
 }: DirectionStepsPanelProps) {
+  const { colors } = useColorAccessibility();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   if (steps.length === 0) return null;
 
   return (
@@ -123,6 +132,7 @@ export function DirectionStepsPanel({
             return (
               <StepWrapper
                 key={stepKey}
+                styles={styles}
                 onPress={step.onPress}
                 isCallToAction={isContinueIndoorsCta}
               >

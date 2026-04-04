@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Buildings } from "../constants/type";
-import { styles } from "../styles/BuildingInfoPopup.styles";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { createStyles } from "../styles/BuildingInfoPopup.styles";
 import { BuildingIcons } from "./AccessibilityIcons";
 
 type TabKey = "departments" | "services";
@@ -25,6 +26,8 @@ export const BuildingInfoPopup = ({
   hasIndoorMap,
   onViewIndoorMap,
 }: BuildingInfoPopupProps) => {
+  const { colors } = useColorAccessibility();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
   useEffect(() => {

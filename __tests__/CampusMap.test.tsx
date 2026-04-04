@@ -1,21 +1,22 @@
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import {
-  getCurrentPositionAsync,
-  getForegroundPermissionsAsync,
-  hasServicesEnabledAsync,
-  requestForegroundPermissionsAsync,
-  watchPositionAsync,
+    getCurrentPositionAsync,
+    getForegroundPermissionsAsync,
+    hasServicesEnabledAsync,
+    requestForegroundPermissionsAsync,
+    watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
 import { BUILDINGS } from "../constants/buildings";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
+import * as ColorAccessibilityContext from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { getAvailableFloors } from "../utils/mapAssets";
 import { getBuildingContainingPoint } from "../utils/pointInPolygon";
@@ -320,6 +321,39 @@ describe("CampusMap", () => {
         "Building EMPTY has no boundingBox coordinates.",
       );
     });
+  });
+
+  it("uses high-contrast default polygon stroke in red-green-safe mode on dark map", async () => {
+    const colorSchemeSpy = jest
+      .spyOn(require("react-native"), "useColorScheme")
+      .mockReturnValue("dark");
+    const accessibilitySpy = jest
+      .spyOn(ColorAccessibilityContext, "useColorAccessibility")
+      .mockReturnValue({
+        mode: "redGreenSafe",
+        colors,
+        isHydrated: true,
+        options: [],
+        setMode: jest.fn(),
+      } as any);
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    const polygonStyleText = screen.getAllByTestId("polygon-style")[0].props
+      .children as string;
+    const polygonStyle = JSON.parse(polygonStyleText);
+
+    expect(polygonStyle.strokeColor).toBe(colors.secondaryLight);
+
+    accessibilitySpy.mockRestore();
+    colorSchemeSpy.mockRestore();
   });
 
   // --- Location effect (loadCurrentLocation) ---

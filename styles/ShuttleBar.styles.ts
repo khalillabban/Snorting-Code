@@ -1,9 +1,11 @@
 import { StyleSheet } from "react-native";
+import { colors as defaultColors, type ThemePalette } from "../constants/theme";
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   container: {
     padding: 12,
-    backgroundColor: "#f0f4f8",
+    backgroundColor: colors.offWhite,
     borderRadius: 8,
     marginVertical: 8,
   },
@@ -20,16 +22,18 @@ export const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#555",
+    color: colors.gray500,
   },
   time: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#222",
+    color: colors.gray700,
   },
   noShuttle: {
     fontSize: 14,
-    color: "#888",
+    color: colors.gray500,
     fontStyle: "italic",
   },
-});
+  });
+
+export const styles = createStyles();

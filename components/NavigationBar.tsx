@@ -1,33 +1,34 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  PanResponder,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    Pressable,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { colors } from "../constants/theme";
 import { Buildings } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { styles } from "../styles/NavigationBar.styles";
 import {
-  campusBuildingResults,
-  queryIndex,
-  resultLabel,
-  resultSubtitle,
-  SearchResult,
+    campusBuildingResults,
+    queryIndex,
+    resultLabel,
+    resultSubtitle,
+    SearchResult,
 } from "../utils/buildingSearch";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import { StrategyModeSelector } from "./StrategyModeSelector";
@@ -76,6 +77,7 @@ export default function NavigationBar({
   onAccessibleOnlyChange,
   shuttleAvailable = true,
 }: Readonly<NavigationBarProps>) {
+  const { colors } = useColorAccessibility();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 

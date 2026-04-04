@@ -1,29 +1,19 @@
-type PaletteSeed = {
-  primary: string;
-  primaryDark: string;
-  primaryDarker: string;
-  primaryLight: string;
-  secondary: string;
-  secondaryDark: string;
-  secondaryLight: string;
-  success: string;
-  warning: string;
-  error: string;
-  info: string;
-  routeWalk: string;
-  routeDrive: string;
-  routeTransit: string;
-  routeBike: string;
-  routeShuttle: string;
-};
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+import {
+    type ColorAccessibilityMode,
+    type ThemePalette,
+} from "../constants/theme";
 
-export type ColorAccessibilityMode =
-  | "classic"
-  | "redGreenSafe"
-  | "blueYellowSafe"
-  | "highContrast";
+const STORAGE_KEY = "snorting-code.color-accessibility-mode";
 
-export const COLOR_ACCESSIBILITY_OPTIONS: Array<{
+const COLOR_ACCESSIBILITY_OPTIONS: Array<{
   value: ColorAccessibilityMode;
   label: string;
   description: string;
@@ -50,7 +40,7 @@ export const COLOR_ACCESSIBILITY_OPTIONS: Array<{
   },
 ];
 
-export function hexToRgb(hex: string) {
+function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "").trim();
   const expanded =
     normalized.length === 3
@@ -67,12 +57,29 @@ export function hexToRgb(hex: string) {
   };
 }
 
-export function withOpacity(hex: string, opacity: number) {
+function withOpacity(hex: string, opacity: number) {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-function buildPalette(seed: PaletteSeed) {
+function buildPalette(seed: {
+  primary: string;
+  primaryDark: string;
+  primaryDarker: string;
+  primaryLight: string;
+  secondary: string;
+  secondaryDark: string;
+  secondaryLight: string;
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
+  routeWalk: string;
+  routeDrive: string;
+  routeTransit: string;
+  routeBike: string;
+  routeShuttle: string;
+}) {
   return {
     primary: seed.primary,
     primaryTransparent: withOpacity(seed.primary, 0.5),
@@ -186,107 +193,96 @@ const HIGH_CONTRAST_PALETTE = buildPalette({
   routeShuttle: "#7b1fa2",
 });
 
-export type ThemePalette = typeof CLASSIC_PALETTE;
+type ColorAccessibilityContextValue = {
+  mode: ColorAccessibilityMode;
+  colors: ThemePalette;
+  options: typeof COLOR_ACCESSIBILITY_OPTIONS;
+  setMode: (mode: ColorAccessibilityMode) => void;
+  isHydrated: boolean;
+};
 
-export function getThemePalette(mode: ColorAccessibilityMode): ThemePalette {
-  switch (mode) {
-    case "redGreenSafe":
-      return RED_GREEN_SAFE_PALETTE;
-    case "blueYellowSafe":
-      return BLUE_YELLOW_SAFE_PALETTE;
-    case "highContrast":
-      return HIGH_CONTRAST_PALETTE;
-    default:
-      return CLASSIC_PALETTE;
-  }
+const defaultValue: ColorAccessibilityContextValue = {
+  mode: "classic",
+  colors: CLASSIC_PALETTE,
+  options: COLOR_ACCESSIBILITY_OPTIONS,
+  setMode: () => {},
+  isHydrated: true,
+};
+
+const ColorAccessibilityContext =
+  createContext<ColorAccessibilityContextValue>(defaultValue);
+
+export function ColorAccessibilityProvider({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const isTestEnvironment = process.env.NODE_ENV === "test";
+  const [mode, setMode] = useState<ColorAccessibilityMode>("classic");
+  const [isHydrated, setIsHydrated] = useState(isTestEnvironment);
+
+  useEffect(() => {
+    if (isTestEnvironment) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMode = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        if (cancelled) return;
+        if (saved && COLOR_ACCESSIBILITY_OPTIONS.some((option) => option.value === saved)) {
+          setMode(saved as ColorAccessibilityMode);
+        }
+      } catch (error) {
+        console.warn("Failed to load color accessibility mode.", error);
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    void loadMode();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isTestEnvironment]);
+
+  useEffect(() => {
+    if (!isHydrated || isTestEnvironment) return;
+    Promise.resolve(AsyncStorage.setItem(STORAGE_KEY, mode)).catch((error) => {
+      console.warn("Failed to save color accessibility mode.", error);
+    });
+  }, [isHydrated, isTestEnvironment, mode]);
+
+  const value = useMemo<ColorAccessibilityContextValue>(
+    () => ({
+      mode,
+      colors:
+        mode === "redGreenSafe"
+          ? RED_GREEN_SAFE_PALETTE
+          : mode === "blueYellowSafe"
+            ? BLUE_YELLOW_SAFE_PALETTE
+            : mode === "highContrast"
+              ? HIGH_CONTRAST_PALETTE
+              : CLASSIC_PALETTE,
+      options: COLOR_ACCESSIBILITY_OPTIONS,
+      setMode,
+      isHydrated,
+    }),
+    [isHydrated, mode],
+  );
+
+  return (
+    <ColorAccessibilityContext.Provider value={value}>
+      {children}
+    </ColorAccessibilityContext.Provider>
+  );
 }
 
-// Color palette
-export const colors = {
-  // Brand colors (Concordia)
-  primary: "#912338", // Dark Red
-  primaryTransparent: "rgba(145, 35, 56, 0.5)", // Dark Red with 50% opacity
-  primarySemiTransparent: "rgba(145, 35, 56, 0.75)", // Dark Red with 75% opacity
-  primaryBarelyTransparent: "rgba(145, 35, 56, 0.90)", // Dark Red with 90% opacity
-  primaryDark: "#6d1a2a", // Dark Red
-  primaryDarker: "#4b0f1a", // Darker Red
-  primaryLight: "#b84d5f", // Light Red
-  secondary: "#C4A747", // Gold
-  secondaryTransparent: "rgba(196, 167, 71, 0.5)", // Gold with 50% opacity
-  secondarySemiTransparent: "rgba(196, 167, 71, 0.75)", // Gold with 75% opacity
-  secondaryDark: "#8b6e34", // Dark Gold
-  secondaryLight: "#d9b85c", // Light Gold
-
-  // Neutrals
-  white: "#ffffff",
-  offWhite: "#f2f2f2", // Light Gray
-  gray100: "#e5e5e5", // Light Gray
-  gray200: "#d4d4d4", // Lighter Medium Gray
-  gray300: "#b3b3b3", // Medium Gray
-  gray400: "#9a9a9a", // Medium Dark Gray
-  gray500: "#737373", // Dark Gray
-  gray700: "#404040", // Darkest Gray
-  black: "#1a1a1a", // Black
-
-  // Semantic
-  success: "#2e7d32", // Green
-  warning: "#f9a825", // Yellow
-  error: "#c62828", // Red
-  info: "#1565c0", // Blue
-
-  // Map-specific (useful for navigation features later)
-  mapOverlay: "rgba(145, 35, 56, 0.15)",
-  routePath: "#1565c0",
-  /** Route line color by travel mode */
-  routeWalk: "#912338", // primary (walking)
-  routeDrive: "#1565c0", // info/blue (car)
-  routeTransit: "#2e7d32", // success/green (transit)
-  routeBike: "#C4A747", // secondary/gold (bike)
-  routeShuttle: "#6a1b9a", // purple for shuttle
-} as const;
-
-// Typography
-export const typography = {
-  title: {
-    fontSize: 36,
-    fontWeight: "700" as const,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: "600" as const,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: "400" as const,
-  },
-  body: {
-    fontSize: 14,
-    fontWeight: "400" as const,
-  },
-  button: {
-    fontSize: 18,
-    fontWeight: "600" as const,
-  },
-  caption: {
-    fontSize: 12,
-    fontWeight: "400" as const,
-  },
-} as const;
-
-// Spacing scale
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-} as const;
-
-// Border radii
-export const borderRadius = {
-  sm: 6,
-  md: 10,
-  lg: 16,
-  full: 9999,
-} as const;
+export function useColorAccessibility() {
+  return useContext(ColorAccessibilityContext);
+}

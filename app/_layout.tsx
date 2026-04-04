@@ -1,11 +1,44 @@
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
-import { colors } from "../constants/theme";
 import {
-  resetSession,
-  USABILITY_TESTING_ENABLED,
+    resetSession,
+    USABILITY_TESTING_ENABLED,
 } from "../constants/usabilityConfig";
+import { ColorAccessibilityProvider, useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+
+function AppStack({
+  onStateChange,
+}: Readonly<{
+  onStateChange: (state: any) => void;
+}>) {
+  const { colors } = useColorAccessibility();
+
+  return (
+    <Stack
+      screenListeners={{ state: (e) => onStateChange(e.data.state) }}
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.primaryDark },
+        headerTintColor: colors.white,
+        headerTitleStyle: { fontWeight: "600" },
+      }}
+    >
+      <Stack.Screen name="index" options={{ title: "Home" }} />
+      <Stack.Screen
+        name="CampusMapScreen"
+        options={{
+          title: "Campus Map",
+          headerBackButtonDisplayMode: "minimal",
+        }}
+      />
+      <Stack.Screen name="IndoorMapScreen" options={{ title: "Indoor Map" }} />
+      <Stack.Screen
+        name="schedule"
+        options={{ title: "Schedule", headerBackButtonDisplayMode: "minimal" }}
+      />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const smartlookRef = useRef<any>(null);
@@ -54,27 +87,8 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack
-      screenListeners={{ state: (e) => handleStateChange(e.data.state) }}
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.primaryDark },
-        headerTintColor: colors.white,
-        headerTitleStyle: { fontWeight: "600" },
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: "Home" }} />
-      <Stack.Screen
-        name="CampusMapScreen"
-        options={{
-          title: "Campus Map",
-          headerBackButtonDisplayMode: "minimal",
-        }}
-      />
-      <Stack.Screen name="IndoorMapScreen" options={{ title: "Indoor Map" }} />
-      <Stack.Screen
-        name="schedule"
-        options={{ title: "Schedule", headerBackButtonDisplayMode: "minimal" }}
-      />
-    </Stack>
+    <ColorAccessibilityProvider>
+      <AppStack onStateChange={handleStateChange} />
+    </ColorAccessibilityProvider>
   );
 }

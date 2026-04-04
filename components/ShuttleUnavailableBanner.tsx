@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Text, View } from "react-native";
-import { colors } from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/ShuttleUnvailableBanner.styles";
 
 type ShuttleUnavailableBannerProps = Readonly<{
@@ -15,6 +15,8 @@ export function ShuttleUnavailableBanner({
   operatingSummary,
   compact = false,
 }: ShuttleUnavailableBannerProps) {
+  const { colors } = useColorAccessibility();
+
   return (
     <View style={[styles.container, compact && styles.compact]}>
       <MaterialCommunityIcons

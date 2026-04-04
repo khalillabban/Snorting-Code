@@ -1,7 +1,14 @@
 import { StyleSheet } from "react-native";
-import { borderRadius, colors, spacing, typography } from "../constants/theme";
+import {
+    borderRadius,
+    colors as defaultColors,
+    spacing,
+    typography,
+    type ThemePalette,
+} from "../constants/theme";
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors: ThemePalette = defaultColors) =>
+  StyleSheet.create({
   panel: {
     position: "absolute",
     left: 0,
@@ -125,3 +132,5 @@ export const styles = StyleSheet.create({
     color: colors.gray500,
   },
 });
+
+export const styles = createStyles();

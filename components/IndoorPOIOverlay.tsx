@@ -2,14 +2,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { View } from "react-native";
 import {
-  POI_CATEGORY_MAP,
-  type POICategoryId,
+    POI_CATEGORY_MAP,
+    type POICategoryId,
 } from "../constants/indoorPOI";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/IndoorPOIOverlay.styles";
 import {
-  filterPOIsByCategories,
-  filterPOIsByFloor,
-  type IndoorPOI,
+    filterPOIsByCategories,
+    filterPOIsByFloor,
+    type IndoorPOI,
 } from "../utils/indoorPOI";
 
 interface FloorStageLayout {
@@ -43,6 +44,7 @@ export function IndoorPOIOverlay({
   floorBounds,
   activeCategories,
 }: Readonly<IndoorPOIOverlayProps>) {
+  const { colors } = useColorAccessibility();
   const activeCategoryIds = useMemo(
     () => Array.from(activeCategories).sort((a, b) => a.localeCompare(b)).join(","),
     [activeCategories],
@@ -89,13 +91,14 @@ export function IndoorPOIOverlay({
                 left: screenX,
                 top: screenY,
                 backgroundColor: catDef.color,
+                borderColor: colors.white,
               },
             ]}
           >
             <MaterialCommunityIcons
               name={catDef.icon}
               size={ICON_SIZE}
-              color="#fff"
+              color={colors.white}
             />
           </View>
         );
