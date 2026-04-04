@@ -34,14 +34,14 @@ function parseDurationMinutes(value: string): number | null {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
 
-  const hourMatch = normalized.match(
-    /(\d+(?:\.\d+)?)\s*(?:hours|hour|hrs|hr|h)\b/,
+  const hourMatch = /(\d+(?:\.\d+)?)\s*(?:hours|hour|hrs|hr|h)\b/.exec(
+    normalized,
   );
-  const minuteMatch = normalized.match(
-    /(\d+(?:\.\d+)?)\s*(?:minutes|minute|mins|min|m)\b/,
+  const minuteMatch = /(\d+(?:\.\d+)?)\s*(?:minutes|minute|mins|min|m)\b/.exec(
+    normalized,
   );
-  const secondMatch = normalized.match(
-    /(\d+(?:\.\d+)?)\s*(?:seconds|second|secs|sec|s)\b/,
+  const secondMatch = /(\d+(?:\.\d+)?)\s*(?:seconds|second|secs|sec|s)\b/.exec(
+    normalized,
   );
 
   if (!hourMatch && !minuteMatch && !secondMatch) return null;
