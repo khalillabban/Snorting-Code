@@ -276,7 +276,14 @@ export default function NavigationBar({
       setStartRoom(null);
       onInitialStartApplied?.();
     }
-  }, [visible, initialStart, onInitialStartApplied]);
+  }, [
+    visible,
+    initialStart,
+    onInitialStartApplied,
+    setStartBuilding,
+    setStartLoc,
+    setStartRoom,
+  ]);
 
   useEffect(() => {
     if (visible && initialDestination) {
@@ -285,7 +292,14 @@ export default function NavigationBar({
       setEndRoom(null);
       onInitialDestinationApplied?.();
     }
-  }, [visible, initialDestination, onInitialDestinationApplied]);
+  }, [
+    visible,
+    initialDestination,
+    onInitialDestinationApplied,
+    setDestBuilding,
+    setDestLoc,
+    setEndRoom,
+  ]);
 
   const panResponder = useSheetPanResponder({ translateY, onClose });
 

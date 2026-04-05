@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -336,13 +336,13 @@ export default function NextClassDirectionsPanel({
   }, [shuttleAvailable, selectedStrategy.mode]);
   const [error, setError] = useState<string | null>(null);
 
-  const clearDestWithError = (courseName: string) => {
+  const clearDestWithError = useCallback((courseName: string) => {
     setError(`Missing course details for "${courseName}".`);
     setDestLoc("");
     setDestBuilding(null);
-  };
+  }, [setDestBuilding, setDestLoc]);
 
-  const setDestFromBuilding = (
+  const setDestFromBuilding = useCallback((
     building: Buildings,
     room?: IndoorRoomRecord | null,
   ) => {
@@ -350,9 +350,9 @@ export default function NextClassDirectionsPanel({
     setDestLoc(building.displayName);
     setDestBuilding(building);
     setEndRoom(room ?? null);
-  };
+  }, [setDestBuilding, setDestLoc, setEndRoom]);
 
-  const resolveIndoorRoom = (
+  const resolveIndoorRoom = useCallback((
     buildingCode: string,
     roomCode: string,
   ): IndoorRoomRecord | null => {
@@ -361,7 +361,7 @@ export default function NextClassDirectionsPanel({
     if (!plan) return null;
     const query = normalizeRoomQuery(buildingCode, roomCode);
     return findIndoorRoomMatch(plan, query)?.room ?? null;
-  };
+  }, []);
 
   const clearActiveSearch = () => {
     setSuggestions([]);
@@ -383,7 +383,7 @@ export default function NextClassDirectionsPanel({
     } else {
       clearDestWithError(nextClass.courseName);
     }
-  }, [nextClass]);
+  }, [nextClass, clearDestWithError, resolveIndoorRoom, setDestFromBuilding]);
 
   useEffect(() => {
     const showingList = suggestions.length > 0 || filteredCourses.length > 0;
