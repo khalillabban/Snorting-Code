@@ -251,11 +251,9 @@ export function DirectionStepsPanel({
                   const isActive = s.mode === strategy.mode;
                   const isShuttle = s.mode === "shuttle";
                   const isDisabled = isShuttle && !shuttleAvailable;
-                  const optionColor = isDisabled
-                    ? colors.gray500
-                    : isActive
-                      ? colors.white
-                      : colors.primary;
+                  let optionColor = colors.primary;
+                  if (isDisabled) optionColor = colors.gray500;
+                  else if (isActive) optionColor = colors.white;
                   return (
                     <Pressable
                       key={s.mode}
