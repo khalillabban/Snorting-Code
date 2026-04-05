@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 import {
-    OUTDOOR_POI_CATEGORIES,
-    type OutdoorPOICategoryId,
+  OUTDOOR_POI_CATEGORIES,
+  type OutdoorPOICategoryId,
 } from "../constants/outdoorPOI";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/OutdoorPOIFilter.styles";
@@ -21,12 +21,12 @@ export function OutdoorPOIFilter({
     const getCategoryColor = (originalColor: string): string => {
       if (mode === "classic") return originalColor;
       const colorMap: Record<string, string> = {
-        "#e65100": colors.accent1,
-        "#6d4c41": colors.route1,
-        "#1565c0": colors.route2,
-        "#2e7d32": colors.route3,
-        "#c62828": colors.route4,
-        "#0277bd": colors.accent2,
+        "#e65100": colors.warning,
+        "#6d4c41": colors.routeWalk,
+        "#1565c0": colors.routeDrive,
+        "#2e7d32": colors.routeTransit,
+        "#c62828": colors.error,
+        "#0277bd": colors.info,
       };
       return colorMap[originalColor] || colors.primary;
     };
