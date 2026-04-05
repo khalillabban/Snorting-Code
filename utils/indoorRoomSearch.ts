@@ -36,9 +36,6 @@ function getMatchScore(
   normalizedQuery: string,
   compactQuery: string,
 ): { score: number; matchType: IndoorRoomMatchType | null } {
-  if (!normalizedQuery || !compactQuery) {
-    return { score: 0, matchType: null };
-  }
 
   if (room.label === normalizedQuery) {
     return { score: 900, matchType: "exact_label" };
