@@ -93,6 +93,9 @@ const buildCrossBuildingIndoorParams = ({
 });
 
 type FocusTarget = CampusKey | "user";
+type CampusMapScreenStyles = ReturnType<typeof createStyles>;
+type AccessibilityColors = ReturnType<typeof useColorAccessibility>["colors"];
+type LatLng = { latitude: number; longitude: number };
 
 type InteractiveRouteStep = RouteStep & {
   onPress?: () => void;
@@ -183,6 +186,203 @@ function buildRouteStepsWithContinueIndoors({
   }
 
   return steps;
+}
+
+function resolveCampusFromParam(campus: CampusKey | undefined): CampusKey {
+  return campus === "loyola" ? "loyola" : "sgw";
+}
+
+function resolveStartOverride(
+  transitionPayload: TransitionPayload,
+): LatLng | null {
+  if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
+  return transitionPayload.exitOutdoor;
+}
+
+function resolveHasActiveRoute({
+  selectedRoute,
+  activeOutdoorPOIRoute,
+  outdoorPOIRouteStart,
+}: {
+  selectedRoute: { start: Buildings | null; dest: Buildings | null };
+  activeOutdoorPOIRoute: PlacePOI | null;
+  outdoorPOIRouteStart: Buildings | null;
+}): boolean {
+  const hasSelectedStartAndDest =
+    selectedRoute.start != null && selectedRoute.dest != null;
+  const hasOutdoorPOIRoute =
+    activeOutdoorPOIRoute != null && outdoorPOIRouteStart != null;
+  return hasSelectedStartAndDest || hasOutdoorPOIRoute;
+}
+
+function resolveShowStepsPanel({
+  hasActiveRoute,
+  mergedSteps,
+  routeSteps,
+}: {
+  hasActiveRoute: boolean;
+  mergedSteps: RouteStep[] | null;
+  routeSteps: RouteStep[];
+}): boolean {
+  const hasAnySteps = (mergedSteps?.length ?? 0) > 0 || routeSteps.length > 0;
+  return hasActiveRoute && hasAnySteps;
+}
+
+function resolveCanContinueIndoors(
+  continueIndoorsBuildingCode: string | null,
+  hasIndoorRoomDestination: boolean,
+): boolean {
+  return Boolean(continueIndoorsBuildingCode && hasIndoorRoomDestination);
+}
+
+function resolveCanOpenNextClassIndoorMap(
+  hasSearchableRooms: boolean,
+  nextClassRoom: string | undefined,
+): boolean {
+  return Boolean(hasSearchableRooms && nextClassRoom?.trim());
+}
+
+function resolveSelectedOutdoorPOICategory(
+  selectedOutdoorPOI: PlacePOI | null,
+) {
+  if (!selectedOutdoorPOI) return null;
+  return OUTDOOR_POI_CATEGORY_MAP[selectedOutdoorPOI.categoryId];
+}
+
+function resolveCampusMapStartPoint({
+  activeOutdoorPOIRoute,
+  outdoorPOIRouteStart,
+  selectedRoute,
+}: {
+  activeOutdoorPOIRoute: PlacePOI | null;
+  outdoorPOIRouteStart: Buildings | null;
+  selectedRoute: { start: Buildings | null; dest: Buildings | null };
+}): Buildings | null {
+  if (activeOutdoorPOIRoute) return outdoorPOIRouteStart;
+  return selectedRoute.start;
+}
+
+function resolveCampusMapStartOverride({
+  activeOutdoorPOIRoute,
+  userLocation,
+  startOverride,
+}: {
+  activeOutdoorPOIRoute: PlacePOI | null;
+  userLocation: LatLng | null;
+  startOverride: LatLng | null;
+}): LatLng | null {
+  if (activeOutdoorPOIRoute && userLocation) return userLocation;
+  return startOverride;
+}
+
+function resolveCampusMapDestinationPoint({
+  activeOutdoorPOIRoute,
+  selectedRoute,
+}: {
+  activeOutdoorPOIRoute: PlacePOI | null;
+  selectedRoute: { start: Buildings | null; dest: Buildings | null };
+}): Buildings | null {
+  if (activeOutdoorPOIRoute) return null;
+  return selectedRoute.dest;
+}
+
+function buildCampusToggleOptionStyle({
+  styles,
+  isActive,
+  isLeft,
+}: {
+  styles: CampusMapScreenStyles;
+  isActive: boolean;
+  isLeft: boolean;
+}) {
+  const base = isLeft
+    ? [styles.campusToggleOption, styles.campusToggleOptionLeft]
+    : [styles.campusToggleOption];
+  return isActive ? [...base, styles.campusToggleOptionActive] : base;
+}
+
+function buildCampusToggleTextStyle({
+  styles,
+  isActive,
+}: {
+  styles: CampusMapScreenStyles;
+  isActive: boolean;
+}) {
+  return isActive
+    ? [styles.campusToggleText, styles.campusToggleTextActive]
+    : [styles.campusToggleText];
+}
+
+function buildShuttleButtonStyle({
+  styles,
+  showShuttle,
+  shuttleAvailable,
+}: {
+  styles: CampusMapScreenStyles;
+  showShuttle: boolean;
+  shuttleAvailable: boolean;
+}) {
+  if (!showShuttle || !shuttleAvailable) {
+    return [styles.actionButton, styles.shuttleDisabled];
+  }
+  return [styles.actionButton];
+}
+
+function resolveShuttleIconName(showShuttle: boolean): "bus-clock" | "bus-stop" {
+  return showShuttle ? "bus-clock" : "bus-stop";
+}
+
+function resolvePOIFilterAccessibilityLabel(showPOIFilter: boolean): string {
+  return showPOIFilter ? "Hide nearby places" : "Show nearby places";
+}
+
+function buildPOIFilterButtonStyle({
+  styles,
+  showPOIFilter,
+  colors,
+}: {
+  styles: CampusMapScreenStyles;
+  showPOIFilter: boolean;
+  colors: AccessibilityColors;
+}) {
+  if (!showPOIFilter) return [styles.actionButton];
+  return [
+    styles.actionButton,
+    {
+      backgroundColor: colors.secondary,
+      borderColor: colors.secondaryDark,
+    },
+  ];
+}
+
+function resolveNextClassButtonDisabled(nextClass: ScheduleItem | null): boolean {
+  return nextClass === null;
+}
+
+function buildNextClassButtonStyle({
+  styles,
+  disabled,
+}: {
+  styles: CampusMapScreenStyles;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return [styles.actionButton, styles.nextClassButton, styles.nextClassButtonDisabled];
+  }
+  return [styles.actionButton, styles.nextClassButton];
+}
+
+function buildMyLocationButtonStyle({
+  styles,
+  focusTarget,
+}: {
+  styles: CampusMapScreenStyles;
+  focusTarget: FocusTarget;
+}) {
+  if (focusTarget === "user") {
+    return [styles.actionButton, styles.myLocationButtonActive];
+  }
+  return [styles.actionButton];
 }
 
 function logIndoorOutdoorCombinedDirectionsIfNeeded({
@@ -945,12 +1145,9 @@ export default function CampusMapScreen() {
     [],
   );
 
-  const [currentCampus, setCurrentCampus] = useState<CampusKey>(
-    campus === "loyola" ? "loyola" : "sgw",
-  );
-  const [focusTarget, setFocusTarget] = useState<FocusTarget>(
-    campus === "loyola" ? "loyola" : "sgw",
-  );
+  const initialCampus = resolveCampusFromParam(campus);
+  const [currentCampus, setCurrentCampus] = useState<CampusKey>(initialCampus);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget>(initialCampus);
   const [userFocusCounter, setUserFocusCounter] = useState(0);
   const [routeFocusTrigger, setRouteFocusTrigger] = useState(0);
   const [autoStartBuilding, setAutoStartBuilding] = useState<Buildings | null>(
@@ -1272,10 +1469,7 @@ export default function CampusMapScreen() {
     });
   }, [routeSteps, transitionPayload]);
 
-  const startOverride =
-    transitionPayload?.mode === "indoor_to_outdoor"
-      ? transitionPayload.exitOutdoor
-      : null;
+  const startOverride = resolveStartOverride(transitionPayload);
 
   const [isNextClassVisible, setIsNextClassVisible] = useState(false);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -1293,7 +1487,7 @@ export default function CampusMapScreen() {
   }, []);
 
   useEffect(() => {
-    const campusValue = campus === "loyola" ? "loyola" : "sgw";
+    const campusValue = resolveCampusFromParam(campus);
     setCurrentCampus(campusValue);
     setFocusTarget((prev) => {
       if (prev === "user") return prev;
@@ -1572,11 +1766,16 @@ export default function CampusMapScreen() {
     effectiveCurrentBuilding,
   ]);
 
-  const hasActiveRoute =
-    (selectedRoute.start != null && selectedRoute.dest != null) ||
-    (activeOutdoorPOIRoute != null && outdoorPOIRouteStart != null);
-  const showStepsPanel =
-    hasActiveRoute && (mergedSteps?.length || routeSteps.length) > 0;
+  const hasActiveRoute = resolveHasActiveRoute({
+    selectedRoute,
+    activeOutdoorPOIRoute,
+    outdoorPOIRouteStart,
+  });
+  const showStepsPanel = resolveShowStepsPanel({
+    hasActiveRoute,
+    mergedSteps,
+    routeSteps,
+  });
 
   const continueIndoorsBuildingCode = useMemo(
     () =>
@@ -1589,16 +1788,18 @@ export default function CampusMapScreen() {
 
   const hasIndoorRoomDestination = Boolean(destinationRoomQueryText.trim());
 
-  const canContinueIndoors = Boolean(
-    continueIndoorsBuildingCode && hasIndoorRoomDestination,
+  const canContinueIndoors = resolveCanContinueIndoors(
+    continueIndoorsBuildingCode,
+    hasIndoorRoomDestination,
   );
 
   const nextClassIndoorAccess = useMemo(
     () => getIndoorAccessState(nextClass?.building),
     [nextClass?.building],
   );
-  const canOpenNextClassIndoorMap = Boolean(
-    nextClassIndoorAccess.hasSearchableRooms && nextClass?.room.trim(),
+  const canOpenNextClassIndoorMap = resolveCanOpenNextClassIndoorMap(
+    nextClassIndoorAccess.hasSearchableRooms,
+    nextClass?.room,
   );
   const activeIndoorOutdoorTask = useMemo(
     () => classifyIndoorOutdoorTask(selectedRoute.start, selectedRoute.dest),
@@ -1807,9 +2008,70 @@ export default function CampusMapScreen() {
     [activeOutdoorPOIRoute],
   );
 
-  const selectedOutdoorPOICategory = selectedOutdoorPOI
-    ? OUTDOOR_POI_CATEGORY_MAP[selectedOutdoorPOI.categoryId]
-    : null;
+  const selectedOutdoorPOICategory =
+    resolveSelectedOutdoorPOICategory(selectedOutdoorPOI);
+
+  const campusMapStartPoint = resolveCampusMapStartPoint({
+    activeOutdoorPOIRoute,
+    outdoorPOIRouteStart,
+    selectedRoute,
+  });
+  const campusMapStartOverride = resolveCampusMapStartOverride({
+    activeOutdoorPOIRoute,
+    userLocation,
+    startOverride,
+  });
+  const campusMapDestinationPoint = resolveCampusMapDestinationPoint({
+    activeOutdoorPOIRoute,
+    selectedRoute,
+  });
+
+  const isSgwCampusActive = currentCampus === "sgw";
+  const isLoyolaCampusActive = currentCampus === "loyola";
+  const sgwCampusToggleStyle = buildCampusToggleOptionStyle({
+    styles,
+    isActive: isSgwCampusActive,
+    isLeft: true,
+  });
+  const sgwCampusToggleTextStyle = buildCampusToggleTextStyle({
+    styles,
+    isActive: isSgwCampusActive,
+  });
+  const loyolaCampusToggleStyle = buildCampusToggleOptionStyle({
+    styles,
+    isActive: isLoyolaCampusActive,
+    isLeft: false,
+  });
+  const loyolaCampusToggleTextStyle = buildCampusToggleTextStyle({
+    styles,
+    isActive: isLoyolaCampusActive,
+  });
+
+  const shuttleButtonStyle = buildShuttleButtonStyle({
+    styles,
+    showShuttle,
+    shuttleAvailable: shuttleStatus.available,
+  });
+  const shuttleIconName = resolveShuttleIconName(showShuttle);
+
+  const poiFilterAccessibilityLabel =
+    resolvePOIFilterAccessibilityLabel(showPOIFilter);
+  const poiFilterButtonStyle = buildPOIFilterButtonStyle({
+    styles,
+    showPOIFilter,
+    colors,
+  });
+
+  const isNextClassButtonDisabled = resolveNextClassButtonDisabled(nextClass);
+  const nextClassButtonStyle = buildNextClassButtonStyle({
+    styles,
+    disabled: isNextClassButtonDisabled,
+  });
+
+  const myLocationButtonStyle = buildMyLocationButtonStyle({
+    styles,
+    focusTarget,
+  });
 
   const startOutdoorPOIRoute = useCallback(async () => {
     if (!selectedOutdoorPOI) return;
@@ -1870,13 +2132,9 @@ export default function CampusMapScreen() {
         focusTarget={focusTarget}
         userFocusCounter={userFocusCounter}
         routeFocusTrigger={routeFocusTrigger}
-        startPoint={
-          activeOutdoorPOIRoute ? outdoorPOIRouteStart : selectedRoute.start
-        }
-        startOverride={
-          activeOutdoorPOIRoute && userLocation ? userLocation : startOverride
-        }
-        destinationPoint={activeOutdoorPOIRoute ? null : selectedRoute.dest}
+        startPoint={campusMapStartPoint}
+        startOverride={campusMapStartOverride}
+        destinationPoint={campusMapDestinationPoint}
         destinationOverride={activeOutdoorPOIDestination}
         showShuttle={showShuttle}
         strategy={selectedStrategy}
@@ -1936,35 +2194,18 @@ export default function CampusMapScreen() {
           <Pressable
             onPress={() => selectCampus("sgw")}
             testID="campus-toggle-sgw"
-            style={[
-              styles.campusToggleOption,
-              styles.campusToggleOptionLeft,
-              currentCampus === "sgw" && styles.campusToggleOptionActive,
-            ]}
+            style={sgwCampusToggleStyle}
           >
-            <Text
-              style={[
-                styles.campusToggleText,
-                currentCampus === "sgw" && styles.campusToggleTextActive,
-              ]}
-            >
+            <Text style={sgwCampusToggleTextStyle}>
               SGW
             </Text>
           </Pressable>
           <Pressable
             onPress={() => selectCampus("loyola")}
             testID="campus-toggle-loyola"
-            style={[
-              styles.campusToggleOption,
-              currentCampus === "loyola" && styles.campusToggleOptionActive,
-            ]}
+            style={loyolaCampusToggleStyle}
           >
-            <Text
-              style={[
-                styles.campusToggleText,
-                currentCampus === "loyola" && styles.campusToggleTextActive,
-              ]}
-            >
+            <Text style={loyolaCampusToggleTextStyle}>
               Loyola
             </Text>
           </Pressable>
@@ -2012,16 +2253,12 @@ export default function CampusMapScreen() {
               }
             }
           }}
-          style={[
-            styles.actionButton,
-            (!showShuttle || !shuttleStatus.available) &&
-              styles.shuttleDisabled,
-          ]}
+          style={shuttleButtonStyle}
           accessibilityState={{ disabled: !shuttleStatus.available }}
           accessibilityLabel={accessibilityLabel}
         >
           <MaterialCommunityIcons
-            name={showShuttle ? "bus-clock" : "bus-stop"}
+            name={shuttleIconName}
             size={24}
             color={colors.white}
           />
@@ -2053,9 +2290,7 @@ export default function CampusMapScreen() {
       <View style={[styles.buttonStack, { bottom: 50 + bottomInset }]}>
         <Pressable
           testID="poi-filter-button"
-          accessibilityLabel={
-            showPOIFilter ? "Hide nearby places" : "Show nearby places"
-          }
+          accessibilityLabel={poiFilterAccessibilityLabel}
           onPress={async () => {
             setShowPOIFilter((v) => {
               const closing = v; // if currently open, we are closing it
@@ -2082,13 +2317,7 @@ export default function CampusMapScreen() {
               return !v;
             });
           }}
-          style={[
-            styles.actionButton,
-            showPOIFilter && {
-              backgroundColor: colors.secondary,
-              borderColor: colors.secondaryDark,
-            },
-          ]}
+          style={poiFilterButtonStyle}
         >
           <MaterialIcons name="place" size={24} color={colors.white} />
         </Pressable>
@@ -2106,12 +2335,8 @@ export default function CampusMapScreen() {
               timestamp: new Date().toISOString(),
             });
           }}
-          disabled={nextClass === null}
-          style={[
-            styles.actionButton,
-            styles.nextClassButton,
-            nextClass === null && styles.nextClassButtonDisabled,
-          ]}
+          disabled={isNextClassButtonDisabled}
+          style={nextClassButtonStyle}
         >
           <MaterialIcons name="school" size={24} color={colors.white} />
         </Pressable>
@@ -2135,10 +2360,7 @@ export default function CampusMapScreen() {
           testID="my-location-button"
           accessibilityLabel="my-location-button"
           onPress={focusUserLocation}
-          style={[
-            styles.actionButton,
-            focusTarget === "user" && styles.myLocationButtonActive,
-          ]}
+          style={myLocationButtonStyle}
         >
           <MaterialIcons name="my-location" size={22} color={colors.white} />
         </Pressable>
