@@ -1,4 +1,8 @@
-import { getBuildingOutdoorFallback, selectBestIndoorExit } from "../utils/indoorExit";
+import {
+    getBuildingOutdoorFallback,
+    getExitNodes,
+    selectBestIndoorExit,
+} from "../utils/indoorExit";
 import { findShortestPath, resolveRoutingNodeId } from "../utils/indoorPathFinding";
 import { getBuildingPlanAsset, type BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -267,6 +271,93 @@ describe("utils/indoorExit", () => {
     }
   });
 
+  it("returns NO_REACHABLE_EXIT with default messaging when accessibleOnly is false", () => {
+    const asset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        {
+          id: "origin",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 0,
+          y: 0,
+          label: "H-101",
+          accessible: true,
+        },
+        {
+          id: "exit1",
+          type: "building_entry_exit",
+          buildingId: "H",
+          floor: 1,
+          x: 2,
+          y: 0,
+          label: "Exit",
+          accessible: true,
+        },
+        {
+          id: "hall",
+          type: "hallway",
+          buildingId: "H",
+          floor: 1,
+          x: 1,
+          y: 0,
+          label: "Hall",
+          accessible: true,
+        },
+      ],
+      edges: [
+        { source: "origin", target: "hall", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue(asset);
+
+    const result = selectBestIndoorExit(
+      "H",
+      { roomOrNodeId: "origin", x: 0, y: 0, floor: 1 },
+      {},
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("NO_REACHABLE_EXIT");
+      expect(result.message).toBe("No reachable exit route found.");
+    }
+  });
+
+  it("filters exit nodes safely when node type is missing", () => {
+    const exits = getExitNodes({
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "a", buildingId: "H", floor: 1, x: 0, y: 0, accessible: true } as any,
+        {
+          id: "exit1",
+          type: "building_entry_exit",
+          buildingId: "H",
+          floor: 1,
+          x: 2,
+          y: 0,
+          label: "Exit",
+          accessible: true,
+        } as any,
+      ],
+      edges: [],
+    } as any);
+
+    expect(exits).toHaveLength(1);
+    expect(exits[0].id).toBe("exit1");
+  });
+
+  it("returns an empty exit list when the asset has no nodes", () => {
+    expect(
+      getExitNodes({
+        meta: { buildingId: "H" },
+        edges: [],
+      } as any),
+    ).toEqual([]);
+  });
+
   it("returns deterministic results for the same input", () => {
     const asset: BuildingPlanAsset = {
       meta: { buildingId: "H" },
@@ -468,6 +559,46 @@ describe("utils/indoorExit", () => {
           y: 0,
           accessible: true,
           outdoorLatLng: { latitude: 45.0, longitude: "-73" },
+        },
+      ],
+      edges: [{ source: "A", target: "EXIT_1", type: "walk", weight: 1, accessible: true }],
+    } as any;
+
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue(asset);
+
+    const result = selectBestIndoorExit(
+      "TEST",
+      { roomOrNodeId: "A", x: 0, y: 0, floor: 1 },
+      {},
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.exit.outdoorLatLng).toBeUndefined();
+    }
+  });
+
+  it("omits outdoorLatLng when longitude is NaN", () => {
+    const asset = {
+      nodes: [
+        {
+          id: "A",
+          type: "hallway_waypoint",
+          buildingId: "TEST",
+          floor: 1,
+          x: 0,
+          y: 0,
+          accessible: true,
+        },
+        {
+          id: "EXIT_1",
+          type: "building_entry_exit",
+          buildingId: "TEST",
+          floor: 1,
+          x: 10,
+          y: 0,
+          accessible: true,
+          outdoorLatLng: { latitude: 45.0, longitude: Number.NaN },
         },
       ],
       edges: [{ source: "A", target: "EXIT_1", type: "walk", weight: 1, accessible: true }],
