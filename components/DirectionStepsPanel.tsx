@@ -251,6 +251,11 @@ export function DirectionStepsPanel({
                   const isActive = s.mode === strategy.mode;
                   const isShuttle = s.mode === "shuttle";
                   const isDisabled = isShuttle && !shuttleAvailable;
+                  const optionColor = isDisabled
+                    ? colors.gray500
+                    : isActive
+                      ? colors.white
+                      : colors.primary;
                   return (
                     <Pressable
                       key={s.mode}
@@ -272,13 +277,7 @@ export function DirectionStepsPanel({
                       <MaterialCommunityIcons
                         name={s.icon as any}
                         size={16}
-                        color={
-                          isDisabled
-                            ? colors.gray500
-                            : isActive
-                              ? colors.white
-                              : colors.primary
-                        }
+                        color={optionColor}
                       />
                       <Text
                         style={[

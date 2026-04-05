@@ -1903,10 +1903,6 @@ export default function CampusMapScreen() {
 
   const handleRouteSteps = useCallback(
     async (steps: RouteStep[]) => {
-      const hasActiveRoute =
-        (selectedRoute.start != null && selectedRoute.dest != null) ||
-        activeOutdoorPOIRoute != null;
-      if (steps.length === 0 && hasActiveRoute) return;
       setRouteSteps(steps);
 
       // Task 16: route + steps panel appeared
