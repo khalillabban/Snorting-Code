@@ -1,12 +1,12 @@
 import {
-    IndoorRoomRecord,
-    NormalizedIndoorBuildingPlan,
-    getNormalizedBuildingPlan,
+  IndoorRoomRecord,
+  NormalizedIndoorBuildingPlan,
+  getNormalizedBuildingPlan,
 } from "../utils/indoorBuildingPlan";
 import {
-    findIndoorRoomFloor,
-    findIndoorRoomMatch,
-    findIndoorRoomMatches,
+  findIndoorRoomFloor,
+  findIndoorRoomMatch,
+  findIndoorRoomMatches,
 } from "../utils/indoorRoomSearch";
 
 function makeRoom(
@@ -155,6 +155,29 @@ describe("utils/indoorRoomSearch", () => {
     expect(findIndoorRoomFloor(plan!, "DOES-NOT-EXIST")).toBeNull();
   });
 
+  it("returns no match when query becomes empty after compact normalization", () => {
+    const plan = makePlan([makeRoom("T-101", "101", 1)]);
+    expect(findIndoorRoomMatches(plan, "---")).toEqual([]);
+  });
+
+  it("returns no match for a query with no label, room, or compact hits", () => {
+    const plan = makePlan([makeRoom("T-101", "101", 1)]);
+    expect(findIndoorRoomMatch(plan, "zzzzzz")).toBeNull();
+  });
+
+  it("matches partial room-number substrings", () => {
+    const plan = makePlan([makeRoom("T-ROOM", "10A", 1)]);
+    const match = findIndoorRoomMatch(plan, "0A");
+    expect(match?.matchType).toBe("partial_room");
+  });
+
+  it("matches exact roomNumber when label differs", () => {
+    const plan = makePlan([makeRoom("T-ALIAS", "R-204", 2)]);
+    const match = findIndoorRoomMatch(plan, "R-204");
+    expect(match).not.toBeNull();
+    expect(match?.matchType).toBe("exact_room");
+  });
+
   it("limits results with maxResults and resolves ties by floor then label", () => {
     const floor2 = makeRoom("T-B", "777", 2);
     const floor1A = makeRoom("T-A", "777", 1);
@@ -167,5 +190,37 @@ describe("utils/indoorRoomSearch", () => {
       "1-T-A",
       "1-T-C",
     ]);
+  });
+
+  it("breaks equal-score ties by shorter room number first", () => {
+    const short = makeRoom("T-AB", "AB", 1);
+    const long = makeRoom("T-AB1", "AB1", 1);
+    const plan = makePlan([long, short]);
+
+    const matches = findIndoorRoomMatches(plan, "A");
+    expect(matches[0].room.roomNumber).toBe("AB");
+    expect(matches[1].room.roomNumber).toBe("AB1");
+  });
+
+  it("matches compact-key prefixes and partial compact keys", () => {
+    const compactOnlyRoom = makeRoom("T-ROOM", "R-999", 3, undefined, ["MB-1234-ALIAS"]);
+    const plan = makePlan([compactOnlyRoom]);
+
+    const prefixMatch = findIndoorRoomMatch(plan, "mb12");
+    expect(prefixMatch).not.toBeNull();
+    expect(prefixMatch?.matchType).toBe("prefix_compact");
+
+    const partialMatch = findIndoorRoomMatch(plan, "234A");
+    expect(partialMatch).not.toBeNull();
+    expect(partialMatch?.matchType).toBe("partial_compact");
+  });
+
+  it("matches label prefixes before room/compact partial matches", () => {
+    const room = makeRoom("T-ALPHA", "R-991", 1);
+    const plan = makePlan([room]);
+
+    const match = findIndoorRoomMatch(plan, "T-AL");
+    expect(match).not.toBeNull();
+    expect(match?.matchType).toBe("prefix_label");
   });
 });
