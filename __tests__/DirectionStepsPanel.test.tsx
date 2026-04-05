@@ -444,4 +444,346 @@ describe("DirectionStepsPanel", () => {
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("bus");
   });
+
+  it("renders transit details metadata for a transit step", () => {
+    const transitStep: RouteStep = {
+      instruction: "Bus towards Atwater",
+      distance: "4 km",
+      duration: "15 min",
+      transitDetails: {
+        lineName: "24",
+        vehicleType: "BUS",
+        departureTime: "3:15 PM",
+        arrivalTime: "3:30 PM",
+        numStops: 5,
+      },
+    };
+
+    render(
+      <DirectionStepsPanel
+        steps={[transitStep]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Bus towards Atwater")).toBeTruthy();
+    expect(
+      screen.getByText("Line 24 · Departs 3:15 PM · Arrives 3:30 PM · 5 stops"),
+    ).toBeTruthy();
+    expect(screen.getByText("4 km · 15 min")).toBeTruthy();
+  });
+
+  it("renders partial transit details when some fields are missing", () => {
+    const transitStep: RouteStep = {
+      instruction: "Metro towards Berri",
+      duration: "8 min",
+      transitDetails: {
+        lineName: "Green",
+        vehicleType: "SUBWAY",
+        numStops: 3,
+      },
+    };
+
+    render(
+      <DirectionStepsPanel
+        steps={[transitStep]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Line Green · 3 stops")).toBeTruthy();
+  });
+
+  it("renders subway icon for SUBWAY vehicleType", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Take metro",
+            transitDetails: { vehicleType: "SUBWAY", lineName: "Orange" },
+          },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("subway");
+  });
+
+  it("renders train icon for RAIL vehicleType", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Take train",
+            transitDetails: { vehicleType: "RAIL", lineName: "Exo" },
+          },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("train");
+  });
+
+  it("renders bus icon for unknown vehicleType in transitDetails", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Take ferry",
+            transitDetails: { vehicleType: "FERRY", lineName: "F1" },
+          },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const stepIcons = icons.map((icon) => icon.props.children);
+    // Header icon is "bus" (from strategy), step icon should also be "bus" (fallback)
+    expect(stepIcons.filter((n) => n === "bus").length).toBe(2);
+  });
+
+  it("does not render transit details row for steps without transitDetails", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Walk north", distance: "200 m", duration: "3 min" },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Walk north")).toBeTruthy();
+    expect(screen.getByText("200 m · 3 min")).toBeTruthy();
+    expect(screen.queryByText(/^Line /)).toBeNull();
+    expect(screen.queryByText(/Departs/)).toBeNull();
+  });
+
+  it("computes route summary with miles and feet distances", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Step A", distance: "1 mi", duration: "20 min" },
+          { instruction: "Step B", distance: "500 ft", duration: "3 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // 1 mi = 1609.34 m, 500 ft = 152.4 m => total ~1761.74 m => "1.8 km"
+    // 20 + 3 = 23 min
+    expect(screen.getByText("23 min · 1.8 km")).toBeTruthy();
+  });
+
+  it("computes route summary with hours when duration >= 60 min", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Long walk", distance: "5 km", duration: "75 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // 75 min => "1 hr 15 min"
+    expect(screen.getByText("1 hr 15 min · 5 km")).toBeTruthy();
+  });
+
+  it("computes route summary with exact hours when remaining is 0", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Drive", distance: "10 km", duration: "60 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // 60 min => "1 hr"
+    expect(screen.getByText("1 hr · 10 km")).toBeTruthy();
+  });
+
+  it("computes route summary with plural hours", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Long drive", distance: "100 km", duration: "2 hours 30 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // 150 min => "2 hrs 30 min"
+    expect(screen.getByText("2 hrs 30 min · 100 km")).toBeTruthy();
+  });
+
+  it("uses routeSummary prop when provided instead of computed summary", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Walk", distance: "100 m", duration: "2 min" }]}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ duration: "5 min", distance: "500 m" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("5 min · 500 m")).toBeTruthy();
+  });
+
+  it("handles unparseable distance values gracefully in summary", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Go", distance: "NaN m", duration: "5 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("5 min")).toBeTruthy();
+  });
+
+  it("handles unparseable duration values gracefully in summary", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Go", distance: "100 m", duration: "soon" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("100 m")).toBeTruthy();
+  });
+
+  it("handles empty string duration in summary computation", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Go", distance: "100 m", duration: "" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // Empty duration string returns null from parseDurationMinutes,
+    // formatDuration(0) returns "", so summary is just distance.
+    // "100 m" appears in both the summary and the step meta.
+    expect(screen.getAllByText("100 m").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles distance that does not match any unit pattern", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Go", distance: "nearby", duration: "3 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    // "nearby" doesn't match the regex, parseDistanceMeters returns null
+    // formatDistance(0) returns "", so summary is just duration
+    expect(screen.getByText("3 min")).toBeTruthy();
+  });
+
+  it("shows no summary when all distances and durations are unparseable", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Go somewhere", distance: "far", duration: "later" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Go somewhere")).toBeTruthy();
+    // The per-step meta still renders the raw values
+    expect(screen.getByText("far · later")).toBeTruthy();
+  });
+
+  it("handles routeSummary with only duration", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Walk" }]}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ duration: "10 min" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("10 min")).toBeTruthy();
+  });
+
+  it("handles routeSummary with only distance", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Walk" }]}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ distance: "2 km" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("2 km")).toBeTruthy();
+  });
+
+  it("renders metro_rail vehicleType as subway icon", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Take light rail",
+            transitDetails: { vehicleType: "METRO_RAIL", lineName: "Blue" },
+          },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("subway");
+  });
+
+  it("renders train icon for COMMUTER_TRAIN vehicleType", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Take commuter train",
+            transitDetails: { vehicleType: "COMMUTER_TRAIN", lineName: "Exo 1" },
+          },
+        ]}
+        strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    const icons = screen.getAllByTestId("mci-icon");
+    const iconNames = icons.map((icon) => icon.props.children);
+    expect(iconNames).toContain("train");
+  });
 });

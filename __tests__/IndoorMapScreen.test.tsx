@@ -8,6 +8,43 @@ import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import IndoorMapScreen, { getFloorContentBounds } from "../app/IndoorMapScreen";
 import { BUILDINGS } from "../constants/buildings";
+
+const createGestureMock = () => {
+  const gesture: any = {
+    onStart: jest.fn(() => gesture),
+    onUpdate: jest.fn(() => gesture),
+    onEnd: jest.fn(() => gesture),
+    numberOfTaps: jest.fn(() => gesture),
+  };
+  return gesture;
+};
+
+jest.mock("react-native-gesture-handler", () => ({
+  GestureHandlerRootView: ({ children, style }: any) => {
+    const { View } = require("react-native");
+    return <View style={style}>{children}</View>;
+  },
+  GestureDetector: ({ children }: any) => children,
+  Gesture: {
+    Pinch: () => createGestureMock(),
+    Pan: () => createGestureMock(),
+    Tap: () => createGestureMock(),
+    Simultaneous: jest.fn(() => ({})),
+    Race: jest.fn(() => ({})),
+  },
+}));
+
+jest.mock("react-native-reanimated", () => {
+  const { View } = require("react-native");
+  const Animated = { View };
+  return {
+    __esModule: true,
+    default: Animated,
+    useSharedValue: (init: number) => ({ value: init }),
+    useAnimatedStyle: () => ({}),
+    withTiming: (value: number) => value,
+  };
+});
 import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import { selectBestIndoorExit } from "../utils/indoorExit";

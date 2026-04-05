@@ -75,6 +75,38 @@ function formatDuration(minutes: number): string {
   return `${Math.round(minutes)} min`;
 }
 
+type StepIconName = "door-open" | "bus" | "subway" | "train" | "walk";
+
+const SUBWAY_TYPES = new Set(["subway", "metro_rail"]);
+const TRAIN_TYPES = new Set(["rail", "commuter_train"]);
+
+function resolveStepIcon(
+  isShuttle: boolean,
+  isTransit: boolean,
+  isCta: boolean,
+  vehicleType?: string,
+): StepIconName {
+  if (isCta) return "door-open";
+  if (!isShuttle && !isTransit) return "walk";
+  const vt = vehicleType?.toLowerCase();
+  if (vt && SUBWAY_TYPES.has(vt)) return "subway";
+  if (vt && TRAIN_TYPES.has(vt)) return "train";
+  return "bus";
+}
+
+function buildTransitMetaText(
+  details: NonNullable<RouteStep["transitDetails"]>,
+): string {
+  return [
+    details.lineName && `Line ${details.lineName}`,
+    details.departureTime && `Departs ${details.departureTime}`,
+    details.arrivalTime && `Arrives ${details.arrivalTime}`,
+    details.numStops != null && `${details.numStops} stops`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 type StepWrapperProps = {
   readonly styles: ReturnType<typeof createStyles>;
   readonly onPress?: () => void;
@@ -193,7 +225,9 @@ export function DirectionStepsPanel({
               />
               <Text style={styles.modeLabel}>{strategy.label}</Text>
             </View>
-            {summaryText && <Text style={styles.routeSummary}>{summaryText}</Text>}
+            {summaryText && (
+              <Text style={styles.routeSummary}>{summaryText}</Text>
+            )}
             <Text style={styles.headerSummary}>
               {isExpanded
                 ? stepCountLabel
@@ -220,7 +254,9 @@ export function DirectionStepsPanel({
               style={styles.iconButton}
               accessibilityRole="button"
               accessibilityLabel={
-                isExpanded ? "Collapse directions steps" : "Expand directions steps"
+                isExpanded
+                  ? "Collapse directions steps"
+                  : "Expand directions steps"
               }
             >
               <MaterialIcons
@@ -263,19 +299,19 @@ export function DirectionStepsPanel({
               const isShuttle =
                 normalizedInstruction.includes("shuttle") ||
                 normalizedInstruction.includes("board");
+              const isTransit = Boolean(step.transitDetails);
               const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
               const isContinueIndoorsCta =
                 Boolean(step.onPress) && index === steps.length - 1;
               const metadataText = [step.distance, step.duration]
                 .filter(Boolean)
                 .join(" \u00B7 ");
-
-              let iconName: "door-open" | "bus" | "walk" = "walk";
-              if (isContinueIndoorsCta) {
-                iconName = "door-open";
-              } else if (isShuttle) {
-                iconName = "bus";
-              }
+              const iconName = resolveStepIcon(
+                isShuttle,
+                isTransit,
+                isContinueIndoorsCta,
+                step.transitDetails?.vehicleType,
+              );
 
               return (
                 <StepWrapper
@@ -298,7 +334,9 @@ export function DirectionStepsPanel({
                         color={colors.white}
                       />
                     </View>
-                    {index < steps.length - 1 && <View style={styles.stepLine} />}
+                    {index < steps.length - 1 && (
+                      <View style={styles.stepLine} />
+                    )}
                   </View>
 
                   <View style={styles.stepBody}>
@@ -311,6 +349,12 @@ export function DirectionStepsPanel({
                     >
                       {step.instruction}
                     </Text>
+
+                    {isTransit && step.transitDetails && (
+                      <Text style={styles.stepMeta}>
+                        {buildTransitMetaText(step.transitDetails)}
+                      </Text>
+                    )}
 
                     {metadataText ? (
                       <Text style={styles.stepMeta}>{metadataText}</Text>
@@ -337,7 +381,9 @@ export function DirectionStepsPanel({
             accessibilityRole="button"
             accessibilityLabel="Open route steps preview"
           >
-            <Text style={styles.collapsedPreviewTitle}>{stepCountLabel} available</Text>
+            <Text style={styles.collapsedPreviewTitle}>
+              {stepCountLabel} available
+            </Text>
             <Text style={styles.collapsedPreviewText}>
               Expand to view turn-by-turn directions without covering the map by
               default.

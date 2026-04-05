@@ -23,6 +23,7 @@ import {
   IndoorDirectionsPanel,
   IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
+import { ZoomableView } from "../components/ZoomableView";
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
 import { colors, spacing } from "../constants/theme";
@@ -1309,7 +1310,12 @@ export default function IndoorMapScreen() {
         }}
       >
         {showFloorImageMap ? (
-          <View style={styles.mapViewport} testID="indoor-floor-stage">
+          <ZoomableView
+            style={styles.mapViewport}
+            testID="indoor-floor-stage"
+            minScale={1}
+            maxScale={4}
+          >
             <View
               style={[
                 styles.floorFrame,
@@ -1372,7 +1378,7 @@ export default function IndoorMapScreen() {
                 <View style={styles.roomMarkerInner} />
               </View>
             )}
-          </View>
+          </ZoomableView>
         ) : (
           !showFloorImageMap && (
             <View style={styles.emptyState}>
