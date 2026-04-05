@@ -145,7 +145,7 @@ function CurrentLocationMarker({ coordinate }: CurrentLocationMarkerProps) {
 
 function getPolylineStyleForMode(
   colors: ReturnType<typeof useColorAccessibility>["colors"],
-  mode: RouteStrategy["mode"] | string,
+  mode: RouteStrategy["mode"],
 ) {
   const normalizedMode = `${mode}`.toLowerCase() as RouteStrategy["mode"];
 

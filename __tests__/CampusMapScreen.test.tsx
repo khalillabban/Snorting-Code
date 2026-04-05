@@ -169,6 +169,13 @@ jest.mock("../components/CampusMap", () => {
         }
       />
       <Button
+        testID="trigger-user-location-resolved"
+        title="Resolve User Location"
+        onPress={() =>
+          props.onUserLocationResolved?.({ latitude: 45.495, longitude: -73.58 })
+        }
+      />
+      <Button
         testID="trigger-building-with-map"
         title="Select Building With Map"
         onPress={() =>
@@ -5063,6 +5070,26 @@ describe("CampusMap startOverride with active POI route and userLocation", () =>
       });
     });
   });
+
+  it("uses nearest building from resolved userLocation as POI route start when route is active", async () => {
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-user-location-resolved"));
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+    });
+
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      const props = getMapProps();
+      expect(props.startOverride).toEqual({ latitude: 45.495, longitude: -73.58 });
+      expect(props.startPoint?.name).toBe("B");
+    });
+  });
 });
 
 describe("outdoor indoor_outdoor_route_requested analytics failure in outdoor route branch", () => {
@@ -5879,6 +5906,83 @@ describe("Coverage Improvements for Edge Cases, Fallbacks, and Error Handlers", 
       expect(
         hasUsabilityEvent("building_popup_opened"),
       ).toBe(false);
+    });
+  });
+
+  it("retries POI search from list error state via onRetry", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [],
+      loading: false,
+      error: "Places API temporary error",
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-retry")).toBeTruthy();
+    });
+
+    const beforeRetryCalls = mockSearchPOIs.mock.calls.length;
+    fireEvent.press(screen.getByTestId("poi-list-retry"));
+
+    await waitFor(() => {
+      expect(mockSearchPOIs.mock.calls.length).toBeGreaterThan(beforeRetryCalls);
+    });
+  });
+
+  it("increments route focus trigger when selecting a different POI while another POI route is active", async () => {
+    mockUseNearbyPOIs.mockReturnValue({
+      pois: [
+        {
+          placeId: "poi-1",
+          name: "Cafe One",
+          latitude: 45.4972,
+          longitude: -73.5792,
+          vicinity: "123 Test St",
+          categoryId: "coffee",
+        },
+        {
+          placeId: "poi-2",
+          name: "Cafe Two",
+          latitude: 45.4982,
+          longitude: -73.5802,
+          vicinity: "456 Test St",
+          categoryId: "coffee",
+        },
+      ],
+      loading: false,
+      error: null,
+      search: mockSearchPOIs,
+      clear: mockClearPOIs,
+    });
+
+    await renderScreen();
+
+    fireEvent.press(screen.getByTestId("trigger-set-my-location"));
+    fireEvent.press(screen.getByTestId("poi-filter-button"));
+    fireEvent.press(screen.getByTestId("outdoor-poi-chip-coffee"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("poi-list-row-poi-1")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("poi-list-row-poi-1"));
+    fireEvent.press(screen.getByTestId("poi-get-directions-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(1);
+    });
+
+    // Select a different POI from the map while a POI route is already active.
+    fireEvent.press(screen.getByTestId("trigger-select-poi-map"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("campus-map-route-focus-trigger").props.children).toBe(2);
     });
   });
 

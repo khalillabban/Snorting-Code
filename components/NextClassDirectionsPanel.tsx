@@ -1,26 +1,24 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleProp,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   View,
-  ViewStyle,
+  ViewStyle
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings, ScheduleItem } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { useLocationState } from "../hooks/useLocationState";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import {
@@ -41,6 +39,8 @@ import {
   IndoorRoomRecord,
 } from "../utils/indoorBuildingPlan";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
+import { AccessibleModeToggle } from "./AccessibleModeToggle";
+import { SheetContainer } from "./SheetContainer";
 import { StrategyModeSelector } from "./StrategyModeSelector";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -299,12 +299,20 @@ export default function NextClassDirectionsPanel({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const [startLoc, setStartLoc] = useState("");
-  const [destLoc, setDestLoc] = useState("");
-  const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
-  const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
-  const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
-  const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
+  const {
+    startLoc,
+    setStartLoc,
+    destLoc,
+    setDestLoc,
+    startBuilding,
+    setStartBuilding,
+    destBuilding,
+    setDestBuilding,
+    startRoom,
+    setStartRoom,
+    endRoom,
+    setEndRoom,
+  } = useLocationState();
   const [localAccessibleOnly, setLocalAccessibleOnly] =
     useState(accessibleOnly);
 
@@ -328,13 +336,13 @@ export default function NextClassDirectionsPanel({
   }, [shuttleAvailable, selectedStrategy.mode]);
   const [error, setError] = useState<string | null>(null);
 
-  const clearDestWithError = (courseName: string) => {
+  const clearDestWithError = useCallback((courseName: string) => {
     setError(`Missing course details for "${courseName}".`);
     setDestLoc("");
     setDestBuilding(null);
-  };
+  }, [setDestBuilding, setDestLoc]);
 
-  const setDestFromBuilding = (
+  const setDestFromBuilding = useCallback((
     building: Buildings,
     room?: IndoorRoomRecord | null,
   ) => {
@@ -342,9 +350,9 @@ export default function NextClassDirectionsPanel({
     setDestLoc(building.displayName);
     setDestBuilding(building);
     setEndRoom(room ?? null);
-  };
+  }, [setDestBuilding, setDestLoc, setEndRoom]);
 
-  const resolveIndoorRoom = (
+  const resolveIndoorRoom = useCallback((
     buildingCode: string,
     roomCode: string,
   ): IndoorRoomRecord | null => {
@@ -353,7 +361,7 @@ export default function NextClassDirectionsPanel({
     if (!plan) return null;
     const query = normalizeRoomQuery(buildingCode, roomCode);
     return findIndoorRoomMatch(plan, query)?.room ?? null;
-  };
+  }, []);
 
   const clearActiveSearch = () => {
     setSuggestions([]);
@@ -375,7 +383,14 @@ export default function NextClassDirectionsPanel({
     } else {
       clearDestWithError(nextClass.courseName);
     }
-  }, [nextClass]);
+  }, [
+    nextClass,
+    clearDestWithError,
+    resolveIndoorRoom,
+    setDestFromBuilding,
+    setDestBuilding,
+    setDestLoc,
+  ]);
 
   useEffect(() => {
     const showingList = suggestions.length > 0 || filteredCourses.length > 0;
@@ -574,27 +589,17 @@ export default function NextClassDirectionsPanel({
   const showingList = suggestions.length > 0 || filteredCourses.length > 0;
 
   return (
-    <>
-      <TouchableWithoutFeedback
-        onPress={() => {
-          Keyboard.dismiss();
-          onClose();
-        }}
-      >
-        <View style={styles.overlay} />
-      </TouchableWithoutFeedback>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardContainer}
-        pointerEvents="box-none"
-      >
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers} style={styles.gestureArea}>
-            <View style={styles.handle} />
-          </View>
-
-          <View style={styles.content}>
+    <SheetContainer
+      panResponder={panResponder}
+      translateY={translateY}
+      overlayStyle={styles.overlay}
+      keyboardContainerStyle={styles.keyboardContainer}
+      sheetStyle={styles.sheet}
+      gestureAreaStyle={styles.gestureArea}
+      handleStyle={styles.handle}
+      contentStyle={styles.content}
+      onClose={onClose}
+    >
             <ScrollView
               style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
@@ -780,46 +785,17 @@ export default function NextClassDirectionsPanel({
                       marginTop: 8,
                     }}
                   >
-                    <Pressable
-                      onPress={() => {
-                        setLocalAccessibleOnly(!localAccessibleOnly);
-                        onAccessibleOnlyChange?.(!localAccessibleOnly);
+                    <AccessibleModeToggle
+                      localAccessibleOnly={localAccessibleOnly}
+                      onAccessibleOnlyChange={(value) => {
+                        setLocalAccessibleOnly(value);
+                        onAccessibleOnlyChange?.(value);
                       }}
-                      style={[
-                        styles.modeButton,
-                        localAccessibleOnly && styles.activeModeButton,
-                        {
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingHorizontal: 12,
-                        },
-                      ]}
-                      accessibilityRole="switch"
-                      accessibilityState={{ checked: localAccessibleOnly }}
+                      colors={colors}
+                      styles={styles}
                       testID="next-class-accessible-toggle"
-                    >
-                      <MaterialCommunityIcons
-                        name={
-                          localAccessibleOnly
-                            ? "wheelchair-accessibility"
-                            : "walk"
-                        }
-                        size={22}
-                        color={
-                          localAccessibleOnly ? colors.white : colors.primary
-                        }
-                      />
-                      <Text
-                        style={{
-                          color: localAccessibleOnly
-                            ? colors.white
-                            : colors.primary,
-                          marginLeft: 8,
-                        }}
-                      >
-                        Accessible Route
-                      </Text>
-                    </Pressable>
+                      buttonLabel="Accessible Route"
+                    />
                   </View>
                 </View>
               )}
@@ -843,9 +819,6 @@ export default function NextClassDirectionsPanel({
                 </Pressable>
               )}
             </ScrollView>
-          </View>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </>
+    </SheetContainer>
   );
 }
