@@ -5,8 +5,8 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import React from "react";
-import { Animated, Keyboard } from "react-native";
-import NavigationBar from "../components/NavigationBar";
+import { Animated, Keyboard, KeyboardAvoidingView, Platform } from "react-native";
+import NavigationBar, { getSheetHeight } from "../components/NavigationBar";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 
 jest.mock("@expo/vector-icons", () => ({
@@ -99,10 +99,12 @@ describe("NavigationBar", () => {
   let animatedSpring: jest.SpyInstance;
   let animatedTiming: jest.SpyInstance;
   let animatedSetValue: jest.SpyInstance;
+  let originalPlatformOS: string;
 
   beforeEach(() => {
     mockOnClose = jest.fn();
     mockOnConfirm = jest.fn();
+    originalPlatformOS = Platform.OS;
 
     const mockAnimatedValue = {
       setValue: jest.fn(),
@@ -134,10 +136,17 @@ describe("NavigationBar", () => {
   });
 
   afterEach(() => {
+    Object.defineProperty(Platform, "OS", { value: originalPlatformOS });
     jest.restoreAllMocks();
   });
 
   describe("Rendering", () => {
+    it("computes sheet height for android and ios platforms", () => {
+      expect(getSheetHeight("android")).toBeGreaterThan(
+        getSheetHeight("ios"),
+      );
+    });
+
     it("should not render when visible is false", () => {
       const { queryByPlaceholderText } = render(
         <NavigationBar
@@ -176,6 +185,39 @@ describe("NavigationBar", () => {
 
       expect(getByText("Get Directions")).toBeTruthy();
     });
+
+    it("uses padding behavior on iOS", () => {
+      Object.defineProperty(Platform, "OS", { value: "ios" });
+
+      const rendered = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      expect(
+        rendered.UNSAFE_getByType(KeyboardAvoidingView).props.behavior,
+      ).toBe("padding");
+    });
+
+    it("uses height behavior on non-iOS platforms", () => {
+      Object.defineProperty(Platform, "OS", { value: "android" });
+
+      const rendered = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      expect(
+        rendered.UNSAFE_getByType(KeyboardAvoidingView).props.behavior,
+      ).toBe("height");
+    });
+
     it("handles route summary error gracefully", async () => {
       (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValueOnce(
         new Error("API Error"),
@@ -1316,6 +1358,100 @@ describe("NavigationBar", () => {
         expect(getAllByText("12 mins")).toHaveLength(5);
       });
     });
+
+    it("shows fallback route summary dash when duration and distance are missing", async () => {
+      (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValueOnce({
+        coordinates: [],
+        steps: [],
+        duration: undefined,
+        distance: undefined,
+      });
+
+      const { getByPlaceholderText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      fireEvent.changeText(getByPlaceholderText(/From/), "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+      fireEvent.changeText(getByPlaceholderText(/To/), "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      await waitFor(() => {
+        expect(getByText("—")).toBeTruthy();
+      });
+    });
+
+    it("re-runs search on start input focus when start text is non-empty", async () => {
+      const { getByPlaceholderText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const startInput = getByPlaceholderText(/From/);
+      fireEvent.changeText(startInput, "Science");
+      fireEvent.press(getByText("Richard J Renaud Science Complex (SP)"));
+
+      fireEvent(startInput, "focus");
+
+      await waitFor(() => {
+        expect(getByText("Richard J Renaud Science Complex (SP)")).toBeTruthy();
+      });
+    });
+
+    it("re-runs search on destination input focus when destination text is non-empty", async () => {
+      const { getByPlaceholderText, getByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const destInput = getByPlaceholderText(/To/);
+      fireEvent.changeText(destInput, "Library");
+      fireEvent.press(getByText("Concordia Vanier Library (VL)"));
+
+      fireEvent(destInput, "focus");
+
+      await waitFor(() => {
+        expect(getByText("Concordia Vanier Library (VL)")).toBeTruthy();
+      });
+    });
+
+    it("does not search on start input focus when the field is empty", () => {
+      const { getByPlaceholderText, queryByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      fireEvent(getByPlaceholderText(/From/), "focus");
+
+      expect(queryByText("Richard J Renaud Science Complex (SP)")).toBeNull();
+    });
+
+    it("does not search on destination input focus when the field is empty", () => {
+      const { getByPlaceholderText, queryByText } = render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      fireEvent(getByPlaceholderText(/To/), "focus");
+
+      expect(queryByText("Concordia Vanier Library (VL)")).toBeNull();
+    });
   });
 
   describe("Building Picker Toggle", () => {
@@ -1581,6 +1717,159 @@ describe("NavigationBar", () => {
       fireEvent.changeText(getByPlaceholderText(/From/), "Science");
       // suggestions are showing — modeSection (including toggle) is hidden
       expect(queryByTestId("accessible-mode-toggle")).toBeNull();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // PanResponder improved coverage (lines 282-291)
+  // -----------------------------------------------------------------------
+  describe("PanResponder Handler Coverage", () => {
+    it("should properly mock PanResponder and call handlers", () => {
+      const { PanResponder: MockPanResponder } = require("react-native");
+      const panSpy = jest
+        .spyOn(MockPanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0]?.[0] as any;
+      expect(gestureConfig).toBeTruthy();
+
+      // Test onStartShouldSetPanResponder
+      expect(gestureConfig?.onStartShouldSetPanResponder()).toBe(true);
+
+      // Test onMoveShouldSetPanResponder with various dy values
+      expect(gestureConfig?.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(
+        false
+      );
+      expect(gestureConfig?.onMoveShouldSetPanResponder({}, { dy: 15 })).toBe(
+        true
+      );
+      expect(
+        gestureConfig?.onMoveShouldSetPanResponder({}, { dy: -15 })
+      ).toBe(true);
+
+      panSpy.mockRestore();
+    });
+
+    it("should call onPanResponderMove and update translateY", () => {
+      const { PanResponder: MockPanResponder } = require("react-native");
+      const panSpy = jest
+        .spyOn(MockPanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0]?.[0] as any;
+
+      // Test positive dy (downward movement)
+      gestureConfig?.onPanResponderMove({}, { dy: 50, vy: 0.2 });
+      expect(animatedSetValue).toHaveBeenCalled();
+
+      animatedSetValue.mockClear();
+
+      // Test negative dy (upward movement) - should not setValue
+      gestureConfig?.onPanResponderMove({}, { dy: -50, vy: -0.2 });
+      expect(animatedSetValue).not.toHaveBeenCalled();
+
+      panSpy.mockRestore();
+    });
+
+    it("should close on high velocity swipe in onPanResponderRelease", () => {
+      const { PanResponder: MockPanResponder } = require("react-native");
+      const panSpy = jest
+        .spyOn(MockPanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0]?.[0] as any;
+
+      // High velocity should trigger close
+      gestureConfig?.onPanResponderRelease({}, { dy: 80, vy: 0.6 });
+      expect(mockOnClose).toHaveBeenCalled();
+
+      panSpy.mockRestore();
+    });
+
+    it("should close on large distance swipe in onPanResponderRelease", () => {
+      const { PanResponder: MockPanResponder } = require("react-native");
+      const panSpy = jest
+        .spyOn(MockPanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      mockOnClose.mockClear();
+
+      render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0]?.[0] as any;
+
+      // Large distance should trigger close
+      gestureConfig?.onPanResponderRelease({}, { dy: 150, vy: 0.1 });
+      expect(mockOnClose).toHaveBeenCalled();
+
+      panSpy.mockRestore();
+    });
+
+    it("should spring back on small movement in onPanResponderRelease", () => {
+      const { PanResponder: MockPanResponder } = require("react-native");
+      const panSpy = jest
+        .spyOn(MockPanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      mockOnClose.mockClear();
+      animatedSpring.mockClear();
+
+      render(
+        <NavigationBar
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0]?.[0] as any;
+
+      // Small movement should NOT close, should spring back
+      gestureConfig?.onPanResponderRelease({}, { dy: 50, vy: 0.1 });
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(animatedSpring).toHaveBeenCalled();
+
+      panSpy.mockRestore();
     });
   });
 });
