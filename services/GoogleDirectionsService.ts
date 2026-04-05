@@ -2,6 +2,7 @@ import { BUSSTOP } from "../constants/shuttle";
 import { DRIVING_STRATEGY, WALKING_STRATEGY } from "../constants/strategies";
 import { LatLng, RouteSegment, RouteStep } from "../constants/type";
 import { RouteStrategy } from "./Routing";
+import { requireGoogleApiKey } from "./googleEnvUtils";
 
 type DirectionsResponse = {
   status?: string;
@@ -36,17 +37,6 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function requireGoogleApiKey(): string {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-  if (!apiKey) {
-    throw new Error(
-      "Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY. Add it to your env (and restart Metro).",
-    );
-  }
-
-  return apiKey;
-}
 
 function buildDirectionsUrl(
   origin: LatLng,
