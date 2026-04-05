@@ -49,4 +49,24 @@ describe("AccessibleModeToggle", () => {
 
     expect(onAccessibleOnlyChange).toHaveBeenCalledWith(true);
   });
+
+  it("renders active state and toggles to false when accessibility mode is on", () => {
+    const onAccessibleOnlyChange = jest.fn();
+
+    render(
+      <AccessibleModeToggle
+        localAccessibleOnly={true}
+        onAccessibleOnlyChange={onAccessibleOnlyChange}
+        colors={mockColors}
+        styles={mockStyles}
+      />,
+    );
+
+    const toggle = screen.getByTestId("accessible-mode-toggle");
+    expect(toggle.props.accessibilityState?.checked).toBe(true);
+
+    fireEvent.press(toggle);
+
+    expect(onAccessibleOnlyChange).toHaveBeenCalledWith(false);
+  });
 });
