@@ -145,4 +145,47 @@ describe("POIListPanel", () => {
     fireEvent.press(screen.getByTestId("poi-list-close"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("uses fallback icon/color path for unknown category ids", () => {
+    render(
+      <POIListPanel
+        pois={[
+          {
+            placeId: "unknown-cat",
+            name: "Mystery Place",
+            latitude: 45.5001,
+            longitude: -73.5001,
+            vicinity: "Hidden Lane",
+            categoryId: "not-a-real-category" as any,
+          },
+        ]}
+        origin={origin}
+        onClose={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("poi-list-row-unknown-cat")).toBeTruthy();
+    expect(screen.getByText("map-marker")).toBeTruthy();
+  });
+
+  it("does not render vicinity text when a POI has no vicinity", () => {
+    render(
+      <POIListPanel
+        pois={[
+          {
+            placeId: "no-vicinity",
+            name: "Campus Kiosk",
+            latitude: 45.5003,
+            longitude: -73.5003,
+            categoryId: "coffee",
+          } as any,
+        ]}
+        origin={origin}
+        onClose={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("poi-list-row-no-vicinity")).toBeTruthy();
+    expect(screen.queryByText("Campus Kiosk")).toBeTruthy();
+  });
 });
