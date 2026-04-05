@@ -48,6 +48,28 @@ const SHEET_TOP = SCREEN_HEIGHT - FULL_HEIGHT;
 
 const SPRING_CONFIG = { useNativeDriver: true, damping: 20, stiffness: 150 };
 
+export async function getStrategyRouteSummary(
+  strategy: RouteStrategy,
+  shuttleAvailable: boolean,
+  startCoordinates: Buildings["coordinates"],
+  destCoordinates: Buildings["coordinates"],
+): Promise<readonly [RouteStrategy["mode"], string | null]> {
+  if (strategy.mode === "shuttle" && !shuttleAvailable) {
+    return [strategy.mode, null] as const;
+  }
+
+  try {
+    const res = await getOutdoorRouteWithSteps(
+      startCoordinates,
+      destCoordinates,
+      strategy,
+    );
+    return [strategy.mode, res.duration ?? null] as const;
+  } catch {
+    return [strategy.mode, null] as const;
+  }
+}
+
 function fmtTime(d: Date): string {
   let h = d.getHours();
   const m = d.getMinutes();
