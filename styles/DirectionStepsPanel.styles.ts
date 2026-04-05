@@ -14,7 +14,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       left: spacing.md,
       right: spacing.md,
       bottom: spacing.lg + spacing.md,
-      maxHeight: "42%",
+      maxHeight: "38%",
       zIndex: 100,
     },
     card: {
@@ -29,7 +29,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
     },
     header: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
@@ -37,10 +37,10 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.gray100,
     },
-    headerLeft: {
-      flexShrink: 1,
+    headerCopy: {
+      flex: 1,
+      gap: spacing.xs,
       marginRight: spacing.sm,
-      gap: 4,
     },
     modeBadge: {
       flexDirection: "row",
@@ -50,6 +50,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       paddingVertical: spacing.xs + 2,
       borderRadius: borderRadius.full,
       gap: 6,
+      alignSelf: "flex-start",
     },
     modeLabel: {
       color: colors.white,
@@ -60,14 +61,19 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       color: colors.gray700,
       fontSize: typography.caption.fontSize,
       fontWeight: "500",
-      marginLeft: spacing.xs,
+      lineHeight: 16,
+    },
+    headerSummary: {
+      color: colors.gray500,
+      fontSize: typography.caption.fontSize,
+      lineHeight: 16,
     },
     headerActions: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
     },
-    locationButton: {
+    iconButton: {
       padding: spacing.xs + 2,
       borderRadius: borderRadius.full,
       backgroundColor: colors.gray100,
@@ -83,18 +89,29 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       fontSize: typography.caption.fontSize,
       fontWeight: "600",
     },
-    closeText: {
-      fontSize: 20,
-      color: colors.gray500,
-      lineHeight: 24,
-    },
     stepsScroll: {
-      maxHeight: 240,
+      maxHeight: 220,
     },
     stepsContent: {
       padding: spacing.md,
       paddingBottom: spacing.xl,
       paddingLeft: spacing.sm,
+    },
+    collapsedPreview: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+      gap: spacing.xs,
+    },
+    collapsedPreviewTitle: {
+      color: colors.primaryDark,
+      fontSize: typography.body.fontSize,
+      fontWeight: "600",
+    },
+    collapsedPreviewText: {
+      color: colors.gray500,
+      fontSize: typography.caption.fontSize,
+      lineHeight: 18,
     },
     stepRow: {
       flexDirection: "row",
@@ -102,9 +119,9 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       marginBottom: spacing.md,
     },
     ctaRow: {
-      backgroundColor: colors.primary + "14", // ~8% tint
+      backgroundColor: colors.primary + "14",
       borderWidth: 1,
-      borderColor: colors.primary + "55", // ~33% tint
+      borderColor: colors.primary + "55",
       borderRadius: borderRadius.md,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -119,7 +136,7 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       width: 26,
       height: 26,
       borderRadius: 13,
-      backgroundColor: colors.primary, // Default walking color (maroon)
+      backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
     },

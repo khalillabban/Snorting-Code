@@ -94,7 +94,9 @@ function resolveStepIcon(
   return "bus";
 }
 
-function buildTransitMetaText(details: NonNullable<RouteStep["transitDetails"]>): string {
+function buildTransitMetaText(
+  details: NonNullable<RouteStep["transitDetails"]>,
+): string {
   return [
     details.lineName && `Line ${details.lineName}`,
     details.departureTime && `Departs ${details.departureTime}`,
@@ -163,6 +165,7 @@ export function DirectionStepsPanel({
   const { colors } = useColorAccessibility();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const bottomInset = useBottomInset();
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   const computedRouteSummary = React.useMemo(() => {
     const totalMeters = steps.reduce((total, step) => {
@@ -182,14 +185,29 @@ export function DirectionStepsPanel({
 
     if (!distanceText && !durationText) return null;
 
-    return [durationText, distanceText].filter(Boolean).join(" · ");
+    return [durationText, distanceText].filter(Boolean).join(" \u00B7 ");
   }, [steps]);
 
   const summaryText = routeSummary
-    ? [routeSummary.duration, routeSummary.distance].filter(Boolean).join(" · ")
+    ? [routeSummary.duration, routeSummary.distance]
+        .filter(Boolean)
+        .join(" \u00B7 ")
     : computedRouteSummary;
 
+  const stepSignature = steps
+    .map(
+      (step) =>
+        `${step.instruction}|${step.distance ?? ""}|${step.duration ?? ""}|${Boolean(step.onPress)}`,
+    )
+    .join("||");
+
+  React.useEffect(() => {
+    setIsExpanded(false);
+  }, [stepSignature, strategy.mode]);
+
   if (steps.length === 0) return null;
+
+  const stepCountLabel = `${steps.length} step${steps.length === 1 ? "" : "s"}`;
 
   return (
     <View
@@ -198,7 +216,7 @@ export function DirectionStepsPanel({
     >
       <View style={styles.card}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View style={styles.headerCopy}>
             <View style={styles.modeBadge}>
               <MaterialCommunityIcons
                 name={strategy.icon as any}
@@ -210,12 +228,17 @@ export function DirectionStepsPanel({
             {summaryText && (
               <Text style={styles.routeSummary}>{summaryText}</Text>
             )}
+            <Text style={styles.headerSummary}>
+              {isExpanded
+                ? stepCountLabel
+                : `${stepCountLabel} hidden to keep the route visible`}
+            </Text>
           </View>
           <View style={styles.headerActions}>
             {onFocusUser && (
               <Pressable
                 onPress={onFocusUser}
-                style={styles.locationButton}
+                style={styles.iconButton}
                 accessibilityRole="button"
                 accessibilityLabel="Center on my location"
               >
@@ -226,6 +249,22 @@ export function DirectionStepsPanel({
                 />
               </Pressable>
             )}
+            <Pressable
+              onPress={() => setIsExpanded((value) => !value)}
+              style={styles.iconButton}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isExpanded
+                  ? "Collapse directions steps"
+                  : "Expand directions steps"
+              }
+            >
+              <MaterialIcons
+                name={isExpanded ? "expand-more" : "expand-less"}
+                size={18}
+                color={colors.primary}
+              />
+            </Pressable>
             <Pressable
               onPress={onChangeRoute}
               style={styles.changeButton}
@@ -238,99 +277,119 @@ export function DirectionStepsPanel({
               <Pressable
                 onPress={onDismiss}
                 hitSlop={10}
+                style={styles.iconButton}
                 accessibilityRole="button"
                 accessibilityLabel="Close directions"
               >
-                <Text style={styles.closeText}>✕</Text>
+                <MaterialIcons name="close" size={18} color={colors.gray500} />
               </Pressable>
             )}
           </View>
         </View>
-        <ScrollView
-          style={styles.stepsScroll}
-          contentContainerStyle={styles.stepsContent}
-          showsVerticalScrollIndicator
-          keyboardShouldPersistTaps="handled"
-        >
-          {steps.map((step, index) => {
-            const lowerInstruction = step.instruction.toLowerCase();
-            const isShuttle =
-              lowerInstruction.includes("shuttle") ||
-              lowerInstruction.includes("board");
-            const isTransit = Boolean(step.transitDetails);
-            const isContinueIndoorsCta =
-              Boolean(step.onPress) && index === steps.length - 1;
-            const iconName = resolveStepIcon(
-              isShuttle,
-              isTransit,
-              isContinueIndoorsCta,
-              step.transitDetails?.vehicleType,
-            );
-            const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
 
-            return (
-              <StepWrapper
-                key={stepKey}
-                styles={styles}
-                onPress={step.onPress}
-                isCallToAction={isContinueIndoorsCta}
-              >
-                <View style={styles.stepLeft}>
-                  <View
-                    style={[
-                      styles.stepIconContainer,
-                      isContinueIndoorsCta && styles.ctaIconContainer,
-                      isShuttle && styles.shuttleStepHighlight,
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={iconName}
-                      size={14}
-                      color={colors.white}
-                    />
+        {isExpanded ? (
+          <ScrollView
+            style={styles.stepsScroll}
+            contentContainerStyle={styles.stepsContent}
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+          >
+            {steps.map((step, index) => {
+              const normalizedInstruction = step.instruction.toLowerCase();
+              const isShuttle =
+                normalizedInstruction.includes("shuttle") ||
+                normalizedInstruction.includes("board");
+              const isTransit = Boolean(step.transitDetails);
+              const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
+              const isContinueIndoorsCta =
+                Boolean(step.onPress) && index === steps.length - 1;
+              const metadataText = [step.distance, step.duration]
+                .filter(Boolean)
+                .join(" \u00B7 ");
+              const iconName = resolveStepIcon(
+                isShuttle,
+                isTransit,
+                isContinueIndoorsCta,
+                step.transitDetails?.vehicleType,
+              );
+
+              return (
+                <StepWrapper
+                  key={stepKey}
+                  styles={styles}
+                  onPress={step.onPress}
+                  isCallToAction={isContinueIndoorsCta}
+                >
+                  <View style={styles.stepLeft}>
+                    <View
+                      style={[
+                        styles.stepIconContainer,
+                        isContinueIndoorsCta && styles.ctaIconContainer,
+                        isShuttle && styles.shuttleStepHighlight,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={iconName}
+                        size={14}
+                        color={colors.white}
+                      />
+                    </View>
+                    {index < steps.length - 1 && (
+                      <View style={styles.stepLine} />
+                    )}
                   </View>
-                  {index < steps.length - 1 && <View style={styles.stepLine} />}
-                </View>
 
-                <View style={styles.stepBody}>
-                  <Text
-                    style={[
-                      styles.stepInstruction,
-                      isContinueIndoorsCta && styles.ctaInstruction,
-                      isShuttle && styles.shuttleTextBold,
-                    ]}
-                  >
-                    {step.instruction}
-                  </Text>
-
-                  {isTransit && step.transitDetails && (
-                    <Text style={styles.stepMeta}>
-                      {buildTransitMetaText(step.transitDetails)}
+                  <View style={styles.stepBody}>
+                    <Text
+                      style={[
+                        styles.stepInstruction,
+                        isContinueIndoorsCta && styles.ctaInstruction,
+                        isShuttle && styles.shuttleTextBold,
+                      ]}
+                    >
+                      {step.instruction}
                     </Text>
-                  )}
 
-                  {(step.distance || step.duration) && (
-                    <Text style={styles.stepMeta}>
-                      {[step.distance, step.duration]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </Text>
-                  )}
-                </View>
+                    {isTransit && step.transitDetails && (
+                      <Text style={styles.stepMeta}>
+                        {buildTransitMetaText(step.transitDetails)}
+                      </Text>
+                    )}
 
-                {isContinueIndoorsCta && (
-                  <View style={styles.ctaChevron}>
-                    <MaterialIcons
-                      name="chevron-right"
-                      size={24}
-                      color={colors.primary}
-                    />
+                    {metadataText ? (
+                      <Text style={styles.stepMeta}>{metadataText}</Text>
+                    ) : null}
                   </View>
-                )}
-              </StepWrapper>
-            );
-          })}
-        </ScrollView>
+
+                  {isContinueIndoorsCta && (
+                    <View style={styles.ctaChevron}>
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={24}
+                        color={colors.primary}
+                      />
+                    </View>
+                  )}
+                </StepWrapper>
+              );
+            })}
+          </ScrollView>
+        ) : (
+          <Pressable
+            style={styles.collapsedPreview}
+            onPress={() => setIsExpanded(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open route steps preview"
+          >
+            <Text style={styles.collapsedPreviewTitle}>
+              {stepCountLabel} available
+            </Text>
+            <Text style={styles.collapsedPreviewText}>
+              Expand to view turn-by-turn directions without covering the map by
+              default.
+            </Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );

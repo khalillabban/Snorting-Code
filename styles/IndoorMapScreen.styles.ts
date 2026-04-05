@@ -201,14 +201,14 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
   mapContainer: {
     flex: 1,
     backgroundColor: colors.white,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   mapViewport: {
     flex: 1,
     position: "relative",
-    backgroundColor: "#1e1e1e",
+    backgroundColor: colors.offWhite,
     overflow: "hidden",
     borderRadius: 14,
   },

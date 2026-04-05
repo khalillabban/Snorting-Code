@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 
 import {
-    IndoorDirectionsPanel,
-    IndoorRouteOverlay,
+  IndoorDirectionsPanel,
+  IndoorRouteOverlay,
 } from "../components/IndoorRouteOverlay";
 import type { NavigationRoute } from "../utils/indoorNavigation";
 import { getRouteWaypointsForFloor } from "../utils/indoorNavigation";
@@ -22,9 +22,12 @@ jest.mock("react-native-svg", () => {
     __esModule: true,
     default: ({ children, ...props }: any) =>
       React.createElement(View, { testID: "svg-root", ...props }, children),
-    Polyline: (props: any) => React.createElement(View, { testID: "svg-polyline", ...props }),
-    Circle: (props: any) => React.createElement(View, { testID: "svg-circle", ...props }),
-    G: ({ children }: any) => React.createElement(View, { testID: "svg-group" }, children),
+    Polyline: (props: any) =>
+      React.createElement(View, { testID: "svg-polyline", ...props }),
+    Circle: (props: any) =>
+      React.createElement(View, { testID: "svg-circle", ...props }),
+    G: ({ children }: any) =>
+      React.createElement(View, { testID: "svg-group" }, children),
   };
 });
 
@@ -42,6 +45,10 @@ function makeRoute(overrides: Partial<NavigationRoute> = {}): NavigationRoute {
     estimatedSeconds: 125,
     ...overrides,
   };
+}
+
+function expandDirectionsPanel() {
+  fireEvent.press(screen.getByLabelText("Expand directions steps"));
 }
 
 describe("IndoorRouteOverlay", () => {
@@ -175,6 +182,7 @@ describe("IndoorDirectionsPanel", () => {
 
     expect(screen.getByText("MB-1.210 → MB-2.330")).toBeTruthy();
     expect(screen.getByText("45s walk · some inaccessible sections")).toBeTruthy();
+    expect(screen.getByText("0 steps available")).toBeTruthy();
   });
 
   it("invokes onClose when close button is pressed", () => {
@@ -187,11 +195,11 @@ describe("IndoorDirectionsPanel", () => {
 
     render(<IndoorDirectionsPanel route={route} onClose={onClose} />);
 
-    fireEvent.press(screen.getByText("✕"));
+    fireEvent.press(screen.getByLabelText("Close directions"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("renders segment rows with walk meta and transition icon", () => {
+  it("starts collapsed and expands to show segment rows", () => {
     const route = makeRoute({
       estimatedSeconds: 125,
       fullyAccessible: true,
@@ -218,6 +226,12 @@ describe("IndoorDirectionsPanel", () => {
     render(<IndoorDirectionsPanel route={route} />);
 
     expect(screen.getByText("2m 5s walk · fully accessible")).toBeTruthy();
+    expect(screen.getByText("2 steps available")).toBeTruthy();
+    expect(screen.queryByText("Step 1")).toBeNull();
+
+    expandDirectionsPanel();
+
+    expect(screen.getByLabelText("Collapse directions steps")).toBeTruthy();
     expect(screen.getByText("Step 1")).toBeTruthy();
     expect(screen.getByText("Walk along corridor")).toBeTruthy();
     expect(screen.getByText("Floor 3 · ~12m")).toBeTruthy();
@@ -237,7 +251,7 @@ describe("IndoorDirectionsPanel", () => {
     render(<IndoorDirectionsPanel route={route} />);
 
     expect(screen.getByText("2m walk · fully accessible")).toBeTruthy();
-    expect(screen.queryByText("✕")).toBeNull();
+    expect(screen.queryByLabelText("Close directions")).toBeNull();
   });
 
   it("uses fallback icon and omits walk meta when distance is zero", () => {
@@ -266,8 +280,10 @@ describe("IndoorDirectionsPanel", () => {
 
     render(<IndoorDirectionsPanel route={route} />);
 
+    expandDirectionsPanel();
+
     expect(screen.queryByText("Floor 1 · ~0m")).toBeNull();
-    expect(screen.getByText("·")).toBeTruthy();
+    expect(screen.getByText("•")).toBeTruthy();
     expect(screen.getByText("Unknown segment")).toBeTruthy();
   });
 });

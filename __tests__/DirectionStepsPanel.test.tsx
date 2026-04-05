@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import {
-  DirectionStepsPanel,
-  StepWrapper,
+    DirectionStepsPanel,
+    StepWrapper,
 } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
@@ -15,7 +15,6 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-// Updated mock to render icon names, allowing us to test "bus" vs "walk" icons
 jest.mock("@expo/vector-icons", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
@@ -44,6 +43,10 @@ const mockSteps: RouteStep[] = [
 ];
 
 const wrapperStyles = createStyles();
+
+function expandStepsPanel() {
+  fireEvent.press(screen.getByLabelText("Expand directions steps"));
+}
 
 describe("DirectionStepsPanel", () => {
   it("renders StepWrapper as a plain row when no onPress is provided", () => {
@@ -81,11 +84,12 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
     expect(queryByText("Walk")).toBeNull();
     expect(queryByText("Change route")).toBeNull();
   });
 
-  it("renders strategy label and steps when steps are provided", () => {
+  it("renders strategy label and steps when steps are expanded", () => {
     render(
       <DirectionStepsPanel
         steps={mockSteps}
@@ -93,18 +97,66 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
     expect(screen.getByText("Walk")).toBeTruthy();
-    expect(screen.getByText("5 min · 300 m")).toBeTruthy();
+    expect(screen.getByText("5 min \u00B7 300 m")).toBeTruthy();
     expect(screen.getByText("Change route")).toBeTruthy();
+    expect(
+      screen.getByText("3 steps hidden to keep the route visible"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Head north on Main St")).toBeNull();
+
+    expandStepsPanel();
+
     expect(screen.getByText("Head north on Main St")).toBeTruthy();
-    expect(screen.getByText("100 m · 1 min")).toBeTruthy();
+    expect(screen.getByText("100 m \u00B7 1 min")).toBeTruthy();
     expect(screen.getByText("Turn right onto Oak Ave")).toBeTruthy();
-    expect(screen.getByText("200 m · 3 min")).toBeTruthy();
+    expect(screen.getByText("200 m \u00B7 3 min")).toBeTruthy();
     expect(screen.getByText("Arrive at destination")).toBeTruthy();
+  });
+
+  it("prefers the provided route summary over the computed one", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ duration: "7 min", distance: "450 m" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("7 min \u00B7 450 m")).toBeTruthy();
+    expect(screen.queryByText("5 min \u00B7 300 m")).toBeNull();
+  });
+
+  it("starts collapsed and toggles expanded state from the header control", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("3 steps available")).toBeTruthy();
+    expect(screen.queryByText("Head north on Main St")).toBeNull();
+
+    expandStepsPanel();
+
+    expect(screen.getByLabelText("Collapse directions steps")).toBeTruthy();
+    expect(screen.getByText("Head north on Main St")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Collapse directions steps"));
+
+    expect(screen.queryByText("Head north on Main St")).toBeNull();
+    expect(
+      screen.getByText("3 steps hidden to keep the route visible"),
+    ).toBeTruthy();
   });
 
   it("calls onChangeRoute when Change route is pressed", () => {
     const onChangeRoute = jest.fn();
+
     render(
       <DirectionStepsPanel
         steps={mockSteps}
@@ -112,12 +164,14 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={onChangeRoute}
       />,
     );
+
     fireEvent.press(screen.getByText("Change route"));
     expect(onChangeRoute).toHaveBeenCalledTimes(1);
   });
 
   it("renders dismiss button and calls onDismiss when provided", () => {
     const onDismiss = jest.fn();
+
     render(
       <DirectionStepsPanel
         steps={mockSteps}
@@ -126,13 +180,14 @@ describe("DirectionStepsPanel", () => {
         onDismiss={onDismiss}
       />,
     );
+
     const closeButton = screen.getByLabelText("Close directions");
     expect(closeButton).toBeTruthy();
+
     fireEvent.press(closeButton);
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  // --- NEW COVERAGE: Shuttle logic & icons ---
   it("identifies shuttle steps using 'shuttle' or 'board' keywords and renders correct icons", () => {
     const shuttleSteps: RouteStep[] = [
       { instruction: "Walk to the stop", distance: "100 m" },
@@ -148,6 +203,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Walk to the stop")).toBeTruthy();
     expect(screen.getByText("Board the Shuttle to Loyola")).toBeTruthy();
     expect(screen.getByText("Take the SHUTTLE back")).toBeTruthy();
@@ -155,16 +212,10 @@ describe("DirectionStepsPanel", () => {
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
 
-    // Total icons should be 4:
-    // 1 for the Header Badge (walk)
-    // 1 for Step 0 (walk)
-    // 1 for Step 1 (bus - triggered by 'Board')
-    // 1 for Step 2 (bus - triggered by 'SHUTTLE')
     expect(iconNames.filter((name) => name === "bus").length).toBe(2);
     expect(iconNames.filter((name) => name === "walk").length).toBe(2);
   });
 
-  // --- NEW COVERAGE: Distance / Duration combinations ---
   it("formats metadata correctly when missing distance or duration", () => {
     const mixedSteps: RouteStep[] = [
       { instruction: "Only distance", distance: "50 m" },
@@ -181,11 +232,11 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
-    // Verifies `[step.distance, step.duration].filter(Boolean).join(" · ")` logic
+    expandStepsPanel();
+
     expect(screen.getByText("50 m")).toBeTruthy();
     expect(screen.getByText("2 mins")).toBeTruthy();
-    expect(screen.getByText("10 m · 1 min")).toBeTruthy();
-    // The "Neither" step shouldn't render any metadata text block
+    expect(screen.getByText("10 m \u00B7 1 min")).toBeTruthy();
   });
 
   it("does not render metadata when distance and duration are empty strings", () => {
@@ -197,10 +248,10 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Empty meta")).toBeTruthy();
-    // With both empty strings, the (step.distance || step.duration) guard is falsy,
-    // so the meta Text should not be rendered.
-    expect(screen.queryByText(" · ")).toBeNull();
+    expect(screen.queryByText(" \u00B7 ")).toBeNull();
   });
 
   it("renders different strategy label for transit", () => {
@@ -209,6 +260,7 @@ describe("DirectionStepsPanel", () => {
       label: "Transit",
       icon: "bus",
     };
+
     render(
       <DirectionStepsPanel
         steps={mockSteps}
@@ -216,6 +268,7 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
     expect(screen.getByText("Transit")).toBeTruthy();
   });
 
@@ -237,15 +290,15 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
-    // When onPress exists, the step container becomes Pressable with accessibilityRole="button".
-    // The mock buttons don’t set an accessibilityLabel for the step, so we locate via its text node
-    // and press that (RNTL will fire on the nearest pressable ancestor).
+    expandStepsPanel();
+
     fireEvent.press(screen.getByText("Tap me"));
     expect(onStepPress).toHaveBeenCalledTimes(1);
   });
 
   it("renders the location button and calls onFocusUser when pressed", () => {
     const onFocusUser = jest.fn();
+
     render(
       <DirectionStepsPanel
         steps={mockSteps}
@@ -254,8 +307,10 @@ describe("DirectionStepsPanel", () => {
         onFocusUser={onFocusUser}
       />,
     );
+
     const locationButton = screen.getByLabelText("Center on my location");
     expect(locationButton).toBeTruthy();
+
     fireEvent.press(locationButton);
     expect(onFocusUser).toHaveBeenCalledTimes(1);
   });
@@ -268,6 +323,7 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
     expect(screen.queryByLabelText("Center on my location")).toBeNull();
   });
 
@@ -279,6 +335,7 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
     expect(screen.queryByLabelText("Close directions")).toBeNull();
   });
 
@@ -299,15 +356,12 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Continue indoors to H-920")).toBeTruthy();
-
-    // CTA row should expose the accessibility hint from StepWrapper.
     expect(screen.getByHintText("Opens indoor directions")).toBeTruthy();
-
-    // CTA renders a chevron on the right.
     expect(screen.getByText("chevron-right")).toBeTruthy();
 
-    // Icons: header walk, first step walk, last step door-open.
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
 
@@ -332,6 +386,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Continue indoors")).toBeTruthy();
     expect(screen.getByHintText("Opens indoor directions")).toBeTruthy();
 
@@ -341,6 +397,7 @@ describe("DirectionStepsPanel", () => {
 
   it("does not add CTA accessibility hint for non-final pressable step", () => {
     const onMidStepPress = jest.fn();
+
     render(
       <DirectionStepsPanel
         steps={[
@@ -352,7 +409,10 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
+
     fireEvent.press(screen.getByText("Tap midpoint"));
     expect(onMidStepPress).toHaveBeenCalledTimes(1);
   });
@@ -365,6 +425,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     expect(screen.getByText("Plain step")).toBeTruthy();
     expect(screen.queryByHintText("Opens indoor directions")).toBeNull();
@@ -379,6 +441,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
@@ -407,6 +471,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Bus towards Atwater")).toBeTruthy();
     expect(
       screen.getByText("Line 24 · Departs 3:15 PM · Arrives 3:30 PM · 5 stops"),
@@ -433,6 +499,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Line Green · 3 stops")).toBeTruthy();
   });
 
@@ -449,6 +517,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
@@ -469,6 +539,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("train");
@@ -488,6 +560,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const stepIcons = icons.map((icon) => icon.props.children);
     // Header icon is "bus" (from strategy), step icon should also be "bus" (fallback)
@@ -504,6 +578,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     expect(screen.getByText("Walk north")).toBeTruthy();
     expect(screen.getByText("200 m · 3 min")).toBeTruthy();
@@ -562,7 +638,11 @@ describe("DirectionStepsPanel", () => {
     render(
       <DirectionStepsPanel
         steps={[
-          { instruction: "Long drive", distance: "100 km", duration: "2 hours 30 min" },
+          {
+            instruction: "Long drive",
+            distance: "100 km",
+            duration: "2 hours 30 min",
+          },
         ]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
@@ -589,9 +669,7 @@ describe("DirectionStepsPanel", () => {
   it("handles unparseable distance values gracefully in summary", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "NaN m", duration: "5 min" },
-        ]}
+        steps={[{ instruction: "Go", distance: "NaN m", duration: "5 min" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -603,9 +681,7 @@ describe("DirectionStepsPanel", () => {
   it("handles unparseable duration values gracefully in summary", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "100 m", duration: "soon" },
-        ]}
+        steps={[{ instruction: "Go", distance: "100 m", duration: "soon" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -617,9 +693,7 @@ describe("DirectionStepsPanel", () => {
   it("handles empty string duration in summary computation", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "100 m", duration: "" },
-        ]}
+        steps={[{ instruction: "Go", distance: "100 m", duration: "" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -634,9 +708,7 @@ describe("DirectionStepsPanel", () => {
   it("handles distance that does not match any unit pattern", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "nearby", duration: "3 min" },
-        ]}
+        steps={[{ instruction: "Go", distance: "nearby", duration: "3 min" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -657,6 +729,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     expect(screen.getByText("Go somewhere")).toBeTruthy();
     // The per-step meta still renders the raw values
@@ -703,6 +777,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("subway");
@@ -714,13 +790,18 @@ describe("DirectionStepsPanel", () => {
         steps={[
           {
             instruction: "Take commuter train",
-            transitDetails: { vehicleType: "COMMUTER_TRAIN", lineName: "Exo 1" },
+            transitDetails: {
+              vehicleType: "COMMUTER_TRAIN",
+              lineName: "Exo 1",
+            },
           },
         ]}
         strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);

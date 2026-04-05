@@ -26,12 +26,13 @@ import {
 import { ZoomableView } from "../components/ZoomableView";
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
-import { colors, spacing } from "../constants/theme";
+import { spacing } from "../constants/theme";
 import {
   getSessionId,
   USABILITY_TESTING_ENABLED,
 } from "../constants/usabilityConfig";
-import { styles } from "../styles/IndoorMapScreen.styles";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { createStyles } from "../styles/IndoorMapScreen.styles";
 import {
   isDestinationLegOrigin,
   pickClosestEntryExitNodeId,
@@ -46,6 +47,7 @@ import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
+  getRouteWaypointsForFloor,
   NavigationRoute,
   type NavigationResult,
 } from "../utils/indoorNavigation";
@@ -67,7 +69,7 @@ import {
 } from "../utils/routeTransition";
 import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
-const FLOOR_FRAME_PADDING = spacing.md;
+const FLOOR_FRAME_PADDING = spacing.sm;
 const DEFAULT_VIEWPORT_HEIGHT = 280;
 const FLOOR_CONTENT_PADDING = 120;
 const MIN_CONTENT_SPAN = 260;
@@ -76,6 +78,7 @@ const DEFAULT_AVAILABLE_FLOORS = [1] as const;
 
 type FloorViewport = { width: number; height: number };
 type FloorBounds = { minX: number; minY: number; maxX: number; maxY: number };
+type FloorContentPoint = { x: number; y: number };
 type NavInputField = "origin" | "dest";
 type FloorStageLayout = {
   frameLeft: number;
@@ -107,11 +110,14 @@ function getFloorImageDimensions(
   };
 }
 
-function getFloorContentBounds(
+export function getFloorContentBounds(
   floorImageDimensions: { width: number; height: number },
-  currentFloorRooms: IndoorRoomRecord[],
+  currentFloorRooms: FloorContentPoint[],
+  routeWaypoints: FloorContentPoint[] = [],
 ): FloorBounds {
-  if (currentFloorRooms.length === 0) {
+  const fitPoints = [...currentFloorRooms, ...routeWaypoints];
+
+  if (fitPoints.length === 0) {
     return {
       minX: 0,
       minY: 0,
@@ -121,26 +127,22 @@ function getFloorContentBounds(
   }
 
   const rawMinX = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.x)) -
-      FLOOR_CONTENT_PADDING,
+    Math.min(...fitPoints.map((point) => point.x)) - FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.x)) +
-      FLOOR_CONTENT_PADDING,
+    Math.max(...fitPoints.map((point) => point.x)) + FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
-    Math.min(...currentFloorRooms.map((room) => room.y)) -
-      FLOOR_CONTENT_PADDING,
+    Math.min(...fitPoints.map((point) => point.y)) - FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
-    Math.max(...currentFloorRooms.map((room) => room.y)) +
-      FLOOR_CONTENT_PADDING,
+    Math.max(...fitPoints.map((point) => point.y)) + FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -248,6 +250,7 @@ function useNavAutoTrigger(
 
 export default function IndoorMapScreen() {
   const router = useRouter();
+  const { colors } = useColorAccessibility();
   const {
     buildingName,
     floors,
@@ -279,6 +282,7 @@ export default function IndoorMapScreen() {
   const [accessibleOnly, setAccessibleOnly] = useState(
     accessibleOnlyParam === "true",
   );
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const availableFloors = useMemo(() => {
@@ -502,6 +506,13 @@ export default function IndoorMapScreen() {
     () => getFloorImageDimensions(floorImageMetadata, scaledCurrentFloorRooms),
     [floorImageMetadata, scaledCurrentFloorRooms],
   );
+  const activeRouteWaypoints = useMemo(
+    () =>
+      activeRoute
+        ? getRouteWaypointsForFloor(activeRoute, selectedFloor, coordinateScale)
+        : [],
+    [activeRoute, coordinateScale, selectedFloor],
+  );
   const floorBounds = useMemo(
     () =>
       floorImageMetadata?.showFullImage
@@ -511,8 +522,13 @@ export default function IndoorMapScreen() {
             maxX: floorImageDimensions.width,
             maxY: floorImageDimensions.height,
           }
-        : getFloorContentBounds(floorImageDimensions, scaledCurrentFloorRooms),
+        : getFloorContentBounds(
+            floorImageDimensions,
+            scaledCurrentFloorRooms,
+            activeRouteWaypoints,
+          ),
     [
+      activeRouteWaypoints,
       floorImageDimensions,
       floorImageMetadata?.showFullImage,
       scaledCurrentFloorRooms,
@@ -659,11 +675,7 @@ export default function IndoorMapScreen() {
     [],
   );
 
-  useInitialRoomQuery(
-    initialRoomQuery,
-    availableFloors,
-    performRoomSearch,
-  );
+  useInitialRoomQuery(initialRoomQuery, availableFloors, performRoomSearch);
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
@@ -1131,7 +1143,11 @@ export default function IndoorMapScreen() {
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
-          <Pressable style={styles.searchButton} onPress={handleNavigate} testID="go-indoor-button">
+          <Pressable
+            style={styles.searchButton}
+            onPress={handleNavigate}
+            testID="go-indoor-button"
+          >
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
@@ -1167,7 +1183,9 @@ export default function IndoorMapScreen() {
                     />
                   </View>
                   <View style={styles.suggestionTextWrap}>
-                    <Text style={styles.suggestionText}>{match.room.label}</Text>
+                    <Text style={styles.suggestionText}>
+                      {match.room.label}
+                    </Text>
                     <Text style={styles.suggestionSubtext}>
                       {secondaryParts.join(" · ")}
                     </Text>
