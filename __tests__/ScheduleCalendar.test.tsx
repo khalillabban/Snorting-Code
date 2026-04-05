@@ -183,6 +183,37 @@ describe("components/ScheduleCalendar", () => {
     expect(titles).toEqual(["Early Class", "Late Class"]);
   });
 
+  it("orders upcoming day groups chronologically", () => {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    const dayTwoItem = makeItem(
+      "d2",
+      "Day Two Class",
+      new Date(inTwoDays.getTime() + 9 * 60 * 60 * 1000),
+      new Date(inTwoDays.getTime() + 10 * 60 * 60 * 1000),
+      "Room D2",
+    );
+    const dayOneItem = makeItem(
+      "d1",
+      "Day One Class",
+      new Date(tomorrow.getTime() + 9 * 60 * 60 * 1000),
+      new Date(tomorrow.getTime() + 10 * 60 * 60 * 1000),
+      "Room D1",
+    );
+
+    const { getAllByText } = render(
+      <ScheduleCalendar items={[dayTwoItem, dayOneItem]} />,
+    );
+
+    const titles = getAllByText(/Day (One|Two) Class/).map(
+      (node) => node.props.children,
+    );
+
+    expect(titles).toEqual(["Day One Class", "Day Two Class"]);
+  });
+
   it("renders multiple upcoming items without crashing", () => {
     const items: ScheduleItem[] = [
       makeItem("a", "Class A", hoursFromNow(1), hoursFromNow(2), "A"),
@@ -384,5 +415,37 @@ describe("components/ScheduleCalendar", () => {
     expect(getByText("Upcoming Events")).toBeTruthy();
     expect(queryByText("COMP 248")).toBeNull();
     expect(getByText("Career Fair")).toBeTruthy();
+  });
+
+  it("collapses and re-expands upcoming events when its accordion header is pressed", () => {
+    const items: ScheduleItem[] = [
+      makeEvent("event-1", "Career Fair", hoursFromNow(1), hoursFromNow(2)),
+    ];
+
+    const { getByTestId, queryByText } = render(<ScheduleCalendar items={items} />);
+
+    expect(queryByText("Career Fair")).toBeTruthy();
+
+    fireEvent.press(getByTestId("accordion-upcoming-events"));
+    expect(queryByText("Career Fair")).toBeNull();
+
+    fireEvent.press(getByTestId("accordion-upcoming-events"));
+    expect(queryByText("Career Fair")).toBeTruthy();
+  });
+
+  it("returns to all sections when the All filter chip is pressed", () => {
+    const items: ScheduleItem[] = [
+      makeItem("class-1", "COMP 248", hoursFromNow(1), hoursFromNow(2)),
+      makeEvent("event-1", "Career Fair", hoursFromNow(3), hoursFromNow(4)),
+    ];
+
+    const { getByTestId, getByText } = render(<ScheduleCalendar items={items} />);
+
+    fireEvent.press(getByTestId("schedule-filter-events"));
+    expect(getByText("Upcoming Events")).toBeTruthy();
+
+    fireEvent.press(getByTestId("schedule-filter-all"));
+    expect(getByText("Upcoming Classes")).toBeTruthy();
+    expect(getByText("Upcoming Events")).toBeTruthy();
   });
 });
