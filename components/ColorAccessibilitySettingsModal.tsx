@@ -1,12 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { borderRadius, spacing, typography } from "../constants/theme";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
@@ -133,12 +133,13 @@ export function ColorAccessibilitySettingsModal({
             </Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list} testID="color-options-list">
             {options.map((option) => {
               const selected = option.value === mode;
               return (
                 <Pressable
                   key={option.value}
+                  testID={`color-option-${option.value}`}
                   style={[styles.option, selected && styles.optionSelected]}
                   onPress={() => setMode(option.value)}
                   accessibilityRole="radio"
@@ -165,7 +166,7 @@ export function ColorAccessibilitySettingsModal({
           </ScrollView>
 
           <View style={styles.footer}>
-            <Pressable style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close color accessibility settings">
+            <Pressable style={styles.closeButton} onPress={onClose} testID="color-settings-done-button" accessibilityRole="button" accessibilityLabel="Close color accessibility settings">
               <Text style={styles.closeText}>Done</Text>
             </Pressable>
           </View>
