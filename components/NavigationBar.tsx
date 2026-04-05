@@ -1,35 +1,36 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
 import { ALL_STRATEGIES, WALKING_STRATEGY } from "../constants/strategies";
 import { Buildings } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { useLocationState } from "../hooks/useLocationState";
+import { useSheetPanResponder } from "../hooks/useSheetPanResponder";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { createStyles } from "../styles/NavigationBar.styles";
 import {
-    campusBuildingResults,
-    queryIndex,
-    resultLabel,
-    resultSubtitle,
-    SearchResult,
+  campusBuildingResults,
+  queryIndex,
+  resultLabel,
+  resultSubtitle,
+  SearchResult,
 } from "../utils/buildingSearch";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
+import { AccessibleModeToggle } from "./AccessibleModeToggle";
+import { SheetContainer } from "./SheetContainer";
 import { StrategyModeSelector } from "./StrategyModeSelector";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -84,12 +85,20 @@ export default function NavigationBar({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const [startLoc, setStartLoc] = useState("");
-  const [destLoc, setDestLoc] = useState("");
-  const [startBuilding, setStartBuilding] = useState<Buildings | null>(null);
-  const [destBuilding, setDestBuilding] = useState<Buildings | null>(null);
-  const [startRoom, setStartRoom] = useState<IndoorRoomRecord | null>(null);
-  const [endRoom, setEndRoom] = useState<IndoorRoomRecord | null>(null);
+  const {
+    startLoc,
+    setStartLoc,
+    destLoc,
+    setDestLoc,
+    startBuilding,
+    setStartBuilding,
+    destBuilding,
+    setDestBuilding,
+    startRoom,
+    setStartRoom,
+    endRoom,
+    setEndRoom,
+  } = useLocationState();
 
   const [activeInput, setActiveInput] = useState<"start" | "dest" | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -278,52 +287,24 @@ export default function NavigationBar({
     }
   }, [visible, initialDestination, onInitialDestinationApplied]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 10,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(SHEET_TOP + g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 120 || g.vy > 0.5) {
-          onClose();
-        } else {
-          Animated.spring(translateY, {
-            toValue: SHEET_TOP,
-            ...SPRING_CONFIG,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  const panResponder = useSheetPanResponder({ translateY, onClose });
 
   if (!shouldRender) return null;
 
   const showingList = suggestions.length > 0;
 
   return (
-    <>
-      <TouchableWithoutFeedback
-        onPress={() => {
-          Keyboard.dismiss();
-          onClose();
-        }}
-      >
-        <View style={styles.overlay} />
-      </TouchableWithoutFeedback>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardContainer}
-        pointerEvents="box-none"
-      >
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers} style={styles.gestureArea}>
-            <View style={styles.handle} />
-          </View>
-
-          <View style={styles.content}>
+    <SheetContainer
+      panResponder={panResponder}
+      translateY={translateY}
+      overlayStyle={styles.overlay}
+      keyboardContainerStyle={styles.keyboardContainer}
+      sheetStyle={styles.sheet}
+      gestureAreaStyle={styles.gestureArea}
+      handleStyle={styles.handle}
+      contentStyle={styles.content}
+      onClose={onClose}
+    >
             <View style={styles.originDestinationCard}>
               {/* ── FROM ── */}
               <View style={[styles.inputGroup, styles.inputGroupFirst]}>
@@ -473,54 +454,22 @@ export default function NavigationBar({
                   routeSummaries={routeSummaries}
                   summariesLoading={routeSummariesLoading}
                 />
-                <View
-                  style={{
+                <AccessibleModeToggle
+                  localAccessibleOnly={localAccessibleOnly}
+                  onAccessibleOnlyChange={(value) => {
+                    setLocalAccessibleOnly(value);
+                    onAccessibleOnlyChange?.(value);
+                  }}
+                  colors={colors}
+                  styles={styles}
+                  testID="accessible-mode-toggle"
+                  rowStyle={{
                     flexDirection: "row",
                     alignItems: "center",
                     marginTop: 8,
                   }}
-                >
-                  <Pressable
-                    onPress={() => {
-                      setLocalAccessibleOnly(!localAccessibleOnly);
-                      onAccessibleOnlyChange?.(!localAccessibleOnly);
-                    }}
-                    style={[
-                      styles.modeButton,
-                      localAccessibleOnly && styles.activeModeButton,
-                      {
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingHorizontal: 12,
-                      },
-                    ]}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: localAccessibleOnly }}
-                    testID="accessible-mode-toggle"
-                  >
-                    <MaterialCommunityIcons
-                      name={
-                        localAccessibleOnly
-                          ? "wheelchair-accessibility"
-                          : "walk"
-                      }
-                      size={22}
-                      color={
-                        localAccessibleOnly ? colors.white : colors.primary
-                      }
-                    />
-                    <Text
-                      style={{
-                        color: localAccessibleOnly
-                          ? colors.white
-                          : colors.primary,
-                        marginLeft: 8,
-                      }}
-                    >
-                      Accessible Route
-                    </Text>
-                  </Pressable>
-                </View>
+                  buttonLabel="Accessible Route"
+                />
               </View>
             )}
 
@@ -576,9 +525,6 @@ export default function NavigationBar({
                 <Text style={styles.searchButtonText}>Get Directions</Text>
               </Pressable>
             )}
-          </View>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </>
+    </SheetContainer>
   );
 }
