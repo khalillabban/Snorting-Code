@@ -131,6 +131,15 @@ describe("services/GoogleCalendarCacheStore", () => {
     ).toBe(true);
   });
 
+  it("merges list items that are missing ids without crashing", () => {
+    expect(
+      mergeCachedCalendarListItems(
+        [{ id: "primary", summary: "Primary" }],
+        [{ id: "primary", summary: "Primary" }, { summary: "Missing id" } as any],
+      ),
+    ).toEqual([{ id: "primary", summary: "Primary" }]);
+  });
+
   it("filters deleted calendars from visible cached lists", () => {
     expect(
       filterVisibleCachedCalendars([
@@ -182,6 +191,15 @@ describe("services/GoogleCalendarCacheStore", () => {
     await expect(AsyncStorage.getItem("googleCalendarCache:list:v1")).resolves.toBeNull();
   });
 
+  it("removes the list cache when reading it throws", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
+      new Error("list failed"),
+    );
+
+    await expect(loadCachedGoogleCalendarList()).resolves.toBeNull();
+    await expect(AsyncStorage.getItem("googleCalendarCache:list:v1")).resolves.toBeNull();
+  });
+
   it("normalizes missing list syncToken to null", async () => {
     await AsyncStorage.setItem(
       "googleCalendarCache:list:v1",
@@ -220,6 +238,64 @@ describe("services/GoogleCalendarCacheStore", () => {
         windowEnd: "",
       }),
     );
+  });
+
+  it("tolerates a corrupt calendar id index when saving events", async () => {
+    await AsyncStorage.setItem(
+      "googleCalendarCache:calendarIds:v1",
+      JSON.stringify("not-an-array"),
+    );
+
+    await saveCachedGoogleCalendarEvents({
+      calendarId: "primary",
+      events: [{ ...makeEvent("e-1", "Class"), sourceCalendarId: "primary" }],
+      lastSyncedAt: Date.now(),
+      syncToken: null,
+      windowStart: "",
+      windowEnd: "",
+    });
+
+    await expect(loadCachedGoogleCalendarEventsForIds(["primary"])).resolves.toHaveLength(1);
+  });
+
+  it("reuses the list cache cleanup path when loading the list throws", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
+      new Error("list failed"),
+    );
+
+    await expect(loadCachedGoogleCalendarList()).resolves.toBeNull();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith("googleCalendarCache:list:v1");
+    expect(AsyncStorage.getItem).toHaveBeenCalled();
+  });
+
+  it("recovers when the calendar id index cannot be read", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
+      new Error("index failed"),
+    );
+
+    await expect(
+      saveCachedGoogleCalendarEvents({
+        calendarId: "fallback",
+        events: [{ ...makeEvent("e-2", "Class"), sourceCalendarId: "fallback" }],
+        lastSyncedAt: Date.now(),
+        syncToken: null,
+        windowStart: "",
+        windowEnd: "",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(AsyncStorage.getItem).toHaveBeenCalled();
+  });
+
+  it("removes a corrupted event cache when loading throws", async () => {
+    (AsyncStorage.getItem as jest.Mock)
+      .mockImplementationOnce(async () => {
+        throw new Error("boom");
+      })
+      .mockResolvedValueOnce(null);
+    await expect(loadCachedGoogleCalendarEvents("primary")).resolves.toBeNull();
+    expect(AsyncStorage.getItem).toHaveBeenCalled();
+    await expect(AsyncStorage.getItem("googleCalendarCache:events:v1:primary")).resolves.toBeNull();
   });
 
   it("loads cached events only for ids that exist", async () => {
@@ -270,6 +346,94 @@ describe("services/GoogleCalendarCacheStore", () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0].id).toBe("e-1");
+  });
+
+  it("uses originalStartTime and all-day start dates in event cache identities", () => {
+    const merged = mergeCachedCalendarEvents(
+      [],
+      [
+        {
+          id: "recurring",
+          summary: "Instance by originalStartTime date",
+          originalStartTime: { date: "2026-01-06" },
+          start: { date: "2026-01-06" },
+          end: { date: "2026-01-07" },
+        } as any,
+        {
+          id: "all-day",
+          summary: "All day",
+          start: { date: "2026-02-10" },
+          end: { date: "2026-02-11" },
+        } as any,
+      ],
+      "primary",
+    );
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map((event) => event.id)).toEqual(["recurring", "all-day"]);
+    expect(merged.every((event) => event.sourceCalendarId === "primary")).toBe(true);
+  });
+
+  it("uses originalStartTime.dateTime and id-only identity fallback", () => {
+    const merged = mergeCachedCalendarEvents(
+      [{ ...makeEvent("standalone", "Old"), sourceCalendarId: "primary", start: undefined } as any],
+      [
+        {
+          id: "recurring-dt",
+          summary: "DateTime instance",
+          originalStartTime: { dateTime: "2026-01-06T09:00:00.000Z" },
+          start: { dateTime: "2026-01-06T09:00:00.000Z" },
+          end: { dateTime: "2026-01-06T10:00:00.000Z" },
+        } as any,
+        {
+          id: "standalone",
+          summary: "Updated without occurrence key",
+          start: undefined,
+          end: undefined,
+        } as any,
+      ],
+      "primary",
+    );
+
+    expect(merged.find((event) => event.id === "recurring-dt")?.sourceCalendarId).toBe(
+      "primary",
+    );
+    expect(merged.find((event) => event.id === "standalone")?.summary).toBe(
+      "Updated without occurrence key",
+    );
+  });
+
+  it("does not duplicate calendar ids when saving an already-indexed cache", async () => {
+    await AsyncStorage.setItem(
+      "googleCalendarCache:calendarIds:v1",
+      JSON.stringify(["primary"]),
+    );
+
+    await saveCachedGoogleCalendarEvents({
+      calendarId: "primary",
+      events: [{ ...makeEvent("e-1", "Class"), sourceCalendarId: "primary" }],
+      lastSyncedAt: Date.now(),
+      syncToken: null,
+      windowStart: "",
+      windowEnd: "",
+    });
+
+    await expect(AsyncStorage.getItem("googleCalendarCache:calendarIds:v1")).resolves.toBe(
+      JSON.stringify(["primary"]),
+    );
+  });
+
+  it("keeps the calendar id index unchanged when clearing a non-indexed calendar", async () => {
+    await AsyncStorage.setItem(
+      "googleCalendarCache:calendarIds:v1",
+      JSON.stringify(["work"]),
+    );
+
+    await clearCachedGoogleCalendarEvents("primary");
+
+    await expect(AsyncStorage.getItem("googleCalendarCache:calendarIds:v1")).resolves.toBe(
+      JSON.stringify(["work"]),
+    );
   });
 
   it("drops deleted calendars during list merge", () => {
