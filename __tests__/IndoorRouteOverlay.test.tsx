@@ -239,6 +239,31 @@ describe("IndoorDirectionsPanel", () => {
     expect(screen.getByText("Take stairs up")).toBeTruthy();
   });
 
+  it("opens directions when the collapsed preview card is pressed", () => {
+    const route = makeRoute({
+      estimatedSeconds: 75,
+      fullyAccessible: true,
+      segments: [
+        {
+          kind: "walk",
+          description: "Walk forward",
+          nodeIds: ["a", "b"],
+          floor: 1,
+          distance: 10,
+        },
+      ],
+      origin: { label: "H-100" } as any,
+      destination: { label: "H-200" } as any,
+    });
+
+    render(<IndoorDirectionsPanel route={route} />);
+
+    fireEvent.press(screen.getByLabelText("Open indoor directions preview"));
+
+    expect(screen.getByLabelText("Collapse directions steps")).toBeTruthy();
+    expect(screen.getByText("Walk forward")).toBeTruthy();
+  });
+
   it("formats exact-minute durations and hides close button when no onClose is provided", () => {
     const route = makeRoute({
       estimatedSeconds: 120,

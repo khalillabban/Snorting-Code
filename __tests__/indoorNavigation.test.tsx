@@ -1,14 +1,14 @@
 import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
 import {
-  getIndoorNavigationRoute,
-  getIndoorNavigationRouteFromNode,
-  getIndoorNavigationRouteToNode,
-  getRouteWaypointsForFloor,
-  indoorRouteToSteps,
+    getIndoorNavigationRoute,
+    getIndoorNavigationRouteFromNode,
+    getIndoorNavigationRouteToNode,
+    getRouteWaypointsForFloor,
+    indoorRouteToSteps,
 } from "../utils/indoorNavigation";
 import {
-  findShortestPath,
-  resolveRoutingNodeId,
+    findShortestPath,
+    resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import { findIndoorRoomMatch } from "../utils/indoorRoomSearch";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
@@ -481,6 +481,25 @@ describe("utils/indoorNavigation", () => {
       }
     });
 
+    it("returns NO_PATH_FOUND generic message when no path in non-accessible mode", () => {
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-a");
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "exit-2", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedFindShortestPath.mockReturnValueOnce(null);
+
+      const result = getIndoorNavigationRouteToNode("H", "101", "exit-2", {
+        accessibleOnly: false,
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+      if (!result.success) {
+        expect(result.message).toMatch(/no path found between the two locations/i);
+      }
+    });
+
     it("uses provided destination node label when present", () => {
       mockedResolveRoutingNodeId.mockReturnValueOnce("room-a");
       mockedGetBuildingPlanAsset.mockReturnValueOnce({
@@ -629,6 +648,25 @@ describe("utils/indoorNavigation", () => {
       }
     });
 
+    it("returns accessible-specific NO_PATH_FOUND message when shortest path is null in accessible mode", () => {
+      mockedGetBuildingPlanAsset.mockReturnValueOnce({
+        ...baseAsset,
+        nodes: [{ id: "entry-2", x: 1, y: 2, floor: 1 } as any],
+      });
+      mockedResolveRoutingNodeId.mockReturnValueOnce("room-b");
+      mockedFindShortestPath.mockReturnValueOnce(null);
+
+      const result = getIndoorNavigationRouteFromNode("H", "entry-2", "201", {
+        accessibleOnly: true,
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ success: false, error: "NO_PATH_FOUND" }),
+      );
+      if (!result.success) {
+        expect(result.message).toMatch(/no accessible route found/i);
+      }
+    });
+
     it("uses elevator segment when floor changes and label includes 'elev'", () => {
       mockedGetBuildingPlanAsset.mockReturnValueOnce({
         ...baseAsset,
@@ -684,6 +722,128 @@ describe("utils/indoorNavigation", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.route.segments.some((s) => s.description === "Continue ahead")).toBe(true);
+  });
+
+  it("uses fallback origin room label in exit_room description when origin label is missing", () => {
+    mockedFindShortestPath.mockReturnValueOnce({
+      steps: [
+        {
+          node: {
+            id: "room-a",
+            x: 10,
+            y: 10,
+            floor: 1,
+            type: "room",
+            accessible: true,
+          },
+          cumulativeDistance: 0,
+        },
+        {
+          node: {
+            id: "hall-1",
+            x: 20,
+            y: 10,
+            floor: 1,
+            type: "hallway",
+            label: "Hall",
+            accessible: true,
+          },
+          cumulativeDistance: 10,
+        },
+        {
+          node: {
+            id: "room-b",
+            x: 80,
+            y: 10,
+            floor: 2,
+            type: "room",
+            label: "H-201",
+            accessible: true,
+          },
+          cumulativeDistance: 20,
+        },
+      ],
+      totalDistance: 20,
+      fullyAccessible: true,
+      floors: [1, 2],
+    });
+
+    const result = getIndoorNavigationRoute("H", "101", "201");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(result.route.segments[0].kind).toBe("exit_room");
+    expect(result.route.segments[0].description).toContain("your room");
+  });
+
+  it("builds a successful route with no segments when path has zero steps", () => {
+    mockedFindShortestPath.mockReturnValueOnce({
+      steps: [],
+      totalDistance: 0,
+      fullyAccessible: true,
+      floors: [],
+    });
+
+    const result = getIndoorNavigationRoute("H", "101", "201");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.route.segments).toEqual([]);
+  });
+
+  it("uses fallback destination label in enter_room description when destination label is missing", () => {
+    mockedFindShortestPath.mockReturnValueOnce({
+      steps: [
+        {
+          node: {
+            id: "room-a",
+            x: 10,
+            y: 10,
+            floor: 1,
+            type: "room",
+            label: "H-101",
+            accessible: true,
+          },
+          cumulativeDistance: 0,
+        },
+        {
+          node: {
+            id: "hall-1",
+            x: 20,
+            y: 10,
+            floor: 1,
+            type: "hallway",
+            label: "Hall",
+            accessible: true,
+          },
+          cumulativeDistance: 10,
+        },
+        {
+          node: {
+            id: "room-b",
+            x: 80,
+            y: 10,
+            floor: 1,
+            type: "room",
+            accessible: true,
+          },
+          cumulativeDistance: 20,
+        },
+      ],
+      totalDistance: 20,
+      fullyAccessible: true,
+      floors: [1],
+    });
+
+    const result = getIndoorNavigationRoute("H", "101", "201");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const enter = result.route.segments.find((s) => s.kind === "enter_room");
+    expect(enter?.description).toContain("destination");
+  });
+
+  it("returns an empty step list when route segments are undefined", () => {
+    expect(indoorRouteToSteps({} as any)).toEqual([]);
   });
 
 });

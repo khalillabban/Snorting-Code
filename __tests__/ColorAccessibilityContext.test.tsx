@@ -6,6 +6,7 @@ import { Pressable, Text, View } from "react-native";
 import {
     ColorAccessibilityProvider,
     useColorAccessibility,
+    withOpacity,
 } from "../contexts/ColorAccessibilityContext";
 
 function Probe() {
@@ -66,6 +67,15 @@ describe("ColorAccessibilityContext", () => {
     expect(screen.getByTestId("primary").props.children).toBe("#912338");
     expect(screen.getByTestId("hydrated").props.children).toBe("true");
     expect(screen.getByTestId("options-count").props.children).toBe("4");
+  });
+
+  it("exposes safe default values when used outside the provider", () => {
+    render(<Probe />);
+
+    expect(screen.getByTestId("mode").props.children).toBe("classic");
+    expect(screen.getByTestId("hydrated").props.children).toBe("true");
+    fireEvent.press(screen.getByTestId("set-high-contrast"));
+    expect(screen.getByTestId("mode").props.children).toBe("classic");
   });
 
   it("switches palettes when mode changes", () => {
@@ -201,5 +211,30 @@ describe("ColorAccessibilityContext", () => {
     });
 
     warnSpy.mockRestore();
+  });
+
+  it("stops hydration work when the provider unmounts before AsyncStorage resolves", async () => {
+    setNodeEnv("development");
+    const deferred = new Promise<string | null>((resolve) => {
+      setTimeout(() => resolve("classic"), 0);
+    });
+    jest.spyOn(AsyncStorage, "getItem").mockReturnValueOnce(deferred);
+
+    const view = render(
+      <ColorAccessibilityProvider>
+        <Probe />
+      </ColorAccessibilityProvider>,
+    );
+
+    view.unmount();
+    await waitFor(() => {
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith(
+        "snorting-code.color-accessibility-mode",
+      );
+    });
+  });
+
+  it("converts three-digit hex values with opacity", () => {
+    expect(withOpacity("#abc", 0.5)).toBe("rgba(170, 187, 204, 0.5)");
   });
 });

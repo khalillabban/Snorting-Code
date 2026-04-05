@@ -3,9 +3,9 @@
  */
 import { Buildings, Location } from "../constants/type";
 import {
-  getBuildingContainingPoint,
-  getDistanceToPolygon,
-  pointInPolygon,
+    getBuildingContainingPoint,
+    getDistanceToPolygon,
+    pointInPolygon,
 } from "../utils/pointInPolygon";
 
 describe("pointInPolygon", () => {
@@ -183,6 +183,23 @@ describe("pointInPolygon", () => {
         pointInPolygon({ latitude: 0.75, longitude: 0.75 }, squarePoly),
       ).toBe(true);
     });
+  });
+});
+
+describe("getDistanceToPolygon", () => {
+  it("returns Infinity when polygon is missing or has fewer than 3 points", () => {
+    expect(getDistanceToPolygon({ latitude: 0, longitude: 0 }, [] as any)).toBe(
+      Infinity,
+    );
+    expect(
+      getDistanceToPolygon(
+        { latitude: 0, longitude: 0 },
+        [
+          { latitude: 0, longitude: 0 },
+          { latitude: 1, longitude: 1 },
+        ],
+      ),
+    ).toBe(Infinity);
   });
 });
 

@@ -1,12 +1,12 @@
 import {
-  getAvailableFloors,
-  getBuildingPlanAsset,
-  getFloorImageAsset,
-  getFloorImageMetadata,
-  getLegacyFloorGeoJsonAsset,
-  hasBuildingPlanAsset,
-  hasFloorMap,
-  normalizeIndoorBuildingCode,
+    getAvailableFloors,
+    getBuildingPlanAsset,
+    getFloorImageAsset,
+    getFloorImageMetadata,
+    getLegacyFloorGeoJsonAsset,
+    hasBuildingPlanAsset,
+    hasFloorMap,
+    normalizeIndoorBuildingCode,
 } from "../utils/mapAssets";
 
 jest.mock("../hooks/useFloorData", () => ({
@@ -144,6 +144,21 @@ describe("mapAssets", () => {
       expect(getLegacyFloorGeoJsonAsset("MB", 1)).toBeDefined();
       expect(getLegacyFloorGeoJsonAsset("MB", 99)).toBeUndefined();
       expect(getLegacyFloorGeoJsonAsset("UNKNOWN", 1)).toBeUndefined();
+    });
+
+    it("returns undefined floor image metadata when sourceKey cannot be resolved", () => {
+      jest.resetModules();
+      jest.isolateModules(() => {
+        jest.doMock("../hooks/useFloorData", () => ({
+          getRegisteredFloors: jest.fn(() => [1]),
+        }));
+        jest.doMock("../utils/floorPlanSvgSources", () => ({
+          FLOOR_PLAN_SVG_SOURCES: {},
+        }));
+
+        const mod = require("../utils/mapAssets");
+        expect(mod.getFloorImageMetadata("CC", 1)).toBeUndefined();
+      });
     });
   });
 });

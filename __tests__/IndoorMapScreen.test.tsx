@@ -1,13 +1,32 @@
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import IndoorMapScreen, { getFloorContentBounds } from "../app/IndoorMapScreen";
 import { BUILDINGS } from "../constants/buildings";
+import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
+import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
+import { selectBestIndoorExit } from "../utils/indoorExit";
+import {
+    getIndoorNavigationRoute,
+    getIndoorNavigationRouteFromNode,
+    getIndoorNavigationRouteToNode,
+} from "../utils/indoorNavigation";
+import {
+    findIndoorRoomMatch,
+    findIndoorRoomMatches,
+} from "../utils/indoorRoomSearch";
+import {
+    getAvailableFloors,
+    getBuildingPlanAsset,
+    getFloorImageMetadata,
+} from "../utils/mapAssets";
+import { parseTransitionPayload } from "../utils/routeTransition";
+import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 const createGestureMock = () => {
   const gesture: any = {
@@ -45,24 +64,6 @@ jest.mock("react-native-reanimated", () => {
     withTiming: (value: number) => value,
   };
 });
-import { pickClosestEntryExitNodeId } from "../utils/destinationIndoorLeg";
-import { getNormalizedBuildingPlan } from "../utils/indoorBuildingPlan";
-import { selectBestIndoorExit } from "../utils/indoorExit";
-import {
-  getIndoorNavigationRoute,
-  getIndoorNavigationRouteFromNode,
-  getIndoorNavigationRouteToNode,
-} from "../utils/indoorNavigation";
-import {
-  findIndoorRoomMatch,
-  findIndoorRoomMatches,
-} from "../utils/indoorRoomSearch";
-import {
-  getBuildingPlanAsset,
-  getFloorImageMetadata,
-} from "../utils/mapAssets";
-import { parseTransitionPayload } from "../utils/routeTransition";
-import { logUsabilityEvent } from "../utils/usabilityAnalytics";
 
 const mockPush = jest.fn();
 
@@ -74,9 +75,12 @@ jest.mock("expo-router", () => ({
 jest.mock("../utils/usabilityAnalytics", () => ({
   logUsabilityEvent: jest.fn(),
 }));
+let mockUsabilityTestingEnabled = true;
 jest.mock("../constants/usabilityConfig", () => ({
   __esModule: true,
-  USABILITY_TESTING_ENABLED: true,
+  get USABILITY_TESTING_ENABLED() {
+    return mockUsabilityTestingEnabled;
+  },
   getSessionId: jest.fn(() => "test-session-id"),
   resetSession: jest.fn(() => "test-session-id"),
 }));
@@ -221,6 +225,7 @@ describe("IndoorMapScreen", () => {
   beforeEach(() => {
     warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     jest.clearAllMocks();
+    mockUsabilityTestingEnabled = true;
     (logUsabilityEvent as jest.Mock).mockResolvedValue(undefined);
 
     (getFloorImageMetadata as jest.Mock).mockImplementation(
@@ -1418,9 +1423,14 @@ describe("IndoorMapScreen", () => {
       floors: JSON.stringify([1, 2, 8, 9]),
     });
 
+    const roomWithName = {
+      ...mockHallRoom,
+      roomName: "Computer Lab",
+    };
+
     (findIndoorRoomMatches as jest.Mock).mockReturnValue([
       {
-        room: mockHallRoom,
+        room: roomWithName,
         floor: 8,
         matchType: "prefix_room",
         score: 650,
@@ -1437,6 +1447,7 @@ describe("IndoorMapScreen", () => {
       expect(
         screen.getByTestId("indoor-room-suggestion-dest-Hall_F8_room_291"),
       ).toBeTruthy();
+      expect(screen.getByText("Floor 8 · Computer Lab")).toBeTruthy();
     });
 
     fireEvent.press(
@@ -1452,6 +1463,58 @@ describe("IndoorMapScreen", () => {
       ).toEqual({
         selected: true,
       });
+    });
+  });
+
+  it("shows the selected-floor badge and list border for multiple room suggestions", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    const secondRoom = {
+      ...mockHallRoom,
+      id: "Hall_F1_room_100",
+      label: "H-100",
+      roomNumber: "100",
+      floor: 1,
+      roomName: "Study Room",
+    };
+
+    (findIndoorRoomMatches as jest.Mock).mockReturnValue([
+      {
+        room: secondRoom,
+        floor: 1,
+        matchType: "prefix_room",
+        score: 700,
+      },
+      {
+        room: {
+          ...mockHallRoom,
+          roomName: "Computer Lab",
+        },
+        floor: 8,
+        matchType: "prefix_room",
+        score: 650,
+      },
+    ]);
+
+    render(<IndoorMapScreen />);
+    const originInput = await screen.findByPlaceholderText("From (H-110)");
+
+    fireEvent(originInput, "focus");
+    fireEvent.changeText(originInput, "H");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("indoor-room-suggestion-list")).toBeTruthy();
+      expect(screen.getByText("Floor 1 · Study Room")).toBeTruthy();
+      expect(screen.getByText("This floor")).toBeTruthy();
+      expect(
+        screen.getByTestId("indoor-room-suggestion-origin-Hall_F1_room_100"),
+      ).toBeTruthy();
+      expect(
+        screen.getByTestId("indoor-room-suggestion-origin-Hall_F8_room_291"),
+      ).toBeTruthy();
     });
   });
 
@@ -2158,6 +2221,92 @@ describe("IndoorMapScreen", () => {
     });
   });
 
+  it("does not auto-search when roomQuery param is empty", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      roomQuery: "",
+    });
+
+    render(<IndoorMapScreen />);
+    await screen.findByText(/H Building/);
+
+    await waitFor(() => {
+      expect(findIndoorRoomMatch).not.toHaveBeenCalled();
+    });
+  });
+
+  it("uses getAvailableFloors fallback when floors param is invalid", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: "not-json",
+    });
+    (getAvailableFloors as jest.Mock).mockReturnValueOnce([9, 8]);
+
+    render(<IndoorMapScreen />);
+    await screen.findByText(/H Building/);
+
+    await waitFor(() => {
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("H", 9);
+    });
+  });
+
+  it("skips task timing completion events when usability testing is disabled after timers started", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { floor: 1, x: 0, y: 0 },
+        destination: { floor: 1, x: 10, y: 10 },
+        waypoints: [],
+        segments: [],
+      },
+      message: "",
+    });
+
+    render(<IndoorMapScreen />);
+    await screen.findByText(/H Building/);
+
+    // Timers are started on mount when usability is enabled; switch off before ending the task.
+    mockUsabilityTestingEnabled = false;
+
+    fireEvent.changeText(screen.getByPlaceholderText("From (H-110)"), "H-110");
+    fireEvent.changeText(screen.getByPlaceholderText("To (H-920)"), "H-920");
+    fireEvent.press(screen.getByText("Go"));
+
+    await waitFor(() => {
+      expect(getIndoorNavigationRoute).toHaveBeenCalled();
+    });
+
+    const loggedEventNames = (logUsabilityEvent as jest.Mock).mock.calls.map(
+      (call) => call[0],
+    );
+    expect(loggedEventNames).not.toContain("task_completed");
+    expect(loggedEventNames).not.toContain("task_finished");
+  });
+
+  it("covers the usability-testing-disabled startTask branch on mount", async () => {
+    mockUsabilityTestingEnabled = false;
+
+    try {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        buildingName: "H",
+        floors: JSON.stringify([1, 2, 8, 9]),
+      });
+
+      render(<IndoorMapScreen />);
+
+      await screen.findByText(/H Building/);
+      expect(screen.getByPlaceholderText("From (H-110)")).toBeTruthy();
+    } finally {
+      mockUsabilityTestingEnabled = true;
+    }
+  });
+
   it("adds and removes a POI category when its filter chip is pressed (lines 286-293)", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       buildingName: "H",
@@ -2448,6 +2597,25 @@ describe("IndoorMapScreen", () => {
     await waitFor(() => {
       expect(logUsabilityEvent).toHaveBeenCalledWith(
         "indoor_accessible_mode_toggled",
+        expect.objectContaining({ building_name: "unknown" }),
+      );
+    });
+  });
+
+  it("uses building_name fallback 'unknown' in POI toggle analytics when buildingName is missing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: undefined,
+      floors: JSON.stringify([1]),
+    });
+
+    render(<IndoorMapScreen />);
+
+    const washroomChip = await screen.findByTestId("poi-filter-chip-washroom");
+    fireEvent.press(washroomChip);
+
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_poi_category_toggled",
         expect.objectContaining({ building_name: "unknown" }),
       );
     });

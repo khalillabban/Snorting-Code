@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  PanResponder,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    Pressable,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 
 import type { CampusKey } from "../constants/campuses";
@@ -23,16 +23,19 @@ import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
 import { createStyles } from "../styles/NavigationBar.styles";
 import {
-  campusBuildingResults,
-  queryIndex,
-  resultLabel,
-  resultSubtitle,
-  SearchResult,
+    campusBuildingResults,
+    queryIndex,
+    resultLabel,
+    resultSubtitle,
+    SearchResult,
 } from "../utils/buildingSearch";
 import { IndoorRoomRecord } from "../utils/indoorBuildingPlan";
 import { StrategyModeSelector } from "./StrategyModeSelector";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+export function getSheetHeight(platform: string): number {
+  return platform === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
+}
 const SHEET_HEIGHT =
   Platform.OS === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;

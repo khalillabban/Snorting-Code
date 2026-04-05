@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import { Text } from "react-native";
 import { ZoomableView, clampScale } from "../components/ZoomableView";
@@ -14,6 +14,8 @@ const capturedCallbacks: {
   pan: {},
   tap: {},
 };
+
+const sharedValues: Array<{ value: number }> = [];
 
 const createPinchGestureMock = () => {
   const gesture: any = {
@@ -71,6 +73,7 @@ jest.mock("react-native-gesture-handler", () => ({
 
 const createSharedValue = (init: number) => {
   const obj = { value: init };
+  sharedValues.push(obj);
   return obj;
 };
 
@@ -81,7 +84,7 @@ jest.mock("react-native-reanimated", () => {
     __esModule: true,
     default: Animated,
     useSharedValue: (init: number) => createSharedValue(init),
-    useAnimatedStyle: () => ({}),
+    useAnimatedStyle: (callback: () => any) => callback(),
     withTiming: (value: number) => value,
   };
 });
@@ -117,6 +120,7 @@ describe("ZoomableView", () => {
     capturedCallbacks.pinch = {};
     capturedCallbacks.pan = {};
     capturedCallbacks.tap = {};
+    sharedValues.length = 0;
   });
 
   it("renders children correctly", () => {
@@ -290,6 +294,38 @@ describe("ZoomableView", () => {
     );
 
     expect(screen.getByTestId("no-style")).toBeTruthy();
+  });
+
+  it("handles layout events to update viewport size values", () => {
+    const { UNSAFE_getAllByType } = render(
+      <ZoomableView testID="layout-target">
+        <Text>Layout Hook</Text>
+      </ZoomableView>
+    );
+
+    const views = UNSAFE_getAllByType(require("react-native").View);
+    const layoutView = views.find((node: any) => typeof node.props.onLayout === "function");
+
+    expect(layoutView).toBeTruthy();
+
+    fireEvent(layoutView!, "layout", {
+      nativeEvent: { layout: { width: 320, height: 640 } },
+    });
+  });
+
+  it("uses fallback scale ratio when saved scale is zero", () => {
+    render(
+      <ZoomableView testID="scale-ratio-fallback">
+        <Text>Scale Ratio</Text>
+      </ZoomableView>
+    );
+
+    // sharedValues[1] corresponds to savedScale in the component.
+    sharedValues[1].value = 0;
+
+    expect(() => {
+      capturedCallbacks.pinch.onUpdate?.({ scale: 2 });
+    }).not.toThrow();
   });
 
 });

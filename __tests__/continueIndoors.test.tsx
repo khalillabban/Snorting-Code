@@ -1,6 +1,6 @@
 import {
-  buildContinueIndoorsStep,
-  getContinueIndoorsBuildingCode,
+    buildContinueIndoorsStep,
+    getContinueIndoorsBuildingCode,
 } from "../utils/continueIndoors";
 
 describe("utils/continueIndoors", () => {
@@ -63,6 +63,19 @@ describe("utils/continueIndoors", () => {
             originRoomQuery: "MB-1",
             destinationBuildingCode: "CC",
             destinationRoomQuery: "CC-124",
+          } as any,
+        }),
+      ).toBe("");
+    });
+
+    it("returns empty string when indoor_to_outdoor payload has blank destination code", () => {
+      expect(
+        getContinueIndoorsBuildingCode({
+          selectedDest: null,
+          transitionPayload: {
+            mode: "indoor_to_outdoor",
+            exitOutdoor: { lat: 1, lng: 2 },
+            destinationBuildingCode: "   ",
           } as any,
         }),
       ).toBe("");

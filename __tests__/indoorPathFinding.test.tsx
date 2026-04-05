@@ -1,6 +1,6 @@
 import {
-  findShortestPath,
-  resolveRoutingNodeId,
+    findShortestPath,
+    resolveRoutingNodeId,
 } from "../utils/indoorPathFinding";
 import type { BuildingPlanAsset } from "../utils/mapAssets";
 
@@ -99,6 +99,25 @@ describe("utils/indoorPathFinding", () => {
       edges: [{ source: "A", target: "B", type: "walk", weight: 1, accessible: false }],
     };
     expect(findShortestPath(blockedAsset, "A", "B", { accessibleOnly: true })).toBeNull();
+  });
+
+  it("blocks paths through inaccessible non-elevator nodes when accessibleOnly=true", () => {
+    const inaccessibleNodeAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "H-101", accessible: true },
+        { id: "X", type: "hallway", buildingId: "H", floor: 1, x: 1, y: 0, label: "Blocked", accessible: false },
+        { id: "B", type: "room", buildingId: "H", floor: 1, x: 2, y: 0, label: "H-102", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "X", type: "walk", weight: 1, accessible: true },
+        { source: "X", target: "B", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    expect(
+      findShortestPath(inaccessibleNodeAsset, "A", "B", { accessibleOnly: true }),
+    ).toBeNull();
   });
 
   it("returns a path with correct floor set", () => {
@@ -235,5 +254,125 @@ it("uses stairs (not elevator) on standard route between floors", () => {
     // "D" exists on floor 1, requesting floor 2 — should fall back to nearest on floor 2
     // multiPathAsset has no floor-2 nodes so returns null
     expect(resolveRoutingNodeId(multiPathAsset, "D", 3, 0, 2)).toBeNull();
+  });
+
+  it("handles stale heap entries and keeps the shortest discovered cost", () => {
+    const staleHeapAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "A", accessible: true },
+        { id: "B", type: "room", buildingId: "H", floor: 1, x: 2, y: 0, label: "B", accessible: true },
+        { id: "C", type: "hallway", buildingId: "H", floor: 1, x: 1, y: 0, label: "C", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "B", type: "walk", weight: 5, accessible: true },
+        { source: "A", target: "C", type: "walk", weight: 1, accessible: true },
+        { source: "C", target: "B", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    const path = findShortestPath(staleHeapAsset, "A", "B");
+    expect(path?.steps.map((s) => s.node.id)).toEqual(["A", "C", "B"]);
+    expect(path?.totalDistance).toBe(2);
+  });
+
+  it("ignores non-improving alternative edges", () => {
+    const nonImprovingAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "A", accessible: true },
+        { id: "B", type: "hallway", buildingId: "H", floor: 1, x: 1, y: 0, label: "B", accessible: true },
+        { id: "C", type: "room", buildingId: "H", floor: 1, x: 2, y: 0, label: "C", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "B", type: "walk", weight: 1, accessible: true },
+        { source: "B", target: "C", type: "walk", weight: 1, accessible: true },
+        { source: "A", target: "C", type: "walk", weight: 10, accessible: true },
+      ],
+    };
+
+    const path = findShortestPath(nonImprovingAsset, "A", "C");
+    expect(path?.steps.map((s) => s.node.id)).toEqual(["A", "B", "C"]);
+    expect(path?.totalDistance).toBe(2);
+  });
+
+  it("supports edges missing type by using the default empty string edgeType", () => {
+    const missingTypeAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "A", accessible: true },
+        { id: "B", type: "room", buildingId: "H", floor: 1, x: 1, y: 0, label: "B", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "B", weight: 1, accessible: true } as any,
+      ],
+    };
+
+    const path = findShortestPath(missingTypeAsset, "A", "B");
+    expect(path?.steps.map((s) => s.node.id)).toEqual(["A", "B"]);
+    expect(path?.totalDistance).toBe(1);
+  });
+
+  it("treats string 'true' as accessibleOnly=true", () => {
+    const path = findShortestPath(multiPathAsset, "A", "D", {
+      accessibleOnly: "true" as any,
+    });
+
+    expect(path?.steps.map((s) => s.node.id)).toEqual(["A", "B", "D"]);
+    expect(path?.fullyAccessible).toBe(true);
+  });
+
+  it("marks path as not fully accessible when origin node is a stair node", () => {
+    const stairOriginAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "S", type: "stair_landing", buildingId: "H", floor: 1, x: 0, y: 0, label: "Stair", accessible: true },
+        { id: "R", type: "room", buildingId: "H", floor: 1, x: 1, y: 0, label: "Room", accessible: true },
+      ],
+      edges: [
+        { source: "S", target: "R", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    const path = findShortestPath(stairOriginAsset, "S", "R");
+    expect(path).not.toBeNull();
+    expect(path?.fullyAccessible).toBe(false);
+  });
+
+  it("blocks elevator-target edges for standard (non-accessible) routing", () => {
+    const elevatorOnlyAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "A", accessible: true },
+        { id: "E", type: "elevator_door", buildingId: "H", floor: 1, x: 1, y: 0, label: "Elev", accessible: true },
+        { id: "B", type: "room", buildingId: "H", floor: 1, x: 2, y: 0, label: "B", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "E", type: "walk", weight: 1, accessible: true },
+        { source: "E", target: "B", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    expect(findShortestPath(elevatorOnlyAsset, "A", "B")).toBeNull();
+  });
+
+  it("skips invalid edge weights and still finds a valid path", () => {
+    const invalidWeightAsset: BuildingPlanAsset = {
+      meta: { buildingId: "H" },
+      nodes: [
+        { id: "A", type: "room", buildingId: "H", floor: 1, x: 0, y: 0, label: "A", accessible: true },
+        { id: "B", type: "room", buildingId: "H", floor: 1, x: 2, y: 0, label: "B", accessible: true },
+        { id: "C", type: "hallway", buildingId: "H", floor: 1, x: 1, y: 0, label: "C", accessible: true },
+      ],
+      edges: [
+        { source: "A", target: "B", type: "walk", weight: -1, accessible: true },
+        { source: "A", target: "C", type: "walk", weight: 1, accessible: true },
+        { source: "C", target: "B", type: "walk", weight: 1, accessible: true },
+      ],
+    };
+
+    const path = findShortestPath(invalidWeightAsset, "A", "B");
+    expect(path?.steps.map((s) => s.node.id)).toEqual(["A", "C", "B"]);
+    expect(path?.totalDistance).toBe(2);
   });
 });

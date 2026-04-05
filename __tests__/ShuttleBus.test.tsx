@@ -73,6 +73,13 @@ describe("ShuttleBus Module", () => {
       const departures = getNextShuttleDepartures("SGW", "Loyola");
       expect(departures).toEqual([]);
     });
+
+    it("returns empty array when the requested same-campus direction has no schedule", () => {
+      (getScheduleKeyForDate as jest.Mock).mockReturnValue("monday-thursday");
+
+      const departures = getNextShuttleDepartures("SGW", "SGW");
+      expect(departures).toEqual([]);
+    });
   });
 
   // --- Utility: calculateAdjustedDepartureTime ---
@@ -151,6 +158,17 @@ describe("ShuttleBus Module", () => {
 
       // Verify the fallback message renders
       expect(screen.getByText("No upcoming shuttles for today.")).toBeTruthy();
+    });
+
+    it("renders shuttle departures for Loyola to SGW direction", () => {
+      // Freeze time before the only Loyola -> SGW mocked departure at 09:15
+      jest.setSystemTime(new Date("2026-02-05T09:00:00"));
+
+      render(<ShuttleBus startLocation="Loyola" endLocation="SGW" />);
+
+      expect(screen.getByText("Next Shuttle Departures")).toBeTruthy();
+      expect(screen.getByText("09:15")).toBeTruthy();
+      expect(screen.getByText("09:45")).toBeTruthy();
     });
   });
 });

@@ -1,8 +1,8 @@
 import {
-  fetchCalendarEventsInRange,
-  fetchCalendarList,
-  syncCalendarEvents,
-  syncCalendarList,
+    fetchCalendarEventsInRange,
+    fetchCalendarList,
+    syncCalendarEvents,
+    syncCalendarList,
 } from "../services/GoogleCalendarService";
 
 type MockResponse = {
@@ -417,6 +417,108 @@ describe("services/GoogleCalendarService", () => {
         nextSyncToken: "next-sync-token",
       });
     });
+
+    it("returns an empty list when sync payload omits items entirely", async () => {
+      const res = makeRes({
+        json: jest.fn(async () => ({ nextSyncToken: "next-sync-token" })),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await expect(
+        syncCalendarList({
+          accessToken: "TOKEN",
+        }),
+      ).resolves.toEqual({ items: [], nextSyncToken: "next-sync-token" });
+    });
+
+    it("throws with status text when sync response is not ok and text is empty", async () => {
+      const res = makeRes({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        text: jest.fn(async () => ""),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await expect(
+        syncCalendarList({
+          accessToken: "TOKEN",
+          syncToken: "existing-sync-token",
+        }),
+      ).rejects.toThrow("Calendar list sync failed (403): Forbidden");
+    });
+
+    it("paginates calendar list sync results", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "primary", summary: "Primary" }],
+          nextPageToken: "page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "shared", summary: "Shared Calendar" }],
+          nextSyncToken: "next-sync-token",
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      const result = await syncCalendarList({
+        accessToken: "TOKEN",
+      });
+
+      expect(result.items).toHaveLength(2);
+      const [secondUrl] = (global.fetch as jest.Mock).mock.calls[1];
+      expect(String(secondUrl)).toContain("pageToken=page-2");
+    });
+
+    it("throws with status text when sync response is not ok and text is empty", async () => {
+      const res = makeRes({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        text: jest.fn(async () => ""),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await expect(
+        syncCalendarList({
+          accessToken: "TOKEN",
+        }),
+      ).rejects.toThrow("Calendar list sync failed (403): Forbidden");
+    });
+
+    it("returns nextSyncToken as null when the final sync page omits it", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "primary", summary: "Primary" }],
+          nextPageToken: "page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "shared", summary: "Shared" }],
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      await expect(syncCalendarList({ accessToken: "TOKEN" })).resolves.toEqual({
+        items: [
+          { id: "primary", summary: "Primary" },
+          { id: "shared", summary: "Shared" },
+        ],
+        nextSyncToken: null,
+      });
+    });
   });
 
   describe("syncCalendarEvents", () => {
@@ -449,6 +551,67 @@ describe("services/GoogleCalendarService", () => {
       });
     });
 
+    it("returns an empty list when event sync payload omits items entirely", async () => {
+      const res = makeRes({
+        json: jest.fn(async () => ({ nextSyncToken: "events-next-sync" })),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await expect(
+        syncCalendarEvents({
+          accessToken: "TOKEN",
+          calendarId: "primary",
+        }),
+      ).resolves.toEqual({ items: [], nextSyncToken: "events-next-sync" });
+    });
+
+    it("defaults to the primary calendar when calendarId is omitted", async () => {
+      const res = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-1", summary: "COMP 346 LEC" }],
+          nextSyncToken: "events-next-sync",
+        })),
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce(res);
+
+      await syncCalendarEvents({
+        accessToken: "TOKEN",
+      });
+
+      const [calledUrl] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(String(calledUrl)).toContain("calendars/primary/events?");
+    });
+
+    it("paginates event sync results", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-1", summary: "COMP 346 LEC" }],
+          nextPageToken: "page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-2", summary: "SOEN 341 LEC" }],
+          nextSyncToken: "events-next-sync",
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      const result = await syncCalendarEvents({
+        accessToken: "TOKEN",
+        calendarId: "primary",
+      });
+
+      expect(result.items).toHaveLength(2);
+      const [secondUrl] = (global.fetch as jest.Mock).mock.calls[1];
+      expect(String(secondUrl)).toContain("pageToken=page-2");
+    });
+
     it("throws with status + error text when sync response is not ok", async () => {
       const res = makeRes({
         ok: false,
@@ -466,6 +629,31 @@ describe("services/GoogleCalendarService", () => {
           syncToken: "bad-sync-token",
         }),
       ).rejects.toThrow("Events sync failed (410): invalid sync token");
+    });
+
+    it("returns nextSyncToken as null when final events sync page omits it", async () => {
+      const page1 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-1" }],
+          nextPageToken: "page-2",
+        })),
+      });
+      const page2 = makeRes({
+        json: jest.fn(async () => ({
+          items: [{ id: "event-2" }],
+        })),
+      });
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+
+      await expect(
+        syncCalendarEvents({ accessToken: "TOKEN", calendarId: "primary" }),
+      ).resolves.toEqual({
+        items: [{ id: "event-1" }, { id: "event-2" }],
+        nextSyncToken: null,
+      });
     });
   });
 });

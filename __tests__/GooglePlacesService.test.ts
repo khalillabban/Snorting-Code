@@ -1,3 +1,4 @@
+import { OUTDOOR_POI_CATEGORY_MAP } from "../constants/outdoorPOI";
 import {
     fetchNearbyPOIs,
     fetchNearbyPOIsForCategories,
@@ -84,6 +85,20 @@ describe("GooglePlacesService", () => {
     );
   });
 
+  it("falls back to UNKNOWN when the Places API error omits status and message", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({
+        error: {},
+      }),
+    });
+
+    await expect(fetchNearbyPOIs(45.5, -73.5, 500, "coffee")).rejects.toThrow(
+      "Places API error: UNKNOWN – ",
+    );
+  });
+
   it("maps, filters and normalizes place results", async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -137,6 +152,16 @@ describe("GooglePlacesService", () => {
         rating: undefined,
       },
     ]);
+  });
+
+  it("returns an empty array when the Places API omits places entirely", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({}),
+    });
+
+    await expect(fetchNearbyPOIs(45.5, -73.5, 500, "coffee")).resolves.toEqual([]);
   });
 
   it("returns [] when no categories are provided to multi-category fetch", async () => {
@@ -198,5 +223,33 @@ describe("GooglePlacesService", () => {
       "restaurant-only",
     ]);
     expect(result.errors).toHaveLength(1);
+  });
+
+  it("records string rejection reasons from a category fetch", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce("boom");
+
+    const result = await fetchNearbyPOIsForCategories(45.5, -73.5, 500, [
+      "coffee",
+    ]);
+
+    expect(result.pois).toEqual([]);
+    expect(result.errors).toEqual(["Coffee: boom"]);
+  });
+
+  it("falls back to the category id when the category label is missing", async () => {
+    const originalLabel = OUTDOOR_POI_CATEGORY_MAP.coffee.label;
+    OUTDOOR_POI_CATEGORY_MAP.coffee.label = undefined as any;
+
+    try {
+      (global.fetch as jest.Mock).mockRejectedValueOnce("boom");
+
+      const result = await fetchNearbyPOIsForCategories(45.5, -73.5, 500, [
+        "coffee",
+      ]);
+
+      expect(result.errors).toEqual(["coffee: boom"]);
+    } finally {
+      OUTDOOR_POI_CATEGORY_MAP.coffee.label = originalLabel;
+    }
   });
 });

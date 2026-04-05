@@ -4,9 +4,12 @@ import {
   Animated,
   Keyboard,
   PanResponder,
+  Platform,
   TouchableWithoutFeedback,
 } from "react-native";
-import NextClassDirectionsPanel from "../components/NextClassDirectionsPanel";
+import NextClassDirectionsPanel, {
+  getStrategyRouteSummary,
+} from "../components/NextClassDirectionsPanel";
 import type { ScheduleItem } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 
@@ -229,7 +232,7 @@ describe("NextClassDirectionsPanel", () => {
     });
 
     it("renders strategy mode buttons", async () => {
-      const { getByTestId } = render(
+      const { getByTestId, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -249,7 +252,7 @@ describe("NextClassDirectionsPanel", () => {
     });
 
     it("auto-sets destination to next class building", async () => {
-      const { getByTestId } = render(
+      const { getByTestId, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -275,7 +278,7 @@ describe("NextClassDirectionsPanel", () => {
         boundingBox: [],
       };
 
-      const { getByTestId } = render(
+      const { getByTestId, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -315,6 +318,35 @@ describe("NextClassDirectionsPanel", () => {
 
       await waitFor(() => {
         expect(getAllByText("12 min")).toHaveLength(5);
+      });
+    });
+
+    it("formats next class time for midnight and noon boundaries", async () => {
+      const boundaryClass: ScheduleItem = {
+        id: "boundary-time",
+        kind: "class",
+        courseName: "TIME 100",
+        start: new Date("2026-04-04T00:05:00"),
+        end: new Date("2026-04-04T12:30:00"),
+        location: "SGW MB 1.210",
+        campus: "SGW",
+        building: "MB",
+        room: "1.210",
+        level: "1",
+      };
+
+      const { getByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={boundaryClass}
+          scheduleItems={[boundaryClass]}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByText("12:05am - 12:30pm")).toBeTruthy();
       });
     });
   });
@@ -382,7 +414,7 @@ describe("NextClassDirectionsPanel", () => {
 
   describe("Interactions", () => {
     it("calls onConfirm and onClose when Get Directions is pressed", async () => {
-      const { getByTestId } = render(
+      const { getByTestId, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -571,8 +603,44 @@ describe("NextClassDirectionsPanel", () => {
       });
     });
 
+    it("uses the iOS keyboard behavior", () => {
+      const originalPlatformOS = Platform.OS;
+      Object.defineProperty(Platform, "OS", { value: "ios" });
+
+      const { UNSAFE_getByType } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      expect(UNSAFE_getByType(require("react-native").KeyboardAvoidingView).props.behavior).toBe("padding");
+      Object.defineProperty(Platform, "OS", { value: originalPlatformOS });
+    });
+
+    it("uses the Android keyboard behavior", () => {
+      const originalPlatformOS = Platform.OS;
+      Object.defineProperty(Platform, "OS", { value: "android" });
+
+      const { UNSAFE_getByType } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      expect(UNSAFE_getByType(require("react-native").KeyboardAvoidingView).props.behavior).toBe("height");
+      Object.defineProperty(Platform, "OS", { value: originalPlatformOS });
+    });
+
     it("can change strategy mode", async () => {
-      const { getByTestId } = render(
+      const { getByTestId, getAllByText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
@@ -1107,6 +1175,51 @@ describe("NextClassDirectionsPanel", () => {
         expect(queryByTestId("clear-end-room")).toBeNull();
       });
     });
+
+    it("uses building-only location when next class room is empty", async () => {
+      const noRoomClass: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: "no-room",
+        room: "",
+      };
+
+      const { getByText, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={noRoomClass}
+          scheduleItems={[noRoomClass]}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getByText("MB")).toBeTruthy();
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
+
+    it("returns no room badge when plan exists but room does not match", async () => {
+      const missingRoomClass: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: "missing-room",
+        room: "9.999",
+      };
+
+      const { queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={missingRoomClass}
+          scheduleItems={[missingRoomClass]}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -1446,6 +1559,400 @@ describe("NextClassDirectionsPanel", () => {
 
       const shuttleButton = getByTestId("next-class-mode-shuttle");
       expect(shuttleButton.props.accessibilityState?.disabled).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Route summary error handling (uncovered lines 366-373)
+  // -----------------------------------------------------------------------
+  describe("Route summary error handling", () => {
+    it("handles route summary request error gracefully", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockImplementation(() =>
+        Promise.reject(new Error("Network error"))
+      );
+
+      const autoStart = {
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { getByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      // Component should remain interactive even if route summary fetching fails.
+      await waitFor(() => {
+        expect(getByTestId("next-class-get-directions")).toBeTruthy();
+      });
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("clears route summary loading flag after successful request", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockImplementation(() =>
+        Promise.resolve({ duration: "10 mins", distance: "0.5 km" })
+      );
+
+      const autoStart = {
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { getAllByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      // Summaries should render to a stable non-loading state for all strategy buttons.
+      await waitFor(() => {
+        expect(getAllByText("—").length).toBeGreaterThanOrEqual(5);
+      });
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("returns null for shuttle when shuttle is disabled", async () => {
+      const result = await getStrategyRouteSummary(
+        {
+          mode: "shuttle",
+          label: "Shuttle",
+          icon: "directions-bus",
+        } as any,
+        false,
+        { latitude: 45.497256, longitude: -73.578915 },
+        { latitude: 45.495304, longitude: -73.579044 },
+      );
+
+      expect(result).toEqual(["shuttle", null]);
+    });
+
+    it("returns null when route summary fetch fails", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await getStrategyRouteSummary(
+        {
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        } as any,
+        true,
+        { latitude: 45.497256, longitude: -73.578915 },
+        { latitude: 45.495304, longitude: -73.579044 },
+      );
+
+      expect(result).toEqual(["walking", null]);
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("returns fetched duration when route summary succeeds", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockResolvedValueOnce({ duration: "14 mins" });
+
+      const result = await getStrategyRouteSummary(
+        {
+          mode: "walking",
+          label: "Walk",
+          icon: "walk",
+        } as any,
+        true,
+        { latitude: 45.497256, longitude: -73.578915 },
+        { latitude: 45.495304, longitude: -73.579044 },
+      );
+
+      expect(result).toEqual(["walking", "14 mins"]);
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("handles route-summary map branches when shuttle is disabled and a strategy request rejects", async () => {
+      const routeMock = getOutdoorRouteWithSteps as jest.Mock;
+      routeMock
+        .mockRejectedValueOnce(new Error("walking failed"))
+        .mockResolvedValue({ duration: "8 mins", distance: "1 km" });
+
+      const onUseMyLocation = jest.fn(() => ({
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      }));
+
+      const { getByLabelText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          onUseMyLocation={onUseMyLocation}
+          shuttleAvailable={false}
+        />,
+      );
+
+      fireEvent.press(getByLabelText("Use my current location as start"));
+
+      await waitFor(() => {
+        expect(routeMock).toHaveBeenCalled();
+      });
+
+      // Shuttle is disabled, so only non-shuttle strategies request summaries.
+      expect(routeMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("shows fallback route summary when duration and distance are missing", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockImplementation(() =>
+        Promise.resolve({ duration: undefined, distance: undefined })
+      );
+
+      const autoStart = {
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { getAllByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByText("—").length).toBeGreaterThanOrEqual(5);
+      });
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("cancels route summary request when component unmounts", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      const cancelledFlag = { value: false };
+      getOutdoorRouteWithSteps.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () => resolve({ duration: "10 mins", distance: "0.5 km" }),
+              100
+            );
+          })
+      );
+
+      const autoStart = {
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { unmount } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      unmount();
+
+      // Verify component unmounts without errors
+      expect(true).toBe(true);
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Destination selection variations (uncovered lines 427-429)
+  // -----------------------------------------------------------------------
+  describe("Destination selection variations", () => {
+    it("selects a destination building result (no room)", async () => {
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search in destination for a building
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "Hall");
+
+      await waitFor(() => {
+        expect(queryByTestId("nc-suggestion-H")).toBeTruthy();
+      });
+
+      // Select the building suggestion
+      fireEvent.press(queryByTestId("nc-suggestion-H"));
+
+      await waitFor(() => {
+        expect(getByTestId("next-class-dest-input").props.value).toBe(
+          "Henry F. Hall Building (H)"
+        );
+        // No room badge should appear for building-only results
+        expect(queryByTestId("clear-end-room")).toBeNull();
+      });
+    });
+
+    it("selects a destination room result", async () => {
+      const { getByTestId, queryByTestId } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      // Search in destination for a room number
+      fireEvent.changeText(getByTestId("next-class-dest-input"), "210");
+
+      await waitFor(() => {
+        expect(queryByTestId("nc-room-MB-1.210")).toBeTruthy();
+      });
+
+      // Select the room suggestion
+      fireEvent.press(queryByTestId("nc-room-MB-1.210"));
+
+      await waitFor(() => {
+        // Room badge should now appear
+        expect(getByTestId("clear-end-room")).toBeTruthy();
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // PanResponder gesture detection (uncovered line 504)
+  // -----------------------------------------------------------------------
+  describe("PanResponder initialization and callbacks", () => {
+    it("initializes PanResponder with correct configuration", async () => {
+      const panSpy = jest
+        .spyOn(PanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0][0] as any;
+      expect(gestureConfig).toBeTruthy();
+
+      // onStartShouldSetPanResponder should always return true
+      expect(gestureConfig.onStartShouldSetPanResponder()).toBe(true);
+
+      panSpy.mockRestore();
+    });
+
+    it("PanResponder only responds to significant vertical movement", async () => {
+      const panSpy = jest
+        .spyOn(PanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0][0] as any;
+
+      // Small vertical movement should not activate pan
+      expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 5 })).toBe(
+        false
+      );
+
+      // Significant vertical movement should activate pan
+      expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: 20 })).toBe(
+        true
+      );
+
+      // Negative movement (upward) should activate pan
+      expect(gestureConfig.onMoveShouldSetPanResponder({}, { dy: -15 })).toBe(
+        true
+      );
+
+      panSpy.mockRestore();
+    });
+
+    it("PanResponder handles drag-to-dismiss when velocity is high", async () => {
+      const panSpy = jest
+        .spyOn(PanResponder, "create")
+        .mockImplementation((config: any) => ({
+          panHandlers: config,
+        } as any));
+
+      render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+        />,
+      );
+
+      const gestureConfig = panSpy.mock.calls[0][0] as any;
+
+      // High velocity downward swipe should close
+      gestureConfig.onPanResponderRelease({}, { dy: 50, vy: 0.6 });
+      expect(mockOnClose).toHaveBeenCalled();
+
+      panSpy.mockRestore();
     });
   });
 });

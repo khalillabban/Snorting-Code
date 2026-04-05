@@ -103,6 +103,23 @@ describe("StrategyModeSelector", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("guards onPress callback when shuttle is disabled", () => {
+    const onSelect = jest.fn();
+    render(
+      <StrategyModeSelector
+        selectedStrategy={WALKING_STRATEGY}
+        onSelect={onSelect}
+        shuttleAvailable={false}
+        buttonStyles={mockButtonStyles}
+      />,
+    );
+
+    const shuttleButton = screen.getByTestId("mode-button-shuttle");
+    fireEvent(shuttleButton, "onPress");
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("enables shuttle button when shuttleAvailable is true", () => {
     const onSelect = jest.fn();
     render(

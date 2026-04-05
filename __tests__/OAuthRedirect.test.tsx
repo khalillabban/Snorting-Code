@@ -51,4 +51,17 @@ describe("OAuthRedirect", () => {
     });
     expect(mockReplace).not.toHaveBeenCalled();
   });
+
+  it("shows the thrown error message when auth completion fails", async () => {
+    mockMaybeCompleteAuthSession.mockImplementation(() => {
+      throw new Error("redirect failed");
+    });
+
+    render(<OAuthRedirect />);
+
+    await waitFor(() => {
+      expect(screen.getByText("redirect failed")).toBeTruthy();
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 });

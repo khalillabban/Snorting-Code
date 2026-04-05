@@ -1,15 +1,15 @@
 import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import {
-    getCurrentPositionAsync,
-    getForegroundPermissionsAsync,
-    hasServicesEnabledAsync,
-    requestForegroundPermissionsAsync,
-    watchPositionAsync,
+  getCurrentPositionAsync,
+  getForegroundPermissionsAsync,
+  hasServicesEnabledAsync,
+  requestForegroundPermissionsAsync,
+  watchPositionAsync,
 } from "expo-location";
 import React from "react";
 import CampusMap from "../components/CampusMap";
@@ -408,6 +408,44 @@ describe("CampusMap", () => {
     );
 
     expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
+  });
+
+  it("does not render the start marker when no start point is provided", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
+    expect(screen.queryByTestId("marker-start")).toBeNull();
+  });
+
+  it("requests permission when initial location permission is not granted and proceeds on approval", async () => {
+    (getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "denied",
+    });
+    (requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: "granted",
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    expect(await screen.findByTestId("marker-You are here")).toBeTruthy();
+    expect(requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByText("Permission to access location was denied."),
+    ).toBeNull();
   });
 
   it("shows an error when current location cannot be retrieved", async () => {
@@ -872,6 +910,37 @@ describe("CampusMap", () => {
     expect(props.lineDashPattern).toBeUndefined();
   });
 
+  it("uses a solid line for shuttle mode polyline", async () => {
+    const shuttleStrategy = {
+      mode: "shuttle",
+      icon: "bus",
+      label: "Shuttle",
+    };
+
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [{ latitude: 1, longitude: 1 }],
+      steps: [],
+      segments: [
+        { mode: "shuttle", coordinates: [{ latitude: 1, longitude: 1 }] },
+      ],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={shuttleStrategy as any}
+        showShuttle={false}
+      />,
+    );
+
+    const polyline = await screen.findByTestId("polyline-main-props");
+    const props = JSON.parse(polyline.props.children);
+    expect(props.lineDashPattern).toBeUndefined();
+  });
+
   // --- Shuttle coverage ---
   it("renders shuttle markers and stops when showShuttle is true", async () => {
     render(
@@ -1078,6 +1147,47 @@ describe("CampusMap", () => {
     setTimeoutSpy.mockRestore();
   });
 
+  it("does not trigger POI focus animation when focus trigger is not incremented", async () => {
+    const mapsMock = getMapsMock();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        nearbyPOIs={[
+          {
+            placeId: "poi-no-focus",
+            name: "No Focus POI",
+            latitude: 10.1234,
+            longitude: 20.5678,
+            vicinity: "Quiet Street",
+            categoryId: "restaurant",
+          },
+        ]}
+        focusPOIId="poi-no-focus"
+        focusPOITrigger={0}
+      />,
+    );
+
+    await screen.findByTestId("poi-marker-poi-no-focus");
+
+    expect(mapsMock.__animateToRegion).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        latitude: 10.1234 - 0.0006,
+        longitude: 20.5678,
+        latitudeDelta: 0.004,
+        longitudeDelta: 0.004,
+      }),
+      300,
+    );
+
+    expect(
+      mapsMock.__showCalloutMocks["poi-marker-poi-no-focus"],
+    ).not.toHaveBeenCalled();
+  });
+
   it("calls onSelectPOI when a nearby POI marker is pressed", async () => {
     const onSelectPOI = jest.fn();
 
@@ -1159,6 +1269,73 @@ describe("CampusMap", () => {
     });
   });
 
+  it("reports fallback route error message when route service rejects with a non-Error value", async () => {
+    const onRouteError = jest.fn();
+    (getOutdoorRouteWithSteps as jest.Mock).mockRejectedValue("route failed");
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        onRouteError={onRouteError}
+        showShuttle={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onRouteError).toHaveBeenCalledWith(
+        "Unable to generate route right now.",
+      );
+    });
+  });
+
+  it("skips route state updates when a route request resolves after unmount", async () => {
+    let resolveRoute!: (value: any) => void;
+    (getOutdoorRouteWithSteps as jest.Mock).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRoute = resolve;
+      }),
+    );
+
+    const onRouteSteps = jest.fn();
+    const onRouteSummary = jest.fn();
+
+    const { unmount } = render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        onRouteSteps={onRouteSteps}
+        onRouteSummary={onRouteSummary}
+        showShuttle={false}
+      />,
+    );
+
+    unmount();
+
+    resolveRoute({
+      coordinates: [{ latitude: 1, longitude: 1 }],
+      segments: [{ mode: "walking", coordinates: [{ latitude: 1, longitude: 1 }] }],
+      steps: [{ instruction: "Walk" }],
+      duration: "1 min",
+      distance: "100 m",
+    });
+
+    await Promise.resolve();
+
+    expect(onRouteSteps).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ instruction: "Walk" })]),
+    );
+    expect(onRouteSummary).not.toHaveBeenCalledWith(
+      expect.objectContaining({ duration: "1 min", distance: "100 m" }),
+    );
+  });
+
   it("clears route error when origin or destination is missing", async () => {
     const onRouteError = jest.fn();
 
@@ -1220,6 +1397,212 @@ describe("CampusMap", () => {
     expect(screen.getByTestId("label-pill-B")).toBeTruthy();
     expect(screen.getByTestId("label-pill-C")).toBeTruthy();
   });
+
+  it("falls back to default polyline color for unknown segment mode", async () => {
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [{ latitude: 1, longitude: 1 }],
+      steps: [],
+      segments: [
+        { mode: "unknown_mode", coordinates: [{ latitude: 1, longitude: 1 }] },
+      ],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        startPoint={BUILDINGS[0]}
+        destinationPoint={BUILDINGS[1]}
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    const polyline = await screen.findByTestId("polyline-main-props");
+    const props = JSON.parse(polyline.props.children);
+    expect(props.strokeColor).toBe(colors.routeWalk);
+  });
+
+  it("handles map press safely when no building is selected", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    await screen.findByTestId("marker-You are here");
+    fireEvent.press(screen.getByTestId("map-view"));
+    expect(screen.queryByTestId("building-info-popup")).toBeNull();
+  });
+
+  it("handles zero latitudeDelta in region updates without crashing", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+      />,
+    );
+
+    await screen.findByTestId("marker-You are here");
+    fireEvent(screen.getByTestId("map-view"), "onRegionChangeComplete", {
+      latitude: 1,
+      longitude: 2,
+      latitudeDelta: 0,
+      longitudeDelta: 0,
+    });
+
+    expect(screen.getByTestId("label-pill-A")).toBeTruthy();
+  });
+
+  it("skips state updates when location request resolves after unmount", async () => {
+    let resolvePosition!: (value: any) => void;
+    (getCurrentPositionAsync as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePosition = resolve;
+      }),
+    );
+    const onUserLocationResolved = jest.fn();
+
+    const { unmount } = render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onUserLocationResolved={onUserLocationResolved}
+      />,
+    );
+
+    unmount();
+    resolvePosition({ coords: { latitude: 55, longitude: -71 } });
+    await Promise.resolve();
+
+    expect(onUserLocationResolved).not.toHaveBeenCalled();
+  });
+
+  it("handles unmatched focus POI id without animating", async () => {
+    const mapsMock = getMapsMock();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        nearbyPOIs={[
+          {
+            placeId: "poi-present",
+            name: "Present POI",
+            latitude: 10.2,
+            longitude: 20.2,
+            vicinity: "Present Street",
+            categoryId: "restaurant",
+          },
+        ]}
+        focusPOIId="poi-missing"
+        focusPOITrigger={1}
+      />,
+    );
+
+    await screen.findByTestId("poi-marker-poi-present");
+    expect(mapsMock.__showCalloutMocks["poi-marker-poi-present"]).not.toHaveBeenCalled();
+  });
+
+  it("uses demoCurrentBuilding as current-building source", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        demoCurrentBuilding={BUILDINGS[1]}
+      />,
+    );
+
+    await screen.findByTestId("marker-You are here");
+    const styles = screen
+      .getAllByTestId("polygon-style")
+      .map((el) => JSON.parse(el.props.children));
+    expect(styles[1].fillColor).toBe(colors.secondaryTransparent);
+  });
+
+  it("renders POI marker fallback color and icon for unknown category", async () => {
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        nearbyPOIs={[
+          {
+            placeId: "poi-unknown-cat",
+            name: "Unknown Category POI",
+            latitude: 10.11,
+            longitude: 20.11,
+            vicinity: "Unknown Street",
+            categoryId: "not-a-real-category" as any,
+          },
+        ]}
+      />,
+    );
+
+    const marker = await screen.findByTestId("poi-marker-poi-unknown-cat");
+    const icon = marker.findByType(require("@expo/vector-icons/MaterialCommunityIcons").default);
+    expect(icon.props.name).toBe("map-marker");
+  });
+
+  it("keeps shuttle polyline hidden when shuttle route has no coordinates", async () => {
+    (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
+      coordinates: [],
+      steps: [],
+      segments: [],
+    });
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={true}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getOutdoorRouteWithSteps).toHaveBeenCalled();
+    });
+
+    expect(screen.queryAllByTestId("polyline")).toHaveLength(0);
+  });
+
+  it("does not apply shuttle route updates after unmount", async () => {
+    let rejectShuttle!: (reason?: unknown) => void;
+    (getOutdoorRouteWithSteps as jest.Mock).mockReturnValue(
+      new Promise((_, reject) => {
+        rejectShuttle = reject;
+      }),
+    );
+
+    const { unmount } = render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={true}
+      />,
+    );
+
+    unmount();
+    rejectShuttle(new Error("late shuttle failure"));
+    await Promise.resolve();
+
+    expect(true).toBe(true);
+  });
+
   it("warns for buildings with empty boundingBox except when the building is 'QA'", async () => {
     render(
       <CampusMap

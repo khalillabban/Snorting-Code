@@ -21,6 +21,16 @@ describe("ShuttleBusTracker Module", () => {
     const originalEnv = process.env.NODE_ENV;
     let consoleWarnSpy: jest.SpyInstance;
 
+    const createDeferred = <T,>() => {
+        let resolve!: (value: T) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise<T>((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+        return { promise, resolve, reject };
+    };
+
     beforeEach(() => {
         jest.clearAllMocks();
         consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
@@ -69,6 +79,38 @@ describe("ShuttleBusTracker Module", () => {
             expect(result.current.activeBuses[0].ID).toBe("BUS-123");
         });
 
+        it("falls back to an empty array when API response has no Points", async () => {
+            (process.env as any).NODE_ENV = "development";
+            mockedAxios.get.mockResolvedValueOnce({ status: 200 });
+            mockedAxios.post.mockResolvedValueOnce({
+                data: { d: {} },
+            });
+
+            const { result } = renderHook(() => useShuttleBus());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            expect(result.current.activeBuses).toEqual([]);
+        });
+
+        it("falls back to an empty array when API response has no d object", async () => {
+            (process.env as any).NODE_ENV = "development";
+            mockedAxios.get.mockResolvedValueOnce({ status: 200 });
+            mockedAxios.post.mockResolvedValueOnce({
+                data: {},
+            });
+
+            const { result } = renderHook(() => useShuttleBus());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            expect(result.current.activeBuses).toEqual([]);
+        });
+
         it("handles fetch errors gracefully and sets loading to false", async () => {
             (process.env as any).NODE_ENV = "development";
             mockedAxios.get.mockRejectedValueOnce(new Error("Network Error"));
@@ -114,6 +156,34 @@ describe("ShuttleBusTracker Module", () => {
             });
 
             expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it("does not update state after unmount when request resolves late", async () => {
+            (process.env as any).NODE_ENV = "development";
+            mockedAxios.get.mockResolvedValueOnce({ status: 200 });
+
+            const deferredPost = createDeferred<{
+                data: { d: { Points: Array<{ ID: string; Latitude: number; Longitude: number }> } };
+            }>();
+            mockedAxios.post.mockReturnValueOnce(deferredPost.promise as any);
+
+            const { unmount } = renderHook(() => useShuttleBus());
+
+            unmount();
+
+            await act(async () => {
+                deferredPost.resolve({
+                    data: {
+                        d: {
+                            Points: [{ ID: "BUS-LATE", Latitude: 45.5, Longitude: -73.6 }],
+                        },
+                    },
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(consoleWarnSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -167,6 +237,30 @@ describe("ShuttleBusTracker Module", () => {
 
             expect(screen.getByText("Live Buses (0)")).toBeTruthy();
             expect(screen.getByText("No buses currently in service.")).toBeTruthy();
+        });
+
+        it("renders live buses when API returns active bus points", async () => {
+            mockedAxios.get.mockResolvedValueOnce({ status: 200 });
+            mockedAxios.post.mockResolvedValueOnce({
+                data: {
+                    d: {
+                        Points: [
+                            { ID: "BUS-101", Latitude: 45.497, Longitude: -73.579 },
+                            { ID: "X-IGNORE", Latitude: 0, Longitude: 0 },
+                        ],
+                    },
+                },
+            });
+
+            render(<ShuttleBusTracker />);
+
+            await waitFor(() => {
+                expect(screen.getByText("Live Buses (1)")).toBeTruthy();
+            });
+
+            expect(screen.getByText("Bus ID: BUS-101")).toBeTruthy();
+            expect(screen.getByText("Location: 45.4970, -73.5790")).toBeTruthy();
+            expect(screen.queryByText("No buses currently in service.")).toBeNull();
         });
     });
 });

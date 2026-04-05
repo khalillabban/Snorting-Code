@@ -271,6 +271,28 @@ describe("NavigationBar coverage branches", () => {
     expect(shuttleButton.props.accessibilityState?.disabled).toBeFalsy();
   });
 
+  it("falls back to My Location text when the location callback returns null", async () => {
+    const onClose = jest.fn();
+    const onConfirm = jest.fn();
+    const onUseMyLocation = jest.fn().mockReturnValue(null);
+
+    render(
+      <NavigationBar
+        visible={true}
+        onClose={onClose}
+        onConfirm={onConfirm}
+        currentCampus="sgw"
+        onUseMyLocation={onUseMyLocation}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText("Use my current location"));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("From — building or room (e.g. H-110)").props.value).toBe("My Location");
+    });
+  });
+
   it("does not select shuttle strategy when disabled and pressed", async () => {
     const onClose = jest.fn();
     const onConfirm = jest.fn();

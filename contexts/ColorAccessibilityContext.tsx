@@ -10,9 +10,12 @@ import {
   COLOR_ACCESSIBILITY_OPTIONS,
   colors as fallbackColors,
   getThemePalette,
+  withOpacity,
   type ColorAccessibilityMode,
   type ThemePalette,
 } from "../constants/theme";
+
+export { withOpacity };
 
 const STORAGE_KEY = "snorting-code.color-accessibility-mode";
 

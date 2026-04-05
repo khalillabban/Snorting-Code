@@ -1,11 +1,11 @@
 import {
-  Building,
-  Floor,
-  Hallway,
-  POI,
-  Room,
-  parseGeoJSONToFloor,
-  parseGeoJSONToBuilding,
+    Building,
+    Floor,
+    Hallway,
+    POI,
+    Room,
+    parseGeoJSONToBuilding,
+    parseGeoJSONToFloor,
 } from "../utils/IndoorMapComposite";
 
 describe("IndoorMapComposite", () => {
@@ -134,6 +134,12 @@ describe("IndoorMapComposite", () => {
       const floor = new Floor(1, "MB");
       expect(floor.getFloors()).toEqual([floor]);
     });
+
+    it("returns default empty coordinates and centroid", () => {
+      const floor = new Floor(2, "MB");
+      expect(floor.getCoordinates()).toEqual([]);
+      expect(floor.getCentroid()).toEqual([0, 0]);
+    });
   });
 
   describe("Building", () => {
@@ -197,6 +203,12 @@ describe("IndoorMapComposite", () => {
       expect(pois.length).toBe(2);
       expect(pois).toContain(poi1);
       expect(pois).toContain(poi2);
+    });
+
+    it("returns default empty coordinates and centroid", () => {
+      const building = new Building("MB");
+      expect(building.getCoordinates()).toEqual([]);
+      expect(building.getCentroid()).toEqual([0, 0]);
     });
   });
 

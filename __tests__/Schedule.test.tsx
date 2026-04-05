@@ -1,24 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    act,
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 import React from "react";
 import { AppState } from "react-native";
 import ScheduleScreen, {
-    applyCachedSchedule,
-    buildScheduleItems,
-    eventOverlapsRange,
-    getEventDedupKey,
-    handleScheduleInitError,
-    loadCalendarsAndMaybeAutoSelect,
-    parseCalendarDate,
-    pickDefaultCalendarIds,
-    resolveAccessToken,
+  applyCachedSchedule,
+  buildScheduleItems,
+  eventOverlapsRange,
+  getEventDedupKey,
+  handleScheduleInitError,
+  loadCalendarsAndMaybeAutoSelect,
+  parseCalendarDate,
+  pickDefaultCalendarIds,
+  resolveAccessToken,
 } from "../app/schedule";
+import { ScheduleItem } from "../constants/type";
 import { GoogleCalendarApiError } from "../services/GoogleCalendarService";
 
 const mockLogUsabilityEvent = jest.fn();
@@ -574,6 +575,30 @@ describe("ScheduleScreen caching flow", () => {
     expect(mockSyncCalendarEvents).not.toHaveBeenCalled();
   });
 
+  it("uses an unknown label when toggling a calendar without a summary", async () => {
+    cachedCalendarList = {
+      items: [{ id: "anon", summary: undefined as unknown as string }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.anon = makeCalendarCache("anon", [
+      makeEvent("event-1", "COMP 346 LEC"),
+    ]);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("calendar-toggle-undefined")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("calendar-toggle-undefined"));
+
+    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+      "calendar_toggled",
+      expect.objectContaining({ calendar_name: "unknown" }),
+    );
+  });
+
   it("shows loading and then an error when the first schedule sync fails without cache", async () => {
     const sync = defer<{ items: any[]; nextSyncToken: string }>();
     void sync.promise.catch(() => {});
@@ -599,6 +624,33 @@ describe("ScheduleScreen caching flow", () => {
     await waitFor(() => {
       expect(screen.getByText("Network boom")).toBeTruthy();
       expect(screen.getByText("Try Again")).toBeTruthy();
+    });
+  });
+
+  it("shows the fallback schedule error when the first sync fails without a message", async () => {
+    const sync = defer<{ items: any[]; nextSyncToken: string }>();
+    void sync.promise.catch(() => {});
+
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    mockSyncCalendarEvents.mockReturnValueOnce(sync.promise);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Loading your schedule...")).toBeTruthy();
+    });
+
+    await act(async () => {
+      sync.reject({});
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load your schedule.")).toBeTruthy();
     });
   });
 
@@ -857,6 +909,19 @@ describe("ScheduleScreen caching flow", () => {
     });
   });
 
+  it("does not hydrate storage after unmounting during initialization", async () => {
+    const deferred = defer<ScheduleItem[] | null>();
+    mockLoadCachedSchedule.mockReturnValueOnce(deferred.promise);
+
+    const view = render(<ScheduleScreen />);
+    view.unmount();
+
+    await act(async () => {
+      deferred.resolve([]);
+      await deferred.promise;
+    });
+  });
+
   it("keeps the ready state when OAuth is cancelled after cached data is shown", async () => {
     mockLoadCachedSchedule.mockResolvedValueOnce([makeScheduleItem()]);
     mockGetGoogleAccessToken.mockResolvedValueOnce({
@@ -902,6 +967,144 @@ describe("ScheduleScreen caching flow", () => {
     });
   });
 
+  it("shows fallback OAuth error text when auth response fails without a message", async () => {
+    mockUseGoogleCalendarAuth.mockReturnValue({
+      request: { dummy: true },
+      promptAsync: jest.fn().mockResolvedValue(undefined),
+      getResultFromResponse: jest.fn().mockReturnValue({
+        ok: false,
+      }),
+      response: { type: "error" },
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Login failed.")).toBeTruthy();
+    });
+
+    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+      "google_signin_failed",
+      expect.objectContaining({ reason: "unknown" }),
+    );
+  });
+
+  it("logs connect timing when OAuth succeeds after the user starts connecting", async () => {
+    const successResponse = { type: "success" };
+    let nextResult: any = null;
+    const promptAsync = jest.fn().mockImplementation(async () => {
+      nextResult = {
+        ok: true,
+        accessToken: "NEW_TOKEN",
+        issuedAt: 123,
+        expiresIn: 3600,
+      };
+    });
+    const getResultFromResponse = jest.fn().mockImplementation(() => {
+      const result = nextResult;
+      nextResult = null;
+      return result;
+    });
+
+    mockUseGoogleCalendarAuth.mockImplementation(() => ({
+      request: { dummy: true },
+      promptAsync,
+      getResultFromResponse,
+      response: nextResult ? successResponse : null,
+    }));
+
+    const view = render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Connect Google Calendar")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Connect Google Calendar"));
+
+    await act(async () => {
+      await Promise.resolve();
+      view.rerender(<ScheduleScreen />);
+    });
+
+    await waitFor(() => {
+      expect(mockSaveGoogleAccessToken).toHaveBeenCalledWith("NEW_TOKEN", {
+        issuedAt: 123,
+        expiresIn: 3600,
+      });
+    });
+
+    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+      "google_signin_success",
+      expect.objectContaining({ time_to_connect_ms: expect.any(Number) }),
+    );
+  });
+
+  it("logs cancel timing when OAuth is cancelled after the user starts connecting", async () => {
+    const cancelResponse = { type: "cancel" };
+    let nextResult: any = null;
+    const promptAsync = jest.fn().mockImplementation(async () => {
+      nextResult = {
+        ok: false,
+        reason: "cancelled",
+      };
+    });
+    const getResultFromResponse = jest.fn().mockImplementation(() => {
+      const result = nextResult;
+      nextResult = null;
+      return result;
+    });
+
+    mockUseGoogleCalendarAuth.mockImplementation(() => ({
+      request: { dummy: true },
+      promptAsync,
+      getResultFromResponse,
+      response: nextResult ? cancelResponse : null,
+    }));
+
+    const view = render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Connect Google Calendar")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Connect Google Calendar"));
+
+    await act(async () => {
+      await Promise.resolve();
+      view.rerender(<ScheduleScreen />);
+    });
+
+    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+      "google_signin_cancelled",
+      expect.objectContaining({ time_spent_ms: expect.any(Number) }),
+    );
+  });
+
+  it("shows the empty schedule state when OAuth is cancelled without cached data", async () => {
+    mockLoadCachedSchedule.mockResolvedValueOnce([]);
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: null,
+      meta: null,
+    });
+    mockUseGoogleCalendarAuth.mockReturnValue({
+      request: { dummy: true },
+      promptAsync: jest.fn().mockResolvedValue(undefined),
+      getResultFromResponse: jest.fn().mockReturnValue({
+        ok: false,
+        reason: "cancelled",
+      }),
+      response: { type: "cancel" },
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No events found in this semester window."),
+      ).toBeTruthy();
+    });
+  });
+
   it("persists the access token when OAuth succeeds", async () => {
     cachedCalendarList = {
       items: [{ id: "primary", summary: "Primary", primary: true }],
@@ -911,6 +1114,42 @@ describe("ScheduleScreen caching flow", () => {
     cachedEventsByCalendar.primary = makeCalendarCache("primary", [
       makeEvent("class-1", "COMP 346 LEC"),
     ]);
+    mockUseGoogleCalendarAuth.mockReturnValue({
+      request: { dummy: true },
+      promptAsync: jest.fn().mockResolvedValue(undefined),
+      getResultFromResponse: jest.fn().mockReturnValue({
+        ok: true,
+        accessToken: "NEW_TOKEN",
+        issuedAt: 123,
+        expiresIn: 3600,
+      }),
+      response: { type: "success" },
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockSaveGoogleAccessToken).toHaveBeenCalledWith("NEW_TOKEN", {
+        issuedAt: 123,
+        expiresIn: 3600,
+      });
+    });
+    expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+      "google_signin_success",
+      expect.any(Object),
+    );
+  });
+
+  it("swallows errors when persisting the access token after OAuth succeeds", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
+      makeEvent("class-1", "COMP 346 LEC"),
+    ]);
+    mockSaveGoogleAccessToken.mockRejectedValueOnce(new Error("storage failed"));
     mockUseGoogleCalendarAuth.mockReturnValue({
       request: { dummy: true },
       promptAsync: jest.fn().mockResolvedValue(undefined),
@@ -1572,6 +1811,24 @@ describe("ScheduleScreen additional coverage", () => {
     });
   });
 
+  it("skips dev console logging when __DEV__ is false", () => {
+    const setUi = jest.fn();
+    const originalDev = (global as any).__DEV__;
+
+    (global as any).__DEV__ = false;
+
+    try {
+      handleScheduleInitError({ current: false }, new Error("boom"), setUi as any);
+    } finally {
+      (global as any).__DEV__ = originalDev;
+    }
+
+    expect(setUi).toHaveBeenCalledWith({
+      status: "error",
+      message: "boom",
+    });
+  });
+
   it("syncAndRefresh returns early if scheduleSyncRequestRef.current !== requestId", async () => {
     // This is a race condition scenario, difficult to reliably test in a unit test without exposing internals.
     // The logic is straightforward: if a newer sync request comes in, abandon the older one.
@@ -1608,6 +1865,25 @@ describe("ScheduleScreen additional coverage", () => {
     expect(screen.getByTestId("calendar-items-count").props.children).toBe(1);
   });
 
+  it("background AppState refresh syncs when only selected calendars exist", async () => {
+    (AppState as any).currentState = "background";
+    cachedCalendarList = {
+      items: [],
+      lastSyncedAt: Date.now(),
+      syncToken: "list-sync",
+    };
+    mockGetSelectedCalendarIds.mockResolvedValueOnce(["primary"]);
+
+    render(<ScheduleScreen />);
+
+    await act(async () => {
+      appStateChangeHandler?.("active");
+      await Promise.resolve();
+    });
+
+    expect(mockSyncCalendarEvents).toHaveBeenCalled();
+  });
+
   it("syncSingleCalendar handles 410 error and retries without syncToken", async () => {
     // This is already covered by "falls back to a full sync when Google rejects the incremental sync token"
   });
@@ -1633,6 +1909,42 @@ describe("ScheduleScreen additional coverage", () => {
     });
   });
 
+  it("syncCalendarListData merges incremental items into the cached list", async () => {
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: "TOKEN",
+      meta: null,
+    });
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: 0,
+      syncToken: "calendar-list-sync",
+    };
+    mockSyncCalendarList.mockResolvedValueOnce({
+      items: [{ id: "shared", summary: "Shared Calendar" }],
+      nextSyncToken: "calendar-list-sync-2",
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockGetGoogleAccessToken).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(mockSyncCalendarList).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockSaveCachedGoogleCalendarList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "primary" }),
+          expect.objectContaining({ id: "shared" }),
+        ]),
+        syncToken: "calendar-list-sync-2",
+      }),
+    );
+  });
+
   it("syncCalendarListData returns early if not shouldSync", async () => {
     cachedCalendarList = {
       items: [{ id: "primary", summary: "Primary", primary: true }],
@@ -1645,6 +1957,39 @@ describe("ScheduleScreen additional coverage", () => {
     await waitFor(() => {
       expect(mockSyncCalendarList).not.toHaveBeenCalled(); // Should not sync
     });
+  });
+
+  it("syncCalendarListData merges fresh items when no cached list exists", async () => {
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: "TOKEN",
+      meta: null,
+    });
+    mockGetSelectedCalendarIds.mockResolvedValueOnce([]);
+    cachedCalendarList = null;
+    mockSyncCalendarList.mockResolvedValueOnce({
+      items: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "shared", summary: "Shared Calendar" },
+      ],
+      nextSyncToken: "calendar-list-sync-2",
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockSyncCalendarList).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockSaveCachedGoogleCalendarList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "primary" }),
+          expect.objectContaining({ id: "shared" }),
+        ]),
+        syncToken: "calendar-list-sync-2",
+      }),
+    );
+    expect(mockSaveSelectedCalendarIds).toHaveBeenCalledWith(["primary"]);
   });
 
   it("completes auth session when initial URL includes oauthredirect", async () => {
@@ -1690,6 +2035,74 @@ describe("ScheduleScreen additional coverage", () => {
     expect(mockMaybeCompleteAuthSession).toHaveBeenCalled();
   });
 
+  it("does not complete auth session for non-redirect OAuth URLs", async () => {
+    let urlHandler: ((event: { url: string }) => void) | undefined;
+    mockAddEventListener.mockImplementationOnce(
+      (_event: string, handler: (event: { url: string }) => void) => {
+        urlHandler = handler;
+        return { remove: jest.fn() };
+      },
+    );
+    mockGetInitialURL.mockResolvedValueOnce("snortingcode://home");
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        "url",
+        expect.any(Function),
+      );
+    });
+
+    act(() => {
+      urlHandler?.({ url: "snortingcode://home?x=1" });
+    });
+
+    expect(mockMaybeCompleteAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("stops initialization after token lookup if the screen unmounts", async () => {
+    const token = defer<{ accessToken: string | null; meta: null }>();
+    mockLoadCachedSchedule.mockResolvedValueOnce([]);
+    mockGetGoogleAccessToken.mockReturnValueOnce(token.promise);
+
+    const view = render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockLoadCachedSchedule).toHaveBeenCalled();
+    });
+
+    view.unmount();
+
+    await act(async () => {
+      token.resolve({ accessToken: "TOKEN", meta: null });
+      await token.promise;
+    });
+  });
+
+  it("stops initialization while loading calendars if the screen unmounts", async () => {
+    const calendarList = defer<any>();
+    mockLoadCachedSchedule.mockResolvedValueOnce([]);
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: "TOKEN",
+      meta: null,
+    });
+    mockLoadCachedGoogleCalendarList.mockReturnValueOnce(calendarList.promise);
+
+    const view = render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockGetGoogleAccessToken).toHaveBeenCalled();
+    });
+
+    view.unmount();
+
+    await act(async () => {
+      calendarList.resolve(null);
+      await calendarList.promise;
+    });
+  });
+
   it("AppState listener does not sync if accessTokenRef.current is null", async () => {
     (AppState as any).currentState = "background";
     mockGetGoogleAccessToken.mockResolvedValueOnce({
@@ -1706,18 +2119,119 @@ describe("ScheduleScreen additional coverage", () => {
 
   it("AppState listener does not sync schedule if no selected or available calendars", async () => {
     (AppState as any).currentState = "background";
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: "TOKEN",
+      meta: null,
+    });
     cachedCalendarList = {
       items: [],
       lastSyncedAt: Date.now(),
       syncToken: "list-sync",
     };
+    mockLoadCachedSchedule.mockResolvedValueOnce([]);
+    mockSyncCalendarList.mockResolvedValueOnce({
+      items: [],
+      nextSyncToken: "list-sync-2",
+    });
     mockGetSelectedCalendarIds.mockResolvedValueOnce([]);
 
     render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockGetGoogleAccessToken).toHaveBeenCalled();
+    });
+
     await act(async () => {
       appStateChangeHandler?.("active");
       await Promise.resolve();
     });
     expect(mockSyncCalendarEvents).not.toHaveBeenCalled();
+  });
+
+  it("applies cached items during background refresh when no calendars need syncing", async () => {
+    (AppState as any).currentState = "background";
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache("primary", [
+      makeEvent("class-1", "COMP 346 LEC"),
+    ]);
+    mockIsGoogleCalendarEventsCacheStale.mockReturnValue(false);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("calendar-items-count").props.children).toBe(1);
+    });
+
+    const saveCallsBefore = mockSaveSchedule.mock.calls.length;
+
+    await act(async () => {
+      appStateChangeHandler?.("active");
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockSaveSchedule.mock.calls.length).toBeGreaterThan(saveCallsBefore);
+    });
+  });
+
+  it("keeps cached schedule visible when refresh sync fails with existing cache", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache(
+      "primary",
+      [makeEvent("class-1", "COMP 346 LEC")],
+      { lastSyncedAt: 0 },
+    );
+    mockSyncCalendarEvents.mockRejectedValueOnce(new Error("refresh failed"));
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("calendar-items-count").props.children).toBe(1);
+    });
+
+    expect(screen.queryByText("refresh failed")).toBeNull();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to refresh schedule:",
+      expect.any(Error),
+    );
+  });
+
+  it("uses connect path when Refresh is pressed in empty state without token", async () => {
+    const promptAsync = jest.fn().mockResolvedValue(undefined);
+    mockGetGoogleAccessToken.mockResolvedValueOnce({
+      accessToken: null,
+      meta: null,
+    });
+    mockLoadCachedSchedule.mockResolvedValueOnce([]);
+    mockUseGoogleCalendarAuth.mockReturnValue({
+      request: { dummy: true },
+      promptAsync,
+      getResultFromResponse: jest.fn().mockReturnValue(null),
+      response: null,
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Refresh")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Refresh"));
+
+    await waitFor(() => {
+      expect(promptAsync).toHaveBeenCalledTimes(1);
+      expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
+        "google_connect_tapped",
+        expect.any(Object),
+      );
+    });
   });
 });
