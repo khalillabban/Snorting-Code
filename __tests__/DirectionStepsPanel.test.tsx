@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import {
-    DirectionStepsPanel,
-    StepWrapper,
+  DirectionStepsPanel,
+  StepWrapper,
 } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
@@ -337,6 +337,133 @@ describe("DirectionStepsPanel", () => {
     );
 
     expect(screen.queryByLabelText("Close directions")).toBeNull();
+  });
+
+  it("expands from the collapsed preview when preview is pressed", () => {
+    render(
+      <DirectionStepsPanel
+        steps={mockSteps}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText("Open route steps preview"));
+
+    expect(screen.getByLabelText("Collapse directions steps")).toBeTruthy();
+    expect(screen.getByText("Head north on Main St")).toBeTruthy();
+  });
+
+  it("computes route summary from imperial units", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Head out", distance: "1 mi", duration: "1 hr" },
+          { instruction: "Final approach", distance: "500 ft", duration: "0 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("1 hr · 1.8 km")).toBeTruthy();
+  });
+
+  it("formats multi-hour durations with and without remaining minutes", () => {
+    const { rerender } = render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Long trip", duration: "120 min", distance: "100 m" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("2 hrs · 100 m")).toBeTruthy();
+
+    rerender(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Long trip", duration: "125 min", distance: "100 m" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("2 hrs 5 min · 100 m")).toBeTruthy();
+  });
+
+  it("formats singular-hour durations with remaining minutes", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Almost there", duration: "65 min", distance: "100 m" }]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("1 hr 5 min · 100 m")).toBeTruthy();
+  });
+
+  it("ignores unparsable values when computing summary", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Bad", distance: "about one block", duration: "soon" },
+          { instruction: "Good", distance: "10 m", duration: "1 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("1 min · 10 m")).toBeTruthy();
+  });
+
+  it("ignores values that parse to non-finite durations", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          {
+            instruction: "Huge duration",
+            distance: "10 m",
+            duration: `${"1"}${"0".repeat(400)} min`,
+          },
+          { instruction: "Valid", distance: "20 m", duration: "2 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("2 min · 30 m")).toBeTruthy();
+  });
+
+  it("uses explicit routeSummary when provided", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[{ instruction: "Step", distance: "10 m", duration: "1 min" }]}
+        strategy={WALKING_STRATEGY}
+        routeSummary={{ duration: "Custom Time", distance: "Custom Distance" }}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Custom Time · Custom Distance")).toBeTruthy();
+  });
+
+  it("skips invalid parser inputs and formats exact kilometer totals", () => {
+    render(
+      <DirectionStepsPanel
+        steps={[
+          { instruction: "Invalid values", distance: "1.2.3 km", duration: "1..2 h" },
+          { instruction: "Blank duration", distance: "500 m", duration: "   " },
+          { instruction: "Valid values", distance: "500 m", duration: "60 min" },
+        ]}
+        strategy={WALKING_STRATEGY}
+        onChangeRoute={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("3 hrs · 1 km")).toBeTruthy();
   });
 
   it("renders the final pressable step as a continue indoors CTA", () => {
