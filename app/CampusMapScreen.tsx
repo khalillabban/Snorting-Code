@@ -200,9 +200,9 @@ function logIndoorOutdoorCombinedDirectionsIfNeeded({
   routeSteps: RouteStep[];
   routeStepsWithContinueIndoors: InteractiveRouteStep[];
   selectedRoute: { start: Buildings | null; dest: Buildings | null };
-  completedIndoorOutdoorTasks: React.MutableRefObject<Set<string>>;
-  sessionId: React.MutableRefObject<string>;
-  mapLoadTime: React.MutableRefObject<number>;
+  completedIndoorOutdoorTasks: { current: Set<string> };
+  sessionId: { current: string };
+  mapLoadTime: { current: number };
 }): void {
   const hasOutdoorSegment = routeSteps.length > 0;
   const hasIndoorSuffix = routeStepsWithContinueIndoors.length > routeSteps.length;
