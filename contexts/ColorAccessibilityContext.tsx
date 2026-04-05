@@ -8,12 +8,22 @@ import React, {
 } from "react";
 import {
   COLOR_ACCESSIBILITY_OPTIONS,
+  colors as fallbackColors,
   getThemePalette,
   type ColorAccessibilityMode,
   type ThemePalette,
 } from "../constants/theme";
 
 const STORAGE_KEY = "snorting-code.color-accessibility-mode";
+
+function resolveThemePalette(mode: ColorAccessibilityMode): ThemePalette {
+  if (typeof getThemePalette === "function") {
+    return getThemePalette(mode);
+  }
+
+  // Some tests mock constants/theme without getThemePalette.
+  return fallbackColors as unknown as ThemePalette;
+}
 
 type ColorAccessibilityContextValue = {
   mode: ColorAccessibilityMode;
@@ -25,7 +35,7 @@ type ColorAccessibilityContextValue = {
 
 const defaultValue: ColorAccessibilityContextValue = {
   mode: "classic",
-  colors: getThemePalette("classic"),
+  colors: resolveThemePalette("classic"),
   options: COLOR_ACCESSIBILITY_OPTIONS,
   setMode: () => {},
   isHydrated: true,
@@ -86,7 +96,7 @@ export function ColorAccessibilityProvider({
   const value = useMemo<ColorAccessibilityContextValue>(
     () => ({
       mode,
-      colors: getThemePalette(mode),
+      colors: resolveThemePalette(mode),
       options: COLOR_ACCESSIBILITY_OPTIONS,
       setMode,
       isHydrated,
