@@ -586,11 +586,10 @@ function resolveIndoorToOutdoorTransition({
     : null;
   const originForRoute = originByCode ?? originByExit ?? null;
 
-  const originCampus = originForRoute
-    ? originForRoute.campusName === "loyola"
-      ? "loyola"
-      : "sgw"
-    : null;
+  let originCampus: CampusKey | null = null;
+  if (originForRoute) {
+    originCampus = originForRoute.campusName === "loyola" ? "loyola" : "sgw";
+  }
   const destinationCampus: CampusKey =
     destination.campusName === "loyola" ? "loyola" : "sgw";
 
