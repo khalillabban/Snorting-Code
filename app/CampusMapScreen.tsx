@@ -94,6 +94,94 @@ const buildCrossBuildingIndoorParams = ({
 
 type FocusTarget = CampusKey | "user";
 
+function handleCrossBuildingIndoorTransition(
+  transitionPayload: ReturnType<typeof parseTransitionPayload>,
+) {
+  if (transitionPayload?.mode !== "cross_building_indoor") return;
+
+  const originCode = transitionPayload.originBuildingCode.trim().toUpperCase();
+  const destCode = transitionPayload.destinationBuildingCode.trim().toUpperCase();
+
+  router.push({
+    pathname: "/IndoorMapScreen",
+    params: {
+      buildingName: originCode,
+      floors: "1",
+      navOrigin: transitionPayload.originIndoorRoomQuery,
+      navDest: destCode,
+      outdoorDestBuilding: destCode,
+      outdoorStrategy: transitionPayload.strategy
+        ? JSON.stringify(transitionPayload.strategy)
+        : undefined,
+      outdoorAccessibleOnly: transitionPayload.accessibleOnly ? "true" : "false",
+      destinationRoomQuery: transitionPayload.destinationIndoorRoomQuery,
+      accessibleOnly: String(Boolean(transitionPayload.accessibleOnly)),
+      ...(transitionPayload.usabilityTaskId
+        ? { usabilityTaskId: transitionPayload.usabilityTaskId }
+        : {}),
+      ...(typeof transitionPayload.usabilityTaskStartedAtMs === "number"
+        ? {
+            usabilityTaskStartedAtMs: String(
+              transitionPayload.usabilityTaskStartedAtMs,
+            ),
+          }
+        : {}),
+    },
+  });
+}
+
+function findNearestBuildingFromCoordinates(lat: number, lon: number): Buildings {
+  let nearest = BUILDINGS[0];
+  let minDist = Infinity;
+  const userPoint = { latitude: lat, longitude: lon };
+  for (const b of BUILDINGS) {
+    if (!b.boundingBox || b.boundingBox.length < 3) continue;
+    const d = getDistanceToPolygon(userPoint, b.boundingBox);
+    if (d < minDist) {
+      minDist = d;
+      nearest = b;
+    }
+  }
+  return nearest;
+}
+
+function useUsabilityTaskHandlers(
+  sessionIdRef: { current: string },
+  taskTimersRef: { current: Record<string, number> },
+) {
+  const startTask = useCallback((taskId: string) => {
+    if (!USABILITY_TESTING_ENABLED) return;
+    taskTimersRef.current[taskId] = Date.now();
+  }, [taskTimersRef]);
+
+  const endTask = useCallback(
+    async (taskId: string, extraParams: Record<string, unknown> = {}) => {
+      if (!USABILITY_TESTING_ENABLED) return;
+      const start = taskTimersRef.current[taskId];
+      if (!start) return;
+      const duration_ms = Date.now() - start;
+      delete taskTimersRef.current[taskId];
+
+      await logUsabilityEvent("task_completed", {
+        session_id: sessionIdRef.current,
+        task_id: taskId,
+        duration_ms,
+        ...extraParams,
+      });
+
+      await logUsabilityEvent("task_finished", {
+        session_id: sessionIdRef.current,
+        finished_task_id: taskId,
+        duration_ms,
+        ...extraParams,
+      });
+    },
+    [sessionIdRef, taskTimersRef],
+  );
+
+  return { startTask, endTask };
+}
+
 export function toBuildingCode(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") {
@@ -694,43 +782,7 @@ export default function CampusMapScreen() {
   );
 
   useEffect(() => {
-    if (transitionPayload?.mode !== "cross_building_indoor") return;
-
-    const originCode = transitionPayload.originBuildingCode
-      .trim()
-      .toUpperCase();
-    const destCode = transitionPayload.destinationBuildingCode
-      .trim()
-      .toUpperCase();
-
-    router.push({
-      pathname: "/IndoorMapScreen",
-      params: {
-        buildingName: originCode,
-        floors: "1",
-        navOrigin: transitionPayload.originIndoorRoomQuery,
-        navDest: destCode,
-        outdoorDestBuilding: destCode,
-        outdoorStrategy: transitionPayload.strategy
-          ? JSON.stringify(transitionPayload.strategy)
-          : undefined,
-        outdoorAccessibleOnly: transitionPayload.accessibleOnly
-          ? "true"
-          : "false",
-        destinationRoomQuery: transitionPayload.destinationIndoorRoomQuery,
-        accessibleOnly: String(Boolean(transitionPayload.accessibleOnly)),
-        ...(transitionPayload.usabilityTaskId
-          ? { usabilityTaskId: transitionPayload.usabilityTaskId }
-          : {}),
-        ...(typeof transitionPayload.usabilityTaskStartedAtMs === "number"
-          ? {
-              usabilityTaskStartedAtMs: String(
-                transitionPayload.usabilityTaskStartedAtMs,
-              ),
-            }
-          : {}),
-      },
-    });
+    handleCrossBuildingIndoorTransition(transitionPayload);
   }, [transitionPayload]);
 
   const handledTransitionRef = useRef<string | null>(null);
@@ -741,51 +793,15 @@ export default function CampusMapScreen() {
   const taskTimers = useRef<Record<string, number>>({});
   const completedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
   const finalizedIndoorOutdoorTasks = useRef<Set<string>>(new Set());
-
-  const startTask = useCallback((taskId: string) => {
-    if (!USABILITY_TESTING_ENABLED) return;
-    taskTimers.current[taskId] = Date.now();
-  }, []);
-
-  const endTask = useCallback(
-    async (taskId: string, extraParams: Record<string, unknown> = {}) => {
-      if (!USABILITY_TESTING_ENABLED) return;
-      const start = taskTimers.current[taskId];
-      if (!start) return;
-      const duration_ms = Date.now() - start;
-      delete taskTimers.current[taskId];
-
-      await logUsabilityEvent("task_completed", {
-        session_id: sessionId.current,
-        task_id: taskId,
-        duration_ms,
-        ...extraParams,
-      });
-
-      await logUsabilityEvent("task_finished", {
-        session_id: sessionId.current,
-        finished_task_id: taskId,
-        duration_ms,
-        ...extraParams,
-      });
-    },
-    [],
+  const { startTask, endTask } = useUsabilityTaskHandlers(
+    sessionId,
+    taskTimers,
   );
 
-  const findNearestBuilding = useCallback((lat: number, lon: number) => {
-    let nearest = BUILDINGS[0];
-    let minDist = Infinity;
-    const userPoint = { latitude: lat, longitude: lon };
-    for (const b of BUILDINGS) {
-      if (!b.boundingBox || b.boundingBox.length < 3) continue;
-      const d = getDistanceToPolygon(userPoint, b.boundingBox);
-      if (d < minDist) {
-        minDist = d;
-        nearest = b;
-      }
-    }
-    return nearest;
-  }, []);
+  const findNearestBuilding = useCallback(
+    (lat: number, lon: number) => findNearestBuildingFromCoordinates(lat, lon),
+    [],
+  );
 
   const [currentCampus, setCurrentCampus] = useState<CampusKey>(
     campus === "loyola" ? "loyola" : "sgw",
