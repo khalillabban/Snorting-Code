@@ -1643,6 +1643,7 @@ export default function CampusMapScreen() {
     };
 
     run().catch(console.error);
+
   }, [
     activeIndoorOutdoorTask,
     routeSteps,
