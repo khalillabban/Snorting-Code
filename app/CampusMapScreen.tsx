@@ -547,6 +547,134 @@ type Task16Snapshot = {
   outcome: "success" | "change_route" | "dismissed" | "abandoned";
 };
 
+type TransitionPayload = ReturnType<typeof parseTransitionPayload>;
+
+function findBuildingByCode(code: string | undefined): Buildings | null {
+  const normalized = code?.trim().toUpperCase();
+  if (!normalized) return null;
+  return (
+    BUILDINGS.find((b) => b.name.trim().toUpperCase() === normalized) ?? null
+  );
+}
+
+function resolveIndoorToOutdoorTransition({
+  transitionPayload,
+  findNearestBuilding,
+}: {
+  transitionPayload: TransitionPayload;
+  findNearestBuilding: (lat: number, lon: number) => Buildings;
+}): {
+  originForRoute: Buildings | null;
+  destination: Buildings;
+  campusToShow: CampusKey;
+  strategy: RouteStrategy;
+  accessibleOnly: boolean;
+} | null {
+  if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
+
+  const destination = findBuildingByCode(
+    transitionPayload.destinationBuildingCode,
+  );
+  if (!destination) return null;
+
+  const originByCode = findBuildingByCode(transitionPayload.originBuildingCode);
+  const originByExit = transitionPayload.exitOutdoor
+    ? findNearestBuilding(
+        transitionPayload.exitOutdoor.latitude,
+        transitionPayload.exitOutdoor.longitude,
+      )
+    : null;
+  const originForRoute = originByCode ?? originByExit ?? null;
+
+  const originCampus = originForRoute
+    ? originForRoute.campusName === "loyola"
+      ? "loyola"
+      : "sgw"
+    : null;
+  const destinationCampus: CampusKey =
+    destination.campusName === "loyola" ? "loyola" : "sgw";
+
+  return {
+    originForRoute,
+    destination,
+    campusToShow: originCampus ?? destinationCampus,
+    strategy: transitionPayload.strategy ?? WALKING_STRATEGY,
+    accessibleOnly: Boolean(transitionPayload.accessibleOnly),
+  };
+}
+
+function buildMergedIndoorToOutdoorSteps({
+  transitionPayload,
+  routeSteps,
+}: {
+  transitionPayload: TransitionPayload;
+  routeSteps: RouteStep[];
+}): RouteStep[] | null {
+  if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
+
+  const destRoom = transitionPayload.destinationIndoorRoomQuery?.trim();
+  if (!destRoom) return null;
+
+  const prefix: RouteStep[] = [
+    {
+      instruction: `Exit ${transitionPayload.originBuildingCode} to the selected entrance`,
+    },
+  ];
+
+  const destCode = transitionPayload.destinationBuildingCode;
+  const asset = getBuildingPlanAsset(destCode);
+
+  let finalIndoorSteps: RouteStep[] = [];
+  try {
+    const destBuilding = findBuildingByCode(destCode);
+    const destOutdoor = destBuilding?.coordinates;
+
+    type EntryExitNode = {
+      id: string;
+      type: string;
+      outdoorLatLng?: { latitude: number; longitude: number };
+    };
+
+    const entryNodes: EntryExitNode[] = (asset?.nodes ?? []).filter(
+      (node: EntryExitNode) =>
+        node.type === "building_entry_exit" && Boolean(node.outdoorLatLng),
+    );
+
+    if (destOutdoor && entryNodes.length > 0) {
+      const bestNode = entryNodes
+        .map((node) => {
+          const ll = node.outdoorLatLng;
+          if (!ll) return { node, d: Number.POSITIVE_INFINITY };
+          const dx = ll.latitude - destOutdoor.latitude;
+          const dy = ll.longitude - destOutdoor.longitude;
+          return { node, d: dx * dx + dy * dy };
+        })
+        .sort((a, b) => a.d - b.d)[0]?.node;
+
+      if (bestNode?.id) {
+        const indoorLeg = getIndoorNavigationRouteFromNode(
+          destCode,
+          bestNode.id,
+          destRoom,
+          { accessibleOnly: Boolean(transitionPayload.accessibleOnly) },
+        );
+        if (indoorLeg.success) {
+          finalIndoorSteps = indoorRouteToSteps(indoorLeg.route);
+        }
+      }
+    }
+  } catch {
+    finalIndoorSteps = [];
+  }
+
+  const suffix: RouteStep[] =
+    finalIndoorSteps.length > 0
+      ? [{ instruction: `Enter ${destCode}` }, ...finalIndoorSteps]
+      : [{ instruction: `Enter ${destCode} and continue to ${destRoom}` }];
+
+  return [...prefix, ...routeSteps, ...suffix];
+}
+
 export default function CampusMapScreen() {
   const { colors } = useColorAccessibility();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -969,121 +1097,33 @@ export default function CampusMapScreen() {
     const transitionKey = transition ?? "";
     if (handledTransitionRef.current === transitionKey) return;
 
-    const destCode = transitionPayload.destinationBuildingCode
-      ?.trim()
-      .toUpperCase();
-    if (!destCode) return;
-
-    const destBuilding = BUILDINGS.find(
-      (b) => b.name.trim().toUpperCase() === destCode,
-    );
-    if (!destBuilding) return;
+    const resolved = resolveIndoorToOutdoorTransition({
+      transitionPayload,
+      findNearestBuilding,
+    });
+    if (!resolved) return;
 
     handledTransitionRef.current = transitionKey;
+    setCurrentCampus(resolved.campusToShow);
 
-    const originCode = transitionPayload.originBuildingCode
-      ?.trim()
-      .toUpperCase();
-    const originBuilding = originCode
-      ? BUILDINGS.find((b) => b.name.trim().toUpperCase() === originCode)
-      : null;
-
-    const originByExit = transitionPayload.exitOutdoor
-      ? findNearestBuilding(
-          transitionPayload.exitOutdoor.latitude,
-          transitionPayload.exitOutdoor.longitude,
-        )
-      : null;
-
-    const effectiveOrigin = originBuilding ?? originByExit ?? null;
-
-    let originCampus: CampusKey | null = null;
-    if (effectiveOrigin) {
-      originCampus = effectiveOrigin.campusName === "loyola" ? "loyola" : "sgw";
-    }
-
-    const destinationCampus: CampusKey =
-      destBuilding.campusName === "loyola" ? "loyola" : "sgw";
-
-    const campusToShow = originCampus ?? destinationCampus;
-    setCurrentCampus(campusToShow);
-
-    setFocusTarget((prev) => (prev === "user" ? prev : campusToShow));
+    setFocusTarget((prev) =>
+      prev === "user" ? prev : resolved.campusToShow,
+    );
 
     setSelectedRoute({
-      start: originBuilding ?? originByExit ?? null,
-      dest: destBuilding,
+      start: resolved.originForRoute,
+      dest: resolved.destination,
     });
-    setSelectedStrategy(transitionPayload.strategy ?? WALKING_STRATEGY);
-    setAccessibleOnly(Boolean(transitionPayload.accessibleOnly));
+    setSelectedStrategy(resolved.strategy);
+    setAccessibleOnly(resolved.accessibleOnly);
     setRouteFocusTrigger((c) => c + 1);
   }, [transitionPayload, findNearestBuilding, transition]);
 
   const mergedSteps = useMemo(() => {
-    if (transitionPayload?.mode !== "indoor_to_outdoor") return null;
-    const destRoom = transitionPayload.destinationIndoorRoomQuery?.trim();
-    if (!destRoom) return null;
-
-    const prefix: RouteStep[] = [
-      {
-        instruction: `Exit ${transitionPayload.originBuildingCode} to the selected entrance`,
-      },
-    ];
-
-    const destCode = transitionPayload.destinationBuildingCode;
-    const asset = getBuildingPlanAsset(destCode);
-
-    let finalIndoorSteps: RouteStep[] = [];
-    try {
-      const destBuilding = BUILDINGS.find(
-        (b) => b.name.trim().toUpperCase() === destCode.trim().toUpperCase(),
-      );
-      const destOutdoor = destBuilding?.coordinates;
-
-      type EntryExitNode = {
-        id: string;
-        type: string;
-        outdoorLatLng?: { latitude: number; longitude: number };
-      };
-
-      const entryNodes: EntryExitNode[] = (asset?.nodes ?? []).filter(
-        (node: EntryExitNode) =>
-          node.type === "building_entry_exit" && Boolean(node.outdoorLatLng),
-      );
-
-      if (destOutdoor && entryNodes.length > 0) {
-        const bestNode = entryNodes
-          .map((node) => {
-            const ll = node.outdoorLatLng;
-            if (!ll) return { node, d: Number.POSITIVE_INFINITY };
-            const dx = ll.latitude - destOutdoor.latitude;
-            const dy = ll.longitude - destOutdoor.longitude;
-            return { node, d: dx * dx + dy * dy };
-          })
-          .sort((a, b) => a.d - b.d)[0]?.node;
-
-        if (bestNode?.id) {
-          const indoorLeg = getIndoorNavigationRouteFromNode(
-            destCode,
-            bestNode.id,
-            destRoom,
-            { accessibleOnly: Boolean(transitionPayload.accessibleOnly) },
-          );
-          if (indoorLeg.success) {
-            finalIndoorSteps = indoorRouteToSteps(indoorLeg.route);
-          }
-        }
-      }
-    } catch {
-      finalIndoorSteps = [];
-    }
-
-    const suffix: RouteStep[] =
-      finalIndoorSteps.length > 0
-        ? [{ instruction: `Enter ${destCode}` }, ...finalIndoorSteps]
-        : [{ instruction: `Enter ${destCode} and continue to ${destRoom}` }];
-
-    return [...prefix, ...routeSteps, ...suffix];
+    return buildMergedIndoorToOutdoorSteps({
+      transitionPayload,
+      routeSteps,
+    });
   }, [routeSteps, transitionPayload]);
 
   const startOverride =
