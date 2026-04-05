@@ -366,4 +366,64 @@ describe("campusBuildingResults", () => {
     const sgw = campusBuildingResults("sgw");
     expect(sgw.some((r) => r.building.name === "NB")).toBe(false);
   });
+
+  it("ignores buildings whose campusName is missing", () => {
+    jest.resetModules();
+    jest.isolateModules(() => {
+      jest.doMock("../constants/buildings", () => ({
+        BUILDINGS: [
+          {
+            name: "X",
+            displayName: "Unknown Campus Building",
+            campusName: undefined,
+            address: "",
+            coordinates: { latitude: 0, longitude: 0 },
+            boundingBox: [
+              { latitude: 0, longitude: 0 },
+              { latitude: 0, longitude: 1 },
+              { latitude: 1, longitude: 1 },
+            ],
+          },
+        ],
+      }));
+
+      const mod = require("../utils/buildingSearch");
+      expect(mod.campusBuildingResults("sgw")).toEqual([]);
+    });
+  });
+});
+
+describe("buildSearchIndex defensive branches", () => {
+  it("keeps only building entries when searchable rooms exist but normalized plan is null", () => {
+    jest.resetModules();
+    jest.isolateModules(() => {
+      jest.doMock("../constants/buildings", () => ({
+        BUILDINGS: [
+          {
+            name: "H",
+            campusName: "sgw",
+            displayName: "Henry F. Hall Building (H)",
+            address: "",
+            coordinates: { latitude: 0, longitude: 0 },
+            boundingBox: [
+              { latitude: 0, longitude: 0 },
+              { latitude: 0, longitude: 1 },
+              { latitude: 1, longitude: 1 },
+            ],
+          },
+        ],
+      }));
+      jest.doMock("../utils/indoorAccess", () => ({
+        getIndoorAccessState: () => ({ hasSearchableRooms: true }),
+      }));
+      jest.doMock("../utils/indoorBuildingPlan", () => ({
+        getNormalizedBuildingPlan: () => null,
+      }));
+
+      const mod = require("../utils/buildingSearch");
+      const index = mod.getSearchIndex();
+      expect(index).toHaveLength(1);
+      expect(index[0].kind).toBe("building");
+    });
+  });
 });
