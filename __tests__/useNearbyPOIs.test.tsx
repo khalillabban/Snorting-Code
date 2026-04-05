@@ -69,6 +69,27 @@ describe("useNearbyPOIs", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("stores API warnings when the search succeeds with partial errors", async () => {
+    (fetchNearbyPOIsForCategories as jest.Mock).mockResolvedValue({
+      pois: [],
+      errors: ["one", "two"],
+    });
+
+    const { result } = renderHook(() => useNearbyPOIs());
+
+    await act(async () => {
+      await result.current.search(
+        { latitude: 45.5, longitude: -73.5 },
+        1000,
+        ["coffee"],
+      );
+    });
+
+    expect(result.current.error).toBe("one\ntwo");
+    expect(result.current.pois).toEqual([]);
+    expect(result.current.loading).toBe(false);
+  });
+
   it("captures thrown Error messages and clears stale POIs", async () => {
     (fetchNearbyPOIsForCategories as jest.Mock).mockRejectedValue(
       new Error("API unavailable"),
