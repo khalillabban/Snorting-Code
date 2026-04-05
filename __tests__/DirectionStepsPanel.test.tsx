@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 import {
-  DirectionStepsPanel,
-  StepWrapper,
+    DirectionStepsPanel,
+    StepWrapper,
 } from "../components/DirectionStepsPanel";
 import { WALKING_STRATEGY } from "../constants/strategies";
 import { RouteStep } from "../constants/type";
@@ -101,7 +101,9 @@ describe("DirectionStepsPanel", () => {
     expect(screen.getByText("Walk")).toBeTruthy();
     expect(screen.getByText("5 min \u00B7 300 m")).toBeTruthy();
     expect(screen.getByText("Change route")).toBeTruthy();
-    expect(screen.getByText("3 steps hidden to keep the route visible")).toBeTruthy();
+    expect(
+      screen.getByText("3 steps hidden to keep the route visible"),
+    ).toBeTruthy();
     expect(screen.queryByText("Head north on Main St")).toBeNull();
 
     expandStepsPanel();
@@ -147,7 +149,9 @@ describe("DirectionStepsPanel", () => {
     fireEvent.press(screen.getByLabelText("Collapse directions steps"));
 
     expect(screen.queryByText("Head north on Main St")).toBeNull();
-    expect(screen.getByText("3 steps hidden to keep the route visible")).toBeTruthy();
+    expect(
+      screen.getByText("3 steps hidden to keep the route visible"),
+    ).toBeTruthy();
   });
 
   it("calls onChangeRoute when Change route is pressed", () => {
@@ -467,6 +471,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Bus towards Atwater")).toBeTruthy();
     expect(
       screen.getByText("Line 24 · Departs 3:15 PM · Arrives 3:30 PM · 5 stops"),
@@ -493,6 +499,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     expect(screen.getByText("Line Green · 3 stops")).toBeTruthy();
   });
 
@@ -509,6 +517,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
@@ -529,6 +539,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("train");
@@ -548,6 +560,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const stepIcons = icons.map((icon) => icon.props.children);
     // Header icon is "bus" (from strategy), step icon should also be "bus" (fallback)
@@ -564,6 +578,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     expect(screen.getByText("Walk north")).toBeTruthy();
     expect(screen.getByText("200 m · 3 min")).toBeTruthy();
@@ -622,7 +638,11 @@ describe("DirectionStepsPanel", () => {
     render(
       <DirectionStepsPanel
         steps={[
-          { instruction: "Long drive", distance: "100 km", duration: "2 hours 30 min" },
+          {
+            instruction: "Long drive",
+            distance: "100 km",
+            duration: "2 hours 30 min",
+          },
         ]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
@@ -649,9 +669,7 @@ describe("DirectionStepsPanel", () => {
   it("handles unparseable distance values gracefully in summary", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "NaN m", duration: "5 min" },
-        ]}
+        steps={[{ instruction: "Go", distance: "NaN m", duration: "5 min" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -663,9 +681,7 @@ describe("DirectionStepsPanel", () => {
   it("handles unparseable duration values gracefully in summary", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "100 m", duration: "soon" },
-        ]}
+        steps={[{ instruction: "Go", distance: "100 m", duration: "soon" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -677,9 +693,7 @@ describe("DirectionStepsPanel", () => {
   it("handles empty string duration in summary computation", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "100 m", duration: "" },
-        ]}
+        steps={[{ instruction: "Go", distance: "100 m", duration: "" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -694,9 +708,7 @@ describe("DirectionStepsPanel", () => {
   it("handles distance that does not match any unit pattern", () => {
     render(
       <DirectionStepsPanel
-        steps={[
-          { instruction: "Go", distance: "nearby", duration: "3 min" },
-        ]}
+        steps={[{ instruction: "Go", distance: "nearby", duration: "3 min" }]}
         strategy={WALKING_STRATEGY}
         onChangeRoute={() => {}}
       />,
@@ -717,6 +729,8 @@ describe("DirectionStepsPanel", () => {
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     expect(screen.getByText("Go somewhere")).toBeTruthy();
     // The per-step meta still renders the raw values
@@ -763,6 +777,8 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
+    expandStepsPanel();
+
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("subway");
@@ -774,13 +790,18 @@ describe("DirectionStepsPanel", () => {
         steps={[
           {
             instruction: "Take commuter train",
-            transitDetails: { vehicleType: "COMMUTER_TRAIN", lineName: "Exo 1" },
+            transitDetails: {
+              vehicleType: "COMMUTER_TRAIN",
+              lineName: "Exo 1",
+            },
           },
         ]}
         strategy={{ mode: "transit" as const, label: "Transit", icon: "bus" }}
         onChangeRoute={() => {}}
       />,
     );
+
+    expandStepsPanel();
 
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
