@@ -643,10 +643,8 @@ export default function IndoorMapScreen() {
     (match: IndoorRoomMatch) => {
       if (activeNavField === "origin") {
         setNavOriginQuery(match.room.label);
-      } else if (activeNavField === "dest") {
-        setNavDestQuery(match.room.label);
       } else {
-        return;
+        setNavDestQuery(match.room.label);
       }
 
       setSelectedRoom(match.room);

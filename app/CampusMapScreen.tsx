@@ -2319,7 +2319,7 @@ export default function CampusMapScreen() {
           }}
           style={poiFilterButtonStyle}
         >
-          <MaterialIcons name="place" size={24} color={colors.white} />
+          <MaterialIcons name="manage-search" size={24} color={colors.white} />
         </Pressable>
         <Pressable
           testID="next-class-button"
