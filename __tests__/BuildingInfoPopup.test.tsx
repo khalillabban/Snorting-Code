@@ -238,6 +238,40 @@ describe("BuildingInfoPopup", () => {
     // the new building's departments are not auto-expanded
     expect(screen.queryByText("Electrical Engineering")).toBeNull();
   });
+
+  it("handles stale departments tab when next building has no departments array", () => {
+    const { rerender } = render(
+      <BuildingInfoPopup building={fullBuilding} onClose={onClose} />,
+    );
+
+    fireEvent.press(screen.getByText("Departments"));
+    expect(screen.getByText("Computer Science")).toBeTruthy();
+
+    // activeTab is still 'departments' for one render pass; next building has no departments
+    rerender(
+      <BuildingInfoPopup building={buildingNoDepts} onClose={onClose} />,
+    );
+
+    expect(screen.queryByText("Computer Science")).toBeNull();
+    expect(screen.getByText("Loyola Chapel")).toBeTruthy();
+  });
+
+  it("handles stale services tab when next building has no services array", () => {
+    const { rerender } = render(
+      <BuildingInfoPopup building={fullBuilding} onClose={onClose} />,
+    );
+
+    fireEvent.press(screen.getByText("Services"));
+    expect(screen.getByText("Security")).toBeTruthy();
+
+    // activeTab is still 'services' for one render pass; next building has no services
+    rerender(
+      <BuildingInfoPopup building={buildingNoServices} onClose={onClose} />,
+    );
+
+    expect(screen.queryByText("Security")).toBeNull();
+    expect(screen.getByText("EV Building")).toBeTruthy();
+  });
   it("calls onSetAsStart when Set as start is pressed", () => {
     const onSetAsStart = jest.fn();
     render(
