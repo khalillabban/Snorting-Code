@@ -26,12 +26,13 @@ import {
 import { ZoomableView } from "../components/ZoomableView";
 import { BUILDINGS } from "../constants/buildings";
 import { type POICategoryId } from "../constants/indoorPOI";
-import { colors, spacing } from "../constants/theme";
+import { spacing } from "../constants/theme";
 import {
   getSessionId,
   USABILITY_TESTING_ENABLED,
 } from "../constants/usabilityConfig";
-import { styles } from "../styles/IndoorMapScreen.styles";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
+import { createStyles } from "../styles/IndoorMapScreen.styles";
 import {
   isDestinationLegOrigin,
   pickClosestEntryExitNodeId,
@@ -46,8 +47,8 @@ import {
   getIndoorNavigationRoute,
   getIndoorNavigationRouteFromNode,
   getIndoorNavigationRouteToNode,
-  NavigationRoute,
   getRouteWaypointsForFloor,
+  NavigationRoute,
   type NavigationResult,
 } from "../utils/indoorNavigation";
 import { getIndoorPOIs } from "../utils/indoorPOI";
@@ -126,26 +127,22 @@ export function getFloorContentBounds(
   }
 
   const rawMinX = clamp(
-    Math.min(...fitPoints.map((point) => point.x)) -
-      FLOOR_CONTENT_PADDING,
+    Math.min(...fitPoints.map((point) => point.x)) - FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMaxX = clamp(
-    Math.max(...fitPoints.map((point) => point.x)) +
-      FLOOR_CONTENT_PADDING,
+    Math.max(...fitPoints.map((point) => point.x)) + FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.width,
   );
   const rawMinY = clamp(
-    Math.min(...fitPoints.map((point) => point.y)) -
-      FLOOR_CONTENT_PADDING,
+    Math.min(...fitPoints.map((point) => point.y)) - FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
   const rawMaxY = clamp(
-    Math.max(...fitPoints.map((point) => point.y)) +
-      FLOOR_CONTENT_PADDING,
+    Math.max(...fitPoints.map((point) => point.y)) + FLOOR_CONTENT_PADDING,
     0,
     floorImageDimensions.height,
   );
@@ -253,6 +250,7 @@ function useNavAutoTrigger(
 
 export default function IndoorMapScreen() {
   const router = useRouter();
+  const { colors } = useColorAccessibility();
   const {
     buildingName,
     floors,
@@ -284,6 +282,7 @@ export default function IndoorMapScreen() {
   const [accessibleOnly, setAccessibleOnly] = useState(
     accessibleOnlyParam === "true",
   );
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const availableFloors = useMemo(() => {
@@ -676,11 +675,7 @@ export default function IndoorMapScreen() {
     [],
   );
 
-  useInitialRoomQuery(
-    initialRoomQuery,
-    availableFloors,
-    performRoomSearch,
-  );
+  useInitialRoomQuery(initialRoomQuery, availableFloors, performRoomSearch);
 
   const failNavigation = useCallback((message: string) => {
     setNavError(message);
@@ -1148,7 +1143,11 @@ export default function IndoorMapScreen() {
             returnKeyType="go"
             onSubmitEditing={handleNavigate}
           />
-          <Pressable style={styles.searchButton} onPress={handleNavigate} testID="go-indoor-button">
+          <Pressable
+            style={styles.searchButton}
+            onPress={handleNavigate}
+            testID="go-indoor-button"
+          >
             <Text style={styles.searchButtonText}>Go</Text>
           </Pressable>
         </View>
@@ -1184,7 +1183,9 @@ export default function IndoorMapScreen() {
                     />
                   </View>
                   <View style={styles.suggestionTextWrap}>
-                    <Text style={styles.suggestionText}>{match.room.label}</Text>
+                    <Text style={styles.suggestionText}>
+                      {match.room.label}
+                    </Text>
                     <Text style={styles.suggestionSubtext}>
                       {secondaryParts.join(" · ")}
                     </Text>

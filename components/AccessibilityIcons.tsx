@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Image, ImageSourcePropType, View } from "react-native";
 import { BuildingIcon } from "../constants/type";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { styles } from "../styles/AccessibilityIcons.styles";
 
 const ICON_SIZE = 24;
@@ -30,6 +31,7 @@ export const BuildingIcons = ({
   icons,
   size = ICON_SIZE,
 }: AccessibilityIconsProps) => {
+  const { colors } = useColorAccessibility();
   const ordered = useMemo(
     () => ICON_ORDER.filter((s) => icons.includes(s)),
     [icons],
@@ -43,7 +45,7 @@ export const BuildingIcons = ({
         <Image
           key={service}
           source={iconMap[service]}
-          style={{ width: size, height: size }}
+          style={{ width: size, height: size, tintColor: colors.primary }}
           resizeMode="contain"
           accessibilityRole="image"
           accessibilityLabel={`${service} available`}
