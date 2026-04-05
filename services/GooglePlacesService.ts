@@ -2,19 +2,10 @@ import {
   OUTDOOR_POI_CATEGORY_MAP,
   type OutdoorPOICategoryId,
 } from "../constants/outdoorPOI";
+import { requireGoogleApiKey } from "./googleEnvUtils";
 
 const NEARBY_SEARCH_URL =
   "https://places.googleapis.com/v1/places:searchNearby";
-
-function requireGoogleApiKey(): string {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY. Add it to your env.",
-    );
-  }
-  return apiKey;
-}
 
 export interface PlacePOI {
   placeId: string;
