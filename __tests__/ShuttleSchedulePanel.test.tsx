@@ -1,5 +1,5 @@
+import { act, cleanup, fireEvent, render } from "@testing-library/react-native";
 import React from "react";
-import { render, fireEvent, act, cleanup } from "@testing-library/react-native";
 import { ShuttleSchedulePanel } from "../components/ShuttleSchedulePanel";
 
 // 1. Mutable data source for the mock to allow dynamic updates without re-requiring
@@ -112,6 +112,19 @@ describe("ShuttleSchedulePanel", () => {
     expect(getAllByText(/9:15/).length).toBeGreaterThan(0);
   });
 
+  it("weekday: pressing SGW to Loyola tab keeps SGW schedule visible", () => {
+    setFixedTime(8, 0);
+    const { getByLabelText, getAllByText } = render(
+      <ShuttleSchedulePanel onClose={() => { }} />,
+    );
+
+    fireEvent.press(getByLabelText("Loyola to SGW"));
+    expect(getAllByText(/9:15/).length).toBeGreaterThan(0);
+
+    fireEvent.press(getByLabelText("SGW to Loyola"));
+    expect(getAllByText(/12:00/).length).toBeGreaterThan(0);
+  });
+
   it("weekday: highlights a trip happening now across midnight", () => {
     // 11:55 PM (23:55) falls within the 23:50 -> 00:10 trip window
     setFixedTime(23, 55);
@@ -154,11 +167,58 @@ describe("ShuttleSchedulePanel", () => {
     expect(getByText(/12 PM/)).toBeTruthy();
   });
 
+  it("switches from all-times back to upcoming when pressing upcoming pill", () => {
+    setFixedTime(10, 0);
+    const { getByLabelText, getByText, queryByText } = render(
+      <ShuttleSchedulePanel onClose={() => { }} />,
+    );
+
+    fireEvent.press(getByLabelText("Show all departures"));
+    expect(getByText(/12 PM/)).toBeTruthy();
+
+    fireEvent.press(getByLabelText("Show upcoming departures"));
+    expect(getByText(/Next departures/i)).toBeTruthy();
+    expect(queryByText(/12 PM/)).toBeNull();
+  });
+
+  it("opens full schedule when pressing the view full schedule link", () => {
+    setFixedTime(10, 0);
+    const { getByLabelText, getByText } = render(
+      <ShuttleSchedulePanel onClose={() => { }} />,
+    );
+
+    fireEvent.press(getByLabelText("View full schedule"));
+    expect(getByText(/12 PM/)).toBeTruthy();
+  });
+
+  it("all-times mode marks a currently running trip as Now", () => {
+    setFixedTime(12, 5);
+    const { getByLabelText, getAllByText } = render(
+      <ShuttleSchedulePanel onClose={() => { }} />,
+    );
+
+    fireEvent.press(getByLabelText("Show all departures"));
+    expect(getAllByText(/Now/i).length).toBeGreaterThan(0);
+  });
+
   it("handles ETA math for different day periods", () => {
     // Set time to 2:00 PM (14:00) so we are past the 12:00 PM trip
     setFixedTime(14, 0);
     const { getAllByText } = render(<ShuttleSchedulePanel onClose={() => { }} />);
     
     expect(getAllByText(/Next departure/i).length).toBeGreaterThan(0);
+  });
+
+  it("falls back to empty trips when selected weekday direction key is missing", () => {
+    setFixedTime(9, 0);
+    // Remove one direction key to exercise daySchedule[direction] ?? []
+    delete (mockShuttleData.schedule.weekday as any).Loyola_to_SGW;
+
+    const { getByLabelText, getByText } = render(
+      <ShuttleSchedulePanel onClose={() => { }} />,
+    );
+
+    fireEvent.press(getByLabelText("Loyola to SGW"));
+    expect(getByText(/No departures found/i)).toBeTruthy();
   });
 });
