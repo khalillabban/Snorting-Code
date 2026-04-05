@@ -15,6 +15,17 @@ jest.mock("react-native-safe-area-context", () => {
   };
 });
 
+let mockUsabilityTestingEnabled = false;
+const mockResetSession = jest.fn();
+
+jest.mock("../constants/usabilityConfig", () => ({
+  __esModule: true,
+  get USABILITY_TESTING_ENABLED() {
+    return mockUsabilityTestingEnabled;
+  },
+  resetSession: (...args: any[]) => mockResetSession(...args),
+}));
+
 // Mock expo-constants
 jest.mock("expo-constants", () => ({
   __esModule: true,
@@ -75,6 +86,7 @@ describe("RootLayout", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     capturedStateListener = null;
+    mockUsabilityTestingEnabled = false;
     process.env.EXPO_PUBLIC_SMARTLOOK_PROJECT_KEY = "test-key";
     (Constants as any).executionEnvironment = "development";
   });
@@ -164,5 +176,11 @@ describe("RootLayout", () => {
       fireState({ index: 0, routes: [{ name: "index" }] });
       expect(mockTrackNavigationEnter).not.toHaveBeenCalled();
     });
+  });
+
+  it("resets usability session when usability testing is enabled", () => {
+    mockUsabilityTestingEnabled = true;
+    render(<RootLayout />);
+    expect(mockResetSession).toHaveBeenCalledTimes(1);
   });
 });
