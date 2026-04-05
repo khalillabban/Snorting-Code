@@ -94,6 +94,148 @@ const buildCrossBuildingIndoorParams = ({
 
 type FocusTarget = CampusKey | "user";
 
+type InteractiveRouteStep = RouteStep & {
+  onPress?: () => void;
+};
+
+function resolveDestinationRoomQueryText({
+  destinationRoomQuery,
+  transitionPayload,
+  selectedRouteEndRoom,
+}: {
+  destinationRoomQuery: string | string[] | undefined;
+  transitionPayload: TransitionPayload;
+  selectedRouteEndRoom: IndoorRoomRecord | null;
+}): string {
+  if (
+    typeof destinationRoomQuery === "string" &&
+    destinationRoomQuery.trim()
+  ) {
+    return destinationRoomQuery;
+  }
+
+  if (transitionPayload?.mode === "indoor_to_outdoor") {
+    const payloadRoom = transitionPayload.destinationIndoorRoomQuery;
+    if (typeof payloadRoom === "string" && payloadRoom.trim()) {
+      return payloadRoom;
+    }
+  }
+
+  const endRoomLabel = selectedRouteEndRoom?.label;
+  if (typeof endRoomLabel === "string" && endRoomLabel.trim()) {
+    return endRoomLabel;
+  }
+
+  return "";
+}
+
+function buildRouteStepsWithContinueIndoors({
+  mergedSteps,
+  routeSteps,
+  canContinueIndoors,
+  continueIndoorsBuildingCode,
+  destinationRoomQueryText,
+  finalizeActiveIndoorOutdoorTask,
+  openIndoorMap,
+}: {
+  mergedSteps: RouteStep[] | null;
+  routeSteps: RouteStep[];
+  canContinueIndoors: boolean;
+  continueIndoorsBuildingCode: string | null;
+  destinationRoomQueryText: string;
+  finalizeActiveIndoorOutdoorTask: (destinationOverride?: string) => void;
+  openIndoorMap: (
+    buildingCode?: string | null,
+    roomQuery?: string,
+    navOrigin?: string,
+    navDest?: string,
+    accessibleOnlyOverride?: boolean,
+  ) => void;
+}): InteractiveRouteStep[] {
+  const baseSteps: InteractiveRouteStep[] = mergedSteps ?? routeSteps;
+  if (!canContinueIndoors) return baseSteps;
+
+  if (!continueIndoorsBuildingCode) return baseSteps;
+
+  const built = buildContinueIndoorsStep({
+    baseSteps,
+    destinationBuildingCode: continueIndoorsBuildingCode,
+    destinationRoomQuery: destinationRoomQueryText,
+  });
+  if (!built) return baseSteps;
+
+  const steps: InteractiveRouteStep[] = [...built.steps];
+  const lastIndex = steps.length - 1;
+  if (lastIndex >= 0) {
+    steps[lastIndex] = {
+      ...steps[lastIndex],
+      onPress: () => {
+        finalizeActiveIndoorOutdoorTask(built.openArgs.buildingCode);
+
+        openIndoorMap(
+          built.openArgs.buildingCode,
+          undefined,
+          built.openArgs.navOrigin,
+          built.openArgs.navDest,
+        );
+      },
+    };
+  }
+
+  return steps;
+}
+
+function logIndoorOutdoorCombinedDirectionsIfNeeded({
+  activeIndoorOutdoorTask,
+  showStepsPanel,
+  routeSteps,
+  routeStepsWithContinueIndoors,
+  selectedRoute,
+  completedIndoorOutdoorTasks,
+  sessionId,
+  mapLoadTime,
+}: {
+  activeIndoorOutdoorTask: "task_13" | "task_14" | null;
+  showStepsPanel: boolean;
+  routeSteps: RouteStep[];
+  routeStepsWithContinueIndoors: InteractiveRouteStep[];
+  selectedRoute: { start: Buildings | null; dest: Buildings | null };
+  completedIndoorOutdoorTasks: React.MutableRefObject<Set<string>>;
+  sessionId: React.MutableRefObject<string>;
+  mapLoadTime: React.MutableRefObject<number>;
+}): void {
+  const hasOutdoorSegment = routeSteps.length > 0;
+  const hasIndoorSuffix = routeStepsWithContinueIndoors.length > routeSteps.length;
+  const isCombinedDirectionsVisible =
+    showStepsPanel && hasOutdoorSegment && hasIndoorSuffix;
+
+  if (!activeIndoorOutdoorTask || !isCombinedDirectionsVisible) return;
+  if (completedIndoorOutdoorTasks.current.has(activeIndoorOutdoorTask)) return;
+
+  completedIndoorOutdoorTasks.current.add(activeIndoorOutdoorTask);
+
+  const startCode = toBuildingCode(selectedRoute.start) ?? "unknown";
+  const destCode = toBuildingCode(selectedRoute.dest) ?? "unknown";
+
+  const run = async () => {
+    await logUsabilityEvent("indoor_outdoor_combined_directions_view", {
+      session_id: sessionId.current,
+      task_id: activeIndoorOutdoorTask,
+      start_building_code: startCode,
+      destination_building_code: destCode,
+      same_campus: activeIndoorOutdoorTask === "task_13",
+      cross_campus: activeIndoorOutdoorTask === "task_14",
+      outdoor_step_count: routeSteps.length,
+      total_step_count: routeStepsWithContinueIndoors.length,
+      indoor_segment_step_count:
+        routeStepsWithContinueIndoors.length - routeSteps.length,
+      time_since_map_load_ms: Date.now() - mapLoadTime.current,
+    });
+  };
+
+  run().catch(console.error);
+}
+
 function handleCrossBuildingIndoorTransition(
   transitionPayload: ReturnType<typeof parseTransitionPayload>,
 ) {
@@ -1085,26 +1227,15 @@ export default function CampusMapScreen() {
     });
   };
 
-  const destinationRoomQueryText = useMemo(() => {
-    if (
-      typeof destinationRoomQuery === "string" &&
-      destinationRoomQuery.trim()
-    ) {
-      return destinationRoomQuery;
-    }
-
-    if (transitionPayload?.mode === "indoor_to_outdoor") {
-      const payloadRoom = transitionPayload.destinationIndoorRoomQuery;
-      if (typeof payloadRoom === "string" && payloadRoom.trim())
-        return payloadRoom;
-    }
-
-    const endRoomLabel = selectedRouteEndRoom?.label;
-    if (typeof endRoomLabel === "string" && endRoomLabel.trim())
-      return endRoomLabel;
-
-    return "";
-  }, [destinationRoomQuery, transitionPayload, selectedRouteEndRoom]);
+  const destinationRoomQueryText = useMemo(
+    () =>
+      resolveDestinationRoomQueryText({
+        destinationRoomQuery,
+        transitionPayload,
+        selectedRouteEndRoom,
+      }),
+    [destinationRoomQuery, transitionPayload, selectedRouteEndRoom],
+  );
 
   useEffect(() => {
     if (transitionPayload?.mode !== "indoor_to_outdoor") return;
@@ -1621,40 +1752,16 @@ export default function CampusMapScreen() {
     [activeOutdoorPOIRoute, endTask, finalizeTask16],
   );
 
-  type InteractiveRouteStep = RouteStep & {
-    onPress?: () => void;
-  };
-
   const routeStepsWithContinueIndoors = useMemo<InteractiveRouteStep[]>(() => {
-    const baseSteps: InteractiveRouteStep[] = mergedSteps ?? routeSteps;
-    if (!canContinueIndoors) return baseSteps;
-
-    const built = buildContinueIndoorsStep({
-      baseSteps,
-      destinationBuildingCode: continueIndoorsBuildingCode,
-      destinationRoomQuery: destinationRoomQueryText,
+    return buildRouteStepsWithContinueIndoors({
+      mergedSteps,
+      routeSteps,
+      canContinueIndoors,
+      continueIndoorsBuildingCode,
+      destinationRoomQueryText,
+      finalizeActiveIndoorOutdoorTask,
+      openIndoorMap,
     });
-    if (!built) return baseSteps;
-
-    const steps: InteractiveRouteStep[] = [...built.steps];
-    const lastIndex = steps.length - 1;
-    if (lastIndex >= 0) {
-      steps[lastIndex] = {
-        ...steps[lastIndex],
-        onPress: () => {
-          finalizeActiveIndoorOutdoorTask(built.openArgs.buildingCode);
-
-          openIndoorMap(
-            built.openArgs.buildingCode,
-            undefined,
-            built.openArgs.navOrigin,
-            built.openArgs.navDest,
-          );
-        },
-      };
-    }
-
-    return steps;
   }, [
     mergedSteps,
     routeSteps,
@@ -1666,43 +1773,24 @@ export default function CampusMapScreen() {
   ]);
 
   useEffect(() => {
-    const hasOutdoorSegment = routeSteps.length > 0;
-    const hasIndoorSuffix =
-      routeStepsWithContinueIndoors.length > routeSteps.length;
-    const isCombinedDirectionsVisible =
-      showStepsPanel && hasOutdoorSegment && hasIndoorSuffix;
-
-    if (!activeIndoorOutdoorTask || !isCombinedDirectionsVisible) return;
-    if (completedIndoorOutdoorTasks.current.has(activeIndoorOutdoorTask))
-      return;
-
-    completedIndoorOutdoorTasks.current.add(activeIndoorOutdoorTask);
-
-    const startCode = toBuildingCode(selectedRoute.start) ?? "unknown";
-    const destCode = toBuildingCode(selectedRoute.dest) ?? "unknown";
-
-    const run = async () => {
-      await logUsabilityEvent("indoor_outdoor_combined_directions_view", {
-        session_id: sessionId.current,
-        task_id: activeIndoorOutdoorTask,
-        start_building_code: startCode,
-        destination_building_code: destCode,
-        same_campus: activeIndoorOutdoorTask === "task_13",
-        cross_campus: activeIndoorOutdoorTask === "task_14",
-        outdoor_step_count: routeSteps.length,
-        total_step_count: routeStepsWithContinueIndoors.length,
-        indoor_segment_step_count:
-          routeStepsWithContinueIndoors.length - routeSteps.length,
-        time_since_map_load_ms: Date.now() - mapLoadTime.current,
-      });
-    };
-
-    run().catch(console.error);
-
+    logIndoorOutdoorCombinedDirectionsIfNeeded({
+      activeIndoorOutdoorTask,
+      showStepsPanel,
+      routeSteps,
+      routeStepsWithContinueIndoors,
+      selectedRoute,
+      completedIndoorOutdoorTasks,
+      sessionId,
+      mapLoadTime,
+    });
   }, [
     activeIndoorOutdoorTask,
+    completedIndoorOutdoorTasks,
+    mapLoadTime,
     routeSteps,
     routeStepsWithContinueIndoors,
+    selectedRoute,
+    sessionId,
     selectedRoute.dest,
     selectedRoute.start,
     showStepsPanel,
