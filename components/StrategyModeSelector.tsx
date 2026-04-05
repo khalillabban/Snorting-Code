@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { ALL_STRATEGIES } from "../constants/strategies";
-import { colors } from "../constants/theme";
+import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { RouteStrategy } from "../services/Routing";
 
 interface StrategyButtonStyles {
@@ -35,6 +35,8 @@ export function StrategyModeSelector({
   routeSummaries,
   summariesLoading = false,
 }: Readonly<StrategyModeSelectorProps>) {
+  const { colors } = useColorAccessibility();
+
   return (
     <View style={containerStyle}>
       {ALL_STRATEGIES.map((strategy) => {
@@ -42,7 +44,7 @@ export function StrategyModeSelector({
         const isShuttle = strategy.mode === "shuttle";
         const isDisabled = isShuttle && !shuttleAvailable;
         const textColor = (() => {
-          if (isDisabled) return colors.gray400;
+          if (isDisabled) return colors.gray500;
           if (isActive) return colors.white;
           return colors.primary;
         })();

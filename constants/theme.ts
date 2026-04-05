@@ -181,11 +181,11 @@ const HIGH_CONTRAST_PALETTE = buildPalette({
   warning: "#ff9800",
   error: "#b00020",
   info: "#0057d9",
-  routeWalk: "#6a1b9a",
+  routeWalk: "#5e35b1",
   routeDrive: "#0057d9",
   routeTransit: "#00695c",
   routeBike: "#ff9800",
-  routeShuttle: "#5b5bd6",
+  routeShuttle: "#5e35b1",
 });
 
 export type ThemePalette = typeof CLASSIC_PALETTE;

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -23,7 +23,10 @@ import { Buildings, ScheduleItem } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
-import { FULL_HEIGHT, styles } from "../styles/NextClassDirectionsPanel.styles";
+import {
+  createStyles,
+  FULL_HEIGHT,
+} from "../styles/NextClassDirectionsPanel.styles";
 import {
   campusBuildingResults,
   queryIndex,
@@ -100,6 +103,7 @@ function SuggestionRow({
   onPress,
 }: Readonly<SuggestionRowProps>) {
   const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable testID={testID} style={styles.suggestionItem} onPress={onPress}>
       <MaterialIcons
@@ -134,6 +138,7 @@ function SuggestionList({
   onSelectCourse,
 }: Readonly<SuggestionListProps>) {
   const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (suggestions.length > 0) {
     return (
       <View style={styles.suggestionList}>
@@ -203,6 +208,7 @@ function LocationInputRow({
   extraButton,
 }: Readonly<LocationInputRowProps>) {
   const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={groupStyle}>
       <View style={styles.inputIconWrap}>{iconSlot}</View>
@@ -267,6 +273,7 @@ export default function NextClassDirectionsPanel({
   shuttleAvailable = true,
 }: Readonly<NextClassDirectionsPanelProps>) {
   const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
