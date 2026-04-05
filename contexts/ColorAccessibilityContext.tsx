@@ -1,14 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
 } from "react";
 import {
-    type ColorAccessibilityMode,
-    type ThemePalette,
+  type ColorAccessibilityMode,
+  type ThemePalette,
 } from "../constants/theme";
 
 const STORAGE_KEY = "snorting-code.color-accessibility-mode";
@@ -26,12 +26,14 @@ const COLOR_ACCESSIBILITY_OPTIONS: Array<{
   {
     value: "redGreenSafe",
     label: "Red-Green Safe",
-    description: "Uses blue, teal, and amber to reduce confusion for red-green deficiencies.",
+    description:
+      "Uses blue, teal, and amber to reduce confusion for red-green deficiencies.",
   },
   {
     value: "blueYellowSafe",
     label: "Blue-Yellow Safe",
-    description: "Uses magenta and olive tones to improve tritanopia readability.",
+    description:
+      "Uses magenta and olive tones to improve tritanopia readability.",
   },
   {
     value: "highContrast",
@@ -129,7 +131,7 @@ const CLASSIC_PALETTE = buildPalette({
   warning: "#f9a825",
   error: "#c62828",
   info: "#1565c0",
-  routeWalk: "#912338",
+  routeWalk: "#6a1b9a",
   routeDrive: "#1565c0",
   routeTransit: "#2e7d32",
   routeBike: "#C4A747",
@@ -148,7 +150,7 @@ const RED_GREEN_SAFE_PALETTE = buildPalette({
   warning: "#cb8b00",
   error: "#c62828",
   info: "#0b6bd3",
-  routeWalk: "#1557B0",
+  routeWalk: "#7b1fa2",
   routeDrive: "#cb8b00",
   routeTransit: "#00796b",
   routeBike: "#6a4c93",
@@ -167,7 +169,7 @@ const BLUE_YELLOW_SAFE_PALETTE = buildPalette({
   warning: "#a86c00",
   error: "#c62828",
   info: "#0e7490",
-  routeWalk: "#8E2B5C",
+  routeWalk: "#8e24aa",
   routeDrive: "#6C8A1E",
   routeTransit: "#0e7490",
   routeBike: "#c26d20",
@@ -186,7 +188,7 @@ const HIGH_CONTRAST_PALETTE = buildPalette({
   warning: "#ff9800",
   error: "#b00020",
   info: "#0057d9",
-  routeWalk: "#111111",
+  routeWalk: "#6a1b9a",
   routeDrive: "#0057d9",
   routeTransit: "#00695c",
   routeBike: "#ff9800",
@@ -232,7 +234,10 @@ export function ColorAccessibilityProvider({
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (cancelled) return;
-        if (saved && COLOR_ACCESSIBILITY_OPTIONS.some((option) => option.value === saved)) {
+        if (
+          saved &&
+          COLOR_ACCESSIBILITY_OPTIONS.some((option) => option.value === saved)
+        ) {
           setMode(saved as ColorAccessibilityMode);
         }
       } catch (error) {
