@@ -1,0 +1,48 @@
+appId: com.concordia.snortingcode
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Select a campus"
+    timeout: 20000
+
+- tapOn: SGW Campus
+- tapOn:
+    id: BackButton
+- tapOn:
+    id: home-color-mode-button
+- tapOn:
+    id: color-option-redGreenSafe
+
+- tapOn:
+    id: color-settings-done-button
+
+- tapOn: SGW Campus
+
+- tapOn:
+    id: BackButton
+- tapOn:
+    id: home-color-mode-button
+- tapOn:
+    id: color-option-blueYellowSafe
+- tapOn:
+    id: color-settings-done-button
+- tapOn: SGW Campus
+- tapOn:
+    id: BackButton
+- tapOn:
+    id: home-color-mode-button
+- tapOn:
+    id: color-option-highContrast
+- tapOn:
+    id: color-settings-done-button
+- tapOn: SGW Campus
+- tapOn:
+    id: BackButton
+- tapOn:
+    id: home-color-mode-button
+- tapOn:
+    id: color-option-classic
+- tapOn:
+    id: color-settings-done-button
