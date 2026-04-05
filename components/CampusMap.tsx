@@ -71,6 +71,7 @@ type CampusMapProps = Readonly<{
     coords: { latitude: number; longitude: number } | null,
   ) => void;
   nearbyPOIs?: PlacePOI[];
+  poiMarkersHidden?: boolean;
   focusPOIId?: string | null;
   focusPOITrigger?: number;
   onSelectPOI?: (poi: PlacePOI) => void;
@@ -207,6 +208,7 @@ export default function CampusMap({
   onViewIndoorMap,
   onUserLocationResolved,
   nearbyPOIs,
+  poiMarkersHidden = false,
   focusPOIId,
   focusPOITrigger = 0,
   onSelectPOI,
@@ -785,7 +787,9 @@ export default function CampusMap({
               title={poi.name}
               description={poi.vicinity}
               anchor={{ x: 0.5, y: 1 }}
-              onPress={() => onSelectPOI?.(poi)}
+              onPress={() => !poiMarkersHidden && onSelectPOI?.(poi)}
+              tappable={!poiMarkersHidden}
+              opacity={poiMarkersHidden ? 0 : 1}
             >
               <View style={styles.poiPin}>
                 <View

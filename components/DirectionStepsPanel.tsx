@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { ALL_STRATEGIES } from "../constants/strategies";
 import { spacing } from "../constants/theme";
 import { RouteStep } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
@@ -149,9 +150,11 @@ interface DirectionStepsPanelProps {
   readonly steps: ActionableRouteStep[];
   readonly strategy: RouteStrategy;
   readonly routeSummary?: RouteSummary;
-  readonly onChangeRoute: () => void;
+  readonly onChangeRoute?: () => void;
   readonly onDismiss?: () => void;
   readonly onFocusUser?: () => void;
+  readonly onStrategyChange?: (strategy: RouteStrategy) => void;
+  readonly shuttleAvailable?: boolean;
 }
 
 export function DirectionStepsPanel({
@@ -161,11 +164,14 @@ export function DirectionStepsPanel({
   onChangeRoute,
   onDismiss,
   onFocusUser,
+  onStrategyChange,
+  shuttleAvailable = true,
 }: DirectionStepsPanelProps) {
   const { colors } = useColorAccessibility();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const bottomInset = useBottomInset();
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isStrategyOpen, setIsStrategyOpen] = React.useState(false);
 
   const computedRouteSummary = React.useMemo(() => {
     const totalMeters = steps.reduce((total, step) => {
@@ -205,9 +211,10 @@ export function DirectionStepsPanel({
     setIsExpanded(false);
   }, [stepSignature, strategy.mode]);
 
-  if (steps.length === 0) return null;
-
-  const stepCountLabel = `${steps.length} step${steps.length === 1 ? "" : "s"}`;
+  const prevStepsRef = React.useRef(steps);
+  if (steps.length > 0) prevStepsRef.current = steps;
+  const displaySteps = steps.length > 0 ? steps : prevStepsRef.current;
+  const stepCountLabel = `${displaySteps.length} step${displaySteps.length === 1 ? "" : "s"}`;
 
   return (
     <View
@@ -217,14 +224,76 @@ export function DirectionStepsPanel({
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <View style={styles.modeBadge}>
+            <Pressable
+              style={styles.modeBadge}
+              onPress={() => onStrategyChange && setIsStrategyOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={`Current mode: ${strategy.label}. Tap to change.`}
+              disabled={!onStrategyChange}
+            >
               <MaterialCommunityIcons
                 name={strategy.icon as any}
                 size={18}
                 color={colors.white}
               />
               <Text style={styles.modeLabel}>{strategy.label}</Text>
-            </View>
+              {onStrategyChange && (
+                <MaterialIcons
+                  name={isStrategyOpen ? "arrow-drop-up" : "arrow-drop-down"}
+                  size={18}
+                  color={colors.white}
+                />
+              )}
+            </Pressable>
+            {isStrategyOpen && onStrategyChange && (
+              <View style={styles.strategyDropdown}>
+                {ALL_STRATEGIES.map((s) => {
+                  const isActive = s.mode === strategy.mode;
+                  const isShuttle = s.mode === "shuttle";
+                  const isDisabled = isShuttle && !shuttleAvailable;
+                  return (
+                    <Pressable
+                      key={s.mode}
+                      style={[
+                        styles.strategyOption,
+                        isActive && styles.strategyOptionActive,
+                        isDisabled && styles.strategyOptionDisabled,
+                      ]}
+                      onPress={() => {
+                        if (isDisabled) return;
+                        onStrategyChange(s);
+                        setIsStrategyOpen(false);
+                      }}
+                      disabled={isDisabled}
+                      accessibilityRole="button"
+                      accessibilityLabel={s.label}
+                      accessibilityState={{ selected: isActive, disabled: isDisabled }}
+                    >
+                      <MaterialCommunityIcons
+                        name={s.icon as any}
+                        size={16}
+                        color={
+                          isDisabled
+                            ? colors.gray500
+                            : isActive
+                              ? colors.white
+                              : colors.primary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.strategyOptionText,
+                          isActive && styles.strategyOptionTextActive,
+                          isDisabled && styles.strategyOptionTextDisabled,
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
             {summaryText && (
               <Text style={styles.routeSummary}>{summaryText}</Text>
             )}
@@ -265,14 +334,16 @@ export function DirectionStepsPanel({
                 color={colors.primary}
               />
             </Pressable>
-            <Pressable
-              onPress={onChangeRoute}
-              style={styles.changeButton}
-              accessibilityRole="button"
-              accessibilityLabel="Change route"
-            >
-              <Text style={styles.changeButtonText}>Change route</Text>
-            </Pressable>
+            {onChangeRoute && (
+              <Pressable
+                onPress={onChangeRoute}
+                style={styles.changeButton}
+                accessibilityRole="button"
+                accessibilityLabel="Change route"
+              >
+                <Text style={styles.changeButtonText}>Change route</Text>
+              </Pressable>
+            )}
             {onDismiss && (
               <Pressable
                 onPress={onDismiss}
@@ -294,7 +365,7 @@ export function DirectionStepsPanel({
             showsVerticalScrollIndicator
             keyboardShouldPersistTaps="handled"
           >
-            {steps.map((step, index) => {
+            {displaySteps.map((step, index) => {
               const normalizedInstruction = step.instruction.toLowerCase();
               const isShuttle =
                 normalizedInstruction.includes("shuttle") ||
@@ -302,7 +373,7 @@ export function DirectionStepsPanel({
               const isTransit = Boolean(step.transitDetails);
               const stepKey = `${step.instruction}-${step.distance ?? ""}-${step.duration ?? ""}-${index}`;
               const isContinueIndoorsCta =
-                Boolean(step.onPress) && index === steps.length - 1;
+                Boolean(step.onPress) && index === displaySteps.length - 1;
               const metadataText = [step.distance, step.duration]
                 .filter(Boolean)
                 .join(" \u00B7 ");
@@ -334,7 +405,7 @@ export function DirectionStepsPanel({
                         color={colors.white}
                       />
                     </View>
-                    {index < steps.length - 1 && (
+                    {index < displaySteps.length - 1 && (
                       <View style={styles.stepLine} />
                     )}
                   </View>

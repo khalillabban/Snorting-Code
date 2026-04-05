@@ -57,6 +57,41 @@ export const createStyles = (colors: ThemePalette = defaultColors) =>
       fontSize: typography.body.fontSize,
       fontWeight: "600",
     },
+    strategyDropdown: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+    },
+    strategyOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs + 1,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.white,
+    },
+    strategyOptionActive: {
+      backgroundColor: colors.primary,
+    },
+    strategyOptionDisabled: {
+      borderColor: colors.gray300,
+      backgroundColor: colors.gray100,
+    },
+    strategyOptionText: {
+      fontSize: typography.caption.fontSize,
+      fontWeight: "600",
+      color: colors.primary,
+    },
+    strategyOptionTextActive: {
+      color: colors.white,
+    },
+    strategyOptionTextDisabled: {
+      color: colors.gray500,
+    },
     routeSummary: {
       color: colors.gray700,
       fontSize: typography.caption.fontSize,
