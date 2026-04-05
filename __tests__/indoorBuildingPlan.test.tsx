@@ -1,8 +1,8 @@
-import { getBuildingPlanAsset, normalizeIndoorBuildingCode } from "../utils/mapAssets";
 import {
-  getNormalizedBuildingPlan,
-  normalizeBuildingPlanAsset,
+    getNormalizedBuildingPlan,
+    normalizeBuildingPlanAsset,
 } from "../utils/indoorBuildingPlan";
+import { getBuildingPlanAsset, normalizeIndoorBuildingCode } from "../utils/mapAssets";
 
 describe("utils/indoorBuildingPlan", () => {
   it("normalizes indoor building aliases", () => {
@@ -117,5 +117,47 @@ describe("utils/indoorBuildingPlan", () => {
     expect(plan.buildingCode).toBe("VL");
     expect(plan.floors).toEqual([1, 2]);
     expect(plan.rooms.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to floor 1 when metadata floor is non-finite and label has no floor token", () => {
+    const plan = normalizeBuildingPlanAsset({
+      meta: { buildingId: "CC" },
+      nodes: [
+        {
+          id: "CC_bad_floor",
+          type: "room",
+          buildingId: "CC",
+          floor: Number.NaN,
+          x: 1,
+          y: 2,
+          label: "CC-LOBBY",
+          accessible: true,
+        },
+      ],
+    });
+
+    expect(plan.rooms).toHaveLength(1);
+    expect(plan.rooms[0].floor).toBe(1);
+  });
+
+  it("derives sublevel floor from room label when building metadata has no sublevel token", () => {
+    const plan = normalizeBuildingPlanAsset({
+      meta: { buildingId: "CC" },
+      nodes: [
+        {
+          id: "CC_s3_room",
+          type: "room",
+          buildingId: "CC",
+          floor: 9,
+          x: 0,
+          y: 0,
+          label: "CC-S3.101",
+          accessible: true,
+        },
+      ],
+    });
+
+    expect(plan.rooms).toHaveLength(1);
+    expect(plan.rooms[0].floor).toBe(-3);
   });
 });
