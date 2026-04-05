@@ -1,4 +1,3 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   Accuracy,
@@ -146,8 +145,10 @@ function CurrentLocationMarker({ coordinate }: CurrentLocationMarkerProps) {
 
 function getPolylineStyleForMode(
   colors: ReturnType<typeof useColorAccessibility>["colors"],
-  mode: RouteStrategy["mode"],
+  mode: RouteStrategy["mode"] | string,
 ) {
+  const normalizedMode = `${mode}`.toLowerCase() as RouteStrategy["mode"];
+
   const strokeColors: Record<RouteStrategy["mode"], string> = {
     walking: colors.routeWalk,
     bicycling: colors.routeBike,
@@ -156,15 +157,27 @@ function getPolylineStyleForMode(
     shuttle: colors.routeTransit,
   };
 
-  const strokeColor = strokeColors[mode] ?? colors.primary;
+  const strokeColor = strokeColors[normalizedMode] ?? colors.routeWalk;
   let lineDashPattern: number[] | undefined;
+  let borderStrokeColor = "black";
+  let borderStrokeWidth = 8;
+  let mainStrokeWidth = 6;
 
-  if (mode === "transit" || mode === "shuttle") {
-    lineDashPattern = [8, 6];
-  } else if (mode === "bicycling") {
-    lineDashPattern = [4, 4];
+  if (normalizedMode === "transit" || normalizedMode === "shuttle") {
+    lineDashPattern = undefined;
+  } else if (normalizedMode === "bicycling") {
+    lineDashPattern = undefined;
+    borderStrokeColor = "#ffffff";
+    borderStrokeWidth = 10;
+    mainStrokeWidth = 7;
   }
-  return { strokeColor, lineDashPattern };
+  return {
+    strokeColor,
+    lineDashPattern,
+    borderStrokeColor,
+    borderStrokeWidth,
+    mainStrokeWidth,
+  };
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -583,24 +596,10 @@ export default function CampusMap({
             tracksViewChanges={Platform.OS === "android"}
           >
             <View style={styles.destinationPinWrapper}>
-              <MaterialIcons
-                name="place"
-                size={44}
-                color="black"
-                style={styles.destinationPinShadow}
-              />
-              <MaterialIcons
-                name="place"
-                size={30}
-                color="black"
-                style={[styles.destinationPinShadow, { top: 6 }]}
-              />
-              <MaterialIcons
-                name="place"
-                size={40}
-                color={colors.error}
-                style={styles.destinationPinFront}
-              />
+              <View style={styles.destinationPinHead}>
+                <View style={styles.destinationPinInner} />
+              </View>
+              <View style={styles.destinationPinTail} />
             </View>
           </Marker>
         )}
@@ -672,10 +671,13 @@ export default function CampusMap({
         {/* Route */}
         {routeSegments.length > 0 &&
           routeSegments.map((seg) => {
-            const { strokeColor, lineDashPattern } = getPolylineStyleForMode(
-              colors,
-              seg.mode,
-            );
+            const {
+              strokeColor,
+              lineDashPattern,
+              borderStrokeColor,
+              borderStrokeWidth,
+              mainStrokeWidth,
+            } = getPolylineStyleForMode(colors, seg.mode);
 
             const segmentKey = `${seg.mode}-${seg.coordinates
               .map((coord) => `${coord.latitude}-${coord.longitude}`)
@@ -686,8 +688,8 @@ export default function CampusMap({
                 <Polyline
                   testID="polyline-border"
                   coordinates={seg.coordinates}
-                  strokeWidth={8}
-                  strokeColor="black"
+                  strokeWidth={borderStrokeWidth}
+                  strokeColor={borderStrokeColor}
                   lineDashPattern={lineDashPattern}
                   lineJoin="round"
                   lineCap="round"
@@ -696,7 +698,7 @@ export default function CampusMap({
                 <Polyline
                   testID="polyline-main"
                   coordinates={seg.coordinates}
-                  strokeWidth={6}
+                  strokeWidth={mainStrokeWidth}
                   strokeColor={strokeColor}
                   lineDashPattern={lineDashPattern}
                   lineJoin="round"

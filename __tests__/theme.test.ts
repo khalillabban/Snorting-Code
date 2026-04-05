@@ -33,7 +33,7 @@ describe("Theme constants", () => {
     });
 
     it("exports route colors by travel mode", () => {
-      expect(colors.routeWalk).toBe("#912338");
+      expect(colors.routeWalk).toBe("#6a1b9a");
       expect(colors.routeDrive).toBe("#1565c0");
       expect(colors.routeTransit).toBe("#2e7d32");
       expect(colors.routeBike).toBe("#C4A747");
@@ -62,6 +62,11 @@ describe("Theme constants", () => {
       expect(redGreenSafe.primary).toBe("#1557B0");
       expect(blueYellowSafe.primary).toBe("#8E2B5C");
       expect(highContrast.primary).toBe("#111111");
+
+      expect(classic.routeWalk).toBe("#6a1b9a");
+      expect(redGreenSafe.routeWalk).toBe("#7b1fa2");
+      expect(blueYellowSafe.routeWalk).toBe("#8e24aa");
+      expect(highContrast.routeWalk).toBe("#5e35b1");
 
       const fallback = getThemePalette("unknown" as any);
       expect(fallback.primary).toBe(classic.primary);

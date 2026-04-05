@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -21,7 +21,7 @@ import { Buildings } from "../constants/type";
 import { useColorAccessibility } from "../contexts/ColorAccessibilityContext";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
 import { RouteStrategy } from "../services/Routing";
-import { styles } from "../styles/NavigationBar.styles";
+import { createStyles } from "../styles/NavigationBar.styles";
 import {
   campusBuildingResults,
   queryIndex,
@@ -77,6 +77,7 @@ export default function NavigationBar({
   shuttleAvailable = true,
 }: Readonly<NavigationBarProps>) {
   const { colors } = useColorAccessibility();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 

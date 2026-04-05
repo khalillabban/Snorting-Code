@@ -82,7 +82,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
-  MapView.displayName = 'MapView';
+  MapView.displayName = "MapView";
 
   const Marker = React.forwardRef((props: any, ref: any) => {
     const markerId = props.testID ?? `marker-${props.title ?? "marker"}`;
@@ -106,7 +106,7 @@ jest.mock("react-native-maps", () => {
       </View>
     );
   });
-  Marker.displayName = 'Marker';
+  Marker.displayName = "Marker";
 
   const Polygon = (props: any) => {
     const handlePress = () => props.onPress?.({ stopPropagation: jest.fn() });
@@ -839,7 +839,7 @@ describe("CampusMap", () => {
 
     const polyline = await screen.findByTestId("polyline-main-props");
     const props = JSON.parse(polyline.props.children);
-    expect(props.lineDashPattern).toEqual([8, 6]);
+    expect(props.lineDashPattern).toBeUndefined();
   });
 
   it("applies dash pattern for bicycling mode polyline", async () => {
@@ -869,7 +869,7 @@ describe("CampusMap", () => {
 
     const polyline = await screen.findByTestId("polyline-main-props");
     const props = JSON.parse(polyline.props.children);
-    expect(props.lineDashPattern).toEqual([4, 4]);
+    expect(props.lineDashPattern).toBeUndefined();
   });
 
   // --- Shuttle coverage ---
@@ -1234,7 +1234,7 @@ describe("CampusMap", () => {
       expect(warnSpy).toHaveBeenCalledWith(
         "Building EMPTY has no boundingBox coordinates.",
       );
-      
+
       expect(warnSpy).not.toHaveBeenCalledWith(
         "Building QA has no boundingBox coordinates.",
       );
