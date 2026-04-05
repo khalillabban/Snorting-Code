@@ -70,12 +70,12 @@ describe("OutdoorPOIFilter", () => {
           white: "#fff",
           gray300: "#b3b3b3",
           primary: "#111111",
-          accent1: "#111122",
-          route1: "#111133",
-          route2: "#111144",
-          route3: "#111155",
-          route4: "#111166",
-          accent2: "#111177",
+          warning: "#111188",
+          routeWalk: "#111122",
+          routeDrive: "#111144",
+          routeTransit: "#111155",
+          error: "#111166",
+          info: "#111177",
         } as any,
       } as any);
 
@@ -90,7 +90,7 @@ describe("OutdoorPOIFilter", () => {
     const flattened = Array.isArray(foodChip.props.style)
       ? Object.assign({}, ...foodChip.props.style.filter(Boolean))
       : foodChip.props.style;
-    expect(flattened.backgroundColor).toBe("#111122");
+    expect(flattened.backgroundColor).toBe("#111188");
 
     spy.mockRestore();
   });
