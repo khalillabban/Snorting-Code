@@ -383,7 +383,14 @@ export default function NextClassDirectionsPanel({
     } else {
       clearDestWithError(nextClass.courseName);
     }
-  }, [nextClass, clearDestWithError, resolveIndoorRoom, setDestFromBuilding]);
+  }, [
+    nextClass,
+    clearDestWithError,
+    resolveIndoorRoom,
+    setDestFromBuilding,
+    setDestBuilding,
+    setDestLoc,
+  ]);
 
   useEffect(() => {
     const showingList = suggestions.length > 0 || filteredCourses.length > 0;
