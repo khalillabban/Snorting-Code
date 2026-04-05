@@ -125,6 +125,48 @@ describe("parseCourseEvents", () => {
     });
   });
 
+  it("parses compact campus-building format without separators", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "compact-campus-building",
+        summary: "COMP 248 LEC",
+        location: "SGW H",
+        start: { dateTime: "2026-02-11T12:00:00Z" },
+        end: { dateTime: "2026-02-11T13:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res[0]).toMatchObject({
+      campus: "SGW",
+      building: "H",
+      room: "",
+      level: "",
+    });
+  });
+
+  it("falls back to unexpected-format handling when campus prefix has no remaining location", () => {
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "campus-only-empty-rest",
+        summary: "COMP 249 LEC",
+        location: "SGW -",
+        start: { dateTime: "2026-02-11T12:00:00Z" },
+        end: { dateTime: "2026-02-11T13:00:00Z" },
+      },
+    ];
+
+    const res = parseCourseEvents(events);
+
+    expect(res[0]).toMatchObject({
+      campus: "",
+      building: "SGW -",
+      room: "",
+      level: "",
+    });
+  });
+
   it("uses splitRoom default branch for non-numeric room values", () => {
     const events: GoogleCalendarEvent[] = [
       {
