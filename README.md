@@ -500,13 +500,13 @@ Make sure `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` is present and that the required Goo
 
 The project was developed by an 11-person software engineering team working across mobile development, UI and UX, architecture, and testing.
 
+- Yousef Bisharah - 40151411
 - Khalil Al Labban - 40282892
 - Zachary Corber - 40246724
 - Jessica Codreanu - 40262017
 - Jingnan Wang - 40282296
 - Philippe Nikolov - 40245641
 - Clark Long - 40183902
-- Yousef Bisharah - 40151411
 - Nicholas Gallacher - 40248681
 - Chris Egener - 40196182
 - Nicolas Landry - 40263725
