@@ -37,6 +37,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export function getSheetHeight(platform: string): number {
   return platform === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 }
+/* istanbul ignore next -- Platform.OS is fixed at module load */
 const SHEET_HEIGHT =
   Platform.OS === "android" ? SCREEN_HEIGHT * 0.76 : SCREEN_HEIGHT * 0.7;
 const SHEET_TOP = SCREEN_HEIGHT - SHEET_HEIGHT;
@@ -178,6 +179,7 @@ export default function NavigationBar({
   };
 
   const handleUseMyLocation = () => {
+    /* istanbul ignore next -- button only renders when callback is provided */
     if (!onUseMyLocation) return;
     const building = onUseMyLocation();
     if (building) {

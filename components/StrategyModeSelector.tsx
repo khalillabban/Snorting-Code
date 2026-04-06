@@ -53,6 +53,7 @@ export function StrategyModeSelector({
             key={strategy.mode}
             testID={`${testIDPrefix}-${strategy.mode}`}
             onPress={() => {
+              /* istanbul ignore next -- disabled prop already prevents press */
               if (!isDisabled) onSelect(strategy);
             }}
             disabled={isDisabled}

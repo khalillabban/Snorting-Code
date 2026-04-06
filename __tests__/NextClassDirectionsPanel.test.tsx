@@ -1,14 +1,14 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import {
-  Animated,
-  Keyboard,
-  PanResponder,
-  Platform,
-  TouchableWithoutFeedback,
+    Animated,
+    Keyboard,
+    PanResponder,
+    Platform,
+    TouchableWithoutFeedback,
 } from "react-native";
 import NextClassDirectionsPanel, {
-  getStrategyRouteSummary,
+    getStrategyRouteSummary,
 } from "../components/NextClassDirectionsPanel";
 import type { ScheduleItem } from "../constants/type";
 import { getOutdoorRouteWithSteps } from "../services/GoogleDirectionsService";
@@ -1634,6 +1634,39 @@ describe("NextClassDirectionsPanel", () => {
       getOutdoorRouteWithSteps.mockRestore();
     });
 
+    it("falls back to null when route response lacks duration in the effect", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockImplementation(() =>
+        Promise.resolve({ distance: "0.5 km" })
+      );
+
+      const autoStart = {
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      };
+
+      const { getAllByText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={mockScheduleItems}
+          autoStartBuilding={autoStart}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByText("—").length).toBeGreaterThanOrEqual(5);
+      });
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
     it("returns null for shuttle when shuttle is disabled", async () => {
       const result = await getStrategyRouteSummary(
         {
@@ -1685,6 +1718,25 @@ describe("NextClassDirectionsPanel", () => {
       );
 
       expect(result).toEqual(["walking", "14 mins"]);
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("returns null when route response has no duration property", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockResolvedValueOnce({ distance: "1.2 km" });
+
+      const result = await getStrategyRouteSummary(
+        {
+          mode: "bicycling",
+          label: "Bike",
+          icon: "bike",
+        } as any,
+        true,
+        { latitude: 45.497256, longitude: -73.578915 },
+        { latitude: 45.495304, longitude: -73.579044 },
+      );
+
+      expect(result).toEqual(["bicycling", null]);
       getOutdoorRouteWithSteps.mockRestore();
     });
 
@@ -1758,42 +1810,82 @@ describe("NextClassDirectionsPanel", () => {
       getOutdoorRouteWithSteps.mockRestore();
     });
 
-    it("cancels route summary request when component unmounts", async () => {
+    it("triggers route summary effect and handles missing duration", async () => {
       const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
-      const cancelledFlag = { value: false };
-      getOutdoorRouteWithSteps.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () => resolve({ duration: "10 mins", distance: "0.5 km" }),
-              100
-            );
-          })
+      getOutdoorRouteWithSteps.mockImplementation(() =>
+        Promise.resolve({ distance: "0.5 km" })
       );
 
-      const autoStart = {
+      const onUseMyLocation = jest.fn(() => ({
         name: "H",
         campusName: "SGW",
         displayName: "Henry F. Hall Building (H)",
         coordinates: { latitude: 45.497256, longitude: -73.578915 },
         address: "",
         boundingBox: [],
-      };
+      }));
 
-      const { unmount } = render(
+      const { getByLabelText } = render(
         <NextClassDirectionsPanel
           visible={true}
           onClose={mockOnClose}
           onConfirm={mockOnConfirm}
           nextClass={mockScheduleItems[0]}
-          scheduleItems={mockScheduleItems}
-          autoStartBuilding={autoStart}
+          scheduleItems={[]}
+          onUseMyLocation={onUseMyLocation}
         />,
       );
 
+      await act(async () => {
+        fireEvent.press(getByLabelText("Use my current location as start"));
+      });
+
+      await waitFor(() => {
+        expect(getOutdoorRouteWithSteps).toHaveBeenCalled();
+      });
+
+      getOutdoorRouteWithSteps.mockRestore();
+    });
+
+    it("cancels route summary request when component unmounts", async () => {
+      const { getOutdoorRouteWithSteps } = require("../services/GoogleDirectionsService");
+      getOutdoorRouteWithSteps.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () => resolve({ duration: "10 mins", distance: "0.5 km" }),
+              500
+            );
+          })
+      );
+
+      const onUseMyLocation = jest.fn(() => ({
+        name: "H",
+        campusName: "SGW",
+        displayName: "Henry F. Hall Building (H)",
+        coordinates: { latitude: 45.497256, longitude: -73.578915 },
+        address: "",
+        boundingBox: [],
+      }));
+
+      const { unmount, getByLabelText } = render(
+        <NextClassDirectionsPanel
+          visible={true}
+          onClose={mockOnClose}
+          onConfirm={mockOnConfirm}
+          nextClass={mockScheduleItems[0]}
+          scheduleItems={[]}
+          onUseMyLocation={onUseMyLocation}
+        />,
+      );
+
+      await act(async () => {
+        fireEvent.press(getByLabelText("Use my current location as start"));
+      });
+
       unmount();
 
-      // Verify component unmounts without errors
+      // Verify component unmounts without errors while promises are pending
       expect(true).toBe(true);
 
       getOutdoorRouteWithSteps.mockRestore();

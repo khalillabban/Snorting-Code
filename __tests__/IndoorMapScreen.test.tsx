@@ -2990,4 +2990,165 @@ describe("IndoorMapScreen", () => {
     // The `floorImageDimensions` will be used directly.
     await screen.findByTestId("indoor-floor-stage");
   });
+
+  // L116: cover default routeWaypoints=[] parameter in getFloorContentBounds
+  it("getFloorContentBounds uses default empty routeWaypoints when called with 2 args", () => {
+    const bounds = getFloorContentBounds(
+      { width: 1000, height: 1000 },
+      [{ x: 100, y: 120 }],
+    );
+
+    expect(bounds.minX).toBeLessThanOrEqual(100);
+    expect(bounds.maxX).toBeGreaterThanOrEqual(100);
+  });
+
+  // L222, L234, L298, L318: availableFloors[0] is 0 (falsy) → || 1 fallback + inline useEffect floor sync
+  it("falls back to floor 1 when availableFloors starts with floor 0", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([0, 2, 3]),
+      roomQuery: "H-867",
+    });
+
+    (getFloorImageMetadata as jest.Mock).mockImplementation(
+      (_buildingCode: string, floor: number) => {
+        if ([0, 1, 2, 3].includes(floor)) {
+          return { source: 1, width: 1024, height: 1024, coordinateScale: 0.5 };
+        }
+        return undefined;
+      },
+    );
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockHallRoom,
+      floor: 8,
+    });
+
+    render(<IndoorMapScreen />);
+
+    // selectedFloor init: availableFloors[0] || 1 = 0 || 1 = 1 (L298)
+    // 1 is NOT in [0, 2, 3] → inline useEffect (L318) sets floor to 0
+    // useFloorSync (L222) also fires: setSelectedFloor(0 || 1) = 1
+    await waitFor(() => {
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("H", 1);
+    });
+  });
+
+  // L291: DEFAULT_AVAILABLE_FLOORS fallback - buildingName is empty so the getAvailableFloors path is skipped
+  it("uses DEFAULT_AVAILABLE_FLOORS when floors param is invalid and buildingName is empty", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "",
+      floors: "invalid-not-json",
+    });
+
+    (getAvailableFloors as jest.Mock).mockReturnValue([]);
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(null);
+    (getFloorImageMetadata as jest.Mock).mockReturnValue(undefined);
+
+    render(<IndoorMapScreen />);
+
+    // buildingName is empty string → typeof === "string" but .trim() is "" (falsy)
+    // → skips getAvailableFloors path → return [...DEFAULT_AVAILABLE_FLOORS] = [1]
+    await waitFor(() => {
+      expect(getFloorImageMetadata).toHaveBeenCalledWith("", 1);
+    });
+  });
+
+  // L348: endTask early return when task timer was never started (usability disabled)
+  it("endTask returns early when the task timer was never started (usability disabled)", async () => {
+    mockUsabilityTestingEnabled = false;
+
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+    });
+    (getNormalizedBuildingPlan as jest.Mock).mockReturnValue(mockHallPlan);
+
+    render(<IndoorMapScreen />);
+    const washroomChip = await screen.findByTestId("poi-filter-chip-washroom");
+
+    // Pressing the chip with willBeActive=true triggers endTask("task_11", ...)
+    // Since usability was disabled from the start, startTask never set the timer
+    // → endTask hits `if (!start) return;` at L348
+    fireEvent.press(washroomChip);
+
+    // Wait for any async effects
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // task_completed should NOT have been logged (endTask returned early at !start)
+    const loggedEventNames = (logUsabilityEvent as jest.Mock).mock.calls.map(
+      (call) => call[0],
+    );
+    expect(loggedEventNames).not.toContain("task_completed");
+  });
+
+  // L726: asset.nodes is undefined → ?? [] fallback
+  it("falls back to empty array when asset.nodes is undefined in ENTRANCE routing", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "MB",
+      floors: JSON.stringify([1]),
+      navOrigin: "ENTRANCE",
+      navDest: "MB-1.210",
+    });
+
+    (findIndoorRoomMatch as jest.Mock).mockReturnValue({
+      room: mockMBRoom,
+      floor: 1,
+    });
+
+    // Provide asset WITHOUT nodes property → asset.nodes is undefined
+    (getBuildingPlanAsset as jest.Mock).mockReturnValue({
+      meta: { buildingId: "MB" },
+      edges: [],
+    });
+
+    render(<IndoorMapScreen />);
+
+    // With nodes undefined, (asset.nodes ?? []) yields [], filter yields [],
+    // entryNodes.length === 0 → "No building entrances were found"
+    await waitFor(() => {
+      expect(
+        screen.getByText("No building entrances were found for MB."),
+      ).toBeTruthy();
+    });
+  });
+
+  // L888 + L909: navigation result with undefined destination floor → destination?.floor ?? origin.floor fallback
+  it("uses origin floor as fallback when navigation result destination has no floor", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      buildingName: "H",
+      floors: JSON.stringify([1, 2, 8, 9]),
+      navOrigin: "H-110",
+      navDest: "H-920",
+    });
+
+    (getIndoorNavigationRoute as jest.Mock).mockReturnValue({
+      success: true,
+      route: {
+        origin: { ...mockHallRoom, floor: 8, label: "H-110" },
+        destination: { ...mockHallRoom, floor: undefined, label: "H-920" },
+        path: { steps: [] },
+        segments: [],
+        floors: [8],
+        totalDistance: 20,
+        fullyAccessible: true,
+        estimatedSeconds: 20,
+      },
+    });
+
+    render(<IndoorMapScreen />);
+
+    // destination.floor is undefined → destination?.floor is undefined → falls back to origin.floor (8)
+    // isCrossFloor = 8 !== 8 = false → task_9
+    await waitFor(() => {
+      expect(logUsabilityEvent).toHaveBeenCalledWith(
+        "indoor_route_generated",
+        expect.objectContaining({
+          task_id: "task_9",
+          cross_floor: false,
+          dest_floor: 8,
+        }),
+      );
+    });
+  });
 });
