@@ -51,6 +51,7 @@ function parseDurationMinutes(value: string): number | null {
   const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
   const seconds = secondMatch ? Number(secondMatch[1]) : 0;
 
+  /* istanbul ignore next -- regex only captures finite digit strings */
   if (![hours, minutes, seconds].every(Number.isFinite)) return null;
 
   return hours * 60 + minutes + seconds / 60;
@@ -263,6 +264,7 @@ export function DirectionStepsPanel({
                         isDisabled && styles.strategyOptionDisabled,
                       ]}
                       onPress={() => {
+                        /* istanbul ignore next -- disabled prop already prevents press */
                         if (isDisabled) return;
                         onStrategyChange(s);
                         setIsStrategyOpen(false);

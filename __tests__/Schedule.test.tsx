@@ -1,23 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
 } from "@testing-library/react-native";
 import React from "react";
 import { AppState } from "react-native";
 import ScheduleScreen, {
-  applyCachedSchedule,
-  buildScheduleItems,
-  eventOverlapsRange,
-  getEventDedupKey,
-  handleScheduleInitError,
-  loadCalendarsAndMaybeAutoSelect,
-  parseCalendarDate,
-  pickDefaultCalendarIds,
-  resolveAccessToken,
+    applyCachedSchedule,
+    buildScheduleItems,
+    eventOverlapsRange,
+    getEventDedupKey,
+    handleScheduleInitError,
+    loadCalendarsAndMaybeAutoSelect,
+    parseCalendarDate,
+    pickDefaultCalendarIds,
+    resolveAccessToken,
 } from "../app/schedule";
 import { ScheduleItem } from "../constants/type";
 import { GoogleCalendarApiError } from "../services/GoogleCalendarService";
@@ -2231,6 +2231,74 @@ describe("ScheduleScreen additional coverage", () => {
       expect(mockLogUsabilityEvent).toHaveBeenCalledWith(
         "google_connect_tapped",
         expect.any(Object),
+      );
+    });
+  });
+
+  it("uses incremental sync when cached entry has a valid syncToken", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: Date.now(),
+      syncToken: "calendar-list-sync",
+    };
+    cachedEventsByCalendar.primary = makeCalendarCache(
+      "primary",
+      [makeEvent("class-1", "COMP 346 LEC")],
+      { lastSyncedAt: 0, syncToken: "primary-sync" },
+    );
+
+    mockSyncCalendarEvents.mockResolvedValueOnce({
+      items: [makeEvent("class-2", "COMP 445 LEC")],
+      nextSyncToken: "primary-sync-2",
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockSyncCalendarEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          syncToken: "primary-sync",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockMergeCachedCalendarEvents).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "class-1" }),
+        ]),
+        expect.arrayContaining([
+          expect.objectContaining({ id: "class-2" }),
+        ]),
+        "primary",
+      );
+    });
+  });
+
+  it("calls syncCalendarList with syncToken for incremental calendar list sync", async () => {
+    cachedCalendarList = {
+      items: [{ id: "primary", summary: "Primary", primary: true }],
+      lastSyncedAt: 0,
+      syncToken: "calendar-list-sync",
+    };
+
+    mockSyncCalendarList.mockResolvedValueOnce({
+      items: [{ id: "work", summary: "Work" }],
+      nextSyncToken: "calendar-list-sync-2",
+    });
+
+    mockSyncCalendarEvents.mockResolvedValue({
+      items: [],
+      nextSyncToken: "events-sync",
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockSyncCalendarList).toHaveBeenCalledWith(
+        expect.objectContaining({
+          syncToken: "calendar-list-sync",
+        }),
       );
     });
   });

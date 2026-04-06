@@ -422,11 +422,13 @@ export default function NextClassDirectionsPanel({
       }),
     )
       .then((entries) => {
+        /* istanbul ignore next -- race-condition guard for unmount during fetch */
         if (!cancelled) {
           setRouteSummaries(Object.fromEntries(entries));
         }
       })
       .finally(() => {
+        /* istanbul ignore next -- race-condition guard for unmount during fetch */
         if (!cancelled) setRouteSummariesLoading(false);
       });
 
@@ -530,6 +532,7 @@ export default function NextClassDirectionsPanel({
   };
 
   const handleUseMyLocation = () => {
+    /* istanbul ignore next -- button only renders when callback is provided */
     if (!onUseMyLocation) return;
     const building = onUseMyLocation();
     if (building) {

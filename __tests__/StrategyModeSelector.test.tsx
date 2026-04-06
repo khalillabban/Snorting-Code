@@ -215,4 +215,50 @@ describe("StrategyModeSelector", () => {
     const walkingButton = screen.getByTestId("mode-button-walking");
     expect(walkingButton.props.accessibilityState?.disabled).toBeFalsy();
   });
+
+  it("renders 'Loading…' text when summariesLoading is true", () => {
+    const onSelect = jest.fn();
+    render(
+      <StrategyModeSelector
+        selectedStrategy={WALKING_STRATEGY}
+        onSelect={onSelect}
+        buttonStyles={mockButtonStyles}
+        summariesLoading={true}
+      />,
+    );
+
+    const loadingTexts = screen.getAllByText("Loading…");
+    expect(loadingTexts.length).toBe(5);
+  });
+
+  it("renders '—' when summariesLoading is false with no routeSummaries", () => {
+    const onSelect = jest.fn();
+    render(
+      <StrategyModeSelector
+        selectedStrategy={WALKING_STRATEGY}
+        onSelect={onSelect}
+        buttonStyles={mockButtonStyles}
+        summariesLoading={false}
+      />,
+    );
+
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBe(5);
+  });
+
+  it("calls onSelect when pressing a non-shuttle non-disabled button", () => {
+    const onSelect = jest.fn();
+    render(
+      <StrategyModeSelector
+        selectedStrategy={WALKING_STRATEGY}
+        onSelect={onSelect}
+        buttonStyles={mockButtonStyles}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId("mode-button-driving"));
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "driving" }),
+    );
+  });
 });
