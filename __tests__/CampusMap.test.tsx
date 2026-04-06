@@ -1217,6 +1217,34 @@ describe("CampusMap", () => {
     );
   });
 
+  it("does not fire onSelectPOI when poiMarkersHidden is true", async () => {
+    const onSelectPOI = jest.fn();
+
+    render(
+      <CampusMap
+        coordinates={coordinates}
+        focusTarget="sgw"
+        strategy={WALKING_STRATEGY}
+        showShuttle={false}
+        onSelectPOI={onSelectPOI}
+        poiMarkersHidden={true}
+        nearbyPOIs={[
+          {
+            placeId: "poi-hidden",
+            name: "Hidden POI",
+            latitude: 10.4,
+            longitude: 20.4,
+            vicinity: "Hidden Street",
+            categoryId: "coffee",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.press(await screen.findByTestId("poi-marker-poi-hidden"));
+    expect(onSelectPOI).not.toHaveBeenCalled();
+  });
+
   it("reports route-unavailable error when route service returns empty segments", async () => {
     const onRouteError = jest.fn();
     (getOutdoorRouteWithSteps as jest.Mock).mockResolvedValue({
