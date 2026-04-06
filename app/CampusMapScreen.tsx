@@ -217,15 +217,12 @@ function resolveHasActiveRoute({
 
 function resolveShowStepsPanel({
   hasActiveRoute,
-  mergedSteps,
-  routeSteps,
 }: {
   hasActiveRoute: boolean;
   mergedSteps: RouteStep[] | null;
   routeSteps: RouteStep[];
 }): boolean {
-  const hasAnySteps = (mergedSteps?.length ?? 0) > 0 || routeSteps.length > 0;
-  return hasActiveRoute && hasAnySteps;
+  return hasActiveRoute;
 }
 
 function resolveCanContinueIndoors(
@@ -2183,6 +2180,7 @@ export default function CampusMapScreen() {
         onViewIndoorMap={handleViewBuildingIndoorMap}
         onUserLocationResolved={setUserLocation}
         nearbyPOIs={nearbyPOIs}
+        poiMarkersHidden={showStepsPanel}
         focusPOIId={focusPOIId}
         focusPOITrigger={focusPOITrigger}
         // Use the map-source wrapper so tapping a map pin is correctly attributed
@@ -2448,7 +2446,9 @@ export default function CampusMapScreen() {
           steps={routeStepsWithContinueIndoors}
           strategy={selectedStrategy}
           routeSummary={routeSummary}
-          onChangeRoute={async () => {
+          onStrategyChange={setSelectedStrategy}
+          shuttleAvailable={shuttleStatus.available}
+          onChangeRoute={activeOutdoorPOIRoute ? undefined : async () => {
             //  Task 16: user tapped "Change route"
             if (task16Snapshot.current && !task16EndedRef.current) {
               await logUsabilityEvent("task_16_change_route_tapped", {
@@ -2484,8 +2484,10 @@ export default function CampusMapScreen() {
             handledTransitionRef.current = null;
             setSelectedRoute({ start: null, dest: null });
             setActiveOutdoorPOIRoute(null);
+            setSelectedOutdoorPOI(null);
             setRouteSteps([]);
             setRouteSummary(null);
+            if (activePOICategories.size > 0) setShowPOIList(true);
             try {
               await logUsabilityEvent("steps_panel_dismissed", {
                 session_id: sessionId.current,

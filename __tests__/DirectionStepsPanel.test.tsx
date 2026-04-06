@@ -4,7 +4,13 @@ import {
   DirectionStepsPanel,
   StepWrapper,
 } from "../components/DirectionStepsPanel";
-import { WALKING_STRATEGY } from "../constants/strategies";
+import {
+  WALKING_STRATEGY,
+  BIKING_STRATEGY,
+  DRIVING_STRATEGY,
+  TRANSIT_STRATEGY,
+  SHUTTLE_STRATEGY,
+} from "../constants/strategies";
 import { RouteStep } from "../constants/type";
 import { createStyles } from "../styles/DirectionStepsPanel.styles";
 
@@ -76,8 +82,8 @@ describe("DirectionStepsPanel", () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("returns null when steps array is empty", () => {
-    const { queryByText } = render(
+  it("renders panel with previous steps when steps array is empty", () => {
+    const { getByText } = render(
       <DirectionStepsPanel
         steps={[]}
         strategy={WALKING_STRATEGY}
@@ -85,8 +91,7 @@ describe("DirectionStepsPanel", () => {
       />,
     );
 
-    expect(queryByText("Walk")).toBeNull();
-    expect(queryByText("Change route")).toBeNull();
+    expect(getByText("Walk")).toBeTruthy();
   });
 
   it("renders strategy label and steps when steps are expanded", () => {
@@ -933,5 +938,212 @@ describe("DirectionStepsPanel", () => {
     const icons = screen.getAllByTestId("mci-icon");
     const iconNames = icons.map((icon) => icon.props.children);
     expect(iconNames).toContain("train");
+  });
+
+  describe("strategy dropdown", () => {
+    it("does not show dropdown arrow when onStrategyChange is not provided", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      const icons = screen.getAllByTestId("mi-icon");
+      const iconNames = icons.map((icon) => icon.props.children);
+      expect(iconNames).not.toContain("arrow-drop-down");
+    });
+
+    it("shows dropdown arrow when onStrategyChange is provided", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={() => {}}
+        />,
+      );
+
+      const icons = screen.getAllByTestId("mi-icon");
+      const iconNames = icons.map((icon) => icon.props.children);
+      expect(iconNames).toContain("arrow-drop-down");
+    });
+
+    it("opens dropdown showing all strategies when badge is pressed", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={() => {}}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+
+      expect(screen.getAllByText("Walk").length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByText("Bike")).toBeTruthy();
+      expect(screen.getByText("Car")).toBeTruthy();
+      expect(screen.getByText("Transit")).toBeTruthy();
+      expect(screen.getByText("Shuttle")).toBeTruthy();
+    });
+
+    it("calls onStrategyChange and closes dropdown when a strategy is selected", () => {
+      const onStrategyChange = jest.fn();
+
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={onStrategyChange}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+      fireEvent.press(screen.getByText("Bike"));
+
+      expect(onStrategyChange).toHaveBeenCalledWith(BIKING_STRATEGY);
+      expect(screen.queryByText("Car")).toBeNull();
+    });
+
+    it("disables shuttle option when shuttleAvailable is false", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={() => {}}
+          shuttleAvailable={false}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+
+      const shuttleButtons = screen.getAllByText("Shuttle");
+      const dropdownShuttle = shuttleButtons.find(
+        (el) => el.parent?.parent?.props?.accessibilityState?.disabled === true,
+      );
+      expect(dropdownShuttle).toBeTruthy();
+    });
+
+    it("does not call onStrategyChange when disabled shuttle is pressed", () => {
+      const onStrategyChange = jest.fn();
+
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={onStrategyChange}
+          shuttleAvailable={false}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+
+      const shuttleButtons = screen.getAllByText("Shuttle");
+      shuttleButtons.forEach((btn) => fireEvent.press(btn));
+
+      expect(onStrategyChange).not.toHaveBeenCalled();
+    });
+
+    it("toggles dropdown closed when badge is pressed again", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+          onStrategyChange={() => {}}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+      expect(screen.getByText("Bike")).toBeTruthy();
+
+      fireEvent.press(screen.getByLabelText(/Tap to change/));
+      expect(screen.queryByText("Bike")).toBeNull();
+    });
+  });
+
+  describe("Change route button visibility", () => {
+    it("renders Change route button when onChangeRoute is provided", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      expect(screen.getByText("Change route")).toBeTruthy();
+    });
+
+    it("does not render Change route button when onChangeRoute is undefined", () => {
+      render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+        />,
+      );
+
+      expect(screen.queryByText("Change route")).toBeNull();
+    });
+  });
+
+  describe("previous steps persistence", () => {
+    it("shows previous steps when re-rendered with empty steps", () => {
+      const { rerender } = render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      expandStepsPanel();
+      expect(screen.getByText("Head north on Main St")).toBeTruthy();
+
+      rerender(
+        <DirectionStepsPanel
+          steps={[]}
+          strategy={BIKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      // Panel collapses on strategy change, but still shows step count from previous steps
+      expect(screen.getByText("Bike")).toBeTruthy();
+      // Expand to verify previous steps are still there
+      expandStepsPanel();
+      expect(screen.getByText("Head north on Main St")).toBeTruthy();
+    });
+
+    it("replaces previous steps when new non-empty steps arrive", () => {
+      const { rerender } = render(
+        <DirectionStepsPanel
+          steps={mockSteps}
+          strategy={WALKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      const newSteps: RouteStep[] = [
+        { instruction: "New step one", distance: "50 m", duration: "1 min" },
+      ];
+
+      rerender(
+        <DirectionStepsPanel
+          steps={newSteps}
+          strategy={BIKING_STRATEGY}
+          onChangeRoute={() => {}}
+        />,
+      );
+
+      expandStepsPanel();
+      expect(screen.getByText("New step one")).toBeTruthy();
+      expect(screen.queryByText("Head north on Main St")).toBeNull();
+    });
   });
 });

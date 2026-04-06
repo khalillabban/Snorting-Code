@@ -3664,13 +3664,13 @@ describe("CampusMapScreen", () => {
       });
     });
 
-    it("does not show steps panel when route exists but steps are empty", async () => {
+    it("shows steps panel when route exists even if steps are empty", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
       await renderScreen();
 
       fireEvent.press(screen.getByTestId("nav-confirm"));
 
-      expect(screen.queryByTestId("steps-panel")).toBeNull();
+      expect(screen.queryByTestId("steps-panel")).not.toBeNull();
     });
 
     it("hides Indoor button after switching from a mapped building to a non-mapped building", async () => {
